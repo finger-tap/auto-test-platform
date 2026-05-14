@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
+import HomeLayout from './components/HomeLayout';
 import Layout from './components/Layout';
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -21,8 +22,12 @@ function App() {
           <Route path="/register" element={<Register />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route element={<ProtectedRoute />}>
-            <Route element={<Layout />}>
+            {/* 首页：无侧边栏 */}
+            <Route element={<HomeLayout />}>
               <Route path="/" element={<Home />} />
+            </Route>
+            {/* 测试工作页：带侧边栏 */}
+            <Route element={<Layout />}>
               <Route path="/change-password" element={<ChangePassword />} />
               <Route path="/api-test" element={<ApiList />} />
               <Route path="/api-test/:id" element={<ApiDetail />} />

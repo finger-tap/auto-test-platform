@@ -26,6 +26,8 @@ export interface ApiItem {
   headers: string | null;
   body: string | null;
   description: string | null;
+  tags: string | null;
+  status: string;
   created_at: string;
   updated_at: string;
 }

@@ -1,73 +1,157 @@
-.api-list-header {
+.alist {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 20px;
+  flex-direction: column;
+  height: 100%;
 }
 
-.api-list-header h2 {
-  font-size: 1.25rem;
-  color: #333;
-}
-
-.api-list-toolbar {
-  display: flex;
-  gap: 12px;
-  margin-bottom: 16px;
-}
-
-.api-list-toolbar input,
-.api-list-toolbar select {
-  padding: 8px 12px;
-  border: 1px solid #d9d9d9;
-  border-radius: 6px;
-  font-size: 14px;
-  outline: none;
-}
-
-.api-list-toolbar input:focus,
-.api-list-toolbar select:focus {
-  border-color: var(--primary);
-}
-
-.api-list-toolbar input {
-  width: 240px;
-}
-
-.api-table {
-  width: 100%;
-  border-collapse: collapse;
+/* ── Filter Area ── */
+.alist-filter {
   background: #fff;
   border-radius: 8px;
-  overflow: hidden;
+  padding: 20px;
+  margin-bottom: 16px;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
 }
 
-.api-table th {
+.alist-filter-row {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.alist-filter-row:last-child {
+  margin-bottom: 0;
+}
+
+.alist-filter-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+}
+
+.alist-filter-item label {
+  font-size: 12px;
+  color: #999;
+}
+
+.alist-filter-item input,
+.alist-filter-item select {
+  padding: 6px 10px;
+  border: 1px solid #d9d9d9;
+  border-radius: 6px;
+  font-size: 13px;
+  outline: none;
+}
+
+.alist-filter-item input:focus,
+.alist-filter-item select:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.1);
+}
+
+.alist-filter-actions {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  flex: none;
+}
+
+.alist-btn-query,
+.alist-btn-add {
+  padding: 6px 20px;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  border: none;
+  transition: all 0.2s;
+}
+
+.alist-btn-query {
+  background: #fff;
+  border: 1px solid var(--primary);
+  color: var(--primary);
+}
+
+.alist-btn-query:hover {
+  background: var(--primary);
+  color: #fff;
+}
+
+.alist-btn-add {
+  background: var(--primary);
+  color: #fff;
+}
+
+.alist-btn-add:hover {
+  background: #0958d9;
+}
+
+/* ── Table ── */
+.alist-table-wrap {
+  flex: 1;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+  overflow: auto;
+}
+
+.alist-empty {
+  text-align: center;
+  padding: 48px 0;
+  color: #999;
+}
+
+.alist-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.alist-table th {
   background: #fafafa;
   font-weight: 600;
   text-align: left;
-  padding: 12px 16px;
+  padding: 10px 14px;
   border-bottom: 1px solid #f0f0f0;
   font-size: 13px;
   color: #666;
+  white-space: nowrap;
+  position: sticky;
+  top: 0;
+  z-index: 1;
 }
 
-.api-table td {
-  padding: 12px 16px;
+.alist-table td {
+  padding: 10px 14px;
   border-bottom: 1px solid #f0f0f0;
-  font-size: 14px;
+  font-size: 13px;
+  cursor: pointer;
 }
 
-.api-table tr:hover td {
-  background: #fafafa;
+.alist-table tbody tr:hover td {
+  background: #f0f5ff;
 }
 
+.alist-table tbody tr.active-row td {
+  background: #e6f4ff;
+}
+
+.td-url {
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: 'SF Mono', Monaco, monospace;
+  font-size: 12px;
+}
+
+/* ── Method Badge ── */
 .method-badge {
   display: inline-block;
   padding: 2px 8px;
   border-radius: 4px;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
   color: #fff;
 }
@@ -78,31 +162,58 @@
 .method-DELETE { background: #ff4d4f; }
 .method-PATCH { background: #722ed1; }
 
-.api-actions {
-  display: flex;
-  gap: 8px;
+/* ── Tag Badge ── */
+.tag-badge {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+  background: #f0f5ff;
+  color: var(--primary);
+  margin-right: 4px;
 }
 
-.api-actions button {
-  background: none;
+/* ── Status ── */
+.status-text {
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.status-active { color: #52c41a; }
+.status-disabled { color: #999; }
+.status-draft { color: #fa8c16; }
+
+/* ── Floating Action Buttons ── */
+.alist-float {
+  position: fixed;
+  z-index: 500;
+  display: flex;
+  gap: 4px;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  padding: 4px;
+  transform: translate(8px, -50%);
+}
+
+.alist-float-btn {
+  padding: 6px 14px;
   border: none;
+  border-radius: 6px;
   font-size: 13px;
   cursor: pointer;
-  padding: 0;
+  transition: background 0.15s;
+  background: none;
 }
 
-.api-actions .act-edit { color: var(--primary); }
-.api-actions .act-exec { color: #52c41a; }
-.api-actions .act-del { color: #ff4d4f; }
-.api-actions button:hover { text-decoration: underline; }
+.alist-float-view { color: var(--primary); }
+.alist-float-view:hover { background: #f0f5ff; }
+.alist-float-exec { color: #52c41a; }
+.alist-float-exec:hover { background: #f6ffed; }
+.alist-float-del { color: #ff4d4f; }
+.alist-float-del:hover { background: #fff1f0; }
 
-.api-empty {
-  text-align: center;
-  padding: 48px 0;
-  color: #999;
-}
-
-/* Modal form (reuse overlay pattern) */
+/* ── Modal form (shared) ── */
 .form-modal-overlay {
   position: fixed;
   inset: 0;

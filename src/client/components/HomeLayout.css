@@ -1,0 +1,13 @@
+.home-layout {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: #fafafa;
+}
+
+.home-layout-main {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}

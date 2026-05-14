@@ -1,17 +1,33 @@
-import { useState, useEffect, type FormEvent } from 'react';
+import { useState, useEffect, useRef, type FormEvent, type MouseEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { apiFetch } from '../../utils/api';
 import type { ApiItem } from '../../types';
 import './ApiList.css';
 
 const METHODS = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'];
+const STATUSES = [
+  { value: '', label: '全部状态' },
+  { value: 'active', label: '启用' },
+  { value: 'disabled', label: '禁用' },
+  { value: 'draft', label: '草稿' },
+];
 
 export default function ApiList() {
   const [apis, setApis] = useState<ApiItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState('');
-  const [methodFilter, setMethodFilter] = useState('');
   const [showCreate, setShowCreate] = useState(false);
+
+  // Filter state
+  const [fName, setFName] = useState('');
+  const [fDesc, setFDesc] = useState('');
+  const [fTags, setFTags] = useState('');
+  const [fStatus, setFStatus] = useState('');
+  const [fDateFrom, setFDateFrom] = useState('');
+  const [fDateTo, setFDateTo] = useState('');
+
+  // Floating action buttons
+  const [floatBtn, setFloatBtn] = useState<{ id: number; x: number; y: number } | null>(null);
+
   const navigate = useNavigate();
 
   const fetchApis = async () => {
@@ -25,75 +41,142 @@ export default function ApiList() {
 
   useEffect(() => { fetchApis(); }, []);
 
+  // Close floating buttons on outside click
+  useEffect(() => {
+    const handler = () => setFloatBtn(null);
+    document.addEventListener('click', handler);
+    return () => document.removeEventListener('click', handler);
+  }, []);
+
+  const handleRowClick = (e: MouseEvent, id: number) => {
+    e.stopPropagation();
+    setFloatBtn({ id, x: e.clientX, y: e.clientY });
+  };
+
   const handleDelete = async (id: number) => {
     if (!confirm('确认删除此接口？')) return;
     await apiFetch(`/apis/${id}`, { method: 'DELETE' });
+    setFloatBtn(null);
     fetchApis();
   };
 
-  const handleExecute = async (id: number) => {
-    navigate(`/api-test/${id}`);
-  };
-
   const filtered = apis.filter((api) => {
-    if (methodFilter && api.method !== methodFilter) return false;
-    if (search) {
-      const s = search.toLowerCase();
-      return api.name.toLowerCase().includes(s) || api.url.toLowerCase().includes(s);
+    if (fStatus && api.status !== fStatus) return false;
+    if (fName) {
+      const s = fName.toLowerCase();
+      if (!api.name.toLowerCase().includes(s) && !api.url.toLowerCase().includes(s)) return false;
     }
+    if (fDesc && !(api.description || '').toLowerCase().includes(fDesc.toLowerCase())) return false;
+    if (fTags && !(api.tags || '').toLowerCase().includes(fTags.toLowerCase())) return false;
+    if (fDateFrom && api.created_at < fDateFrom) return false;
+    if (fDateTo && api.created_at > fDateTo + 'T23:59:59') return false;
     return true;
   });
 
+  const statusLabel = (s: string) => {
+    if (s === 'active') return '启用';
+    if (s === 'disabled') return '禁用';
+    if (s === 'draft') return '草稿';
+    return s;
+  };
+
   return (
-    <div>
-      <div className="api-list-header">
-        <h2>接口测试</h2>
-        <button className="form-modal btn-submit" onClick={() => setShowCreate(true)}>新建接口</button>
+    <div className="alist">
+      {/* Filter Area */}
+      <div className="alist-filter">
+        <div className="alist-filter-row">
+          <div className="alist-filter-item">
+            <label>接口名称</label>
+            <input placeholder="搜索名称或URL" value={fName} onChange={(e) => setFName(e.target.value)} />
+          </div>
+          <div className="alist-filter-item">
+            <label>描述</label>
+            <input placeholder="搜索描述" value={fDesc} onChange={(e) => setFDesc(e.target.value)} />
+          </div>
+          <div className="alist-filter-item">
+            <label>标签</label>
+            <input placeholder="搜索标签" value={fTags} onChange={(e) => setFTags(e.target.value)} />
+          </div>
+          <div className="alist-filter-item">
+            <label>状态</label>
+            <select value={fStatus} onChange={(e) => setFStatus(e.target.value)}>
+              {STATUSES.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
+            </select>
+          </div>
+        </div>
+        <div className="alist-filter-row">
+          <div className="alist-filter-item">
+            <label>创建时间起</label>
+            <input type="date" value={fDateFrom} onChange={(e) => setFDateFrom(e.target.value)} />
+          </div>
+          <div className="alist-filter-item">
+            <label>创建时间止</label>
+            <input type="date" value={fDateTo} onChange={(e) => setFDateTo(e.target.value)} />
+          </div>
+          <div className="alist-filter-actions">
+            <button className="alist-btn-query">查询</button>
+            <button className="alist-btn-add" onClick={() => setShowCreate(true)}>新增</button>
+          </div>
+        </div>
       </div>
 
-      <div className="api-list-toolbar">
-        <input placeholder="搜索接口名称或 URL..." value={search} onChange={(e) => setSearch(e.target.value)} />
-        <select value={methodFilter} onChange={(e) => setMethodFilter(e.target.value)}>
-          <option value="">全部方法</option>
-          {METHODS.map((m) => <option key={m} value={m}>{m}</option>)}
-        </select>
-      </div>
-
-      {loading ? <div className="api-empty">加载中...</div> : (
-        filtered.length === 0 ? (
-          <div className="api-empty">暂无接口，点击"新建接口"开始</div>
+      {/* Table */}
+      <div className="alist-table-wrap">
+        {loading ? (
+          <div className="alist-empty">加载中...</div>
+        ) : filtered.length === 0 ? (
+          <div className="alist-empty">暂无数据</div>
         ) : (
-          <table className="api-table">
+          <table className="alist-table">
             <thead>
               <tr>
-                <th>名称</th>
+                <th>接口名称</th>
                 <th>方法</th>
                 <th>URL</th>
-                <th>协议</th>
+                <th>标签</th>
+                <th>状态</th>
+                <th>创建时间</th>
                 <th>更新时间</th>
-                <th>操作</th>
               </tr>
             </thead>
             <tbody>
               {filtered.map((api) => (
-                <tr key={api.id}>
+                <tr key={api.id} onClick={(e) => handleRowClick(e, api.id)} className={floatBtn?.id === api.id ? 'active-row' : ''}>
                   <td>{api.name}</td>
                   <td><span className={`method-badge method-${api.method}`}>{api.method}</span></td>
-                  <td style={{ maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{api.url}</td>
-                  <td>{api.protocol}</td>
-                  <td>{api.updated_at.replace('T', ' ').slice(0, 19)}</td>
+                  <td className="td-url">{api.url}</td>
                   <td>
-                    <div className="api-actions">
-                      <button className="act-edit" onClick={() => navigate(`/api-test/${api.id}`)}>编辑</button>
-                      <button className="act-exec" onClick={() => handleExecute(api.id)}>执行</button>
-                      <button className="act-del" onClick={() => handleDelete(api.id)}>删除</button>
-                    </div>
+                    {api.tags ? api.tags.split(',').filter(Boolean).map((t) => (
+                      <span key={t} className="tag-badge">{t.trim()}</span>
+                    )) : '-'}
                   </td>
+                  <td><span className={`status-text status-${api.status}`}>{statusLabel(api.status)}</span></td>
+                  <td>{api.created_at.replace('T', ' ').slice(0, 16)}</td>
+                  <td>{api.updated_at.replace('T', ' ').slice(0, 16)}</td>
                 </tr>
               ))}
             </tbody>
           </table>
-        )
+        )}
+      </div>
+
+      {/* Floating Action Buttons */}
+      {floatBtn && (
+        <div
+          className="alist-float"
+          style={{ left: floatBtn.x, top: floatBtn.y }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <button className="alist-float-btn alist-float-view" onClick={() => { setFloatBtn(null); navigate(`/api-test/${floatBtn.id}`); }}>
+            查看
+          </button>
+          <button className="alist-float-btn alist-float-exec" onClick={() => { setFloatBtn(null); navigate(`/api-test/${floatBtn.id}`); }}>
+            执行
+          </button>
+          <button className="alist-float-btn alist-float-del" onClick={() => handleDelete(floatBtn.id)}>
+            删除
+          </button>
+        </div>
       )}
 
       {showCreate && <CreateApiModal onClose={() => setShowCreate(false)} onCreated={fetchApis} />}
@@ -109,6 +192,8 @@ function CreateApiModal({ onClose, onCreated }: { onClose: () => void; onCreated
   const [headers, setHeaders] = useState('');
   const [body, setBody] = useState('');
   const [description, setDescription] = useState('');
+  const [tags, setTags] = useState('');
+  const [status, setStatus] = useState('active');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
@@ -119,7 +204,7 @@ function CreateApiModal({ onClose, onCreated }: { onClose: () => void; onCreated
     try {
       const res = await apiFetch<{ id: number }>('/apis', {
         method: 'POST',
-        body: JSON.stringify({ name, method, url, protocol, headers, body, description }),
+        body: JSON.stringify({ name, method, url, protocol, headers, body, description, tags, status }),
       });
       if (res.code !== 201) throw new Error(res.message);
       onCreated();
@@ -160,6 +245,20 @@ function CreateApiModal({ onClose, onCreated }: { onClose: () => void; onCreated
           <div className="form-item">
             <label>请求地址 *</label>
             <input value={url} onChange={(e) => setUrl(e.target.value)} required placeholder="例如：api.example.com/users" />
+          </div>
+          <div className="form-row">
+            <div className="form-item">
+              <label>标签</label>
+              <input value={tags} onChange={(e) => setTags(e.target.value)} placeholder="多个标签用逗号分隔" />
+            </div>
+            <div className="form-item">
+              <label>状态</label>
+              <select value={status} onChange={(e) => setStatus(e.target.value)}>
+                <option value="active">启用</option>
+                <option value="disabled">禁用</option>
+                <option value="draft">草稿</option>
+              </select>
+            </div>
           </div>
           <div className="form-item">
             <label>请求头 (JSON)</label>

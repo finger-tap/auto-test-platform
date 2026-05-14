@@ -74,4 +74,13 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_api_logs_api_id ON api_logs(api_id);
 `);
 
+// Migration: add tags/status columns to apis table
+const apiCols = db.prepare("PRAGMA table_info(apis)").all() as { name: string }[];
+if (!apiCols.some((col) => col.name === 'tags')) {
+  db.exec("ALTER TABLE apis ADD COLUMN tags TEXT DEFAULT ''");
+}
+if (!apiCols.some((col) => col.name === 'status')) {
+  db.exec("ALTER TABLE apis ADD COLUMN status TEXT NOT NULL DEFAULT 'active'");
+}
+
 export default db;

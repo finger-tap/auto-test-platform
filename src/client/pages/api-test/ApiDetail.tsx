@@ -20,7 +20,7 @@ export default function ApiDetail() {
   // Edit form state
   const [form, setForm] = useState({
     name: '', method: 'GET', url: '', protocol: 'https',
-    headers: '', body: '', description: '',
+    headers: '', body: '', description: '', tags: '', status: 'active',
   });
 
   useEffect(() => {
@@ -36,6 +36,8 @@ export default function ApiDetail() {
           headers: res.data.headers || '',
           body: res.data.body || '',
           description: res.data.description || '',
+          tags: res.data.tags || '',
+          status: res.data.status || 'active',
         });
       }
     });
@@ -144,6 +146,20 @@ export default function ApiDetail() {
             </div>
             <div className="api-detail-row">
               <div className="field">
+                <label>标签</label>
+                <input value={form.tags} onChange={(e) => setForm({ ...form, tags: e.target.value })} placeholder="多个标签用逗号分隔" />
+              </div>
+              <div className="field">
+                <label>状态</label>
+                <select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
+                  <option value="active">启用</option>
+                  <option value="disabled">禁用</option>
+                  <option value="draft">草稿</option>
+                </select>
+              </div>
+            </div>
+            <div className="api-detail-row">
+              <div className="field">
                 <label>请求头 (JSON)</label>
                 <textarea rows={3} value={form.headers} onChange={(e) => setForm({ ...form, headers: e.target.value })} />
               </div>
@@ -174,6 +190,12 @@ export default function ApiDetail() {
             </div>
             <div className="api-detail-row">
               <div className="field"><label>请求地址</label><div className="value" style={{ fontFamily: 'monospace' }}>{api.url}</div></div>
+            </div>
+            <div className="api-detail-row">
+              <div className="field"><label>标签</label><div className="value">{api.tags ? api.tags.split(',').filter(Boolean).map((t) => (
+                <span key={t} style={{ display: 'inline-block', padding: '1px 8px', borderRadius: 10, fontSize: 11, background: '#f0f5ff', color: 'var(--primary)', marginRight: 4 }}>{t.trim()}</span>
+              )) : '-'}</div></div>
+              <div className="field"><label>状态</label><div className="value"><span className={`status-text status-${api.status}`}>{api.status === 'active' ? '启用' : api.status === 'disabled' ? '禁用' : '草稿'}</span></div></div>
             </div>
             {api.description && (
               <div className="api-detail-row">

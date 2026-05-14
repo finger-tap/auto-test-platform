@@ -15,7 +15,7 @@ apiRoutes.get('/', (req: Request, res: Response) => {
 
 // POST /api/apis
 apiRoutes.post('/', (req: Request, res: Response) => {
-  const { name, method, url, protocol, headers, body, description } = req.body;
+  const { name, method, url, protocol, headers, body, description, tags, status } = req.body;
 
   if (!name || typeof name !== 'string' || !name.trim()) {
     res.status(400).json({ code: 400, message: 'Name is required' });
@@ -30,7 +30,7 @@ apiRoutes.post('/', (req: Request, res: Response) => {
     return;
   }
 
-  const id = createApi(req.user!.userId, { name: name.trim(), method, url: url.trim(), protocol, headers, body, description });
+  const id = createApi(req.user!.userId, { name: name.trim(), method, url: url.trim(), protocol, headers, body, description, tags, status });
   res.status(201).json({ code: 201, message: 'Created', data: { id } });
 });
 
@@ -65,13 +65,13 @@ apiRoutes.put('/:id', (req: Request, res: Response) => {
   const api = checkOwnership(req, res);
   if (!api) return;
 
-  const { name, method, url, protocol, headers, body, description } = req.body;
+  const { name, method, url, protocol, headers, body, description, tags, status } = req.body;
   if (method && !VALID_METHODS.includes(method)) {
     res.status(400).json({ code: 400, message: 'Invalid method' });
     return;
   }
 
-  updateApi(api.id, { name, method, url, protocol, headers, body, description });
+  updateApi(api.id, { name, method, url, protocol, headers, body, description, tags, status });
   res.json({ code: 200, message: 'Updated' });
 });
 

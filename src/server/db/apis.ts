@@ -10,6 +10,8 @@ export interface ApiRow {
   headers: string | null;
   body: string | null;
   description: string | null;
+  tags: string | null;
+  status: string;
   created_at: string;
   updated_at: string;
 }
@@ -32,6 +34,8 @@ export interface CreateApiInput {
   headers?: string;
   body?: string;
   description?: string;
+  tags?: string;
+  status?: string;
 }
 
 export interface UpdateApiInput {
@@ -42,6 +46,8 @@ export interface UpdateApiInput {
   headers?: string;
   body?: string;
   description?: string;
+  tags?: string;
+  status?: string;
 }
 
 export function findApisByUserId(userId: number): ApiRow[] {
@@ -54,9 +60,9 @@ export function findApiById(id: number): ApiRow | undefined {
 
 export function createApi(userId: number, data: CreateApiInput): number {
   const result = db.prepare(
-    `INSERT INTO apis (user_id, name, method, url, protocol, headers, body, description)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
-  ).run(userId, data.name, data.method, data.url, data.protocol || 'https', data.headers || null, data.body || null, data.description || null);
+    `INSERT INTO apis (user_id, name, method, url, protocol, headers, body, description, tags, status)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  ).run(userId, data.name, data.method, data.url, data.protocol || 'https', data.headers || null, data.body || null, data.description || null, data.tags || '', data.status || 'active');
   return result.lastInsertRowid as number;
 }
 
