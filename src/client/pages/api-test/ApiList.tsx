@@ -170,7 +170,7 @@ export default function ApiList() {
           <button className="alist-float-btn alist-float-view" onClick={() => { setFloatBtn(null); navigate(`/api-test/${floatBtn.id}`); }}>
             查看
           </button>
-          <button className="alist-float-btn alist-float-exec" onClick={() => { setFloatBtn(null); navigate(`/api-test/${floatBtn.id}`); }}>
+          <button className="alist-float-btn alist-float-exec" onClick={() => { setFloatBtn(null); navigate(`/api-test/${floatBtn.id}?exec=1`); }}>
             执行
           </button>
           <button className="alist-float-btn alist-float-del" onClick={() => handleDelete(floatBtn.id)}>

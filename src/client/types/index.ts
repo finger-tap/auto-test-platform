@@ -3,6 +3,8 @@ export interface UserInfo {
   account: string;
   nickname?: string;
   avatar?: string;
+  email?: string;
+  phone?: string;
 }
 
 export interface LoginResponse {
@@ -28,6 +30,8 @@ export interface ApiItem {
   description: string | null;
   tags: string | null;
   status: string;
+  content_type: string | null;
+  assertions: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -39,5 +43,20 @@ export interface ApiLog {
   response_headers: string | null;
   response_body: string | null;
   duration_ms: number | null;
+  executed_by: string | null;
+  assertion_results: AssertionResult[] | null;
   executed_at: string;
+}
+
+export interface AssertionRule {
+  source: 'status' | 'header' | 'body';
+  key: string;
+  operator: 'equals' | 'not_equals' | 'contains' | 'not_contains' | 'less_than' | 'greater_than' | 'exists' | 'not_exists';
+  expected: string;
+}
+
+export interface AssertionResult {
+  rule: AssertionRule;
+  passed: boolean;
+  actual: string;
 }

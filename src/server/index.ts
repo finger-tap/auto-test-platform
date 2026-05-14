@@ -15,6 +15,10 @@ const isDev = process.env.NODE_ENV !== 'production';
 app.use(cors());
 app.use(express.json());
 
+// Serve avatar files
+const dataDir = path.resolve(__dirname, '../../data');
+app.use('/avatars', express.static(path.join(dataDir, 'avatars')));
+
 // API routes
 app.use('/api', routes);
 

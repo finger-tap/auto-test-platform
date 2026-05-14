@@ -6,7 +6,7 @@ interface AuthContextType {
   user: UserInfo | null;
   loading: boolean;
   login: (account: string, password: string) => Promise<void>;
-  register: (account: string, password: string, nickname?: string) => Promise<void>;
+  register: (account: string, password: string, nickname?: string, avatarFile?: File) => Promise<void>;
   guestLogin: () => Promise<void>;
   logout: () => void;
   changePassword: (oldPassword: string, newPassword: string) => Promise<void>;
@@ -61,12 +61,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(res.data.user);
   };
 
-  const register = async (account: string, password: string, nickname?: string) => {
-    const res = await apiFetch<{ userId: number }>('/auth/register', {
-      method: 'POST',
-      body: JSON.stringify({ account, password, nickname }),
-    });
-    if (res.code !== 201) throw new Error(res.message);
+  const register = async (account: string, password: string, nickname?: string, avatarFile?: File) => {
+    if (avatarFile) {
+      const formData = new FormData();
+      formData.append('account', account);
+      formData.append('password', password);
+      if (nickname) formData.append('nickname', nickname);
+      formData.append('avatar', avatarFile);
+      const token = getToken();
+      const res = await fetch('/api/auth/register', {
+        method: 'POST',
+        body: formData,
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      const data = await res.json();
+      if (data.code !== 201) throw new Error(data.message);
+    } else {
+      const res = await apiFetch<{ userId: number }>('/auth/register', {
+        method: 'POST',
+        body: JSON.stringify({ account, password, nickname }),
+      });
+      if (res.code !== 201) throw new Error(res.message);
+    }
   };
 
   const guestLogin = async () => {

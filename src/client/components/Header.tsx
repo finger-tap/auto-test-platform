@@ -48,6 +48,9 @@ export default function Header({ showSwitch }: { showSwitch?: boolean }) {
         </button>
         {dropdownOpen && (
           <div className="hdr-dropdown">
+            <button className="hdr-dropdown-item" onClick={() => { setDropdownOpen(false); navigate('/profile'); }}>
+              个人信息
+            </button>
             <button className="hdr-dropdown-item" onClick={handleLogout}>
               退出登录
             </button>

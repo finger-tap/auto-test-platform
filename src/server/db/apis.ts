@@ -12,6 +12,8 @@ export interface ApiRow {
   description: string | null;
   tags: string | null;
   status: string;
+  content_type: string | null;
+  assertions: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -23,7 +25,16 @@ export interface ApiLogRow {
   response_headers: string | null;
   response_body: string | null;
   duration_ms: number | null;
+  executed_by: string | null;
+  assertion_results: string | null;
   executed_at: string;
+}
+
+export interface AssertionRule {
+  source: 'status' | 'header' | 'body';
+  key: string;
+  operator: 'equals' | 'not_equals' | 'contains' | 'not_contains' | 'less_than' | 'greater_than' | 'exists' | 'not_exists';
+  expected: string;
 }
 
 export interface CreateApiInput {
@@ -36,6 +47,8 @@ export interface CreateApiInput {
   description?: string;
   tags?: string;
   status?: string;
+  content_type?: string;
+  assertions?: string;
 }
 
 export interface UpdateApiInput {
@@ -48,6 +61,8 @@ export interface UpdateApiInput {
   description?: string;
   tags?: string;
   status?: string;
+  content_type?: string;
+  assertions?: string;
 }
 
 export function findApisByUserId(userId: number): ApiRow[] {
@@ -60,9 +75,9 @@ export function findApiById(id: number): ApiRow | undefined {
 
 export function createApi(userId: number, data: CreateApiInput): number {
   const result = db.prepare(
-    `INSERT INTO apis (user_id, name, method, url, protocol, headers, body, description, tags, status)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-  ).run(userId, data.name, data.method, data.url, data.protocol || 'https', data.headers || null, data.body || null, data.description || null, data.tags || '', data.status || 'active');
+    `INSERT INTO apis (user_id, name, method, url, protocol, headers, body, description, tags, status, content_type, assertions)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  ).run(userId, data.name, data.method, data.url, data.protocol || 'https', data.headers || null, data.body || null, data.description || null, data.tags || '', data.status || 'active', data.content_type || 'json', data.assertions || null);
   return result.lastInsertRowid as number;
 }
 
@@ -96,14 +111,16 @@ export function createApiLog(apiId: number, data: {
   response_headers: string | null;
   response_body: string | null;
   duration_ms: number | null;
+  executed_by: string | null;
+  assertion_results: string | null;
 }): number {
   const result = db.prepare(
-    `INSERT INTO api_logs (api_id, status_code, response_headers, response_body, duration_ms)
-     VALUES (?, ?, ?, ?, ?)`
-  ).run(apiId, data.status_code, data.response_headers, data.response_body, data.duration_ms);
+    `INSERT INTO api_logs (api_id, status_code, response_headers, response_body, duration_ms, executed_by, assertion_results)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`
+  ).run(apiId, data.status_code, data.response_headers, data.response_body, data.duration_ms, data.executed_by, data.assertion_results);
   return result.lastInsertRowid as number;
 }
 
-export function findLogsByApiId(apiId: number): ApiLogRow[] {
-  return db.prepare('SELECT * FROM api_logs WHERE api_id = ? ORDER BY executed_at DESC').all(apiId) as ApiLogRow[];
+export function findLogsByApiId(apiId: number, limit = 10): ApiLogRow[] {
+  return db.prepare('SELECT * FROM api_logs WHERE api_id = ? ORDER BY executed_at DESC LIMIT ?').all(apiId, limit) as ApiLogRow[];
 }

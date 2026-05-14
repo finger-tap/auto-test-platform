@@ -11,6 +11,7 @@ import Home from './pages/Home';
 import ApiList from './pages/api-test/ApiList';
 import ApiDetail from './pages/api-test/ApiDetail';
 import Placeholder from './pages/Placeholder';
+import Profile from './pages/Profile';
 import './App.css';
 
 function App() {
@@ -28,6 +29,7 @@ function App() {
             </Route>
             {/* 测试工作页：带侧边栏 */}
             <Route element={<Layout />}>
+              <Route path="/profile" element={<Profile />} />
               <Route path="/change-password" element={<ChangePassword />} />
               <Route path="/api-test" element={<ApiList />} />
               <Route path="/api-test/:id" element={<ApiDetail />} />

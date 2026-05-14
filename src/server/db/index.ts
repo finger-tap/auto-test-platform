@@ -41,6 +41,18 @@ if (!columns.some((col) => col.name === 'nickname')) {
 if (!columns.some((col) => col.name === 'avatar')) {
   db.exec("ALTER TABLE users ADD COLUMN avatar TEXT");
 }
+if (!columns.some((col) => col.name === 'email')) {
+  db.exec("ALTER TABLE users ADD COLUMN email TEXT");
+}
+if (!columns.some((col) => col.name === 'phone')) {
+  db.exec("ALTER TABLE users ADD COLUMN phone TEXT");
+}
+
+// Ensure avatar upload directory exists
+const avatarDir = path.join(dataDir, 'avatars');
+if (!fs.existsSync(avatarDir)) {
+  fs.mkdirSync(avatarDir, { recursive: true });
+}
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS apis (
@@ -81,6 +93,21 @@ if (!apiCols.some((col) => col.name === 'tags')) {
 }
 if (!apiCols.some((col) => col.name === 'status')) {
   db.exec("ALTER TABLE apis ADD COLUMN status TEXT NOT NULL DEFAULT 'active'");
+}
+if (!apiCols.some((col) => col.name === 'content_type')) {
+  db.exec("ALTER TABLE apis ADD COLUMN content_type TEXT DEFAULT 'json'");
+}
+if (!apiCols.some((col) => col.name === 'assertions')) {
+  db.exec("ALTER TABLE apis ADD COLUMN assertions TEXT");
+}
+
+// Migration: add executed_by to api_logs
+const logCols = db.prepare("PRAGMA table_info(api_logs)").all() as { name: string }[];
+if (!logCols.some((col) => col.name === 'executed_by')) {
+  db.exec("ALTER TABLE api_logs ADD COLUMN executed_by TEXT");
+}
+if (!logCols.some((col) => col.name === 'assertion_results')) {
+  db.exec("ALTER TABLE api_logs ADD COLUMN assertion_results TEXT");
 }
 
 export default db;
