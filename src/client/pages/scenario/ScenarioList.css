@@ -1,0 +1,9 @@
+/* Scenario List - reuse ApiList styles */
+@import '../api-test/ApiList.css';
+
+.td-desc {
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

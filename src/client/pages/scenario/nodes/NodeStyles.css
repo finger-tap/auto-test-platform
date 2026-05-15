@@ -1,0 +1,169 @@
+/* Base node styles */
+.flow-node {
+  background: #fff;
+  border: 2px solid #d9d9d9;
+  border-radius: 8px;
+  padding: 0;
+  min-width: 160px;
+  font-size: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  transition: all 0.15s;
+}
+
+.flow-node:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+}
+
+.flow-node-selected {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.2);
+}
+
+.flow-node-header {
+  padding: 6px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #666;
+  background: #fafafa;
+  border-bottom: 1px solid #f0f0f0;
+  border-radius: 6px 6px 0 0;
+}
+
+.flow-node-content {
+  padding: 10px 12px;
+}
+
+.flow-node-label {
+  padding: 10px 12px;
+  text-align: center;
+  font-weight: 500;
+}
+
+/* Start node */
+.flow-node-start {
+  border-color: #52c41a;
+  background: #f6ffed;
+}
+
+.flow-node-start .flow-node-label {
+  color: #52c41a;
+}
+
+/* End node */
+.flow-node-end {
+  border-color: #ff4d4f;
+  background: #fff2f0;
+}
+
+.flow-node-end .flow-node-label {
+  color: #ff4d4f;
+}
+
+/* API node */
+.flow-node-api {
+  border-color: var(--primary);
+}
+
+.flow-node-api .flow-node-header {
+  background: #e6f4ff;
+  color: var(--primary);
+}
+
+.flow-node-api-name {
+  font-weight: 500;
+  color: #333;
+  margin-bottom: 4px;
+}
+
+.flow-node-api-extract {
+  font-size: 11px;
+  color: #999;
+}
+
+/* Condition node */
+.flow-node-condition {
+  border-color: #fa8c16;
+  min-width: 180px;
+}
+
+.flow-node-condition .flow-node-header {
+  background: #fff7e6;
+  color: #fa8c16;
+}
+
+.flow-node-condition-expr {
+  font-size: 11px;
+  color: #333;
+  word-break: break-all;
+  line-height: 1.4;
+}
+
+.flow-node-condition-handles {
+  display: flex;
+  justify-content: space-around;
+  padding: 6px 12px 8px;
+  border-top: 1px solid #f0f0f0;
+  position: relative;
+}
+
+.flow-node-condition-branch {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  position: relative;
+}
+
+.flow-node-condition-true {
+  color: #52c41a;
+}
+
+.flow-node-condition-false {
+  color: #ff4d4f;
+}
+
+/* Execution status styles */
+.flow-node-success {
+  border-color: #52c41a;
+  box-shadow: 0 0 0 2px rgba(82, 196, 26, 0.2);
+}
+
+.flow-node-failed,
+.flow-node-error {
+  border-color: #ff4d4f;
+  box-shadow: 0 0 0 2px rgba(255, 77, 79, 0.2);
+}
+
+.flow-node-running {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.2);
+  animation: pulse 1.5s infinite;
+}
+
+.flow-node-skipped {
+  opacity: 0.5;
+}
+
+@keyframes pulse {
+  0%, 100% { box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.2); }
+  50% { box-shadow: 0 0 0 4px rgba(22, 119, 255, 0.1); }
+}
+
+/* ReactFlow handle styles */
+.react-flow__handle {
+  width: 8px;
+  height: 8px;
+  background: #d9d9d9;
+  border: 2px solid #fff;
+}
+
+.react-flow__handle:hover {
+  background: var(--primary);
+}
+
+.flow-node-start .react-flow__handle,
+.flow-node-end .react-flow__handle {
+  background: #999;
+}

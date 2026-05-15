@@ -22,6 +22,8 @@ export interface ApiLogRow {
   id: number;
   api_id: number;
   status_code: number | null;
+  request_headers: string | null;
+  request_body: string | null;
   response_headers: string | null;
   response_body: string | null;
   duration_ms: number | null;
@@ -31,10 +33,12 @@ export interface ApiLogRow {
 }
 
 export interface AssertionRule {
+  name?: string;
   source: 'status' | 'header' | 'body';
   key: string;
   operator: 'equals' | 'not_equals' | 'contains' | 'not_contains' | 'less_than' | 'greater_than' | 'exists' | 'not_exists';
   expected: string;
+  assert?: boolean;
 }
 
 export interface CreateApiInput {
@@ -75,8 +79,8 @@ export function findApiById(id: number): ApiRow | undefined {
 
 export function createApi(userId: number, data: CreateApiInput): number {
   const result = db.prepare(
-    `INSERT INTO apis (user_id, name, method, url, protocol, headers, body, description, tags, status, content_type, assertions)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    `INSERT INTO apis (user_id, name, method, url, protocol, headers, body, description, tags, status, content_type, assertions, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now', '+8 hours'), datetime('now', '+8 hours'))`
   ).run(userId, data.name, data.method, data.url, data.protocol || 'https', data.headers || null, data.body || null, data.description || null, data.tags || '', data.status || 'active', data.content_type || 'json', data.assertions || null);
   return result.lastInsertRowid as number;
 }
@@ -94,7 +98,7 @@ export function updateApi(id: number, data: UpdateApiInput): boolean {
 
   if (fields.length === 0) return false;
 
-  fields.push("updated_at = datetime('now')");
+  fields.push("updated_at = datetime('now', '+8 hours')");
   values.push(id);
 
   const result = db.prepare(`UPDATE apis SET ${fields.join(', ')} WHERE id = ?`).run(...values);
@@ -108,6 +112,8 @@ export function deleteApi(id: number): boolean {
 
 export function createApiLog(apiId: number, data: {
   status_code: number | null;
+  request_headers: string | null;
+  request_body: string | null;
   response_headers: string | null;
   response_body: string | null;
   duration_ms: number | null;
@@ -115,9 +121,9 @@ export function createApiLog(apiId: number, data: {
   assertion_results: string | null;
 }): number {
   const result = db.prepare(
-    `INSERT INTO api_logs (api_id, status_code, response_headers, response_body, duration_ms, executed_by, assertion_results)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`
-  ).run(apiId, data.status_code, data.response_headers, data.response_body, data.duration_ms, data.executed_by, data.assertion_results);
+    `INSERT INTO api_logs (api_id, status_code, request_headers, request_body, response_headers, response_body, duration_ms, executed_by, assertion_results, executed_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now', '+8 hours'))`
+  ).run(apiId, data.status_code, data.request_headers, data.request_body, data.response_headers, data.response_body, data.duration_ms, data.executed_by, data.assertion_results);
   return result.lastInsertRowid as number;
 }
 

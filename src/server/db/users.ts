@@ -36,7 +36,7 @@ export function createUser(account: string, passwordHash: string, accountType?: 
 }
 
 export function updatePassword(account: string, newPasswordHash: string): void {
-  db.prepare("UPDATE users SET password_hash = ?, updated_at = datetime('now') WHERE account = ?").run(newPasswordHash, account);
+  db.prepare("UPDATE users SET password_hash = ?, updated_at = datetime('now', '+8 hours') WHERE account = ?").run(newPasswordHash, account);
 }
 
 export function updateUserProfile(userId: number, data: { nickname?: string; avatar?: string; email?: string; phone?: string }): void {
@@ -47,6 +47,6 @@ export function updateUserProfile(userId: number, data: { nickname?: string; ava
   if (data.email !== undefined) { fields.push('email = ?'); values.push(data.email || null); }
   if (data.phone !== undefined) { fields.push('phone = ?'); values.push(data.phone || null); }
   if (fields.length === 0) return;
-  fields.push("updated_at = datetime('now')");
+  fields.push("updated_at = datetime('now', '+8 hours')");
   db.prepare(`UPDATE users SET ${fields.join(', ')} WHERE id = ?`).run(...values, userId);
 }

@@ -1,4 +1,4 @@
-import { useState, useEffect, Fragment, useCallback, useRef, type FormEvent } from 'react';
+import { useState, useEffect, Fragment, useCallback, useRef } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import CodeMirror from '@uiw/react-codemirror';
 import { json, jsonParseLinter } from '@codemirror/lang-json';
@@ -7,6 +7,8 @@ import { javascript } from '@codemirror/lang-javascript';
 import { linter } from '@codemirror/lint';
 import type { Extension } from '@codemirror/state';
 import { apiFetch } from '../../utils/api';
+import { InlineText, InlineSelect } from '../../components/InlineEdit';
+import MessageModal from '../../components/MessageModal';
 import type { ApiItem, ApiLog, AssertionRule, AssertionResult } from '../../types';
 import './ApiDetail.css';
 
@@ -40,7 +42,18 @@ const BODY_HINTS: Record<string, string> = {
 };
 const HEADER_HINT = '输入 JSON 格式请求头，例如：{"Authorization": "Bearer xxx", "Accept": "application/json"}';
 
-const defaultAssertion = (): AssertionRule => ({ source: 'status', key: '', operator: 'equals', expected: '' });
+const PROTOCOL_OPTIONS = [
+  { value: 'https', label: 'HTTPS' },
+  { value: 'http', label: 'HTTP' },
+  { value: 'ws', label: 'WebSocket' },
+];
+const STATUS_OPTIONS = [
+  { value: 'active', label: '启用' },
+  { value: 'disabled', label: '禁用' },
+  { value: 'draft', label: '草稿' },
+];
+
+const defaultAssertion = (index: number): AssertionRule => ({ name: `规则${index}`, source: 'status', key: '', operator: 'equals', expected: '', assert: true });
 
 function getEditorLang(ct: string): Extension[] {
   if (ct === 'json') return [json()];
@@ -58,33 +71,71 @@ export default function ApiDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const [api, setApi] = useState<ApiItem | null>(null);
+  const isNew = id === 'new';
+  const [api, setApi] = useState<ApiItem | null>(isNew ? {
+    id: 0, user_id: 0, name: '', method: 'GET', url: '', protocol: 'https',
+    headers: '', body: '', description: '', tags: '', status: 'draft',
+    content_type: 'json', assertions: '[]',
+    created_at: '', updated_at: '',
+  } as ApiItem : null);
   const [logs, setLogs] = useState<ApiLog[]>([]);
-  const [editing, setEditing] = useState(false);
   const [executing, setExecuting] = useState(false);
   const [lastResult, setLastResult] = useState<ApiLog | null>(null);
   const [expandedLog, setExpandedLog] = useState<number | null>(null);
   const [resultCollapsed, setResultCollapsed] = useState(false);
   const [error, setError] = useState('');
+  const [modalMsg, setModalMsg] = useState('');
+  const [modalType, setModalType] = useState<'error' | 'warning' | 'success'>('error');
+  const [modalOpen, setModalOpen] = useState(false);
+  const [saved, setSaved] = useState(false);
   const autoExecRef = useRef(false);
+  const realIdRef = useRef<string | null>(isNew ? null : id!);
 
   const [form, setForm] = useState({
     name: '', method: 'GET', url: '', protocol: 'https',
-    headers: '', body: '', description: '', tags: '', status: 'active',
+    headers: '', body: '', description: '', tags: '', status: 'draft',
     content_type: 'json', assertions: '[]',
   });
 
   const [assertionRules, setAssertionRules] = useState<AssertionRule[]>([]);
+  const [editingNameIdx, setEditingNameIdx] = useState<number | null>(null);
+
+  // Ensure the API record exists (POST first if new). Returns the real ID.
+  const ensureCreated = async (): Promise<string | null> => {
+    if (realIdRef.current) return realIdRef.current;
+    try {
+      const payload = { ...form, assertions: JSON.stringify(assertionRules) };
+      const res = await apiFetch<{ id: number }>('/apis', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+      if (res.code === 201 && res.data) {
+        realIdRef.current = String(res.data.id);
+        navigate(`/api-test/${res.data.id}`, { replace: true });
+        setApi(prev => prev ? { ...prev, id: res.data!.id } : prev);
+        return realIdRef.current;
+      }
+      setModalType('error'); setModalMsg(res.message || '创建失败'); setModalOpen(true);
+      return null;
+    } catch (err) {
+      setModalType('error'); setModalMsg(err instanceof Error ? err.message : '创建失败'); setModalOpen(true);
+      return null;
+    }
+  };
 
   const handleExecute = async () => {
+    if (!realIdRef.current) {
+      setModalType('warning'); setModalMsg('请先保存案例后再执行'); setModalOpen(true);
+      return;
+    }
     setExecuting(true);
     setLastResult(null);
     setResultCollapsed(false);
     try {
-      const res = await apiFetch<ApiLog>(`/apis/${id}/execute`, { method: 'POST' });
+      const res = await apiFetch<ApiLog>(`/apis/${realIdRef.current}/execute`, { method: 'POST' });
       if (res.code === 200 && res.data) {
         setLastResult(res.data);
-        const logsRes = await apiFetch<ApiLog[]>(`/apis/${id}/logs`);
+        const logsRes = await apiFetch<ApiLog[]>(`/apis/${realIdRef.current}/logs`);
         if (logsRes.code === 200 && logsRes.data) setLogs(logsRes.data);
       }
     } catch (err) {
@@ -95,7 +146,7 @@ export default function ApiDetail() {
   };
 
   useEffect(() => {
-    if (!id) return;
+    if (!id || isNew) return;
     apiFetch<ApiItem>(`/apis/${id}`).then((res) => {
       if (res.code === 200 && res.data) {
         setApi(res.data);
@@ -126,17 +177,38 @@ export default function ApiDetail() {
     });
   }, [id]);
 
-  const handleSave = async (e: FormEvent) => {
-    e.preventDefault();
+  // Auto-save a single field
+  const saveField = async (field: string, value: string) => {
+    const updatedForm = { ...form, [field]: value };
+    setForm(updatedForm);
+    const rid = await ensureCreated();
+    if (!rid) return;
+    try {
+      const payload = { ...updatedForm, assertions: JSON.stringify(assertionRules) };
+      const res = await apiFetch(`/apis/${rid}`, { method: 'PUT', body: JSON.stringify(payload) });
+      if (res.code === 200) {
+        setApi({ ...api!, ...payload, updated_at: new Date().toISOString() } as ApiItem);
+      } else {
+        setModalType('error'); setModalMsg(res.message || '保存失败'); setModalOpen(true);
+      }
+    } catch (err) {
+      setModalType('error'); setModalMsg(err instanceof Error ? err.message : '保存失败'); setModalOpen(true);
+    }
+  };
+
+  // Full save (for headers/body/assertions)
+  const handleSave = async () => {
     setError('');
+    const rid = await ensureCreated();
+    if (!rid) return;
     try {
       const payload = { ...form, assertions: JSON.stringify(assertionRules) };
-      const res = await apiFetch(`/apis/${id}`, { method: 'PUT', body: JSON.stringify(payload) });
-      if (res.code !== 200) throw new Error(res.message);
-      setEditing(false);
+      const res = await apiFetch(`/apis/${rid}`, { method: 'PUT', body: JSON.stringify(payload) });
+      if (res.code !== 200) { setModalType('error'); setModalMsg(res.message || '保存失败'); setModalOpen(true); return; }
       setApi({ ...api!, ...payload, updated_at: new Date().toISOString() } as ApiItem);
+      setSaved(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Save failed');
+      setModalType('error'); setModalMsg(err instanceof Error ? err.message : '保存失败'); setModalOpen(true);
     }
   };
 
@@ -159,9 +231,9 @@ export default function ApiDetail() {
 
   const contentTypeLabel = (ct: string | null) => CONTENT_TYPES.find(c => c.value === ct)?.label || 'JSON';
 
-  const addRule = () => setAssertionRules([...assertionRules, defaultAssertion()]);
+  const addRule = () => setAssertionRules([...assertionRules, defaultAssertion(assertionRules.length + 1)]);
   const removeRule = (idx: number) => setAssertionRules(assertionRules.filter((_, i) => i !== idx));
-  const updateRule = (idx: number, field: keyof AssertionRule, value: string) => {
+  const updateRule = (idx: number, field: keyof AssertionRule, value: string | boolean) => {
     const updated = [...assertionRules];
     updated[idx] = { ...updated[idx], [field]: value } as AssertionRule;
     setAssertionRules(updated);
@@ -181,223 +253,192 @@ export default function ApiDetail() {
         <div className="api-detail-card-head">
           <h3>接口配置</h3>
           <div className="ad-head-actions">
-            {!editing ? (
-              <button className="ad-btn ad-btn-default" onClick={() => setEditing(true)}>编辑</button>
-            ) : (
-              <button type="button" className="ad-btn ad-btn-default" onClick={() => setEditing(false)}>取消</button>
-            )}
-            <button className="ad-btn ad-btn-primary" onClick={handleExecute} disabled={executing}>
-              {executing ? '执行中...' : '执行'}
+            <button className="ad-btn ad-btn-default" onClick={handleSave}>保存</button>
+            <button className={`ad-btn ad-btn-primary ${!realIdRef.current ? 'ad-btn-disabled' : ''}`} onClick={handleExecute} disabled={executing}>
+              {executing ? <><span className="ad-btn-loading">⟳</span> 执行中</> : '执行'}
             </button>
           </div>
         </div>
 
         {error && <div className="auth-error" style={{ marginTop: 12 }}>{error}</div>}
 
-        {editing ? (
-          <form onSubmit={handleSave} style={{ marginTop: 16 }}>
-            <div className="api-detail-row">
-              <div className="field">
-                <label>接口名称</label>
-                <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
-              </div>
+        <div style={{ marginTop: 16 }}>
+          {/* Basic info — inline editable */}
+          <div className="api-detail-row">
+            <div className="field">
+              <label>接口名称</label>
+              <InlineText value={form.name} onSave={v => saveField('name', v)} placeholder="点击输入接口名称" />
             </div>
-            <div className="api-detail-row">
-              <div className="field">
-                <label>描述</label>
-                <textarea rows={2} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="接口描述（可选）" />
-              </div>
+          </div>
+          <div className="api-detail-row">
+            <div className="field">
+              <label>描述</label>
+              <InlineText value={form.description} onSave={v => saveField('description', v)} placeholder="点击输入描述" multiline />
             </div>
-            <div className="api-detail-row">
-              <div className="field">
-                <label>请求方法</label>
-                <select value={form.method} onChange={(e) => setForm({ ...form, method: e.target.value })}>
-                  {METHODS.map((m) => <option key={m} value={m}>{m}</option>)}
-                </select>
-              </div>
-              <div className="field">
-                <label>协议</label>
-                <select value={form.protocol} onChange={(e) => setForm({ ...form, protocol: e.target.value })}>
-                  <option value="https">HTTPS</option>
-                  <option value="http">HTTP</option>
-                  <option value="ws">WebSocket</option>
-                </select>
-              </div>
-            </div>
-            <div className="api-detail-row">
-              <div className="field">
-                <label>请求地址</label>
-                <input value={form.url} onChange={(e) => setForm({ ...form, url: e.target.value })} required />
-              </div>
-            </div>
-            <div className="api-detail-row">
-              <div className="field">
-                <label>标签</label>
-                <input value={form.tags} onChange={(e) => setForm({ ...form, tags: e.target.value })} placeholder="多个标签用逗号分隔" />
-              </div>
-              <div className="field">
-                <label>状态</label>
-                <select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
-                  <option value="active">启用</option>
-                  <option value="disabled">禁用</option>
-                  <option value="draft">草稿</option>
-                </select>
-              </div>
-            </div>
-
-            {/* Headers Editor */}
-            <div className="ad-editor-section">
-              <div className="ad-editor-label">
-                <label>请求头</label>
-                <button type="button" className="ad-btn ad-btn-sm" onClick={() => handleFormat('headers')}>格式化</button>
-              </div>
-              <CodeMirror
-                value={form.headers}
-                height="120px"
-                extensions={[json(), linter(jsonParseLinter())]}
-                onChange={(val) => setForm({ ...form, headers: val })}
-                placeholder={HEADER_HINT}
-                basicSetup={{ lineNumbers: true, foldGutter: true, highlightActiveLine: true, bracketMatching: true }}
+          </div>
+          <div className="api-detail-row">
+            <div className="field">
+              <label>请求方法</label>
+              <InlineSelect
+                value={form.method}
+                options={METHODS.map(m => ({ value: m, label: m }))}
+                onSave={v => saveField('method', v)}
+                renderDisplay={(v) => <span className={`method-badge method-${v}`}>{v}</span>}
               />
             </div>
+            <div className="field">
+              <label>协议</label>
+              <InlineSelect
+                value={form.protocol}
+                options={PROTOCOL_OPTIONS}
+                onSave={v => saveField('protocol', v)}
+              />
+            </div>
+          </div>
+          <div className="api-detail-row">
+            <div className="field">
+              <label>请求地址</label>
+              <InlineText value={form.url} onSave={v => saveField('url', v)} placeholder="点击输入请求地址" monospace />
+            </div>
+          </div>
+          <div className="api-detail-row">
+            <div className="field">
+              <label>标签</label>
+              <InlineText value={form.tags} onSave={v => saveField('tags', v)} placeholder="点击输入标签" />
+            </div>
+            <div className="field">
+              <label>状态</label>
+              <InlineSelect
+                value={form.status}
+                options={STATUS_OPTIONS}
+                onSave={v => saveField('status', v)}
+                renderDisplay={(v, label) => <span className={`status-text status-${v}`}>{label}</span>}
+              />
+            </div>
+          </div>
 
-            {/* Content Type selector — own row */}
-            <div className="api-detail-row" style={{ marginTop: 12 }}>
-              <div className="field">
-                <label>报文类型</label>
-                <div className="ad-ct-row">
-                  {CONTENT_TYPES.map((ct) => (
-                    <button
-                      key={ct.value}
-                      type="button"
-                      className={`ad-ct-btn ${form.content_type === ct.value ? 'active' : ''}`}
-                      onClick={() => setForm({ ...form, content_type: ct.value })}
-                    >
-                      {ct.label}
-                    </button>
-                  ))}
-                  <span className="ad-body-hint">{BODY_HINTS[form.content_type]}</span>
+          {/* Headers Editor */}
+          <div className="ad-editor-section">
+            <div className="ad-editor-label">
+              <label>请求头</label>
+              <button type="button" className="ad-btn ad-btn-sm" onClick={() => handleFormat('headers')}>格式化</button>
+            </div>
+            <CodeMirror
+              value={form.headers}
+              height="120px"
+              extensions={[json(), linter(jsonParseLinter())]}
+              onChange={(val) => setForm({ ...form, headers: val })}
+              placeholder={HEADER_HINT}
+              basicSetup={{ lineNumbers: true, foldGutter: true, highlightActiveLine: true, bracketMatching: true }}
+            />
+          </div>
+
+          {/* Content Type selector */}
+          <div className="api-detail-row" style={{ marginTop: 12 }}>
+            <div className="field">
+              <label>报文类型</label>
+              <div className="ad-ct-row">
+                {CONTENT_TYPES.map((ct) => (
+                  <button
+                    key={ct.value}
+                    type="button"
+                    className={`ad-ct-btn ${form.content_type === ct.value ? 'active' : ''}`}
+                    onClick={() => setForm({ ...form, content_type: ct.value })}
+                  >
+                    {ct.label}
+                  </button>
+                ))}
+                <span className="ad-body-hint">{BODY_HINTS[form.content_type]}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Body Editor */}
+          <div className="ad-editor-section">
+            <div className="ad-editor-label">
+              <label>请求体</label>
+              <button type="button" className="ad-btn ad-btn-sm" onClick={() => handleFormat('body')}>格式化</button>
+            </div>
+            <CodeMirror
+              value={form.body}
+              height="160px"
+              extensions={getEditorLang(form.content_type) || []}
+              onChange={(val) => setForm({ ...form, body: val })}
+              placeholder={BODY_HINTS[form.content_type]}
+              basicSetup={{ lineNumbers: true, foldGutter: true, highlightActiveLine: true, bracketMatching: true }}
+            />
+          </div>
+
+          {/* Extraction and Assertion Rules */}
+          <div className="ad-section">
+            <div className="ad-section-head">
+              <label>提取和断言</label>
+              <button type="button" className="ad-btn ad-btn-sm" onClick={addRule}>+ 添加规则</button>
+            </div>
+            {assertionRules.length === 0 && <div className="ad-empty-hint">暂无规则，点击"添加规则"。提取的参数可用于后续接口和条件判断。</div>}
+            {assertionRules.map((rule, idx) => (
+              <div key={idx} className={`ad-rule-card ${rule.assert === false ? 'assert-off' : ''}`}>
+                {/* Name */}
+                <div className="ad-rule-name">
+                  {editingNameIdx === idx ? (
+                    <input
+                      className="ad-rule-name-input"
+                      autoFocus
+                      value={rule.name || ''}
+                      placeholder={`规则 ${idx + 1}`}
+                      onChange={(e) => updateRule(idx, 'name', e.target.value)}
+                      onBlur={() => setEditingNameIdx(null)}
+                      onKeyDown={(e) => { if (e.key === 'Enter') setEditingNameIdx(null); }}
+                    />
+                  ) : (
+                    <span className="ad-rule-name-text" onClick={() => setEditingNameIdx(idx)}>
+                      {rule.name || `规则 ${idx + 1}`}
+                      <span className="ad-rule-name-edit">✎</span>
+                    </span>
+                  )}
                 </div>
-              </div>
-            </div>
 
-            {/* Body Editor */}
-            <div className="ad-editor-section">
-              <div className="ad-editor-label">
-                <label>请求体</label>
-                <button type="button" className="ad-btn ad-btn-sm" onClick={() => handleFormat('body')}>格式化</button>
-              </div>
-              <CodeMirror
-                value={form.body}
-                height="160px"
-                extensions={getEditorLang(form.content_type) || []}
-                onChange={(val) => setForm({ ...form, body: val })}
-                placeholder={BODY_HINTS[form.content_type]}
-                basicSetup={{ lineNumbers: true, foldGutter: true, highlightActiveLine: true, bracketMatching: true }}
-              />
-            </div>
-
-            {/* Assertion Rules */}
-            <div className="ad-section">
-              <div className="ad-section-head">
-                <label>断言规则</label>
-                <button type="button" className="ad-btn ad-btn-sm" onClick={addRule}>+ 添加规则</button>
-              </div>
-              {assertionRules.length === 0 && <div className="ad-empty-hint">暂无断言规则，点击"添加规则"</div>}
-              {assertionRules.map((rule, idx) => (
-                <div key={idx} className="ad-assertion-row">
+                {/* Extraction */}
+                <div className="ad-rule-row">
                   <select value={rule.source} onChange={(e) => updateRule(idx, 'source', e.target.value)}>
                     {ASSERTION_SOURCES.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
                   </select>
                   <input
-                    placeholder={rule.source === 'status' ? '(自动取状态码)' : rule.source === 'header' ? 'Header 名称' : '路径 如 data.id'}
+                    className="ad-rule-key"
+                    placeholder={rule.source === 'status' ? '(自动)' : rule.source === 'header' ? 'Header名' : '路径如 data.id'}
                     value={rule.key}
                     onChange={(e) => updateRule(idx, 'key', e.target.value)}
-                    style={{ width: rule.source === 'status' ? 100 : 140 }}
                     disabled={rule.source === 'status'}
                   />
-                  <select value={rule.operator} onChange={(e) => updateRule(idx, 'operator', e.target.value)}>
-                    {ASSERTION_OPERATORS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-                  </select>
-                  {!['exists', 'not_exists'].includes(rule.operator) && (
-                    <input placeholder="期望值" value={rule.expected} onChange={(e) => updateRule(idx, 'expected', e.target.value)} />
+
+                  {/* Assert toggle + assertion fields inline */}
+                  <label className="ad-rule-switch">
+                    <input
+                      type="checkbox"
+                      checked={rule.assert !== false}
+                      onChange={(e) => updateRule(idx, 'assert', e.target.checked)}
+                    />
+                    <span className="ad-rule-switch-slider" />
+                  </label>
+
+                  {rule.assert !== false && (
+                    <>
+                      <span className="ad-rule-arrow">→</span>
+                      <select value={rule.operator} onChange={(e) => updateRule(idx, 'operator', e.target.value)}>
+                        {ASSERTION_OPERATORS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                      </select>
+                      {!['exists', 'not_exists'].includes(rule.operator) && (
+                        <input className="ad-rule-expected" placeholder="期望值" value={rule.expected} onChange={(e) => updateRule(idx, 'expected', e.target.value)} />
+                      )}
+                    </>
                   )}
+
                   <button type="button" className="ad-btn-del" onClick={() => removeRule(idx)}>✕</button>
                 </div>
-              ))}
-            </div>
-
-            <div className="api-detail-actions">
-              <button type="submit" className="ad-btn ad-btn-primary">保存</button>
-              <button type="button" className="ad-btn ad-btn-default" onClick={() => setEditing(false)}>取消</button>
-            </div>
-          </form>
-        ) : (
-          <div style={{ marginTop: 16 }}>
-            <div className="api-detail-row">
-              <div className="field"><label>接口名称</label><div className="value">{api.name}</div></div>
-              <div className="field"><label>方法</label><div className="value"><span className={`method-badge method-${api.method}`}>{api.method}</span></div></div>
-              <div className="field"><label>协议</label><div className="value">{api.protocol}</div></div>
-            </div>
-            {api.description && (
-              <div className="api-detail-row">
-                <div className="field"><label>描述</label><div className="value">{api.description}</div></div>
               </div>
-            )}
-            <div className="api-detail-row">
-              <div className="field"><label>请求地址</label><div className="value" style={{ fontFamily: 'monospace' }}>{api.url}</div></div>
-            </div>
-            <div className="api-detail-row">
-              <div className="field"><label>标签</label><div className="value">{api.tags ? api.tags.split(',').filter(Boolean).map((t) => (
-                <span key={t} className="ad-tag">{t.trim()}</span>
-              )) : '-'}</div></div>
-              <div className="field"><label>状态</label><div className="value"><span className={`status-text status-${api.status}`}>{api.status === 'active' ? '启用' : api.status === 'disabled' ? '禁用' : '草稿'}</span></div></div>
-            </div>
-            {api.headers && (
-              <div className="ad-editor-section">
-                <label>请求头</label>
-                <CodeMirror
-                  value={tryFormatJson(api.headers)}
-                  height="auto"
-                  extensions={[json()]}
-                  editable={false}
-                  basicSetup={{ lineNumbers: true, foldGutter: true }}
-                />
-              </div>
-            )}
-            {api.body && (
-              <div className="ad-editor-section" style={{ marginTop: 12 }}>
-                <label>请求体 ({contentTypeLabel(api.content_type)})</label>
-                <CodeMirror
-                  value={tryFormatJson(api.body)}
-                  height="auto"
-                  extensions={getEditorLang(api.content_type || 'json') || []}
-                  editable={false}
-                  basicSetup={{ lineNumbers: true, foldGutter: true }}
-                />
-              </div>
-            )}
-            {(() => {
-              let rules: AssertionRule[] = [];
-              try { rules = JSON.parse(api.assertions || '[]'); } catch { /* */ }
-              if (rules.length === 0) return null;
-              return (
-                <div className="api-detail-row" style={{ marginTop: 12 }}>
-                  <div className="field">
-                    <label>断言规则</label>
-                    <div className="ad-assertion-list">
-                      {rules.map((r, i) => (
-                        <span key={i} className="ad-assertion-tag">
-                          {srcLabel(r.source)} {r.key && r.source !== 'status' ? `.${r.key}` : ''} {opLabel(r.operator)} {r.expected || ''}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              );
-            })()}
+            ))}
           </div>
-        )}
+        </div>
       </div>
 
       {/* ── Execute Result ── */}
@@ -423,35 +464,107 @@ export default function ApiDetail() {
             </div>
 
             {!resultCollapsed && (
-            <>
-              {lastResult.assertion_results && lastResult.assertion_results.length > 0 && (
-                <div className="ad-assertion-results">
-                  <div className="ad-assertion-results-head">
-                    断言结果 ({lastResult.assertion_results.filter(r => r.passed).length}/{lastResult.assertion_results.length} 通过)
+              <div className="log-detail-sections">
+                {/* 请求头 */}
+                <div className="log-section">
+                  <div className="log-section-header">请求头</div>
+                  <div className="log-section-content">
+                    <CodeMirror
+                      value={tryFormatJson(lastResult.request_headers)}
+                      height="auto"
+                      maxHeight="200px"
+                      extensions={[json()]}
+                      editable={false}
+                      basicSetup={{ lineNumbers: true, foldGutter: true }}
+                    />
                   </div>
-                  {lastResult.assertion_results.map((ar, i) => (
-                    <div key={i} className={`ad-assertion-result ${ar.passed ? 'pass' : 'fail'}`}>
-                      <span className="ad-ar-icon">{ar.passed ? '✓' : '✗'}</span>
-                      <span className="ad-ar-text">
-                        {srcLabel(ar.rule.source)} {ar.rule.key && ar.rule.source !== 'status' ? `.${ar.rule.key}` : ''} {opLabel(ar.rule.operator)} {ar.rule.expected || ''}
-                      </span>
-                      <span className="ad-ar-actual">实际值: {ar.actual}</span>
-                    </div>
-                  ))}
                 </div>
-              )}
 
-              <div className="ad-editor-section" style={{ marginTop: 12 }}>
-                <label>响应报文</label>
-                <CodeMirror
-                  value={tryFormatJson(lastResult.response_body)}
-                  height="auto"
-                  extensions={[json()]}
-                  editable={false}
-                  basicSetup={{ lineNumbers: true, foldGutter: true }}
-                />
+                {/* 请求报文 */}
+                <div className="log-section">
+                  <div className="log-section-header">请求报文</div>
+                  <div className="log-section-content">
+                    <CodeMirror
+                      value={tryFormatJson(lastResult.request_body) || '(空)'}
+                      height="auto"
+                      maxHeight="200px"
+                      extensions={[json()]}
+                      editable={false}
+                      basicSetup={{ lineNumbers: true, foldGutter: true }}
+                    />
+                  </div>
+                </div>
+
+                {/* 响应头 */}
+                <div className="log-section">
+                  <div className="log-section-header">响应头</div>
+                  <div className="log-section-content">
+                    <CodeMirror
+                      value={tryFormatJson(lastResult.response_headers)}
+                      height="auto"
+                      maxHeight="200px"
+                      extensions={[json()]}
+                      editable={false}
+                      basicSetup={{ lineNumbers: true, foldGutter: true }}
+                    />
+                  </div>
+                </div>
+
+                {/* 响应报文 */}
+                <div className="log-section">
+                  <div className="log-section-header">响应报文</div>
+                  <div className="log-section-content">
+                    <CodeMirror
+                      value={tryFormatJson(lastResult.response_body)}
+                      height="auto"
+                      maxHeight="300px"
+                      extensions={[json()]}
+                      editable={false}
+                      basicSetup={{ lineNumbers: true, foldGutter: true }}
+                    />
+                  </div>
+                </div>
+
+                {/* 参数提取 & 检查点校验 */}
+                <div className="log-section">
+                  <div className="log-section-header">
+                    提取和断言
+                    {lastResult.assertion_results && lastResult.assertion_results.length > 0 && (
+                      <span className="log-assert-summary">
+                        ({lastResult.assertion_results.filter(r => r.rule.assert !== false && r.passed).length}/{lastResult.assertion_results.filter(r => r.rule.assert !== false).length} 通过)
+                      </span>
+                    )}
+                  </div>
+                  <div className="log-section-content">
+                    {lastResult.assertion_results && lastResult.assertion_results.length > 0 ? (
+                      <div className="ad-assertion-results">
+                        {lastResult.assertion_results.map((ar, i) => (
+                          <div key={i} className={`ad-assertion-result ${ar.rule.assert === false ? 'extract-only' : ar.passed ? 'pass' : 'fail'}`}>
+                            <span className="ad-ar-icon">{ar.rule.assert === false ? '⊘' : ar.passed ? '✓' : '✗'}</span>
+                            <div className="ad-ar-detail">
+                              {ar.rule.name && <div className="ad-ar-name">{ar.rule.name}</div>}
+                              <div className="ad-ar-row">
+                                <span className="ad-ar-label">提取:</span>
+                                <span>{srcLabel(ar.rule.source)}{ar.rule.key && ar.rule.source !== 'status' ? `.${ar.rule.key}` : ''}</span>
+                                <span className="ad-ar-label" style={{ marginLeft: 8 }}>实际值:</span>
+                                <span className="ad-ar-extract-val">{ar.actual}</span>
+                              </div>
+                              {ar.rule.assert !== false && (
+                                <div className="ad-ar-row">
+                                  <span className="ad-ar-label">校验:</span>
+                                  <span className="ad-ar-check-text">{opLabel(ar.rule.operator)} {ar.rule.expected || ''}</span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="ad-empty-hint">暂无数据</div>
+                    )}
+                  </div>
+                </div>
               </div>
-            </>
             )}
           </div>
         </div>
@@ -500,29 +613,107 @@ export default function ApiDetail() {
                     {expandedLog === log.id && (
                       <tr>
                         <td colSpan={6} className="log-expanded">
-                          {logAssertions.length > 0 && (
-                            <div className="ad-assertion-results" style={{ marginBottom: 12 }}>
-                              {logAssertions.map((ar, i) => (
-                                <div key={i} className={`ad-assertion-result ${ar.passed ? 'pass' : 'fail'}`}>
-                                  <span className="ad-ar-icon">{ar.passed ? '✓' : '✗'}</span>
-                                  <span className="ad-ar-text">
-                                    {srcLabel(ar.rule.source)} {ar.rule.key && ar.rule.source !== 'status' ? `.${ar.rule.key}` : ''} {opLabel(ar.rule.operator)} {ar.rule.expected || ''}
-                                  </span>
-                                  <span className="ad-ar-actual">实际值: {ar.actual}</span>
-                                </div>
-                              ))}
+                          <div className="log-detail-sections">
+                            {/* 请求头 */}
+                            <div className="log-section">
+                              <div className="log-section-header">请求头</div>
+                              <div className="log-section-content">
+                                <CodeMirror
+                                  value={tryFormatJson(log.request_headers)}
+                                  height="auto"
+                                  maxHeight="200px"
+                                  extensions={[json()]}
+                                  editable={false}
+                                  basicSetup={{ lineNumbers: true, foldGutter: true }}
+                                />
+                              </div>
                             </div>
-                          )}
-                          {log.response_body && (
-                            <CodeMirror
-                              value={tryFormatJson(log.response_body)}
-                              height="auto"
-                              maxHeight="300px"
-                              extensions={[json()]}
-                              editable={false}
-                              basicSetup={{ lineNumbers: true, foldGutter: true }}
-                            />
-                          )}
+
+                            {/* 请求报文 */}
+                            <div className="log-section">
+                              <div className="log-section-header">请求报文</div>
+                              <div className="log-section-content">
+                                <CodeMirror
+                                  value={tryFormatJson(log.request_body) || '(空)'}
+                                  height="auto"
+                                  maxHeight="200px"
+                                  extensions={[json()]}
+                                  editable={false}
+                                  basicSetup={{ lineNumbers: true, foldGutter: true }}
+                                />
+                              </div>
+                            </div>
+
+                            {/* 响应头 */}
+                            <div className="log-section">
+                              <div className="log-section-header">响应头</div>
+                              <div className="log-section-content">
+                                <CodeMirror
+                                  value={tryFormatJson(log.response_headers)}
+                                  height="auto"
+                                  maxHeight="200px"
+                                  extensions={[json()]}
+                                  editable={false}
+                                  basicSetup={{ lineNumbers: true, foldGutter: true }}
+                                />
+                              </div>
+                            </div>
+
+                            {/* 响应报文 */}
+                            <div className="log-section">
+                              <div className="log-section-header">响应报文</div>
+                              <div className="log-section-content">
+                                <CodeMirror
+                                  value={tryFormatJson(log.response_body)}
+                                  height="auto"
+                                  maxHeight="300px"
+                                  extensions={[json()]}
+                                  editable={false}
+                                  basicSetup={{ lineNumbers: true, foldGutter: true }}
+                                />
+                              </div>
+                            </div>
+
+                            {/* 参数提取 & 检查点校验 */}
+                            <div className="log-section">
+                              <div className="log-section-header">
+                                提取和断言
+                                {logAssertions.length > 0 && (
+                                  <span className="log-assert-summary">
+                                    ({logAssertions.filter(a => a.rule.assert !== false && a.passed).length}/{logAssertions.filter(a => a.rule.assert !== false).length} 通过)
+                                  </span>
+                                )}
+                              </div>
+                              <div className="log-section-content">
+                                {logAssertions.length > 0 ? (
+                                  <div className="ad-assertion-results">
+                                    {logAssertions.map((ar, i) => (
+                                      <div key={i} className={`ad-assertion-result ${ar.rule.assert === false ? 'extract-only' : ar.passed ? 'pass' : 'fail'}`}>
+                                        <span className="ad-ar-icon">{ar.rule.assert === false ? '⊘' : ar.passed ? '✓' : '✗'}</span>
+                                        <div className="ad-ar-detail">
+                                          {ar.rule.name && <div className="ad-ar-name">{ar.rule.name}</div>}
+                                          <div className="ad-ar-row">
+                                            <span className="ad-ar-label">提取:</span>
+                                            <span>{srcLabel(ar.rule.source)}{ar.rule.key && ar.rule.source !== 'status' ? `.${ar.rule.key}` : ''}</span>
+                                            <span className="ad-ar-label" style={{ marginLeft: 8 }}>实际值:</span>
+                                            <span className="ad-ar-extract-val">{ar.actual}</span>
+                                          </div>
+                                          {ar.rule.assert !== false && (
+                                            <div className="ad-ar-row">
+                                              <span className="ad-ar-label">校验:</span>
+                                              <span className="ad-ar-check-text">{opLabel(ar.rule.operator)} {ar.rule.expected || ''}</span>
+                                            </div>
+                                          )}
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <div className="ad-empty-hint">暂无数据</div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
                         </td>
                       </tr>
                     )}
@@ -533,6 +724,8 @@ export default function ApiDetail() {
           </table>
         )}
       </div>
+
+      <MessageModal open={modalOpen} message={modalMsg} type={modalType} onClose={() => setModalOpen(false)} />
     </div>
   );
 }

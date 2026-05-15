@@ -1,0 +1,71 @@
+/* ── InlineEdit ── */
+
+.ie-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  position: relative;
+  border-radius: 4px;
+  padding: 1px 4px;
+  margin: -1px -4px;
+  transition: background 0.15s;
+}
+
+.ie-field:hover {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.ie-field:hover .ie-icon {
+  opacity: 1;
+}
+
+.ie-text {
+  font-size: 13px;
+  color: #333;
+  line-height: 1.6;
+}
+
+.ie-mono {
+  font-family: 'SF Mono', Monaco, monospace;
+}
+
+.ie-empty {
+  font-size: 13px;
+  color: #bbb;
+  font-style: italic;
+  line-height: 1.6;
+}
+
+.ie-icon {
+  font-size: 11px;
+  color: #999;
+  opacity: 0;
+  transition: opacity 0.15s;
+  flex-shrink: 0;
+}
+
+.ie-input,
+.ie-select {
+  padding: 2px 8px;
+  border: 1px solid var(--primary);
+  border-radius: 4px;
+  font-size: 13px;
+  outline: none;
+  background: #fff;
+  box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.1);
+  color: #333;
+  line-height: 1.6;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.ie-select {
+  cursor: pointer;
+  padding: 1px 4px;
+  min-width: 80px;
+}
+
+.ie-input::placeholder {
+  color: #bbb;
+}

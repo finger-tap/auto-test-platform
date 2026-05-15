@@ -10,6 +10,8 @@ import ChangePassword from './pages/ChangePassword';
 import Home from './pages/Home';
 import ApiList from './pages/api-test/ApiList';
 import ApiDetail from './pages/api-test/ApiDetail';
+import ScenarioList from './pages/scenario/ScenarioList';
+import ScenarioDetail from './pages/scenario/ScenarioDetail';
 import Placeholder from './pages/Placeholder';
 import Profile from './pages/Profile';
 import './App.css';
@@ -33,7 +35,8 @@ function App() {
               <Route path="/change-password" element={<ChangePassword />} />
               <Route path="/api-test" element={<ApiList />} />
               <Route path="/api-test/:id" element={<ApiDetail />} />
-              <Route path="/scenario" element={<Placeholder title="场景用例" />} />
+              <Route path="/scenario" element={<ScenarioList />} />
+              <Route path="/scenario/:id" element={<ScenarioDetail />} />
               <Route path="/schedule" element={<Placeholder title="定时执行" />} />
             </Route>
           </Route>

@@ -80,9 +80,30 @@
 }
 
 .ad-btn-primary:disabled {
-  background: #bfbfbf;
-  border-color: #bfbfbf;
-  cursor: not-allowed;
+  background: #bfbfbf !important;
+  border-color: #bfbfbf !important;
+  cursor: not-allowed !important;
+}
+
+.ad-btn-primary.ad-btn-disabled {
+  background: #bfbfbf !important;
+  border-color: #bfbfbf !important;
+  cursor: not-allowed !important;
+}
+
+.ad-btn-primary.ad-btn-disabled:hover {
+  background: #bfbfbf !important;
+  border-color: #bfbfbf !important;
+}
+
+.ad-btn-loading {
+  display: inline-block;
+  animation: ad-spin 0.8s linear infinite;
+}
+
+@keyframes ad-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
 .ad-btn-default:hover {
@@ -147,12 +168,6 @@
   font-family: 'SF Mono', Monaco, monospace;
   font-size: 12px;
   resize: vertical;
-}
-
-.api-detail-actions {
-  display: flex;
-  gap: 8px;
-  margin-top: 16px;
 }
 
 /* ── Content Type buttons ── */
@@ -275,40 +290,158 @@
   padding: 8px 0;
 }
 
-/* ── Assertion Rule Row ── */
-.ad-assertion-row {
-  display: flex;
-  gap: 6px;
-  align-items: center;
+/* ── Assertion Rule Card (compact single-row) ── */
+.ad-rule-card {
+  background: #fff;
+  border: 1px solid #e8e8e8;
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin-bottom: 6px;
+  transition: border-color 0.2s;
+}
+
+.ad-rule-card:hover {
+  border-color: #d0d0d0;
+}
+
+.ad-rule-card.assert-off {
+  opacity: 0.7;
+}
+
+.ad-rule-name {
   margin-bottom: 6px;
 }
 
-.ad-assertion-row select,
-.ad-assertion-row input {
-  padding: 3px 8px;
+.ad-rule-name-text {
+  font-size: 12px;
+  font-weight: 500;
+  color: #333;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.ad-rule-name-text:hover .ad-rule-name-edit {
+  opacity: 1;
+}
+
+.ad-rule-name-edit {
+  font-size: 11px;
+  color: #999;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.ad-rule-name-input {
+  font-size: 12px;
+  font-weight: 500;
+  color: #333;
+  border: none;
+  border-bottom: 1px solid var(--primary);
+  outline: none;
+  padding: 0 0 1px 0;
+  background: transparent;
+  width: 120px;
+}
+
+.ad-rule-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: nowrap;
+}
+
+.ad-rule-row select,
+.ad-rule-row input {
+  padding: 4px 8px;
   border: 1px solid #d9d9d9;
-  border-radius: 4px;
+  border-radius: 6px;
   font-size: 12px;
   outline: none;
   background: #fff;
+  transition: border-color 0.2s;
 }
 
-.ad-assertion-row select:focus,
-.ad-assertion-row input:focus {
+.ad-rule-row select:focus,
+.ad-rule-row input:focus {
   border-color: var(--primary);
+}
+
+.ad-rule-key {
+  min-width: 80px;
+  max-width: 160px;
+}
+
+.ad-rule-expected {
+  min-width: 60px;
+  max-width: 120px;
+}
+
+.ad-rule-arrow {
+  color: #bbb;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+
+/* Toggle switch */
+.ad-rule-switch {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.ad-rule-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+  position: absolute;
+}
+
+.ad-rule-switch-slider {
+  width: 28px;
+  height: 16px;
+  background: #d9d9d9;
+  border-radius: 8px;
+  position: relative;
+  transition: background 0.2s;
+}
+
+.ad-rule-switch-slider::after {
+  content: '';
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  background: #fff;
+  border-radius: 50%;
+  top: 2px;
+  left: 2px;
+  transition: transform 0.2s;
+}
+
+.ad-rule-switch input:checked + .ad-rule-switch-slider {
+  background: var(--primary);
+}
+
+.ad-rule-switch input:checked + .ad-rule-switch-slider::after {
+  transform: translateX(12px);
 }
 
 .ad-btn-del {
   background: none;
   border: none;
-  color: #ff4d4f;
+  color: #ccc;
   cursor: pointer;
-  font-size: 14px;
-  padding: 0 4px;
+  font-size: 13px;
+  padding: 0 2px;
+  flex-shrink: 0;
+  transition: color 0.2s;
 }
 
 .ad-btn-del:hover {
-  opacity: 0.7;
+  color: #ff4d4f;
 }
 
 /* ── Assertion display (read mode) ── */
@@ -319,11 +452,28 @@
 }
 
 .ad-assertion-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   font-size: 11px;
   padding: 2px 8px;
   border-radius: 10px;
   background: #fff7e6;
   color: #d48806;
+}
+
+.ad-assertion-tag-name {
+  font-weight: 600;
+  color: #ad6800;
+}
+
+.ad-assertion-tag-part {
+  white-space: nowrap;
+}
+
+.ad-assertion-tag-sep {
+  color: #e8d8b0;
+  margin: 0 2px;
 }
 
 /* ── Execute result ── */
@@ -382,10 +532,15 @@
 
 .ad-assertion-result {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 8px;
-  padding: 4px 0;
+  padding: 6px 0;
   font-size: 12px;
+  border-bottom: 1px solid #f5f5f5;
+}
+
+.ad-assertion-result:last-child {
+  border-bottom: none;
 }
 
 .ad-assertion-result.pass .ad-ar-icon { color: #52c41a; }
@@ -394,9 +549,51 @@
 .ad-ar-icon {
   font-weight: bold;
   font-size: 13px;
+  line-height: 1.6;
 }
 
-.ad-ar-text {
+.ad-ar-detail {
+  flex: 1;
+}
+
+.ad-ar-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 2px;
+}
+
+.ad-assertion-result.extract-only {
+  background: #f5f5f5;
+  border-color: #e8e8e8;
+}
+
+.ad-assertion-result.extract-only .ad-ar-icon {
+  color: #999;
+}
+
+.ad-ar-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  line-height: 1.6;
+}
+
+.ad-ar-label {
+  color: #999;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.ad-ar-extract-val {
+  color: #333;
+  font-family: 'SF Mono', Monaco, monospace;
+  background: #f5f5f5;
+  padding: 0 4px;
+  border-radius: 2px;
+}
+
+.ad-ar-check-text {
   color: #333;
 }
 
@@ -458,6 +655,48 @@
 
 .log-expanded .cm-scroller {
   overflow-x: auto !important;
+}
+
+/* ── Log Detail Sections ── */
+.log-detail-sections {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 8px 0;
+}
+
+.log-section {
+  border: 1px solid #e8e8e8;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.log-section-header {
+  background: #fafafa;
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #333;
+  border-bottom: 1px solid #e8e8e8;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.log-section-content {
+  padding: 8px;
+  background: #fff;
+}
+
+.log-section-content .cm-editor {
+  border: none;
+  margin: 0;
+}
+
+.log-assert-summary {
+  font-size: 11px;
+  color: #999;
+  font-weight: normal;
 }
 
 .api-empty {

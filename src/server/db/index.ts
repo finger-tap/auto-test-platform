@@ -23,8 +23,8 @@ db.exec(`
     account TEXT NOT NULL UNIQUE,
     password_hash TEXT NOT NULL,
     account_type TEXT NOT NULL DEFAULT 'email',
-    created_at TEXT NOT NULL DEFAULT (datetime('now')),
-    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    created_at TEXT NOT NULL DEFAULT (datetime('now', '+8 hours')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now', '+8 hours'))
   );
 
   CREATE INDEX IF NOT EXISTS idx_users_account ON users(account);
@@ -65,8 +65,8 @@ db.exec(`
     headers TEXT,
     body TEXT,
     description TEXT,
-    created_at TEXT NOT NULL DEFAULT (datetime('now')),
-    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+    created_at TEXT NOT NULL DEFAULT (datetime('now', '+8 hours')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now', '+8 hours')),
     FOREIGN KEY (user_id) REFERENCES users(id)
   );
 
@@ -79,7 +79,7 @@ db.exec(`
     response_headers TEXT,
     response_body TEXT,
     duration_ms INTEGER,
-    executed_at TEXT NOT NULL DEFAULT (datetime('now')),
+    executed_at TEXT NOT NULL DEFAULT (datetime('now', '+8 hours')),
     FOREIGN KEY (api_id) REFERENCES apis(id) ON DELETE CASCADE
   );
 
@@ -109,5 +109,75 @@ if (!logCols.some((col) => col.name === 'executed_by')) {
 if (!logCols.some((col) => col.name === 'assertion_results')) {
   db.exec("ALTER TABLE api_logs ADD COLUMN assertion_results TEXT");
 }
+if (!logCols.some((col) => col.name === 'request_headers')) {
+  db.exec("ALTER TABLE api_logs ADD COLUMN request_headers TEXT");
+}
+if (!logCols.some((col) => col.name === 'request_body')) {
+  db.exec("ALTER TABLE api_logs ADD COLUMN request_body TEXT");
+}
+
+// ── Scenario tables ──
+db.exec(`
+  CREATE TABLE IF NOT EXISTS scenarios (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    description TEXT,
+    status TEXT NOT NULL DEFAULT 'active',
+    tags TEXT DEFAULT '',
+    created_at TEXT NOT NULL DEFAULT (datetime('now', '+8 hours')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now', '+8 hours')),
+    FOREIGN KEY (user_id) REFERENCES users(id)
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_scenarios_user_id ON scenarios(user_id);
+
+  CREATE TABLE IF NOT EXISTS scenario_nodes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    scenario_id INTEGER NOT NULL,
+    node_id TEXT NOT NULL,
+    type TEXT NOT NULL,
+    position_x REAL NOT NULL DEFAULT 0,
+    position_y REAL NOT NULL DEFAULT 0,
+    label TEXT,
+    config TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now', '+8 hours')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now', '+8 hours')),
+    FOREIGN KEY (scenario_id) REFERENCES scenarios(id) ON DELETE CASCADE,
+    UNIQUE(scenario_id, node_id)
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_scenario_nodes_scenario_id ON scenario_nodes(scenario_id);
+
+  CREATE TABLE IF NOT EXISTS scenario_edges (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    scenario_id INTEGER NOT NULL,
+    edge_id TEXT NOT NULL,
+    source_node_id TEXT NOT NULL,
+    target_node_id TEXT NOT NULL,
+    source_handle TEXT,
+    label TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now', '+8 hours')),
+    FOREIGN KEY (scenario_id) REFERENCES scenarios(id) ON DELETE CASCADE,
+    UNIQUE(scenario_id, edge_id)
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_scenario_edges_scenario_id ON scenario_edges(scenario_id);
+
+  CREATE TABLE IF NOT EXISTS scenario_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    scenario_id INTEGER NOT NULL,
+    status TEXT NOT NULL,
+    trigger_type TEXT NOT NULL DEFAULT 'manual',
+    executed_by TEXT,
+    node_results TEXT,
+    duration_ms INTEGER,
+    error_message TEXT,
+    executed_at TEXT NOT NULL DEFAULT (datetime('now', '+8 hours')),
+    FOREIGN KEY (scenario_id) REFERENCES scenarios(id) ON DELETE CASCADE
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_scenario_logs_scenario_id ON scenario_logs(scenario_id);
+`);
 
 export default db;

@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { authMiddleware } from '../auth/middleware.js';
 import { findApisByUserId, findApiById, createApi, updateApi, deleteApi, createApiLog, findLogsByApiId } from '../db/apis.js';
 import type { AssertionRule } from '../db/apis.js';
+import { evaluateAssertions } from '../engine/api-executor.js';
 import { findUserById } from '../db/users.js';
 
 export const apiRoutes = Router();
@@ -86,54 +87,6 @@ apiRoutes.delete('/:id', (req: Request, res: Response) => {
   res.json({ code: 200, message: 'Deleted' });
 });
 
-// ── Assertion evaluator ──
-function evaluateAssertions(
-  rules: AssertionRule[],
-  statusCode: number | null,
-  respHeaders: Record<string, string>,
-  respBody: string
-): { rule: AssertionRule; passed: boolean; actual: string }[] {
-  let parsedBody: unknown = null;
-  try { parsedBody = JSON.parse(respBody); } catch { /* not JSON */ }
-
-  return rules.map((rule) => {
-    let actual: string;
-
-    if (rule.source === 'status') {
-      actual = String(statusCode ?? '');
-    } else if (rule.source === 'header') {
-      const key = rule.key.toLowerCase();
-      const found = Object.entries(respHeaders).find(([k]) => k.toLowerCase() === key);
-      actual = found ? found[1] : '';
-    } else {
-      // body — support dot-path like "data.user.name"
-      actual = respBody;
-      if (parsedBody && rule.key) {
-        let val: unknown = parsedBody;
-        for (const seg of rule.key.split('.')) {
-          if (val && typeof val === 'object') val = (val as Record<string, unknown>)[seg];
-          else { val = undefined; break; }
-        }
-        actual = val !== undefined ? String(val) : '';
-      }
-    }
-
-    let passed = false;
-    switch (rule.operator) {
-      case 'equals': passed = actual === rule.expected; break;
-      case 'not_equals': passed = actual !== rule.expected; break;
-      case 'contains': passed = actual.includes(rule.expected); break;
-      case 'not_contains': passed = !actual.includes(rule.expected); break;
-      case 'less_than': passed = Number(actual) < Number(rule.expected); break;
-      case 'greater_than': passed = Number(actual) > Number(rule.expected); break;
-      case 'exists': passed = actual !== '' && actual !== 'undefined'; break;
-      case 'not_exists': passed = actual === '' || actual === 'undefined'; break;
-    }
-
-    return { rule, passed, actual };
-  });
-}
-
 // POST /api/apis/:id/execute
 apiRoutes.post('/:id/execute', async (req: Request, res: Response) => {
   const api = checkOwnership(req, res);
@@ -176,6 +129,10 @@ apiRoutes.post('/:id/execute', async (req: Request, res: Response) => {
   let respBody: string | null = null;
   let assertionResults: string | null = null;
 
+  // Store request info for logging
+  const requestHeadersStr = JSON.stringify(reqHeaders);
+  const requestBodyStr = api.body || null;
+
   try {
     const fetchOptions: RequestInit = {
       method: api.method,
@@ -208,6 +165,8 @@ apiRoutes.post('/:id/execute', async (req: Request, res: Response) => {
 
     const logId = createApiLog(api.id, {
       status_code: statusCode,
+      request_headers: requestHeadersStr,
+      request_body: requestBodyStr,
       response_headers: respHeaders,
       response_body: respBody,
       duration_ms: duration,
@@ -222,6 +181,8 @@ apiRoutes.post('/:id/execute', async (req: Request, res: Response) => {
         id: logId,
         api_id: api.id,
         status_code: statusCode,
+        request_headers: requestHeadersStr,
+        request_body: requestBodyStr,
         response_headers: respHeaders,
         response_body: respBody,
         duration_ms: duration,
@@ -235,6 +196,8 @@ apiRoutes.post('/:id/execute', async (req: Request, res: Response) => {
 
     const logId = createApiLog(api.id, {
       status_code: 0,
+      request_headers: requestHeadersStr,
+      request_body: requestBodyStr,
       response_headers: null,
       response_body: JSON.stringify({ error: errorMsg }),
       duration_ms: duration,
@@ -249,6 +212,8 @@ apiRoutes.post('/:id/execute', async (req: Request, res: Response) => {
         id: logId,
         api_id: api.id,
         status_code: 0,
+        request_headers: requestHeadersStr,
+        request_body: requestBodyStr,
         response_headers: null,
         response_body: JSON.stringify({ error: errorMsg }),
         duration_ms: duration,
