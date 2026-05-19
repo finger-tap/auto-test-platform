@@ -22,6 +22,8 @@ export interface ScenarioNodeRow {
   position_y: number;
   label: string | null;
   config: string | null;
+  pre_script?: string | null;
+  post_script?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -72,6 +74,8 @@ export interface ScenarioNodeInput {
   position_y: number;
   label?: string;
   config?: string;
+  pre_script?: string;
+  post_script?: string;
 }
 
 export interface ScenarioEdgeInput {
@@ -92,6 +96,16 @@ export interface CreateScenarioLogInput {
 }
 
 // ── Scenario CRUD ──
+
+export function findScenariosByUserIdPaginated(userId: number, page: number, pageSize: number, sort = 'updated_at', order = 'DESC'): { items: ScenarioRow[]; total: number } {
+  const offset = (page - 1) * pageSize;
+  const validSorts: Record<string, string> = { updated_at: 'updated_at', created_at: 'created_at', name: 'name' };
+  const sortCol = validSorts[sort] || 'updated_at';
+  const sortDir = order === 'ASC' ? 'ASC' : 'DESC';
+  const items = db.prepare(`SELECT * FROM scenarios WHERE user_id = ? ORDER BY ${sortCol} ${sortDir} LIMIT ? OFFSET ?`).all(userId, pageSize, offset) as ScenarioRow[];
+  const { count } = db.prepare('SELECT COUNT(*) AS count FROM scenarios WHERE user_id = ?').get(userId) as { count: number };
+  return { items, total: count };
+}
 
 export function findScenariosByUserId(userId: number): ScenarioRow[] {
   return db.prepare('SELECT * FROM scenarios WHERE user_id = ? ORDER BY updated_at DESC').all(userId) as ScenarioRow[];
@@ -143,14 +157,14 @@ export function findNodesByScenarioId(scenarioId: number): ScenarioNodeRow[] {
 export function upsertNodes(scenarioId: number, nodes: ScenarioNodeInput[]): void {
   const deleteStmt = db.prepare('DELETE FROM scenario_nodes WHERE scenario_id = ?');
   const insertStmt = db.prepare(
-    `INSERT INTO scenario_nodes (scenario_id, node_id, type, position_x, position_y, label, config)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`
+    `INSERT INTO scenario_nodes (scenario_id, node_id, type, position_x, position_y, label, config, pre_script, post_script)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
   );
 
   const transaction = db.transaction(() => {
     deleteStmt.run(scenarioId);
     for (const node of nodes) {
-      insertStmt.run(scenarioId, node.node_id, node.type, node.position_x, node.position_y, node.label || null, node.config || null);
+      insertStmt.run(scenarioId, node.node_id, node.type, node.position_x, node.position_y, node.label || null, node.config || null, node.pre_script || null, node.post_script || null);
     }
   });
 

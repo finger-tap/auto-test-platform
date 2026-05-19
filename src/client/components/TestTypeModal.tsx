@@ -19,12 +19,8 @@ export default function TestTypeModal({ open, onClose }: TestTypeModalProps) {
   if (!open) return null;
 
   const handleSelect = (key: string) => {
-    if (key === 'api') {
-      onClose();
-      navigate('/api-test');
-    } else {
-      alert('该功能正在开发中，敬请期待！');
-    }
+    navigate('/' + key + '-test');
+    onClose();
   };
 
   return (

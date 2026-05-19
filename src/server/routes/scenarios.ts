@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { authMiddleware } from '../auth/middleware.js';
 import {
+  findScenariosByUserIdPaginated,
   findScenariosByUserId,
   findScenarioById,
   createScenario,
@@ -38,8 +39,12 @@ function checkOwnership(req: Request, res: Response) {
 
 // GET /api/scenarios
 scenarioRoutes.get('/', (req: Request, res: Response) => {
-  const scenarios = findScenariosByUserId(req.user!.userId);
-  res.json({ code: 200, message: 'ok', data: scenarios });
+  const page = Math.max(1, Number(req.query.page) || 1);
+  const pageSize = Math.min(100, Math.max(1, Number(req.query.pageSize) || 10));
+  const sort = (req.query.sort as string) || 'updated_at';
+  const order = (req.query.order as string) || 'DESC';
+  const { items, total } = findScenariosByUserIdPaginated(req.user!.userId, page, pageSize, sort, order);
+  res.json({ code: 200, message: 'ok', data: { items, total, page, pageSize } });
 });
 
 // POST /api/scenarios
@@ -125,7 +130,8 @@ scenarioRoutes.post('/:id/execute', async (req: Request, res: Response) => {
   try {
     // Dynamic import to avoid circular dependency
     const { executeScenario } = await import('../engine/executor.js');
-    const result = await executeScenario(scenario.id, executedBy);
+    const environmentId = req.body.environmentId ? Number(req.body.environmentId) : undefined;
+    const result = await executeScenario(scenario.id, executedBy, environmentId);
     res.json({ code: 200, message: 'ok', data: result });
   } catch (err) {
     const errorMsg = err instanceof Error ? err.message : 'Execution failed';

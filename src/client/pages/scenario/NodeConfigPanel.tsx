@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import type { Node } from '@xyflow/react';
 import type { ApiItem, ApiNodeConfig, ConditionNodeConfig, ExtractRule, AssertionRule } from '../../types';
 
@@ -15,6 +15,7 @@ export default function NodeConfigPanel({ node, apis, availableVariables, onUpda
   const nodeType = node.type;
 
   if (nodeType === 'start' || nodeType === 'end') {
+    const label = (node.data as Record<string, unknown>).label as string || (nodeType === 'start' ? '开始' : '结束');
     return (
       <div className="scenario-config-panel">
         <div className="scenario-config-header">
@@ -22,7 +23,16 @@ export default function NodeConfigPanel({ node, apis, availableVariables, onUpda
           <button className="scenario-config-close" onClick={onClose}>✕</button>
         </div>
         <div className="scenario-config-body">
-          <p style={{ color: '#999', fontSize: 13 }}>此节点无需配置</p>
+          <div className="scenario-config-field">
+            <label>节点名称</label>
+            <input
+              className="scenario-config-input"
+              value={label}
+              onChange={(e) => onUpdate({ label: e.target.value })}
+              placeholder="输入节点名称"
+            />
+          </div>
+          <p style={{ color: '#999', fontSize: 13 }}>此节点无需其他配置</p>
         </div>
       </div>
     );
@@ -70,86 +80,174 @@ const ASSERTION_OPERATORS = [
   { value: 'exists', label: '存在' },
   { value: 'not_exists', label: '不存在' },
 ];
-const defaultAssertion = (index: number): AssertionRule => ({ name: `规则${index}`, source: 'status', key: '', operator: 'equals', expected: '', assert: true });
+
+// Generate default extraction rule
+const defaultExtraction = (index: number): ExtractRule => ({
+  var_name: `var_${index}`,
+  source: 'body',
+  key: '',
+});
+
+// Generate default assertion rule
+const defaultAssertion = (index: number): AssertionRule => ({
+  name: `规则${index}`,
+  source: 'status',
+  key: '',
+  operator: 'equals',
+  expected: '',
+  assert: true,
+});
+
+// Map old extract_rules (assert=false) to new extractions
+function migrateExtractions(config: ApiNodeConfig): ExtractRule[] {
+  if (config.extractions && config.extractions.length > 0) return config.extractions;
+  if (config.extract_rules && config.extract_rules.length > 0) {
+    return config.extract_rules.map((r) => ({ var_name: r.var_name, source: r.source, key: r.key }));
+  }
+  return [];
+}
+
+// Map old assertions array to new separate assertions
+function migrateAssertions(config: ApiNodeConfig): AssertionRule[] {
+  if (config.assertions && config.assertions.length > 0) return config.assertions;
+  return [];
+}
 
 function ApiNodeConfigPanel({ node, apis, onUpdate, onDelete, onClose }: Omit<Props, 'availableVariables'>) {
   const config = node.data as unknown as ApiNodeConfig;
+  const apiList = Array.isArray(apis) ? apis : [];
+  // 当前选中的接口ID
   const [apiId, setApiId] = useState(config.api_id || 0);
-  const [assertionRules, setAssertionRules] = useState<AssertionRule[]>([]);
+  // 下拉模糊搜索
+  const [searchText, setSearchText] = useState('');
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  // 提取规则（独立数组）
+  const [extractions, setExtractions] = useState<ExtractRule[]>([]);
+  // 断言规则（独立数组）
+  const [assertions, setAssertions] = useState<AssertionRule[]>([]);
+  // 正在编辑的规则名索引
   const [editingNameIdx, setEditingNameIdx] = useState<number | null>(null);
+  // 规则名称编辑值
+  const [editingNameValue, setEditingNameValue] = useState('');
 
+  const filteredApis = useMemo(() => {
+    if (!searchText.trim()) return apiList;
+    const kw = searchText.toLowerCase();
+    return apiList.filter(
+      (a) => a.name.toLowerCase().includes(kw) || a.method.toLowerCase().includes(kw) || a.url.toLowerCase().includes(kw)
+    );
+  }, [apiList, searchText]);
+
+  const selectedApi = useMemo(() => apiList.find((a) => a.id === apiId), [apiList, apiId]);
+
+  // 初始化和切换节点时回显数据
   useEffect(() => {
     setApiId(config.api_id || 0);
-    // Prefer assertions; fall back to converting legacy extract_rules
-    if (config.assertions && config.assertions.length > 0) {
-      setAssertionRules(config.assertions);
-    } else if (config.extract_rules && config.extract_rules.length > 0) {
-      setAssertionRules(
-        config.extract_rules.map((r) => ({
-          name: r.var_name,
-          source: r.source,
-          key: r.key,
-          operator: 'equals' as const,
-          expected: '',
-          assert: false,
-        }))
-      );
-    } else {
-      setAssertionRules([]);
-    }
-  }, [config.api_id, config.extract_rules, config.assertions]);
+    setSearchText('');
+    setDropdownOpen(false);
+    setExtractions(migrateExtractions(config));
+    setAssertions(migrateAssertions(config));
+  }, [node.id]);
 
-  // Derive extract_rules from assertions for engine compatibility
-  const deriveExtractRules = (assertions: AssertionRule[]): ExtractRule[] =>
-    assertions.map((a) => ({
-      var_name: a.name || `var_${Date.now()}`,
-      source: a.source,
-      key: a.key || '',
-    }));
+  // 保存完整数据到父组件
+  const save = useCallback((updates?: Record<string, unknown>) => {
+    const selApi = apiList.find((a) => a.id === apiId);
+    onUpdate({
+      api_id: apiId,
+      api_name: selApi?.name || selectedApi?.name || '',
+      extractions: extractions.length > 0 ? extractions : undefined,
+      assertions: assertions.length > 0 ? assertions : undefined,
+      ...updates,
+    });
+  }, [apiId, selectedApi, extractions, assertions, onUpdate]);
 
-  const save = (id: number, assertions: AssertionRule[]) => {
-    const selectedApi = apis.find((a) => a.id === id);
-    const extractRules = deriveExtractRules(assertions);
+  const handleApiSelect = (id: number) => {
+    setApiId(id);
+    setSearchText('');
+    setDropdownOpen(false);
+    setExtractions([]);
+    setAssertions([]);
+    const selApi = apiList.find((a) => a.id === id);
     onUpdate({
       api_id: id,
-      api_name: selectedApi?.name || '',
-      extract_rules: extractRules,
-      assertions: assertions.length > 0 ? assertions : undefined,
+      api_name: selApi?.name || '',
+      extractions: undefined,
+      assertions: undefined,
     });
   };
 
-  const handleApiChange = (newId: number) => {
-    setApiId(newId);
-    save(newId, assertionRules);
+  const handleApiSearchChange = (value: string) => {
+    setSearchText(value);
+    if (!dropdownOpen) setDropdownOpen(true);
   };
 
-  const addRule = () => {
-    const updated = [...assertionRules, defaultAssertion(assertionRules.length + 1)];
-    setAssertionRules(updated);
-    save(apiId, updated);
+  const handleApiBlur = () => {
+    setTimeout(() => setDropdownOpen(false), 200);
   };
 
-  const updateRule = (idx: number, field: keyof AssertionRule, value: string | boolean) => {
-    const updated = [...assertionRules];
-    updated[idx] = { ...updated[idx], [field]: value } as AssertionRule;
-    setAssertionRules(updated);
-    save(apiId, updated);
+  // 开始编辑规则名称
+  const startEditName = (idx: number, currentName: string) => {
+    setEditingNameIdx(idx);
+    setEditingNameValue(currentName || `规则 ${idx + 1}`);
   };
 
-  const removeRule = (idx: number) => {
-    const updated = assertionRules.filter((_, i) => i !== idx);
-    setAssertionRules(updated);
-    save(apiId, updated);
+  // 保存规则名称
+  const saveEditName = (idx: number) => {
+    const updated = [...assertions];
+    updated[idx] = { ...updated[idx], name: editingNameValue };
+    setAssertions(updated);
+    save({ assertions: updated });
+    setEditingNameIdx(null);
   };
 
+  // 规则名称编辑回车保存
+  const handleNameKeyDown = (e: React.KeyboardEvent, idx: number) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      saveEditName(idx);
+    } else if (e.key === 'Escape') {
+      setEditingNameIdx(null);
+    }
+  };
+
+  // 从案例导入（提取+断言）
   const syncFromApi = () => {
-    const selectedApi = apis.find((a) => a.id === apiId);
-    if (!selectedApi?.assertions) return;
+    if (!selectedApi?.assertions) {
+      alert('该接口未配置断言，请手动添加');
+      return;
+    }
     try {
       const apiAssertions: AssertionRule[] = JSON.parse(selectedApi.assertions);
-      setAssertionRules(apiAssertions);
-      save(apiId, apiAssertions);
-    } catch { /* ignore */ }
+      const newExtractions = apiAssertions
+        .filter((a) => a.assert === false)
+        .map((a) => ({ var_name: a.name || `var_${Date.now()}`, source: a.source, key: a.key }));
+      const newAssertions = apiAssertions.filter((a) => a.assert !== false);
+      setExtractions(newExtractions);
+      setAssertions(newAssertions);
+      save({ extractions: newExtractions, assertions: newAssertions });
+    } catch {
+      alert('解析接口断言失败');
+    }
+  };
+
+  // ── Assertion actions ──
+  const addAssertion = () => {
+    const updated = [...assertions, defaultAssertion(assertions.length + 1)];
+    setAssertions(updated);
+    save({ assertions: updated });
+  };
+
+  const updateAssertion = (idx: number, field: keyof AssertionRule, value: string | boolean) => {
+    const updated = [...assertions];
+    (updated[idx] as unknown as Record<string, unknown>)[field] = value;
+    setAssertions(updated);
+    save({ assertions: updated });
+  };
+
+  const removeAssertion = (idx: number) => {
+    const updated = assertions.filter((_, i) => i !== idx);
+    setAssertions(updated);
+    save({ assertions: updated });
   };
 
   return (
@@ -159,101 +257,124 @@ function ApiNodeConfigPanel({ node, apis, onUpdate, onDelete, onClose }: Omit<Pr
         <button className="scenario-config-close" onClick={onClose}>✕</button>
       </div>
       <div className="scenario-config-body">
+        {/* 可搜索下拉框 */}
         <div className="scenario-config-field">
           <label>选择接口</label>
-          <select
-            value={apiId}
-            onChange={(e) => handleApiChange(Number(e.target.value))}
-          >
-            <option value={0}>请选择接口</option>
-            {apis.map((api) => (
-              <option key={api.id} value={api.id}>
-                {api.method} {api.name}
-              </option>
-            ))}
-          </select>
+          <div className="api-search-dropdown">
+            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+              <input
+                className="api-search-input"
+                value={searchText || (selectedApi ? `${selectedApi.method} ${selectedApi.name}` : '')}
+                onChange={(e) => handleApiSearchChange(e.target.value)}
+                onFocus={() => setDropdownOpen(true)}
+                onBlur={handleApiBlur}
+                placeholder="输入名称查询"
+              />
+              {(searchText || selectedApi) && (
+                <button
+                  type="button"
+                  className="api-search-clear"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSearchText('');
+                    setApiId(0);
+                    setDropdownOpen(true);
+                  }}
+                  title="清除选择"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+            {dropdownOpen && (
+              <div className="api-search-dropdown-list">
+                {!searchText && apiList.length === 0 && (
+                  <div className="api-search-empty">暂无比配接口</div>
+                )}
+                {filteredApis.length === 0 ? (
+                  <div className="api-search-empty">无匹配接口</div>
+                ) : (
+                  filteredApis.map((api) => (
+                    <div
+                      key={api.id}
+                      className={`api-search-item ${api.id === apiId ? 'selected' : ''}`}
+                      onMouseDown={() => handleApiSelect(api.id)}
+                    >
+                      <span className={`api-method api-method-${api.method.toLowerCase()}`}>{api.method}</span>
+                      <span className="api-name">{api.name}</span>
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+          </div>
         </div>
 
-        {/* Combined Extraction & Assertion — same style as ApiDetail */}
+        {/* 提取和断言 */}
         <div className="ad-section">
           <div className="ad-section-head">
             <label>提取和断言</label>
-            <div style={{ display: 'flex', gap: 6 }}>
-              <button
-                type="button"
-                className="ad-btn ad-btn-sm"
-                onClick={syncFromApi}
-                disabled={!apiId}
-              >
-                从接口同步
-              </button>
-              <button type="button" className="ad-btn ad-btn-sm" onClick={addRule}>+ 添加规则</button>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button type="button" className="ad-btn ad-btn-sm" onClick={syncFromApi} disabled={!apiId}>从案例导入</button>
+              <button type="button" className="ad-btn ad-btn-sm" onClick={addAssertion}>+ 添加</button>
             </div>
           </div>
-          {assertionRules.length === 0 && (
-            <div className="ad-empty-hint">暂无规则，点击"添加规则"。提取的参数可用于后续接口和条件判断。</div>
-          )}
-          {assertionRules.map((rule, idx) => (
-            <div key={idx} className={`ad-rule-card ${rule.assert === false ? 'assert-off' : ''}`}>
-              {/* Name */}
-              <div className="ad-rule-name">
+
+          {assertions.length === 0 ? (
+            <div className="ad-empty-hint">暂无提取或断言规则，点击"+ 添加"。</div>
+          ) : (
+            assertions.map((rule, idx) => (
+              <div key={idx} className={`rule-card ${rule.assert === false ? 'rule-extract' : ''}`}>
+                <span className="rule-index">{idx + 1}</span>
                 {editingNameIdx === idx ? (
                   <input
-                    className="ad-rule-name-input"
+                    className="rule-name-input"
+                    value={editingNameValue}
+                    onChange={(e) => setEditingNameValue(e.target.value)}
+                    onBlur={() => saveEditName(idx)}
+                    onKeyDown={(e) => handleNameKeyDown(e, idx)}
                     autoFocus
-                    value={rule.name || ''}
-                    placeholder={`规则 ${idx + 1}`}
-                    onChange={(e) => updateRule(idx, 'name', e.target.value)}
-                    onBlur={() => setEditingNameIdx(null)}
-                    onKeyDown={(e) => { if (e.key === 'Enter') setEditingNameIdx(null); }}
                   />
                 ) : (
-                  <span className="ad-rule-name-text" onClick={() => setEditingNameIdx(idx)}>
+                  <span className="main-rule-name" onClick={() => startEditName(idx, rule.name || '')} title="点击修改名称">
                     {rule.name || `规则 ${idx + 1}`}
-                    <span className="ad-rule-name-edit">✎</span>
                   </span>
                 )}
-              </div>
-
-              {/* Rule row */}
-              <div className="ad-rule-row">
-                <select value={rule.source} onChange={(e) => updateRule(idx, 'source', e.target.value)}>
+                <select value={rule.source} onChange={(e) => updateAssertion(idx, 'source', e.target.value)}>
                   {ASSERTION_SOURCES.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
                 </select>
                 <input
-                  className="ad-rule-key"
+                  className="rule-key"
                   placeholder={rule.source === 'status' ? '(自动)' : rule.source === 'header' ? 'Header名' : '路径如 data.id'}
                   value={rule.key}
-                  onChange={(e) => updateRule(idx, 'key', e.target.value)}
+                  onChange={(e) => updateAssertion(idx, 'key', e.target.value)}
                   disabled={rule.source === 'status'}
                 />
-
-                {/* Assert toggle */}
-                <label className="ad-rule-switch">
-                  <input
-                    type="checkbox"
-                    checked={rule.assert !== false}
-                    onChange={(e) => updateRule(idx, 'assert', e.target.checked)}
-                  />
-                  <span className="ad-rule-switch-slider" />
+                <label className="rule-switch">
+                  <input type="checkbox" checked={rule.assert !== false}
+                    onChange={(e) => {
+                      if (!e.target.checked) {
+                        updateAssertion(idx, 'assert', false);
+                        updateAssertion(idx, 'operator', 'equals');
+                        updateAssertion(idx, 'expected', '');
+                      } else {
+                        updateAssertion(idx, 'assert', true);
+                      }
+                    }} />
+                  <span className="rule-switch-slider"><span className="rule-switch-label">{rule.assert !== false ? '检查' : '提取'}</span></span>
                 </label>
-
-                {rule.assert !== false && (
-                  <>
-                    <span className="ad-rule-arrow">→</span>
-                    <select value={rule.operator} onChange={(e) => updateRule(idx, 'operator', e.target.value)}>
-                      {ASSERTION_OPERATORS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-                    </select>
-                    {!['exists', 'not_exists'].includes(rule.operator) && (
-                      <input className="ad-rule-expected" placeholder="期望值" value={rule.expected} onChange={(e) => updateRule(idx, 'expected', e.target.value)} />
-                    )}
-                  </>
+                <select className="rule-operator" value={rule.operator} onChange={(e) => updateAssertion(idx, 'operator', e.target.value)}
+                  style={{ display: rule.assert === false ? 'none' : undefined }}>
+                  {ASSERTION_OPERATORS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
+                {rule.assert !== false && !['exists', 'not_exists'].includes(rule.operator) && (
+                  <input className="rule-expected" placeholder="期望值" value={rule.expected}
+                    onChange={(e) => updateAssertion(idx, 'expected', e.target.value)} />
                 )}
-
-                <button type="button" className="ad-btn-del" onClick={() => removeRule(idx)}>✕</button>
+                <button type="button" className="rule-del" onClick={() => removeAssertion(idx)}>✕</button>
               </div>
-            </div>
-          ))}
+            ))
+          )}
         </div>
 
         <div className="scenario-config-actions">

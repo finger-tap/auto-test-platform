@@ -1,0 +1,175 @@
+.elist {
+  padding: 20px;
+}
+
+.elist-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.elist-head h2 {
+  margin: 0;
+  font-size: 18px;
+  color: #1a1a1a;
+}
+
+.elist-btn-create {
+  padding: 7px 20px;
+  background: var(--primary);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.elist-btn-create:hover {
+  background: #0958d9;
+}
+
+.elist-empty {
+  text-align: center;
+  padding: 60px 0;
+  color: #999;
+}
+
+.elist-empty p {
+  margin-bottom: 16px;
+}
+
+/* 横向一行展示 */
+.elist-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.elist-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #fff;
+  border-radius: 8px;
+  padding: 14px 20px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+  border: 2px solid transparent;
+  transition: all 0.2s;
+}
+
+.elist-card:hover {
+  box-shadow: 0 2px 12px rgba(0,0,0,0.1);
+}
+
+.elist-card.is-active {
+  border-color: var(--primary);
+  background: linear-gradient(135deg, #f0f7ff 0%, #fff 100%);
+}
+
+/* 环境名称行 */
+.elist-card-info {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex: 1;
+}
+
+.elist-card-name-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 120px;
+}
+
+.elist-card-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--primary);
+}
+
+.elist-card-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.elist-card-meta {
+  display: flex;
+  gap: 16px;
+  font-size: 12px;
+  color: #999;
+}
+
+.elist-card-meta span {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+/* 右侧操作按钮 */
+.elist-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.elist-active-tag {
+  font-size: 12px;
+  color: var(--primary);
+  font-weight: 500;
+}
+
+.elist-btn-use {
+  padding: 5px 14px;
+  background: var(--primary);
+  color: #fff;
+  border: none;
+  border-radius: 16px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.15s;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.elist-card.is-active .elist-btn-use {
+  display: none;
+}
+
+.elist-card:hover .elist-btn-use {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.elist-btn-use:hover {
+  background: #0958d9;
+}
+
+.elist-btn-edit,
+.elist-btn-del {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1px solid #e8e8e8;
+  background: #fff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  color: #999;
+  transition: all 0.15s;
+}
+
+.elist-btn-edit:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.elist-btn-del:hover {
+  border-color: #ff4d4f;
+  color: #ff4d4f;
+  background: #fff1f0;
+}

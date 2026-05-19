@@ -1,6 +1,40 @@
+export interface EnvVariable {
+  key: string;
+  value: string;
+  description?: string;
+  enabled?: boolean;
+}
+
+export interface Environment {
+  id: number;
+  user_id: number;
+  name: string;
+  variables: EnvVariable[];
+  ssl_cert: string | null;
+  ssl_key: string | null;
+  timeout: number;
+  sort_order: number;
+  is_default: number;
+  created_at: string;
+  updated_at: string;
+  // Multiple databases
+  databases?: string; // JSON array of DatabaseEntry
+}
+
+export interface DatabaseEntry {
+  name: string;
+  type: string;
+  host: string;
+  port: number;
+  user: string;
+  password: string;
+  database: string;
+}
+
 export interface UserInfo {
   userId: number;
   account: string;
+  account_type?: string;
   nickname?: string;
   avatar?: string;
   email?: string;
@@ -32,6 +66,20 @@ export interface ApiItem {
   status: string;
   content_type: string | null;
   assertions: string | null;
+  pre_script?: string;
+  post_script?: string;
+  pre_db_name?: string;
+  pre_db_query?: string;
+  post_db_name?: string;
+  post_db_query?: string;
+  pre_assertions?: string;
+  post_assertions?: string;
+  final_assertions?: string;
+  pre_actions?: string;   // JSON array of PrePostAction[]
+  post_actions?: string; // JSON array of PrePostAction[]
+  ws_messages?: string | null;
+  ws_wait_ms?: number | null;
+  ws_auto_close_ms?: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -46,7 +94,7 @@ export interface ApiLog {
   response_body: string | null;
   duration_ms: number | null;
   executed_by: string | null;
-  assertion_results: AssertionResult[] | null;
+  assertion_results: AssertionResult[] | AssertionResultsByStage | null;
   executed_at: string;
 }
 
@@ -63,6 +111,14 @@ export interface AssertionResult {
   rule: AssertionRule;
   passed: boolean;
   actual: string;
+}
+
+// New multi-stage assertion results
+export interface AssertionResultsByStage {
+  main?: AssertionResult[];
+  pre?: AssertionResult[];
+  post?: AssertionResult[];
+  final?: AssertionResult[];
 }
 
 // ── Scenario Types ──
@@ -113,12 +169,20 @@ export interface ScenarioLog {
 
 // Node config types (stored as JSON in config field)
 export interface ApiNodeConfig {
+  node_id?: string;
   api_id: number;
   api_name?: string;
-  extract_rules: ExtractRule[];
+  // 提取变量（独立数组）
+  extractions?: ExtractRule[];
+  // 断言（独立数组）
   assertions?: AssertionRule[];
+  // 可选：合并模式兼容旧数据（同时有 extract_rules 和 assertions 时优先用新字段）
+  extract_rules?: ExtractRule[];
   override_headers?: string;
   override_body?: string;
+  // 前后置脚本
+  pre_script?: string;
+  post_script?: string;
 }
 
 export interface ConditionNodeConfig {
@@ -148,4 +212,24 @@ export interface NodeExecutionResult {
   assertion_results?: AssertionResult[];
   condition_result?: boolean;
   error_message?: string;
+}
+
+// ── OpenAPI Import/Export Types ──
+export interface ParsedApi {
+  name: string;
+  method: string;
+  url: string;
+  description: string;
+  tags: string[];
+  headers: Record<string, string>;
+  body: string;
+  content_type: string;
+}
+
+export interface ParseResult {
+  format: 'openapi3' | 'swagger2' | 'postman' | 'unknown';
+  title: string;
+  version: string;
+  baseUrl: string;
+  apis: ParsedApi[];
 }

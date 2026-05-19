@@ -32,7 +32,11 @@ export function removeUserInfo(): void {
   localStorage.removeItem('userInfo');
 }
 
-export async function apiFetch<T>(
+/**
+ * Standard JSON API call — always returns parsed JSON response.
+ * Use this for normal API requests (not file uploads or downloads).
+ */
+export async function apiFetchJSON<T>(
   path: string,
   options: RequestInit = {},
 ): Promise<ApiResponse<T>> {
@@ -45,11 +49,24 @@ export async function apiFetch<T>(
     headers['Authorization'] = `Bearer ${token}`;
   }
 
-  const res = await fetch(`${API_BASE}${path}`, {
-    ...options,
-    headers,
-  });
-
-  const data = await res.json();
-  return data;
+  const res = await fetch(`${API_BASE}${path}`, { ...options, headers });
+  return res.json() as Promise<ApiResponse<T>>;
 }
+
+/**
+ * Download blob — use for file downloads.
+ */
+export async function apiFetchBlob(
+  path: string,
+  options: RequestInit = {},
+): Promise<Response> {
+  const token = getToken();
+  const headers: Record<string, string> = {};
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+  return fetch(`${API_BASE}${path}`, { ...options, headers });
+}
+
+/** Legacy alias — now delegates to apiFetchJSON for backwards compat */
+export const apiFetch = apiFetchJSON;

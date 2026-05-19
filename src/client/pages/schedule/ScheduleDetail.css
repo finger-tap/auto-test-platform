@@ -1,0 +1,194 @@
+.btn-back {
+  background: none;
+  border: 1px solid #d9d9d9;
+  border-radius: 4px;
+  padding: 4px 12px;
+  cursor: pointer;
+  color: #333;
+  font-size: 13px;
+}
+.btn-back:hover { background: #f5f5f5; }
+
+.btn-cancel {
+  background: #fff;
+  border: 1px solid #d9d9d9;
+  border-radius: 4px;
+  padding: 6px 20px;
+  cursor: pointer;
+  color: #333;
+  font-size: 14px;
+}
+.btn-cancel:hover { background: #f5f5f5; }
+
+.btn-primary {
+  background: #1677ff;
+  border: 1px solid #1677ff;
+  border-radius: 4px;
+  padding: 6px 20px;
+  cursor: pointer;
+  color: #fff;
+  font-size: 14px;
+  margin-left: 8px;
+}
+.btn-primary:hover:not(:disabled) { background: #4096ff; }
+.btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
+
+/* ── Sections ── */
+.sd-section {
+  background: #fff;
+  border: 1px solid #f0f0f0;
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 16px;
+}
+
+.sd-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin: 0 0 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.sd-info-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.sd-info-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sd-label {
+  font-size: 12px;
+  color: #999;
+}
+
+.sd-value {
+  font-size: 14px;
+  color: #1a1a1a;
+}
+
+/* ── Presets ── */
+.sd-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.sd-preset-btn {
+  padding: 4px 12px;
+  border: 1px solid #d9d9d9;
+  border-radius: 16px;
+  background: #fff;
+  cursor: pointer;
+  font-size: 13px;
+  color: #333;
+  transition: all 0.15s;
+}
+.sd-preset-btn:hover {
+  border-color: #1677ff;
+  color: #1677ff;
+}
+.sd-preset-active {
+  background: #1677ff;
+  border-color: #1677ff;
+  color: #fff;
+}
+
+/* ── Cron Builder ── */
+.sd-cron-builder {
+  background: #fafafa;
+  border: 1px solid #f0f0f0;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.sd-cron-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  margin-bottom: 12px;
+}
+
+.sd-cron-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 80px;
+}
+
+.sd-cron-field label {
+  font-size: 12px;
+  color: #666;
+  font-weight: 500;
+}
+
+.sd-cron-field select {
+  padding: 4px 8px;
+  border: 1px solid #d9d9d9;
+  border-radius: 4px;
+  font-size: 13px;
+  background: #fff;
+  cursor: pointer;
+  min-width: 80px;
+}
+
+.sd-cron-preview {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 8px 12px;
+  background: #fff;
+  border: 1px solid #e8e8e8;
+  border-radius: 4px;
+}
+
+.sd-cron-preview-label {
+  font-size: 12px;
+  color: #999;
+}
+
+.sd-cron-preview-expr {
+  font-size: 13px;
+  font-family: 'Courier New', monospace;
+  color: #1677ff;
+  background: #e6f4ff;
+  padding: 2px 6px;
+  border-radius: 3px;
+}
+
+.sd-cron-preview-hint {
+  font-size: 12px;
+  color: #666;
+}
+
+/* ── Status ── */
+.sd-status-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.sd-status-select {
+  padding: 6px 12px;
+  border: 1px solid #d9d9d9;
+  border-radius: 4px;
+  font-size: 14px;
+  min-width: 140px;
+}
+
+/* ── Actions ── */
+.sd-actions {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 8px;
+}

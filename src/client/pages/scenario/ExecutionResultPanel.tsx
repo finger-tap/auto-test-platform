@@ -152,7 +152,7 @@ export default function ExecutionResultPanel({ log, nodes, edges, title, onClose
                       <div className="scenario-exec-section">
                         <label>请求头</label>
                         <CodeMirror
-                          value={tryFormatJson(result.request_headers)}
+                          value={tryFormatJson(result.request_headers ?? null)}
                           height="auto"
                           maxHeight="150px"
                           extensions={[json()]}
@@ -164,7 +164,7 @@ export default function ExecutionResultPanel({ log, nodes, edges, title, onClose
                       <div className="scenario-exec-section">
                         <label>请求体</label>
                         <CodeMirror
-                          value={tryFormatJson(result.request_body) || '(空)'}
+                          value={tryFormatJson(result.request_body ?? null) || '(空)'}
                           height="auto"
                           maxHeight="150px"
                           extensions={[json()]}
@@ -176,7 +176,7 @@ export default function ExecutionResultPanel({ log, nodes, edges, title, onClose
                       <div className="scenario-exec-section">
                         <label>响应头</label>
                         <CodeMirror
-                          value={tryFormatJson(result.response_headers)}
+                          value={tryFormatJson(result.response_headers ?? null)}
                           height="auto"
                           maxHeight="150px"
                           extensions={[json()]}
@@ -188,7 +188,7 @@ export default function ExecutionResultPanel({ log, nodes, edges, title, onClose
                       <div className="scenario-exec-section">
                         <label>响应体</label>
                         <CodeMirror
-                          value={tryFormatJson(result.response_body)}
+                          value={tryFormatJson(result.response_body ?? null)}
                           height="auto"
                           maxHeight="200px"
                           extensions={[json()]}

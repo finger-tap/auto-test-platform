@@ -1,0 +1,145 @@
+.api-test-home {
+  height: 100%;
+  background: #fafafa;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.api-test-home-content {
+  max-width: 900px;
+  width: 100%;
+  padding: 0 24px;
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100vh - 200px);
+  justify-content: flex-start;
+  padding-top: 60px;
+}
+
+/* Logo区 */
+.api-test-logo-section {
+  text-align: center;
+  margin-bottom: 40px;
+}
+
+.api-test-logo-wrapper {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.api-test-logo-icon {
+  width: 56px;
+  height: 56px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 16px rgba(102, 126, 234, 0.35);
+}
+
+.api-test-logo-icon svg {
+  width: 32px;
+  height: 32px;
+  fill: #fff;
+}
+
+.api-test-logo-text {
+  font-size: 28px;
+  font-weight: 700;
+  color: #333;
+}
+
+.api-test-tagline {
+  color: #999;
+  font-size: 14px;
+}
+
+/* 统计区 */
+.api-test-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+  margin-bottom: 32px;
+}
+
+.api-test-stat-card {
+  background: #fff;
+  border-radius: 12px;
+  padding: 28px 24px;
+  text-align: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  transition: all 0.25s ease;
+  cursor: pointer;
+  border: 1px solid #f0f0f0;
+}
+
+.api-test-stat-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(102, 126, 234, 0.15);
+  border-color: #667eea;
+}
+
+.api-test-stat-number {
+  font-size: 42px;
+  font-weight: 700;
+  font-family: 'JetBrains Mono', monospace;
+  color: #333;
+  margin-bottom: 8px;
+}
+
+.api-test-stat-label {
+  color: #666;
+  font-size: 14px;
+}
+
+/* 快捷入口 */
+.api-test-quick-actions {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+
+.api-test-quick-btn {
+  background: #fff;
+  border: 1px solid #f0f0f0;
+  border-radius: 10px;
+  padding: 20px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
+
+.api-test-quick-btn:hover {
+  box-shadow: 0 4px 16px rgba(102, 126, 234, 0.12);
+  border-color: #667eea;
+  transform: translateY(-2px);
+}
+
+.api-test-quick-icon {
+  font-size: 24px;
+  margin-bottom: 10px;
+}
+
+.api-test-quick-text {
+  font-size: 13px;
+  color: #333;
+}
+
+/* 底部 */
+.api-test-footer {
+  margin-top: auto;
+  padding: 40px 0 24px;
+  text-align: center;
+  color: #ccc;
+  font-size: 12px;
+}
+
+@media (max-width: 768px) {
+  .api-test-stats-grid,
+  .api-test-quick-actions { grid-template-columns: repeat(2, 1fr); }
+}

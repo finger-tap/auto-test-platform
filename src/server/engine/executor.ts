@@ -7,6 +7,8 @@ import {
   type ScenarioEdgeRow,
 } from '../db/scenarios.js';
 import { executeApi, extractValue, evaluateAssertions, type ApiExecutionResult } from './api-executor.js';
+import { executeScript, evalCondition as evalScriptCondition } from '../db/scripts/pre-post.js';
+
 import { type AssertionRule } from '../db/apis.js';
 import { findUserById } from '../db/users.js';
 
@@ -31,10 +33,16 @@ interface NodeExecutionResult {
 interface ApiNodeConfig {
   api_id: number;
   api_name?: string;
-  extract_rules?: Array<{ var_name: string; source: 'status' | 'header' | 'body'; key: string }>;
+  // 独立提取数组（新）
+  extractions?: Array<{ var_name: string; source: 'status' | 'header' | 'body'; key: string }>;
+  // 独立断言数组（新）
   assertions?: AssertionRule[];
+  // 兼容旧数据
+  extract_rules?: Array<{ var_name: string; source: 'status' | 'header' | 'body'; key: string }>;
   override_headers?: string;
   override_body?: string;
+  pre_script?: string;
+  post_script?: string;
 }
 
 interface ConditionNodeConfig {
@@ -299,7 +307,7 @@ function evaluateCondition(expr: string, context: Record<string, string>): boole
 
 // ── Scenario Executor ──
 
-export async function executeScenario(scenarioId: number, executedBy: string) {
+export async function executeScenario(scenarioId: number, executedBy: string, environmentId?: number) {
   const scenario = findScenarioById(scenarioId);
   if (!scenario) throw new Error('Scenario not found');
 
@@ -313,6 +321,31 @@ export async function executeScenario(scenarioId: number, executedBy: string) {
     const list = adjacency.get(edge.source_node_id) || [];
     list.push(edge);
     adjacency.set(edge.source_node_id, list);
+  }
+
+// Load environment variables if environmentId provided
+  const envContext: Record<string, string> = {};
+  let envSSL: { cert?: string; key?: string; timeout?: number } = {};
+  if (environmentId) {
+    const { findEnvById, envToMap } = await import('../db/environments.js');
+    const env = findEnvById(environmentId, scenario.user_id);
+    if (env) {
+      Object.assign(envContext, envToMap(env));
+      if (env.ssl_cert || env.ssl_key) {
+        envSSL = { cert: env.ssl_cert || undefined, key: env.ssl_key || undefined };
+      }
+      if (env.timeout) {
+        envSSL.timeout = env.timeout;
+      }
+    }
+  }
+
+  // DB configs for script execution (supports multiple named databases)
+  let allDbConfigs: Record<string, import('../db/environments.js').DbConfig> | null = null;
+  if (environmentId) {
+    const { findEnvById, envToDbConfigs } = await import('../db/environments.js');
+    const env = findEnvById(environmentId, scenario.user_id);
+    allDbConfigs = envToDbConfigs(env);
   }
 
   // Find start node
@@ -340,8 +373,8 @@ export async function executeScenario(scenarioId: number, executedBy: string) {
     };
   }
 
-  // Context for variable passing
-  const context: Record<string, string> = {};
+  // Context for variable passing (environment variables pre-loaded)
+  const context: Record<string, string> = { ...envContext };
   const nodeResults: Record<string, NodeExecutionResult> = {};
 
   // BFS queue for parallel branch execution
@@ -401,24 +434,75 @@ export async function executeScenario(scenarioId: number, executedBy: string) {
       }
 
       try {
-        const result = await executeApi(config.api_id, context, config.override_headers, config.override_body);
-
-        // Extract values
-        const extractValues: Record<string, string> = {};
-        if (config.extract_rules) {
-          for (const rule of config.extract_rules) {
-            const value = extractValue(result, rule.source, rule.key);
-            extractValues[rule.var_name] = value;
-            context[rule.var_name] = value;
+        // Pre-script: run before API call
+        if (node.pre_script) {
+          const preScript = node.pre_script || '';
+          const preResult = await executeScript(preScript, {
+            vars: context,
+            env: envContext,
+            prevApi: undefined,
+            dbConfigs: allDbConfigs,
+          });
+          if (!preResult.success) {
+            nodeResults[currentNodeId] = {
+              node_id: currentNodeId,
+              node_type: 'api',
+              node_name: nodeName,
+              status: 'error',
+              error_message: `前置脚本错误: ${preResult.error}`,
+            };
+            hasError = true;
+            break;
           }
         }
 
-        // Evaluate assertions (node-level only)
+        const result = await executeApi(config.api_id, context, config.override_headers, config.override_body, {
+          sslCert: envSSL.cert,
+          sslKey: envSSL.key,
+          timeout: envSSL.timeout,
+        });
+
+        // Post-script: run after API call
+        if (node.post_script) {
+          const postResult = await executeScript(node.post_script, {
+            vars: context,
+            env: envContext,
+            prevApi: {
+              status_code: result.status_code ?? 0,
+              response_body: result.response_body || '',
+              response_headers: result.response_headers ? JSON.parse(result.response_headers) : {},
+            },
+            dbConfigs: allDbConfigs,
+          });
+          if (!postResult.success) {
+            nodeResults[currentNodeId] = {
+              node_id: currentNodeId,
+              node_type: 'api',
+              node_name: nodeName,
+              status: 'error',
+              error_message: `后置脚本错误: ${postResult.error}`,
+            };
+            hasError = true;
+            break;
+          }
+        }
+
+        // Extract values — support both new extractions field and legacy extract_rules
+        const extractValues: Record<string, string> = {};
+        const extractionRules = config.extractions || config.extract_rules || [];
+        for (const rule of extractionRules) {
+          const value = extractValue(result, rule.source, rule.key);
+          extractValues[rule.var_name] = value;
+          context[rule.var_name] = value;
+        }
+
+        // Evaluate assertions
         let assertionResults: Array<{ rule: AssertionRule; passed: boolean; actual: string }> = [];
         const respHeaders: Record<string, string> = result.response_headers ? JSON.parse(result.response_headers) : {};
 
         if (config.assertions && config.assertions.length > 0) {
-          assertionResults = evaluateAssertions(config.assertions, result.status_code, respHeaders, result.response_body || '');
+          const { results } = evaluateAssertions(config.assertions, result.status_code, respHeaders, result.response_body || '');
+          assertionResults = results;
         }
 
         const assertionFailed = assertionResults.some((ar) => ar.rule.assert !== false && !ar.passed);

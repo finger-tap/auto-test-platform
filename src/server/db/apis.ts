@@ -14,6 +14,19 @@ export interface ApiRow {
   status: string;
   content_type: string | null;
   assertions: string | null;
+  pre_script: string | null;
+  post_script: string | null;
+  pre_db_name: string | null;
+  pre_db_query: string | null;
+  post_db_name: string | null;
+  post_db_query: string | null;
+  pre_assertions: string | null;
+  post_assertions: string | null;
+  final_assertions: string | null;
+  ws_send: string | null;
+  ws_expect: string | null;
+  pre_actions: string | null;
+  post_actions: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -41,6 +54,8 @@ export interface AssertionRule {
   assert?: boolean;
 }
 
+export type AssertionResult = { rule: AssertionRule; passed: boolean; actual: string };
+
 export interface CreateApiInput {
   name: string;
   method: string;
@@ -53,6 +68,19 @@ export interface CreateApiInput {
   status?: string;
   content_type?: string;
   assertions?: string;
+  pre_script?: string;
+  post_script?: string;
+  pre_db_name?: string;
+  pre_db_query?: string;
+  post_db_name?: string;
+  post_db_query?: string;
+  pre_assertions?: string;
+  post_assertions?: string;
+  final_assertions?: string;
+  ws_send?: string;
+  ws_expect?: string;
+  pre_actions?: string;
+  post_actions?: string;
 }
 
 export interface UpdateApiInput {
@@ -67,6 +95,29 @@ export interface UpdateApiInput {
   status?: string;
   content_type?: string;
   assertions?: string;
+  pre_script?: string;
+  post_script?: string;
+  pre_db_name?: string;
+  pre_db_query?: string;
+  post_db_name?: string;
+  post_db_query?: string;
+  pre_assertions?: string;
+  post_assertions?: string;
+  final_assertions?: string;
+  ws_send?: string;
+  ws_expect?: string;
+  pre_actions?: string;
+  post_actions?: string;
+}
+
+export function findApisByUserIdPaginated(userId: number, page: number, pageSize: number, sort = 'updated_at', order = 'DESC'): { items: ApiRow[]; total: number } {
+  const offset = (page - 1) * pageSize;
+  const validSorts: Record<string, string> = { updated_at: 'updated_at', created_at: 'created_at', name: 'name' };
+  const sortCol = validSorts[sort] || 'updated_at';
+  const sortDir = order === 'ASC' ? 'ASC' : 'DESC';
+  const items = db.prepare(`SELECT * FROM apis WHERE user_id = ? ORDER BY ${sortCol} ${sortDir} LIMIT ? OFFSET ?`).all(userId, pageSize, offset) as ApiRow[];
+  const { count } = db.prepare('SELECT COUNT(*) AS count FROM apis WHERE user_id = ?').get(userId) as { count: number };
+  return { items, total: count };
 }
 
 export function findApisByUserId(userId: number): ApiRow[] {
@@ -79,9 +130,9 @@ export function findApiById(id: number): ApiRow | undefined {
 
 export function createApi(userId: number, data: CreateApiInput): number {
   const result = db.prepare(
-    `INSERT INTO apis (user_id, name, method, url, protocol, headers, body, description, tags, status, content_type, assertions, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now', '+8 hours'), datetime('now', '+8 hours'))`
-  ).run(userId, data.name, data.method, data.url, data.protocol || 'https', data.headers || null, data.body || null, data.description || null, data.tags || '', data.status || 'active', data.content_type || 'json', data.assertions || null);
+    `INSERT INTO apis (user_id, name, method, url, protocol, headers, body, description, tags, status, content_type, assertions, pre_script, post_script, pre_db_name, pre_db_query, post_db_name, post_db_query, pre_assertions, post_assertions, final_assertions, ws_send, ws_expect, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now', '+8 hours'), datetime('now', '+8 hours'))`
+  ).run(userId, data.name, data.method, data.url, data.protocol || 'https', data.headers || null, data.body || null, data.description || null, data.tags || '', data.status || 'active', data.content_type || 'json', data.assertions || null, data.pre_script || null, data.post_script || null, data.pre_db_name || null, data.pre_db_query || null, data.post_db_name || null, data.post_db_query || null, data.pre_assertions || null, data.post_assertions || null, data.final_assertions || null, data.ws_send || null, data.ws_expect || null);
   return result.lastInsertRowid as number;
 }
 

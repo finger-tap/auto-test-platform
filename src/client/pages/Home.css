@@ -1,37 +1,130 @@
-.home {
+.home-dashboard {
+  min-height: 100vh;
+  background: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+/* Logo区 */
+.home-logo-section {
   text-align: center;
+  margin-bottom: 32px;
 }
 
-.home-welcome h1 {
-  font-size: 2rem;
-  color: var(--primary);
+.home-logo-wrapper {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
   margin-bottom: 8px;
 }
 
-.home-subtitle {
-  color: #666;
-  font-size: 15px;
-  margin-bottom: 8px;
+.home-logo-icon {
+  width: 48px;
+  height: 48px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.home-hint {
+.home-logo-icon svg {
+  width: 28px;
+  height: 28px;
+  fill: #fff;
+}
+
+.home-logo-text {
+  font-size: 24px;
+  font-weight: 700;
+  color: #333;
+}
+
+.home-tagline {
   color: #999;
-  font-size: 14px;
+  font-size: 13px;
+}
+
+/* 统计区 */
+.home-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
   margin-bottom: 24px;
 }
 
-.home-reopen {
-  padding: 8px 24px;
-  border: 1px solid var(--primary);
-  border-radius: 6px;
+.home-stat-card {
   background: #fff;
-  color: var(--primary);
-  font-size: 14px;
+  border: 1px solid #e8e8e8;
+  border-radius: 12px;
+  padding: 20px 16px;
+  text-align: center;
+  transition: all 0.25s ease;
   cursor: pointer;
-  transition: all 0.2s;
 }
 
-.home-reopen:hover {
-  background: var(--primary);
-  color: #fff;
+.home-stat-card:hover {
+  border-color: #667eea;
+  box-shadow: 0 4px 16px rgba(102, 126, 234, 0.12);
+}
+
+.home-stat-number {
+  font-size: 32px;
+  font-weight: 700;
+  color: #333;
+  margin-bottom: 6px;
+}
+
+.home-stat-label {
+  color: #666;
+  font-size: 13px;
+}
+
+/* 快捷入口 */
+.home-quick-actions {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+
+.home-quick-btn {
+  background: #fff;
+  border: 1px solid #e8e8e8;
+  border-radius: 10px;
+  padding: 16px 12px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
+
+.home-quick-btn:hover {
+  border-color: #667eea;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.1);
+}
+
+.home-quick-icon {
+  font-size: 20px;
+  margin-bottom: 8px;
+}
+
+.home-quick-text {
+  font-size: 12px;
+  color: #333;
+}
+
+/* 底部 */
+.home-footer {
+  margin-top: 32px;
+  text-align: center;
+  color: #ccc;
+  font-size: 12px;
+}
+
+@media (max-width: 768px) {
+  .home-stats-grid,
+  .home-quick-actions { grid-template-columns: repeat(2, 1fr); }
 }

@@ -32,9 +32,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     apiFetch<UserInfo>('/auth/me')
       .then((res) => {
-        if (res.code === 200 && res.data) {
-          setUser(res.data);
-          setUserInfo(res.data);
+        const r = res as { code?: number; data?: UserInfo };
+        if (r.code === 200 && r.data) {
+          setUser(r.data);
+          setUserInfo(r.data);
         } else {
           removeToken();
           removeUserInfo();
@@ -53,7 +54,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const res = await apiFetch<LoginResponse>('/auth/login', {
       method: 'POST',
       body: JSON.stringify({ account, password }),
-    });
+    }) as { code: number; message?: string; data?: LoginResponse };
     if (res.code !== 200) throw new Error(res.message);
     if (!res.data) throw new Error('No data returned');
     setToken(res.data.token);
@@ -74,13 +75,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         body: formData,
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
-      const data = await res.json();
+      const data = await res.json() as { code: number; message?: string };
       if (data.code !== 201) throw new Error(data.message);
     } else {
       const res = await apiFetch<{ userId: number }>('/auth/register', {
         method: 'POST',
         body: JSON.stringify({ account, password, nickname }),
-      });
+      }) as { code: number; message?: string; data?: { userId: number } };
       if (res.code !== 201) throw new Error(res.message);
     }
   };
@@ -88,7 +89,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const guestLogin = async () => {
     const res = await apiFetch<LoginResponse>('/auth/guest', {
       method: 'POST',
-    });
+    }) as { code: number; message?: string; data?: LoginResponse };
     if (res.code !== 200) throw new Error(res.message);
     if (!res.data) throw new Error('No data returned');
     setToken(res.data.token);
@@ -106,7 +107,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const res = await apiFetch('/auth/change-password', {
       method: 'POST',
       body: JSON.stringify({ oldPassword, newPassword }),
-    });
+    }) as { code: number; message?: string };
     if (res.code !== 200) throw new Error(res.message);
   };
 
@@ -114,7 +115,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const res = await apiFetch('/auth/reset-password', {
       method: 'POST',
       body: JSON.stringify({ account, newPassword }),
-    });
+    }) as { code: number; message?: string };
     if (res.code !== 200) throw new Error(res.message);
   };
 

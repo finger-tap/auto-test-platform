@@ -58,6 +58,27 @@
   background: #f5f5f5;
 }
 
+/* ── Header Icon Buttons (Notification, Help) ── */
+.hdr-icon-btn {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  cursor: pointer;
+  border-radius: 6px;
+  color: #666;
+  transition: all 0.15s;
+  margin-right: 4px;
+}
+
+.hdr-icon-btn:hover {
+  background: #f5f5f5;
+  color: var(--primary);
+}
+
 .hdr-avatar {
   width: 32px;
   height: 32px;
@@ -116,6 +137,78 @@
   font-size: 14px;
   color: #333;
   cursor: pointer;
+}
+
+.hdr-env-switcher {
+  position: relative;
+  margin-right: 12px;
+}
+
+.hdr-env-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border: 1px solid #d9d9d9;
+  border-radius: 6px;
+  background: #fff;
+  font-size: 13px;
+  color: #333;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.hdr-env-btn:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.hdr-env-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #52c41a;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.hdr-env-dot.inactive {
+  background: #d9d9d9;
+}
+
+.hdr-env-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  min-width: 160px;
+  padding: 4px 0;
+  z-index: 200;
+}
+
+.hdr-env-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 14px;
+  background: none;
+  border: none;
+  font-size: 13px;
+  color: #333;
+  cursor: pointer;
+  text-align: left;
+}
+
+.hdr-env-item:hover {
+  background: #f5f5f5;
+}
+
+.hdr-env-item.active {
+  color: var(--primary);
+  font-weight: 500;
 }
 
 .hdr-dropdown-item:hover {

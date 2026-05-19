@@ -15,6 +15,9 @@ export default function ScenarioList() {
   const navigate = useNavigate();
   const [scenarios, setScenarios] = useState<Scenario[]>([]);
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [total, setTotal] = useState(0);
 
   // Filter state
   const [fName, setFName] = useState('');
@@ -23,20 +26,29 @@ export default function ScenarioList() {
   const [fStatus, setFStatus] = useState('');
   const [fDateFrom, setFDateFrom] = useState('');
   const [fDateTo, setFDateTo] = useState('');
+  const [sortField, setSortField] = useState('updated_at');
+  const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC'>('DESC');
 
   // Floating action buttons
   const [floatBtn, setFloatBtn] = useState<{ id: number; x: number; y: number } | null>(null);
 
-  const fetchScenarios = async () => {
+  const fetchScenarios = async (pageNum = 1, pageSz = pageSize) => {
     try {
-      const res = await apiFetch<Scenario[]>('/scenarios');
-      if (res.code === 200 && res.data) setScenarios(res.data);
+      setLoading(true);
+      const params = new URLSearchParams({ page: String(pageNum), pageSize: String(pageSz), sort: sortField, order: sortOrder });
+      const res = await apiFetch<{ items: Scenario[]; total: number; page: number; pageSize: number }>(`/scenarios?${params}`);
+      if (res.code === 200 && res.data) {
+        setScenarios(res.data.items);
+        setTotal(res.data.total);
+        setPage(res.data.page);
+        setPageSize(res.data.pageSize);
+      }
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => { fetchScenarios(); }, []);
+  useEffect(() => { fetchScenarios(); }, [sortField, sortOrder]);
 
   // Close floating buttons on outside click
   useEffect(() => {
@@ -46,7 +58,7 @@ export default function ScenarioList() {
   }, []);
 
   const handleCreate = () => {
-    navigate('/scenario/new');
+    navigate('/api-test/scene-case/new');
   };
 
   const handleRowClick = (e: MouseEvent, id: number) => {
@@ -58,7 +70,7 @@ export default function ScenarioList() {
     if (!confirm('确认删除此场景？')) return;
     await apiFetch(`/scenarios/${id}`, { method: 'DELETE' });
     setFloatBtn(null);
-    fetchScenarios();
+    fetchScenarios(page);
   };
 
   const handleReset = () => {
@@ -88,6 +100,15 @@ export default function ScenarioList() {
     if (s === 'disabled') return '禁用';
     if (s === 'draft') return '草稿';
     return s;
+  };
+
+  const toggleSort = (field: string) => {
+    if (sortField === field) setSortOrder(o => o === 'ASC' ? 'DESC' : 'ASC');
+    else { setSortField(field); setSortOrder('DESC'); }
+  };
+  const sortIcon = (field: string) => {
+    if (sortField !== field) return <span className="sort-icon">⇅</span>;
+    return <span className="sort-icon sort-active">{sortOrder === 'ASC' ? '↑' : '↓'}</span>;
   };
 
   return (
@@ -140,12 +161,12 @@ export default function ScenarioList() {
           <table className="alist-table">
             <thead>
               <tr>
-                <th>场景名称</th>
+                <th className="sortable" onClick={() => toggleSort('name')}>场景名称 {sortIcon('name')}</th>
                 <th>描述</th>
                 <th>标签</th>
                 <th>状态</th>
-                <th>创建时间</th>
-                <th>更新时间</th>
+                <th className="sortable" onClick={() => toggleSort('created_at')}>创建时间 {sortIcon('created_at')}</th>
+                <th className="sortable" onClick={() => toggleSort('updated_at')}>更新时间 {sortIcon('updated_at')}</th>
               </tr>
             </thead>
             <tbody>
@@ -168,6 +189,19 @@ export default function ScenarioList() {
         )}
       </div>
 
+      {/* Pagination */}
+      <div className="alist-pagination">
+        <span className="page-info">共 {total} 条，第 {page} / {Math.ceil(total / pageSize)} 页</span>
+        <button className="page-btn" disabled={page <= 1} onClick={() => fetchScenarios(page - 1)}>上一页</button>
+        <button className="page-btn" disabled={page >= Math.ceil(total / pageSize)} onClick={() => fetchScenarios(page + 1)}>下一页</button>
+        <select className="page-size-select" value={pageSize} onChange={e => fetchScenarios(1, Number(e.target.value))}>
+          <option value={10}>10条/页</option>
+          <option value={20}>20条/页</option>
+          <option value={50}>50条/页</option>
+          <option value={100}>100条/页</option>
+        </select>
+      </div>
+
       {/* Floating Action Buttons */}
       {floatBtn && (
         <div
@@ -175,10 +209,10 @@ export default function ScenarioList() {
           style={{ left: floatBtn.x, top: floatBtn.y }}
           onClick={(e) => e.stopPropagation()}
         >
-          <button className="alist-float-btn alist-float-view" onClick={() => { setFloatBtn(null); navigate(`/scenario/${floatBtn.id}`); }}>
+          <button className="alist-float-btn alist-float-view" onClick={() => { setFloatBtn(null); navigate(`/api-test/scene-case/${floatBtn.id}`); }}>
             查看
           </button>
-          <button className="alist-float-btn alist-float-exec" onClick={() => { setFloatBtn(null); navigate(`/scenario/${floatBtn.id}?exec=1`); }}>
+          <button className="alist-float-btn alist-float-exec" onClick={() => { setFloatBtn(null); navigate(`/api-test/scene-case/${floatBtn.id}?exec=1`); }}>
             执行
           </button>
           <button className="alist-float-btn alist-float-del" onClick={() => handleDelete(floatBtn.id)}>

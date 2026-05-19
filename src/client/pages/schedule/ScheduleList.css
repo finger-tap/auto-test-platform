@@ -1,0 +1,58 @@
+/* Schedule List */
+@import '../api-test/ApiList.css';
+
+/* ── Status Badge ── */
+.schedule-status-badge {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.status-none {
+  background: #f5f5f5;
+  color: #999;
+}
+
+.status-paused {
+  background: #fff7e6;
+  color: #fa8c16;
+}
+
+.status-active {
+  background: #f6ffed;
+  color: #52c41a;
+}
+
+/* ── Next Run Time ── */
+.td-next-run {
+  font-size: 12px;
+  color: #666;
+}
+
+/* ── Floating Action Buttons ── */
+.alist-float-pause {
+  color: #fa8c16;
+}
+.alist-float-pause:hover {
+  background: #fff7e6;
+}
+
+.alist-float-resume {
+  color: #52c41a;
+}
+.alist-float-resume:hover {
+  background: #f6ffed;
+}
+
+.alist-float-remove {
+  color: #ff4d4f;
+}
+.alist-float-remove:hover:not(:disabled) {
+  background: #fff1f0;
+}
+.alist-float-remove:disabled {
+  color: #bbb;
+  cursor: not-allowed;
+}

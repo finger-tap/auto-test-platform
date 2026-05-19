@@ -69,3 +69,67 @@
 .ie-input::placeholder {
   color: #bbb;
 }
+
+/* ── FilterableSelect ── */
+.filterable-select {
+  position: relative;
+  display: inline-flex;
+  flex-direction: column;
+}
+
+.filterable-select-input {
+  padding: 4px 8px;
+  border: 1px solid #d9d9d9;
+  border-radius: 4px;
+  font-size: 13px;
+  outline: none;
+  background: #fff;
+  color: #333;
+  line-height: 1.6;
+  min-width: 120px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.filterable-select-input:focus {
+  border-color: #1677ff;
+  box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.1);
+}
+
+.filterable-select-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: #fff;
+  border: 1px solid #d9d9d9;
+  border-radius: 4px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  z-index: 100;
+  max-height: 200px;
+  overflow-y: auto;
+  margin-top: 2px;
+}
+
+.filterable-select-option {
+  padding: 6px 12px;
+  font-size: 13px;
+  cursor: pointer;
+  color: #333;
+  transition: background 0.15s;
+}
+
+.filterable-select-option:hover {
+  background: #f5f5f5;
+}
+
+.filterable-select-option.selected {
+  background: #e6f4ff;
+  color: #1677ff;
+}
+
+.filterable-select-empty {
+  padding: 8px 12px;
+  font-size: 13px;
+  color: #999;
+  text-align: center;
+}

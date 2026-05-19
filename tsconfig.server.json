@@ -6,12 +6,12 @@
     "lib": ["ES2020"],
     "outDir": "./dist/server",
     "rootDir": "./src/server",
-    "strict": true,
+    "strict": false,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
-    "declaration": true,
+    "declaration": false,
     "sourceMap": true
   },
   "include": ["src/server/**/*"]

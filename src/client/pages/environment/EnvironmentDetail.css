@@ -1,0 +1,378 @@
+.envdt {
+  padding: 20px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.envdt-head {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.envdt-head h2 {
+  margin: 0;
+  font-size: 18px;
+  color: #1a1a1a;
+}
+
+.envdt-back {
+  padding: 5px 14px;
+  border: 1px solid #d9d9d9;
+  border-radius: 6px;
+  background: #fff;
+  font-size: 13px;
+  cursor: pointer;
+  color: #555;
+}
+
+.envdt-back:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.envdt-loading {
+  padding: 60px;
+  text-align: center;
+  color: #999;
+}
+
+.envdt-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 100%;
+}
+
+.envdt-card {
+  background: #fff;
+  border-radius: 10px;
+  padding: 20px 24px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+}
+
+.envdt-card-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin-bottom: 6px;
+}
+
+.envdt-card-desc {
+  font-size: 12px;
+  color: #999;
+  margin-bottom: 14px;
+}
+
+.envdt-card-desc code {
+  background: #f5f5f5;
+  padding: 1px 5px;
+  border-radius: 3px;
+  color: #d97706;
+}
+
+.envdt-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.envdt-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.envdt-field-row {
+  flex-direction: row;
+  align-items: flex-end;
+  gap: 20px;
+}
+
+.envdt-field-row .envdt-field {
+  flex: 1;
+}
+
+.envdt-field label {
+  font-size: 13px;
+  color: #666;
+  font-weight: 500;
+}
+
+.envdt-field .required {
+  color: #ff4d4f;
+}
+
+.envdt-field input,
+.envdt-field textarea,
+.envdt-field select {
+  padding: 8px 12px;
+  border: 1px solid #d9d9d9;
+  border-radius: 6px;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.2s;
+  resize: vertical;
+  font-family: inherit;
+}
+
+.envdt-field input:focus,
+.envdt-field textarea:focus,
+.envdt-field select:focus {
+  border-color: var(--primary);
+}
+
+.envdt-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: #333;
+  cursor: pointer;
+  padding-bottom: 8px;
+}
+
+/* Variable list */
+.envdt-var-head {
+  display: grid;
+  grid-template-columns: 1fr 1.5fr 1.5fr 36px;
+  gap: 8px;
+  padding: 0 0 6px 0;
+  border-bottom: 1px solid #f0f0f0;
+  margin-bottom: 0;
+}
+
+.envdt-var-head span {
+  font-size: 12px;
+  color: #999;
+  font-weight: 500;
+}
+
+.envdt-var-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.envdt-var-row {
+  display: grid;
+  grid-template-columns: 1fr 1.5fr 1.5fr 36px;
+  gap: 8px;
+  align-items: center;
+}
+
+.envdt-var-row input {
+  padding: 6px 10px;
+  border: 1px solid #d9d9d9;
+  border-radius: 5px;
+  font-size: 13px;
+  outline: none;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.envdt-var-row input:focus {
+  border-color: var(--primary);
+}
+
+.envdt-var-del {
+  padding: 5px 8px;
+  background: none;
+  border: 1px solid #ffccc7;
+  border-radius: 5px;
+  color: #ff4d4f;
+  cursor: pointer;
+  font-size: 12px;
+  text-align: center;
+}
+
+.envdt-var-del:hover {
+  background: #fff1f0;
+}
+
+.envdt-add-var {
+  margin-top: 6px;
+  padding: 5px 14px;
+  border: 1px solid var(--primary);
+  border-radius: 5px;
+  background: #fff;
+  color: var(--primary);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.envdt-add-var:hover {
+  background: #e6f4ff;
+}
+
+/* Footer */
+.envdt-foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid #f0f0f0;
+}
+
+.envdt-btn-cancel {
+  padding: 8px 24px;
+  border-radius: 6px;
+  font-size: 14px;
+  cursor: pointer;
+  border: 1px solid #d9d9d9;
+  background: #fff;
+  color: #333;
+}
+
+.envdt-btn-save {
+  padding: 8px 24px;
+  border-radius: 6px;
+  font-size: 14px;
+  cursor: pointer;
+  border: 1px solid #d9d9d9;
+  background: #fff;
+  color: #333;
+  transition: all 0.15s;
+}
+
+.envdt-btn-save:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.envdt-btn-save.dirty {
+  border-color: var(--primary);
+  color: var(--primary);
+  animation: env-dirty-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes env-dirty-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(22, 119, 255, 0.3); }
+  50% { box-shadow: 0 0 0 4px rgba(22, 119, 255, 0.15); }
+}
+
+.envdt-btn-save:disabled {
+  background: #bfbfbf;
+  border-color: #bfbfbf;
+  color: #fff;
+  cursor: not-allowed;
+}
+
+/* Database test button */
+.envdt-test-btn {
+  padding: 7px 18px;
+  border: 1px solid #52c41a;
+  border-radius: 6px;
+  background: #fff;
+  color: #52c41a;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.envdt-test-btn:hover:not(:disabled) {
+  background: #f6ffed;
+}
+
+.envdt-test-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.conn-test-msg {
+  margin-left: 12px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.conn-test-msg.ok {
+  color: #52c41a;
+}
+
+.conn-test-msg.err {
+  color: #ff4d4f;
+}
+
+/* Multiple databases */
+.envdt-db-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.envdt-db-card {
+  border: 1px solid #e8e8e8;
+  border-radius: 8px;
+  padding: 14px 16px;
+  background: #fafafa;
+}
+
+.envdt-db-card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.envdt-db-name {
+  flex: 1;
+  padding: 6px 10px;
+  border: 1px solid #d9d9d9;
+  border-radius: 5px;
+  font-size: 13px;
+  font-weight: 500;
+  outline: none;
+}
+
+.envdt-db-name:focus {
+  border-color: var(--primary);
+}
+
+.envdt-db-del {
+  padding: 5px 8px;
+  background: none;
+  border: 1px solid #ffccc7;
+  border-radius: 5px;
+  color: #ff4d4f;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.envdt-db-del:hover {
+  background: #fff1f0;
+}
+
+.envdt-db-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.envdt-db-test-row {
+  flex-direction: row;
+  align-items: center;
+  gap: 0;
+}
+
+.envdt-db-test-row .envdt-test-btn {
+  flex: 0 0 auto;
+}
+
+.envdt-add-db {
+  margin-top: 6px;
+  padding: 5px 14px;
+  border: 1px solid var(--primary);
+  border-radius: 5px;
+  background: #fff;
+  color: var(--primary);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.envdt-add-db:hover {
+  background: #e6f4ff;
+}

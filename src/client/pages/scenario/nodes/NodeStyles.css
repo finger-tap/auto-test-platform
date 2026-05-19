@@ -83,7 +83,7 @@
 /* Condition node */
 .flow-node-condition {
   border-color: #fa8c16;
-  min-width: 180px;
+  min-width: 140px;
 }
 
 .flow-node-condition .flow-node-header {
