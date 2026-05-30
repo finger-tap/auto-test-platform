@@ -102,6 +102,51 @@ if (!apiCols.some((col) => col.name === 'content_type')) {
 if (!apiCols.some((col) => col.name === 'assertions')) {
   db.exec("ALTER TABLE apis ADD COLUMN assertions TEXT");
 }
+if (!apiCols.some((col) => col.name === 'pre_script')) {
+  db.exec("ALTER TABLE apis ADD COLUMN pre_script TEXT");
+}
+if (!apiCols.some((col) => col.name === 'post_script')) {
+  db.exec("ALTER TABLE apis ADD COLUMN post_script TEXT");
+}
+if (!apiCols.some((col) => col.name === 'pre_db_name')) {
+  db.exec("ALTER TABLE apis ADD COLUMN pre_db_name TEXT");
+}
+if (!apiCols.some((col) => col.name === 'pre_db_query')) {
+  db.exec("ALTER TABLE apis ADD COLUMN pre_db_query TEXT");
+}
+if (!apiCols.some((col) => col.name === 'post_db_name')) {
+  db.exec("ALTER TABLE apis ADD COLUMN post_db_name TEXT");
+}
+if (!apiCols.some((col) => col.name === 'post_db_query')) {
+  db.exec("ALTER TABLE apis ADD COLUMN post_db_query TEXT");
+}
+if (!apiCols.some((col) => col.name === 'pre_assertions')) {
+  db.exec("ALTER TABLE apis ADD COLUMN pre_assertions TEXT");
+}
+if (!apiCols.some((col) => col.name === 'post_assertions')) {
+  db.exec("ALTER TABLE apis ADD COLUMN post_assertions TEXT");
+}
+if (!apiCols.some((col) => col.name === 'final_assertions')) {
+  db.exec("ALTER TABLE apis ADD COLUMN final_assertions TEXT");
+}
+if (!apiCols.some((col) => col.name === 'ws_send')) {
+  db.exec("ALTER TABLE apis ADD COLUMN ws_send TEXT");
+}
+if (!apiCols.some((col) => col.name === 'ws_expect')) {
+  db.exec("ALTER TABLE apis ADD COLUMN ws_expect TEXT");
+}
+if (!apiCols.some((col) => col.name === 'pre_actions')) {
+  db.exec("ALTER TABLE apis ADD COLUMN pre_actions TEXT DEFAULT '[]'");
+}
+if (!apiCols.some((col) => col.name === 'post_actions')) {
+  db.exec("ALTER TABLE apis ADD COLUMN post_actions TEXT DEFAULT '[]'");
+}
+if (!apiCols.some((col) => col.name === 'parameters')) {
+  db.exec("ALTER TABLE apis ADD COLUMN parameters TEXT");
+}
+if (!apiCols.some((col) => col.name === 'test_type')) {
+  db.exec("ALTER TABLE apis ADD COLUMN test_type TEXT DEFAULT 'api'");
+}
 
 // Migration: add maintainer fields to relevant tables
 const tableMigrations: { table: string; columns: { name: string; sql: string }[] }[] = [
@@ -112,6 +157,8 @@ const tableMigrations: { table: string; columns: { name: string; sql: string }[]
   { table: 'scenarios', columns: [
     { name: 'created_by', sql: 'TEXT' },
     { name: 'updated_by', sql: 'TEXT' },
+    { name: 'parameters', sql: 'TEXT' },
+    { name: 'test_type', sql: 'TEXT' },
   ]},
   { table: 'scenario_sets', columns: [
     { name: 'created_by', sql: 'TEXT' },
@@ -131,44 +178,52 @@ const tableMigrations: { table: string; columns: { name: string; sql: string }[]
   ]},
 ];
 
-for (const mig of tableMigrations) {
-  const cols = db.prepare(`PRAGMA table_info(${mig.table})`).all() as { name: string }[];
-  for (const col of mig.columns) {
-    if (!cols.some(c => c.name === col.name)) {
-      db.exec(`ALTER TABLE ${mig.table} ADD COLUMN ${col.name} TEXT`);
+try {
+  for (const mig of tableMigrations) {
+    const cols = db.prepare(`PRAGMA table_info(${mig.table})`).all() as { name: string }[];
+    for (const col of mig.columns) {
+      if (!cols.some(c => c.name === col.name)) {
+        db.exec(`ALTER TABLE ${mig.table} ADD COLUMN ${col.name} TEXT`);
+      }
     }
   }
+} catch {
+  // Some tables don't exist yet - skip migration
 }
 
 // Migration: migrate single DB fields to multi-database JSON array
-const dbEnvCols = db.prepare("PRAGMA table_info(environments)").all() as { name: string }[];
-const hasOldDbFields = dbEnvCols.some(c => c.name === 'db_host');
-const hasDatabasesField = dbEnvCols.some(c => c.name === 'databases');
+try {
+  const dbEnvCols = db.prepare("PRAGMA table_info(environments)").all() as { name: string }[];
+  const hasOldDbFields = dbEnvCols.some(c => c.name === 'db_host');
+  const hasDatabasesField = dbEnvCols.some(c => c.name === 'databases');
 
-if (hasOldDbFields && !hasDatabasesField) {
-  // Migrate existing single DB config to new JSON format
-  const oldEnvs = db.prepare("SELECT * FROM environments WHERE db_host IS NOT NULL AND db_host != ''").all() as Array<{
-    id: number; db_type: string; db_host: string; db_port: number; db_user: string; db_password: string; db_name: string;
-  }>;
-  for (const env of oldEnvs) {
-    const databases = [{
-      name: '默认数据库',
-      type: env.db_type || 'mysql',
-      host: env.db_host || '',
-      port: env.db_port || (env.db_type === 'mysql' ? 3306 : 5432),
-      user: env.db_user || '',
-      password: env.db_password || '',
-      database: env.db_name || '',
-    }];
-    db.prepare("UPDATE environments SET databases = ? WHERE id = ?").run(JSON.stringify(databases), env.id);
+  if (hasOldDbFields && !hasDatabasesField) {
+    // Migrate existing single DB config to new JSON format
+    const oldEnvs = db.prepare("SELECT * FROM environments WHERE db_host IS NOT NULL AND db_host != ''").all() as Array<{
+      id: number; db_type: string; db_host: string; db_port: number; db_user: string; db_password: string; db_name: string;
+    }>;
+    for (const env of oldEnvs) {
+      const databases = [{
+        name: '默认数据库',
+        type: env.db_type || 'mysql',
+        host: env.db_host || '',
+        port: env.db_port || (env.db_type === 'mysql' ? 3306 : 5432),
+        user: env.db_user || '',
+        password: env.db_password || '',
+        database: env.db_name || '',
+      }];
+      db.prepare("UPDATE environments SET databases = ? WHERE id = ?").run(JSON.stringify(databases), env.id);
+    }
+    console.log('[DB Migration] Migrated environments DB config to multi-database format');
   }
-  console.log('[DB Migration] Migrated environments DB config to multi-database format');
+
+  if (!hasDatabasesField) {
+    db.exec("ALTER TABLE environments ADD COLUMN databases TEXT DEFAULT '[]'");
+  }
+} catch {
+  // environments table doesn't exist yet
 }
 
-// Ensure databases field exists
-if (!hasDatabasesField) {
-  db.exec("ALTER TABLE environments ADD COLUMN databases TEXT DEFAULT '[]'");
-}
 const apiCols2 = db.prepare("PRAGMA table_info(apis)").all() as { name: string }[];
 if (!apiCols2.some((col) => col.name === 'pre_script')) {
   db.exec("ALTER TABLE apis ADD COLUMN pre_script TEXT");
@@ -232,6 +287,8 @@ db.exec(`
     description TEXT,
     status TEXT NOT NULL DEFAULT 'active',
     tags TEXT DEFAULT '',
+    test_type TEXT DEFAULT 'api',
+    parameters TEXT DEFAULT '',
     created_at TEXT NOT NULL DEFAULT (datetime('now', '+8 hours')),
     updated_at TEXT NOT NULL DEFAULT (datetime('now', '+8 hours')),
     FOREIGN KEY (user_id) REFERENCES users(id)
@@ -285,6 +342,126 @@ db.exec(`
   );
 
   CREATE INDEX IF NOT EXISTS idx_scenario_logs_scenario_id ON scenario_logs(scenario_id);
+`);
+
+// ── API Execution tables ──
+db.exec(`
+  CREATE TABLE IF NOT EXISTS api_executions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    api_id INTEGER NOT NULL,
+    scenario_log_id INTEGER,
+    scenario_id INTEGER,
+    node_id TEXT,
+    param_row_index INTEGER NOT NULL DEFAULT -1,
+    status TEXT NOT NULL DEFAULT 'running',
+    trigger_type TEXT NOT NULL DEFAULT 'manual',
+    executed_by TEXT,
+    request_headers TEXT,
+    request_body TEXT,
+    response_headers TEXT,
+    response_body TEXT,
+    duration_ms INTEGER,
+    error_message TEXT,
+    started_at TEXT NOT NULL,
+    finished_at TEXT NOT NULL,
+    batch_id INTEGER NOT NULL DEFAULT -1,
+    FOREIGN KEY (api_id) REFERENCES apis(id) ON DELETE CASCADE
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_api_executions_api_id ON api_executions(api_id);
+  CREATE INDEX IF NOT EXISTS idx_api_executions_batch_id ON api_executions(batch_id);
+
+  CREATE TABLE IF NOT EXISTS api_execution_steps (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    api_execution_id INTEGER NOT NULL,
+    step_order INTEGER NOT NULL,
+    log_type TEXT NOT NULL,
+    step_name TEXT,
+    log_text TEXT,
+    log_data TEXT,
+    created_at TEXT NOT NULL,
+    FOREIGN KEY (api_execution_id) REFERENCES api_executions(id) ON DELETE CASCADE
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_api_execution_steps_api_exec_id ON api_execution_steps(api_execution_id);
+`);
+
+// ── Scenario Execution tables ──
+db.exec(`
+  CREATE TABLE IF NOT EXISTS scenario_executions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    scenario_id INTEGER NOT NULL,
+    status TEXT NOT NULL DEFAULT 'running',
+    trigger_type TEXT NOT NULL DEFAULT 'manual',
+    executed_by TEXT,
+    duration_ms INTEGER,
+    error_message TEXT,
+    started_at TEXT NOT NULL,
+    finished_at TEXT NOT NULL,
+    FOREIGN KEY (scenario_id) REFERENCES scenarios(id) ON DELETE CASCADE
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_scenario_executions_scenario_id ON scenario_executions(scenario_id);
+
+  CREATE TABLE IF NOT EXISTS scenario_execution_steps (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    scenario_execution_id INTEGER NOT NULL,
+    step_order INTEGER NOT NULL,
+    log_type TEXT NOT NULL,
+    node_id TEXT,
+    node_type TEXT,
+    log_text TEXT,
+    log_data TEXT,
+    created_at TEXT NOT NULL,
+    FOREIGN KEY (scenario_execution_id) REFERENCES scenario_executions(id) ON DELETE CASCADE
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_scenario_execution_steps_exec_id ON scenario_execution_steps(scenario_execution_id);
+
+  CREATE TABLE IF NOT EXISTS scenario_api_execution_links (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    scenario_execution_id INTEGER NOT NULL,
+    node_id TEXT NOT NULL,
+    param_row_index INTEGER,
+    api_execution_id INTEGER NOT NULL,
+    FOREIGN KEY (scenario_execution_id) REFERENCES scenario_executions(id) ON DELETE CASCADE,
+    FOREIGN KEY (api_execution_id) REFERENCES api_executions(id) ON DELETE CASCADE
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_scenario_api_execution_links_exec_id ON scenario_api_execution_links(scenario_execution_id);
+
+  CREATE TABLE IF NOT EXISTS scenario_set_executions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    set_id INTEGER NOT NULL,
+    status TEXT NOT NULL DEFAULT 'running',
+    trigger_type TEXT NOT NULL DEFAULT 'manual',
+    executed_by TEXT,
+    total_count INTEGER NOT NULL DEFAULT 0,
+    passed_count INTEGER NOT NULL DEFAULT 0,
+    failed_count INTEGER NOT NULL DEFAULT 0,
+    skipped_count INTEGER NOT NULL DEFAULT 0,
+    total_duration_ms INTEGER,
+    started_at TEXT NOT NULL,
+    finished_at TEXT NOT NULL,
+    FOREIGN KEY (set_id) REFERENCES scenario_sets(id) ON DELETE CASCADE
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_scenario_set_executions_set_id ON scenario_set_executions(set_id);
+
+  CREATE TABLE IF NOT EXISTS scenario_set_execution_items (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    set_execution_id INTEGER NOT NULL,
+    scenario_id INTEGER NOT NULL,
+    scenario_name TEXT,
+    status TEXT NOT NULL DEFAULT 'pending',
+    duration_ms INTEGER,
+    error_message TEXT,
+    scenario_execution_id INTEGER,
+    FOREIGN KEY (set_execution_id) REFERENCES scenario_set_executions(id) ON DELETE CASCADE,
+    FOREIGN KEY (scenario_id) REFERENCES scenarios(id) ON DELETE CASCADE
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_scenario_set_execution_items_exec_id ON scenario_set_execution_items(set_execution_id);
 `);
 
 db.exec(`

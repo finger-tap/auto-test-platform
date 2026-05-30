@@ -2,42 +2,26 @@ import {
   findScenarioById,
   findNodesByScenarioId,
   findEdgesByScenarioId,
-  createScenarioLog,
-  type ScenarioNodeRow,
+  createScenarioExecution,
+  createScenarioExecutionStep,
+  linkScenarioApiExecution,
+  updateScenarioExecution,
+  findScenarioExecutionWithSteps,
+  type ScenarioExecutionRow,
+  type ScenarioExecutionStepRow,
+  type ScenarioApiExecutionLinkRow,
   type ScenarioEdgeRow,
 } from '../db/scenarios.js';
-import { executeApi, extractValue, evaluateAssertions, type ApiExecutionResult } from './api-executor.js';
+import { executeApi, extractValue, type ApiExecutionResult } from './api-executor.js';
 import { executeScript, evalCondition as evalScriptCondition } from '../db/scripts/pre-post.js';
 
-import { type AssertionRule } from '../db/apis.js';
-import { findUserById } from '../db/users.js';
-
-interface NodeExecutionResult {
-  node_id: string;
-  node_type: string;
-  node_name?: string;
-  status: 'success' | 'failed' | 'skipped' | 'error';
-  api_id?: number | null;
-  status_code?: number | null;
-  request_headers?: string | null;
-  request_body?: string | null;
-  response_headers?: string | null;
-  response_body?: string | null;
-  duration_ms?: number | null;
-  extract_values?: Record<string, string>;
-  assertion_results?: Array<{ rule: { source: string; key: string; operator: string; expected: string; assert?: boolean }; passed: boolean; actual: string }>;
-  condition_result?: boolean;
-  error_message?: string | null;
-}
+import { type AssertionRule, findApiById } from '../db/apis.js';
 
 interface ApiNodeConfig {
   api_id: number;
   api_name?: string;
-  // 独立提取数组（新）
   extractions?: Array<{ var_name: string; source: 'status' | 'header' | 'body'; key: string }>;
-  // 独立断言数组（新）
   assertions?: AssertionRule[];
-  // 兼容旧数据
   extract_rules?: Array<{ var_name: string; source: 'status' | 'header' | 'body'; key: string }>;
   override_headers?: string;
   override_body?: string;
@@ -47,6 +31,12 @@ interface ApiNodeConfig {
 
 interface ConditionNodeConfig {
   condition_expr: string;
+}
+
+interface ScenarioParamConfig {
+  headers: string[];
+  rows: string[][];
+  enabledRows: boolean[];
 }
 
 // ── Condition Expression Parser ──
@@ -65,25 +55,10 @@ function tokenize(expr: string): Token[] {
   while (i < expr.length) {
     const ch = expr[i];
 
-    // Skip whitespace
-    if (/\s/.test(ch)) {
-      i++;
-      continue;
-    }
+    if (/\s/.test(ch)) { i++; continue; }
+    if (ch === '(') { tokens.push({ type: 'LPAREN', value: '(' }); i++; continue; }
+    if (ch === ')') { tokens.push({ type: 'RPAREN', value: ')' }); i++; continue; }
 
-    // Parentheses
-    if (ch === '(') {
-      tokens.push({ type: 'LPAREN', value: '(' });
-      i++;
-      continue;
-    }
-    if (ch === ')') {
-      tokens.push({ type: 'RPAREN', value: ')' });
-      i++;
-      continue;
-    }
-
-    // Variable: {name}
     if (ch === '{') {
       const end = expr.indexOf('}', i);
       if (end === -1) throw new Error('Unclosed variable brace');
@@ -92,7 +67,6 @@ function tokenize(expr: string): Token[] {
       continue;
     }
 
-    // String: "..." or '...'
     if (ch === '"' || ch === "'") {
       const end = expr.indexOf(ch, i + 1);
       if (end === -1) throw new Error('Unclosed string');
@@ -101,33 +75,22 @@ function tokenize(expr: string): Token[] {
       continue;
     }
 
-    // Operators: ==, !=, >=, <=, >, <, &&, ||
     if (i + 1 < expr.length) {
       const two = expr.slice(i, i + 2);
       if (['==', '!=', '>=', '<=', '&&', '||'].includes(two)) {
-        tokens.push({ type: 'OP', value: two });
-        i += 2;
-        continue;
+        tokens.push({ type: 'OP', value: two }); i += 2; continue;
       }
     }
     if (['>', '<'].includes(ch)) {
-      tokens.push({ type: 'OP', value: ch });
-      i++;
-      continue;
+      tokens.push({ type: 'OP', value: ch }); i++; continue;
     }
 
-    // Number
     if (/[\d.]/.test(ch)) {
       let num = '';
-      while (i < expr.length && /[\d.]/.test(expr[i])) {
-        num += expr[i];
-        i++;
-      }
-      tokens.push({ type: 'NUMBER', value: num });
-      continue;
+      while (i < expr.length && /[\d.]/.test(expr[i])) { num += expr[i]; i++; }
+      tokens.push({ type: 'NUMBER', value: num }); continue;
     }
 
-    // Unknown character - skip
     i++;
   }
 
@@ -135,7 +98,6 @@ function tokenize(expr: string): Token[] {
   return tokens;
 }
 
-// Recursive descent parser
 type ExprNode =
   | { type: 'number'; value: number }
   | { type: 'string'; value: string }
@@ -148,30 +110,18 @@ class Parser {
   private tokens: Token[];
   private pos: number;
 
-  constructor(tokens: Token[]) {
-    this.tokens = tokens;
-    this.pos = 0;
-  }
+  constructor(tokens: Token[]) { this.tokens = tokens; this.pos = 0; }
 
-  private peek(): Token {
-    return this.tokens[this.pos];
-  }
+  private peek(): Token { return this.tokens[this.pos]; }
+  private advance(): Token { return this.tokens[this.pos++]; }
 
-  private advance(): Token {
-    return this.tokens[this.pos++];
-  }
-
-  parse(): ExprNode {
-    const node = this.parseOr();
-    return node;
-  }
+  parse(): ExprNode { return this.parseOr(); }
 
   private parseOr(): ExprNode {
     let left = this.parseAnd();
     while (this.peek().type === 'OP' && this.peek().value === '||') {
       this.advance();
-      const right = this.parseAnd();
-      left = { type: 'logic', op: '||', left, right };
+      left = { type: 'logic', op: '||', left, right: this.parseAnd() };
     }
     return left;
   }
@@ -180,14 +130,12 @@ class Parser {
     let left = this.parseAtom();
     while (this.peek().type === 'OP' && this.peek().value === '&&') {
       this.advance();
-      const right = this.parseAtom();
-      left = { type: 'logic', op: '&&', left, right };
+      left = { type: 'logic', op: '&&', left, right: this.parseAtom() };
     }
     return left;
   }
 
   private parseAtom(): ExprNode {
-    // Parenthesized expression
     if (this.peek().type === 'LPAREN') {
       this.advance();
       const expr = this.parseOr();
@@ -195,49 +143,28 @@ class Parser {
       this.advance();
       return expr;
     }
-
-    // Comparison: value op value
     const left = this.parseValue();
-
     if (this.peek().type === 'OP') {
       const op = this.advance().value;
-      const right = this.parseValue();
-      return { type: 'compare', op, left, right };
+      return { type: 'compare', op, left, right: this.parseValue() };
     }
-
     return left;
   }
 
   private parseValue(): ExprNode {
     const token = this.peek();
-
-    if (token.type === 'NUMBER') {
-      this.advance();
-      return { type: 'number', value: parseFloat(token.value) };
-    }
-
-    if (token.type === 'STRING') {
-      this.advance();
-      return { type: 'string', value: token.value };
-    }
-
-    if (token.type === 'VAR') {
-      this.advance();
-      return { type: 'var', name: token.value };
-    }
-
+    if (token.type === 'NUMBER') { this.advance(); return { type: 'number', value: parseFloat(token.value) }; }
+    if (token.type === 'STRING') { this.advance(); return { type: 'string', value: token.value }; }
+    if (token.type === 'VAR') { this.advance(); return { type: 'var', name: token.value }; }
     throw new Error(`Unexpected token: ${token.value || token.type}`);
   }
 }
 
 function evaluate(node: ExprNode, context: Record<string, string>): boolean {
   switch (node.type) {
-    case 'number':
-      return node.value !== 0;
-    case 'string':
-      return node.value !== '';
-    case 'var':
-      return context[node.name] !== '' && context[node.name] !== undefined;
+    case 'number': return node.value !== 0;
+    case 'string': return node.value !== '';
+    case 'var': return context[node.name] !== '' && context[node.name] !== undefined;
     case 'compare': {
       const left = resolveValue(node.left, context);
       const right = resolveValue(node.right, context);
@@ -248,72 +175,120 @@ function evaluate(node: ExprNode, context: Record<string, string>): boolean {
       const right = evaluate(node.right, context);
       return node.op === '&&' ? left && right : left || right;
     }
-    case 'not':
-      return !evaluate(node.expr, context);
+    case 'not': return !evaluate(node.expr, context);
   }
 }
 
 function resolveValue(node: ExprNode, context: Record<string, string>): string {
   switch (node.type) {
-    case 'number':
-      return String(node.value);
-    case 'string':
-      return node.value;
-    case 'var':
-      return context[node.name] ?? '';
-    case 'compare':
-    case 'logic':
-      return String(evaluate(node, context));
-    case 'not':
-      return String(evaluate(node, context));
+    case 'number': return String(node.value);
+    case 'string': return node.value;
+    case 'var': return context[node.name] ?? '';
+    default: return String(evaluate(node, context));
   }
 }
 
 function compare(left: string, right: string, op: string): boolean {
-  // Try numeric comparison
   const leftNum = parseFloat(left);
   const rightNum = parseFloat(right);
   const isNumeric = !isNaN(leftNum) && !isNaN(rightNum);
-
   switch (op) {
-    case '==':
-      return isNumeric ? leftNum === rightNum : left === right;
-    case '!=':
-      return isNumeric ? leftNum !== rightNum : left !== right;
-    case '>':
-      return isNumeric ? leftNum > rightNum : left > right;
-    case '<':
-      return isNumeric ? leftNum < rightNum : left < right;
-    case '>=':
-      return isNumeric ? leftNum >= rightNum : left >= right;
-    case '<=':
-      return isNumeric ? leftNum <= rightNum : left <= right;
-    default:
-      return false;
+    case '==': return isNumeric ? leftNum === rightNum : left === right;
+    case '!=': return isNumeric ? leftNum !== rightNum : left !== right;
+    case '>': return isNumeric ? leftNum > rightNum : left > right;
+    case '<': return isNumeric ? leftNum < rightNum : left < right;
+    case '>=': return isNumeric ? leftNum >= rightNum : left >= right;
+    case '<=': return isNumeric ? leftNum <= rightNum : left <= right;
+    default: return false;
   }
 }
 
 function evaluateCondition(expr: string, context: Record<string, string>): boolean {
   try {
     const tokens = tokenize(expr);
-    const parser = new Parser(tokens);
-    const ast = parser.parse();
-    return evaluate(ast, context);
-  } catch (err) {
-    console.error('Condition evaluation error:', err);
-    return false;
-  }
+    return evaluate(new Parser(tokens).parse(), context);
+  } catch { return false; }
 }
 
 // ── Scenario Executor ──
 
-export async function executeScenario(scenarioId: number, executedBy: string, environmentId?: number) {
+export async function executeScenario(
+  scenarioId: number,
+  executedBy: string,
+  environmentId?: number
+): Promise<ScenarioExecutionRow & { steps: ScenarioExecutionStepRow[]; api_links: ScenarioApiExecutionLinkRow[] }> {
   const scenario = findScenarioById(scenarioId);
   if (!scenario) throw new Error('Scenario not found');
 
   const nodes = findNodesByScenarioId(scenarioId);
   const edges = findEdgesByScenarioId(scenarioId);
-  const start = Date.now();
+  const startedAt = new Date().toISOString();
+  const stepOrder = { current: 0 };
+
+  // Load environment
+  const envContext: Record<string, string> = {};
+  let envSSL: { cert?: string; key?: string; timeout?: number } = {};
+  if (environmentId) {
+    const { findEnvById, envToMap } = await import('../db/environments.js');
+    const env = findEnvById(environmentId, scenario.user_id);
+    if (env) {
+      Object.assign(envContext, envToMap(env));
+      if (env.ssl_cert || env.ssl_key) envSSL = { cert: env.ssl_cert || undefined, key: env.ssl_key || undefined };
+      if (env.timeout) envSSL.timeout = env.timeout;
+    }
+  }
+
+  let allDbConfigs: Record<string, import('../db/environments.js').DbConfig> | null = null;
+  if (environmentId) {
+    const { findEnvById, envToDbConfigs } = await import('../db/environments.js');
+    const env = findEnvById(environmentId, scenario.user_id);
+    allDbConfigs = envToDbConfigs(env);
+  }
+
+  // Create scenario execution record
+  const executionId = createScenarioExecution({
+    scenario_id: scenarioId,
+    status: 'running',
+    trigger_type: 'manual',
+    executed_by: executedBy,
+    started_at: startedAt,
+    finished_at: startedAt,
+  });
+
+  const addStep = (logType: string, nodeId: string | null, nodeType: string | null, logText: string, logData: Record<string, unknown> = {}) => {
+    stepOrder.current++;
+    createScenarioExecutionStep({
+      scenario_execution_id: executionId,
+      step_order: stepOrder.current,
+      log_type: logType,
+      node_id: nodeId,
+      node_type: nodeType,
+      log_text: logText,
+      log_data: JSON.stringify(logData),
+      created_at: new Date().toISOString(),
+    });
+  };
+
+  // Find start node
+  const startNode = nodes.find((n) => n.type === 'start');
+  if (!startNode) {
+    updateScenarioExecution(executionId, { status: 'failed', error_message: '流程图为空，请先编排场景流程', finished_at: new Date().toISOString() });
+    addStep('scenario_end', null, null, '场景执行失败: 流程图为空', { error: '流程图为空，请先编排场景流程' });
+    return findScenarioExecutionWithSteps(executionId) as (ScenarioExecutionRow & { steps: ScenarioExecutionStepRow[]; api_links: ScenarioApiExecutionLinkRow[] });
+  }
+
+  // Parse scenario-level parameterization
+  let paramConfig: ScenarioParamConfig | null = null;
+  try { if (scenario.parameters) paramConfig = JSON.parse(scenario.parameters); } catch { /* ignore */ }
+
+  let paramRows: Array<{ rowIdx: number; values: string[] }> = [];
+  if (paramConfig && paramConfig.headers.length > 0) {
+    paramRows = paramConfig.rows
+      .map((row, i) => ({ rowIdx: i, values: row }))
+      .filter(({ rowIdx }) => paramConfig!.enabledRows[rowIdx] !== false);
+  }
+
+  const hasParamRows = paramRows.length > 0;
 
   // Build adjacency map
   const adjacency = new Map<string, ScenarioEdgeRow[]>();
@@ -323,290 +298,225 @@ export async function executeScenario(scenarioId: number, executedBy: string, en
     adjacency.set(edge.source_node_id, list);
   }
 
-// Load environment variables if environmentId provided
-  const envContext: Record<string, string> = {};
-  let envSSL: { cert?: string; key?: string; timeout?: number } = {};
-  if (environmentId) {
-    const { findEnvById, envToMap } = await import('../db/environments.js');
-    const env = findEnvById(environmentId, scenario.user_id);
-    if (env) {
-      Object.assign(envContext, envToMap(env));
-      if (env.ssl_cert || env.ssl_key) {
-        envSSL = { cert: env.ssl_cert || undefined, key: env.ssl_key || undefined };
+  addStep('scenario_start', null, null, `开始执行场景: ${scenario.name}`, { scenario_id: scenarioId, scenario_name: scenario.name });
+
+  const allApiLinks: ScenarioApiExecutionLinkRow[] = [];
+  const allSteps: ScenarioExecutionStepRow[] = [];
+  let overallStatus: string = 'success';
+  let errorMessage: string | null = null;
+
+  const executeOnce = async (
+    initialContext: Record<string, string>,
+    rowIdx: number | null
+  ): Promise<void> => {
+    const context: Record<string, string> = { ...initialContext };
+    const queue: string[] = [startNode.node_id];
+    const visited = new Set<string>();
+
+    while (queue.length > 0) {
+      const currentNodeId = queue.shift()!;
+      if (visited.has(currentNodeId)) continue;
+      visited.add(currentNodeId);
+
+      const node = nodes.find((n) => n.node_id === currentNodeId);
+      if (!node) continue;
+
+      // Start node
+      if (node.type === 'start') {
+        addStep('node_start', node.node_id, 'start', `开始节点: 开始`);
+        addStep('node_end', node.node_id, 'start', `完成节点: 开始 (0ms)`, { status: 'success', duration_ms: 0 });
+        for (const next of getNextNodes(currentNodeId, adjacency, null)) queue.push(next);
+        continue;
       }
-      if (env.timeout) {
-        envSSL.timeout = env.timeout;
-      }
-    }
-  }
 
-  // DB configs for script execution (supports multiple named databases)
-  let allDbConfigs: Record<string, import('../db/environments.js').DbConfig> | null = null;
-  if (environmentId) {
-    const { findEnvById, envToDbConfigs } = await import('../db/environments.js');
-    const env = findEnvById(environmentId, scenario.user_id);
-    allDbConfigs = envToDbConfigs(env);
-  }
-
-  // Find start node
-  const startNode = nodes.find((n) => n.type === 'start');
-  if (!startNode) {
-    const duration = Date.now() - start;
-    const logId = createScenarioLog(scenarioId, {
-      status: 'failed',
-      trigger_type: 'manual',
-      executed_by: executedBy,
-      node_results: '{}',
-      duration_ms: duration,
-      error_message: '流程图为空，请先编排场景流程',
-    });
-    return {
-      id: logId,
-      scenario_id: scenarioId,
-      status: 'failed',
-      trigger_type: 'manual',
-      executed_by: executedBy,
-      node_results: '{}',
-      duration_ms: duration,
-      error_message: '流程图为空，请先编排场景流程',
-      executed_at: new Date().toISOString(),
-    };
-  }
-
-  // Context for variable passing (environment variables pre-loaded)
-  const context: Record<string, string> = { ...envContext };
-  const nodeResults: Record<string, NodeExecutionResult> = {};
-
-  // BFS queue for parallel branch execution
-  const queue: string[] = [startNode.node_id];
-  const visited = new Set<string>();
-  let hasError = false;
-
-  while (queue.length > 0) {
-    if (hasError) break;
-    const currentNodeId = queue.shift()!;
-    if (visited.has(currentNodeId)) continue;
-    visited.add(currentNodeId);
-
-    const node = nodes.find((n) => n.node_id === currentNodeId);
-    if (!node) continue;
-
-    // End node
-    if (node.type === 'end') {
-      nodeResults[currentNodeId] = {
-        node_id: currentNodeId,
-        node_type: 'end',
-        node_name: '结束',
-        status: 'success',
-      };
-      break;
-    }
-
-    // Start node
-    if (node.type === 'start') {
-      nodeResults[currentNodeId] = {
-        node_id: currentNodeId,
-        node_type: 'start',
-        node_name: '开始',
-        status: 'success',
-      };
-      for (const next of getNextNodes(currentNodeId, adjacency, null)) {
-        queue.push(next);
-      }
-      continue;
-    }
-
-    // API node
-    if (node.type === 'api') {
-      const config: ApiNodeConfig = node.config ? JSON.parse(node.config) : {};
-      const nodeName = config.api_name || '接口节点';
-
-      if (!config.api_id) {
-        nodeResults[currentNodeId] = {
-          node_id: currentNodeId,
-          node_type: 'api',
-          node_name: nodeName,
-          status: 'error',
-          error_message: 'No API configured',
-        };
-        hasError = true;
+      // End node
+      if (node.type === 'end') {
+        addStep('node_start', node.node_id, 'end', `开始节点: 结束`);
+        addStep('node_end', node.node_id, 'end', `完成节点: 结束 (0ms)`, { status: 'success', duration_ms: 0 });
         break;
       }
 
-      try {
-        // Pre-script: run before API call
-        if (node.pre_script) {
-          const preScript = node.pre_script || '';
-          const preResult = await executeScript(preScript, {
-            vars: context,
-            env: envContext,
-            prevApi: undefined,
-            dbConfigs: allDbConfigs,
-          });
-          if (!preResult.success) {
-            nodeResults[currentNodeId] = {
-              node_id: currentNodeId,
-              node_type: 'api',
-              node_name: nodeName,
-              status: 'error',
-              error_message: `前置脚本错误: ${preResult.error}`,
-            };
-            hasError = true;
-            break;
-          }
+      // API node
+      if (node.type === 'api') {
+        const config: ApiNodeConfig = node.config ? JSON.parse(node.config) : {};
+        const nodeName = config.api_name || '接口节点';
+
+        addStep('node_start', node.node_id, 'api', `开始节点: ${nodeName}`, { api_id: config.api_id });
+
+        if (!config.api_id) {
+          addStep('node_end', node.node_id, 'api', `完成节点: ${nodeName} - 错误: 未配置API`, { status: 'error', error: 'No API configured' });
+          overallStatus = 'error';
+          errorMessage = `节点 ${nodeName} 未配置API`;
+          return;
         }
 
-        const result = await executeApi(config.api_id, context, config.override_headers, config.override_body, {
-          sslCert: envSSL.cert,
-          sslKey: envSSL.key,
-          timeout: envSSL.timeout,
+        try {
+          // Pre-script
+          if (node.pre_script) {
+            const preResult = await executeScript(node.pre_script, {
+              vars: context,
+              env: envContext,
+              prevApi: undefined,
+              dbConfigs: allDbConfigs,
+            });
+            if (!preResult.success) {
+              addStep('pre_action', node.node_id, 'api', `前置脚本错误: ${preResult.error}`, { script: node.pre_script, error: preResult.error });
+              addStep('node_end', node.node_id, 'api', `完成节点: ${nodeName} - 错误: 前置脚本失败`, { status: 'error', error: preResult.error });
+              overallStatus = 'error';
+              errorMessage = `前置脚本错误: ${preResult.error}`;
+              return;
+            }
+          }
+
+          // Execute API with scenario execution context
+          const apiResults = await executeApi(config.api_id, context, config.override_headers, config.override_body, {
+            sslCert: envSSL.cert,
+            sslKey: envSSL.key,
+            timeout: envSSL.timeout,
+            scenarioExecutionId: executionId,
+            scenarioId,
+            nodeId: node.node_id,
+            executedBy,
+            scenarioParamRowIndex: rowIdx,
+          });
+
+          // Link all API executions (support parametrized API)
+          for (const apiResult of apiResults) {
+            linkScenarioApiExecution({
+              scenario_execution_id: executionId,
+              node_id: node.node_id,
+              param_row_index: apiResult.param_row_index,
+              api_execution_id: apiResult.execution_id,
+            });
+          }
+
+          // Post-script (run after all param rows)
+          if (node.post_script) {
+            const lastResult = apiResults[apiResults.length - 1];
+            const postResult = await executeScript(node.post_script, {
+              vars: context,
+              env: envContext,
+              prevApi: lastResult ? {
+                status_code: lastResult.status_code ?? 0,
+                response_body: lastResult.response_body || '',
+                response_headers: lastResult.response_headers,
+              } : undefined,
+              dbConfigs: allDbConfigs,
+            });
+            if (!postResult.success) {
+              addStep('post_action', node.node_id, 'api', `后置脚本错误: ${postResult.error}`, { script: node.post_script, error: postResult.error });
+              addStep('node_end', node.node_id, 'api', `完成节点: ${nodeName} - 错误: 后置脚本失败`, { status: 'error', error: postResult.error });
+              overallStatus = 'error';
+              errorMessage = `后置脚本错误: ${postResult.error}`;
+              return;
+            }
+          }
+
+          // Extract values (from last result)
+          const lastResult = apiResults[apiResults.length - 1];
+          const extractValues: Record<string, string> = {};
+          const extractionRules = config.extractions || config.extract_rules || [];
+          for (const rule of extractionRules) {
+            const value = extractValue(lastResult, rule.source, rule.key);
+            extractValues[rule.var_name] = value;
+            context[rule.var_name] = value;
+          }
+
+          // Assertions summary
+          if (config.assertions && config.assertions.length > 0) {
+            const allPassed = apiResults.every(r => r.status === 'success');
+            const anyFailed = apiResults.some(r => r.status === 'failed');
+            if (anyFailed) overallStatus = 'failed';
+            addStep('node_end', node.node_id, 'api', `完成节点: ${nodeName} 状态码:${lastResult.status_code} (${lastResult.duration_ms}ms)${anyFailed ? ' 有断言失败' : ''}`, {
+              status: anyFailed ? 'failed' : 'success',
+              duration_ms: lastResult.duration_ms,
+              assertions: config.assertions,
+            });
+          } else {
+            const apiStatus = lastResult.status;
+            if (apiStatus === 'error') overallStatus = 'error';
+            else if (apiStatus === 'failed' && overallStatus !== 'error') overallStatus = 'failed';
+            addStep('node_end', node.node_id, 'api', `完成节点: ${nodeName} 状态码:${lastResult.status_code} (${lastResult.duration_ms}ms)`, {
+              status: lastResult.status,
+              duration_ms: lastResult.duration_ms,
+            });
+          }
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : 'Unknown error';
+          addStep('error', node.node_id, 'api', `节点执行异常: ${msg}`, { error: msg });
+          addStep('node_end', node.node_id, 'api', `完成节点: ${nodeName} - 错误: ${msg}`, { status: 'error', error: msg });
+          overallStatus = 'error';
+          errorMessage = msg;
+          return;
+        }
+
+        for (const next of getNextNodes(currentNodeId, adjacency, null)) queue.push(next);
+        continue;
+      }
+
+      // Condition node
+      if (node.type === 'condition') {
+        const config: ConditionNodeConfig = node.config ? JSON.parse(node.config) : {};
+        const expr = config.condition_expr || '';
+        const nodeName = expr ? (expr.length > 20 ? expr.slice(0, 20) + '...' : expr) : '条件节点';
+
+        addStep('node_start', node.node_id, 'condition', `开始节点: ${nodeName}`, { condition_expr: expr });
+
+        if (!expr) {
+          addStep('condition', node.node_id, 'condition', `条件节点评估失败: 未配置表达式`, { result: false, error: 'No expression' });
+          addStep('node_end', node.node_id, 'condition', `完成节点: ${nodeName} - 错误: 未配置表达式`, { status: 'error' });
+          overallStatus = 'error';
+          errorMessage = '条件节点未配置表达式';
+          return;
+        }
+
+        const condResult = evaluateCondition(expr, context);
+        addStep('condition', node.node_id, 'condition', `评估条件: ${expr} → ${condResult ? 'TRUE' : 'FALSE'}`, {
+          expr,
+          result: condResult,
+          context_snapshot: { ...context },
         });
+        addStep('node_end', node.node_id, 'condition', `完成节点: ${nodeName} (${condResult ? 'true' : 'false'})`, { status: 'success', condition_result: condResult });
 
-        // Post-script: run after API call
-        if (node.post_script) {
-          const postResult = await executeScript(node.post_script, {
-            vars: context,
-            env: envContext,
-            prevApi: {
-              status_code: result.status_code ?? 0,
-              response_body: result.response_body || '',
-              response_headers: result.response_headers ? JSON.parse(result.response_headers) : {},
-            },
-            dbConfigs: allDbConfigs,
-          });
-          if (!postResult.success) {
-            nodeResults[currentNodeId] = {
-              node_id: currentNodeId,
-              node_type: 'api',
-              node_name: nodeName,
-              status: 'error',
-              error_message: `后置脚本错误: ${postResult.error}`,
-            };
-            hasError = true;
-            break;
-          }
-        }
-
-        // Extract values — support both new extractions field and legacy extract_rules
-        const extractValues: Record<string, string> = {};
-        const extractionRules = config.extractions || config.extract_rules || [];
-        for (const rule of extractionRules) {
-          const value = extractValue(result, rule.source, rule.key);
-          extractValues[rule.var_name] = value;
-          context[rule.var_name] = value;
-        }
-
-        // Evaluate assertions
-        let assertionResults: Array<{ rule: AssertionRule; passed: boolean; actual: string }> = [];
-        const respHeaders: Record<string, string> = result.response_headers ? JSON.parse(result.response_headers) : {};
-
-        if (config.assertions && config.assertions.length > 0) {
-          const { results } = evaluateAssertions(config.assertions, result.status_code, respHeaders, result.response_body || '');
-          assertionResults = results;
-        }
-
-        const assertionFailed = assertionResults.some((ar) => ar.rule.assert !== false && !ar.passed);
-
-        const status = result.error_message ? 'error' : assertionFailed ? 'failed' : (result.status_code && result.status_code >= 200 && result.status_code < 400) ? 'success' : 'failed';
-
-        nodeResults[currentNodeId] = {
-          node_id: currentNodeId,
-          node_type: 'api',
-          node_name: nodeName,
-          status,
-          api_id: result.api_id,
-          status_code: result.status_code,
-          request_headers: result.request_headers,
-          request_body: result.request_body,
-          response_headers: result.response_headers,
-          response_body: result.response_body,
-          duration_ms: result.duration_ms,
-          extract_values: extractValues,
-          assertion_results: assertionResults.length > 0 ? assertionResults : undefined,
-          error_message: result.error_message,
-        };
-
-        if (status === 'error' || assertionFailed) hasError = true;
-      } catch (err) {
-        nodeResults[currentNodeId] = {
-          node_id: currentNodeId,
-          node_type: 'api',
-          node_name: nodeName,
-          status: 'error',
-          error_message: err instanceof Error ? err.message : 'Unknown error',
-        };
-        hasError = true;
+        for (const next of getNextNodes(currentNodeId, adjacency, condResult ? 'true' : 'false')) queue.push(next);
+        continue;
       }
 
-      for (const next of getNextNodes(currentNodeId, adjacency, null)) {
-        queue.push(next);
-      }
-      continue;
+      // Unknown node type
+      for (const next of getNextNodes(currentNodeId, adjacency, null)) queue.push(next);
     }
+  };
 
-    // Condition node
-    if (node.type === 'condition') {
-      const config: ConditionNodeConfig = node.config ? JSON.parse(node.config) : {};
-      const expr = config.condition_expr || '';
-      const nodeName = expr ? (expr.length > 20 ? expr.slice(0, 20) + '...' : expr) : '条件节点';
-
-      if (!expr) {
-        nodeResults[currentNodeId] = {
-          node_id: currentNodeId,
-          node_type: 'condition',
-          node_name: nodeName,
-          status: 'error',
-          error_message: 'No condition expression configured',
-        };
-        hasError = true;
-        break;
+  // Execute
+  if (hasParamRows) {
+    for (const { rowIdx, values } of paramRows) {
+      const paramContext: Record<string, string> = { ...envContext };
+      for (let ci = 0; ci < paramConfig!.headers.length; ci++) {
+        paramContext[paramConfig!.headers[ci]] = values[ci] || '';
       }
-
-      const result = evaluateCondition(expr, context);
-
-      nodeResults[currentNodeId] = {
-        node_id: currentNodeId,
-        node_type: 'condition',
-        node_name: nodeName,
-        status: 'success',
-        condition_result: result,
-      };
-
-      // Follow the appropriate edge
-      for (const next of getNextNodes(currentNodeId, adjacency, result ? 'true' : 'false')) {
-        queue.push(next);
-      }
-      continue;
+      await executeOnce(paramContext, rowIdx);
+      if (overallStatus === 'error') break;
     }
-
-    // Unknown node type - skip
-    for (const next of getNextNodes(currentNodeId, adjacency, null)) {
-      queue.push(next);
-    }
+  } else {
+    await executeOnce({ ...envContext }, null);
   }
 
-  const duration = Date.now() - start;
-  const status = hasError ? 'failed' : 'success';
+  const finishedAt = new Date().toISOString();
+  const duration = new Date(finishedAt).getTime() - new Date(startedAt).getTime();
 
-  // Save log
-  const logId = createScenarioLog(scenarioId, {
-    status,
-    trigger_type: 'manual',
-    executed_by: executedBy,
-    node_results: JSON.stringify(nodeResults),
+  addStep('scenario_end', null, null, `场景执行完成 - 状态: ${overallStatus} 耗时: ${duration}ms`, {
+    status: overallStatus,
     duration_ms: duration,
   });
 
-  return {
-    id: logId,
-    scenario_id: scenarioId,
-    status,
-    trigger_type: 'manual',
-    executed_by: executedBy,
-    node_results: JSON.stringify(nodeResults),
+  updateScenarioExecution(executionId, {
+    status: overallStatus,
     duration_ms: duration,
-    executed_at: new Date().toISOString(),
-  };
+    error_message: errorMessage,
+    finished_at: finishedAt,
+  });
+
+  return findScenarioExecutionWithSteps(executionId) as (ScenarioExecutionRow & { steps: ScenarioExecutionStepRow[]; api_links: ScenarioApiExecutionLinkRow[] });
 }
 
 function getNextNodes(
@@ -615,19 +525,11 @@ function getNextNodes(
   handle: string | null
 ): string[] {
   const edges = adjacency.get(currentNodeId) || [];
-
-  // If handle specified (for condition nodes), find matching edge
   if (handle) {
     const edge = edges.find((e) => e.source_handle === handle);
     return edge ? [edge.target_node_id] : [];
   }
-
-  // Otherwise, follow all edges without a handle (parallel branches)
   const noHandleEdges = edges.filter((e) => !e.source_handle);
-  if (noHandleEdges.length > 0) {
-    return noHandleEdges.map((e) => e.target_node_id);
-  }
-
-  // Fallback: follow all edges
+  if (noHandleEdges.length > 0) return noHandleEdges.map((e) => e.target_node_id);
   return edges.map((e) => e.target_node_id);
 }

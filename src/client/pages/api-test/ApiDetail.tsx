@@ -7,13 +7,18 @@ import { javascript } from '@codemirror/lang-javascript';
 import { linter } from '@codemirror/lint';
 import type { Extension } from '@codemirror/state';
 import { apiFetch } from '../../utils/api';
+import { toLocalDateTime } from '../../utils/datetime';
 import { useEnvironment } from '../../contexts/EnvironmentContext';
 import { InlineText, InlineSelect } from '../../components/InlineEdit';
+import TagInput from '../../components/TagInput';
 import VarHoverTip from '../../components/VarHoverTip';
-import MessageModal from '../../components/MessageModal';
+import CodeMirrorHover from '../../components/CodeMirrorHover';
+import notification from '../../utils/notification';
 import SelectFunctionModal from '../../components/SelectFunctionModal';
-import type { ApiItem, ApiLog, AssertionRule, AssertionResult, DatabaseEntry } from '../../types';
+import type { ApiItem, ApiLog, AssertionRule, AssertionResult, DatabaseEntry, ApiExecution, ApiExecutionStep } from '../../types';
 import { PrePostActionList, defaultAction, type PrePostAction } from '../../components/PrePostActionItem';
+import ApiExecutionTimeline from '../../components/ApiExecutionTimeline';
+import BatchExecutionView from './BatchExecutionView';
 import './ApiDetail.css';
 import '../scenario/ScenarioDetail.css';
 
@@ -39,6 +44,7 @@ const ASSERTION_SOURCES = [
   { value: 'status', label: '状态码' },
   { value: 'header', label: '响应头' },
   { value: 'body', label: '响应体' },
+  { value: 'vars', label: '变量' },
 ];
 const ASSERTION_OPERATORS = [
   { value: 'equals', label: '等于' },
@@ -72,12 +78,12 @@ const TABS = [
   { key: 'pre', label: '前置动作' },
   { key: 'main', label: '主体动作' },
   { key: 'post', label: '后置动作' },
-  { key: 'final', label: '最终断言' },
+  { key: 'params', label: '参数化' },
   { key: 'logs', label: '执行记录' },
 ];
 const defaultAssertion = (index: number): AssertionRule => ({ name: `规则${index}`, source: 'status', key: '', operator: 'equals', expected: '', assert: true });
 const defaultRule = (index: number): AssertionRule => ({ name: `规则${index}`, source: 'status', key: '', operator: 'equals', expected: '', assert: false });
-  const defaultAssertRule = (index: number): AssertionRule => ({ name: `规则${index}`, source: 'status', key: '', operator: 'equals', expected: '', assert: true });
+const defaultAssertRule = (index: number): AssertionRule => ({ name: `规则${index}`, source: 'status', key: '', operator: 'equals', expected: '', assert: true });
 
 function getEditorLang(ct: string): Extension[] {
   if (ct === 'json') return [json()];
@@ -95,28 +101,24 @@ export default function ApiDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const isNew = id === 'new';
-  const [api, setApi] = useState<ApiItem | null>(isNew ? {
-    id: 0, user_id: 0, name: '', method: 'GET', url: '', protocol: 'https',
-    headers: '', body: '', description: '', tags: '', status: 'draft',
-    content_type: 'json', assertions: '[]',
-    created_at: '', updated_at: '',
-  } as ApiItem : null);
+  // Route /api-test/api-case/new has no :id param, so id is undefined
+  // Route /api-test/api-case/:id has id param (string)
+  const isNew = !id || id === 'new';
+  // For new pages, set api immediately to avoid "loading" state
+  const [api, setApi] = useState<ApiItem | null>(null);
   const [logs, setLogs] = useState<ApiLog[]>([]);
   const [executing, setExecuting] = useState(false);
-  const [lastResult, setLastResult] = useState<ApiLog | null>(null);
   const [expandedLog, setExpandedLog] = useState<number | null>(null);
-  const [resultCollapsed, setResultCollapsed] = useState(false);
   const [error, setError] = useState('');
-  const [modalMsg, setModalMsg] = useState('');
-  const [modalType, setModalType] = useState<'error' | 'warning' | 'success'>('error');
-  const [modalOpen, setModalOpen] = useState(false);
   const autoExecRef = useRef(false);
   const realIdRef = useRef<string | null>(isNew ? null : id!);
   const dirtyRef = useRef(false);
   const [activeTab, setActiveTab] = useState('detail');
   const [fnModalOpen, setFnModalOpen] = useState(false);
   const [fnTarget, setFnTarget] = useState<'pre_script' | 'post_script' | null>(null);
+  // New execution state
+  const [executions, setExecutions] = useState<ApiExecution[]>([]);
+  const [selectedExecution, setSelectedExecution] = useState<ApiExecution | null>(null);
 
   // 前置/后置动作列表（组件化新格式）
   const [preActions, setPreActions] = useState<PrePostAction[]>([]);
@@ -131,34 +133,52 @@ export default function ApiDetail() {
     post_db_name: '', post_db_query: '',
     pre_assertions: '[]',
     post_assertions: '[]',
-    final_assertions: '[]',
     pre_actions: '[]',
     post_actions: '[]',
+    parameters: '',
   });
   const [mainRules, setMainRules] = useState<AssertionRule[]>([]);
   const [preExtractionRules, setPreExtractionRules] = useState<AssertionRule[]>([]);
   const [preAssertionRules, setPreAssertionRules] = useState<AssertionRule[]>([]);
   const [postExtractionRules, setPostExtractionRules] = useState<AssertionRule[]>([]);
   const [postAssertionRules, setPostAssertionRules] = useState<AssertionRule[]>([]);
-  const [finalAssertionRules, setFinalAssertionRules] = useState<AssertionRule[]>([]);
+  // ─── Param Tab state ───
+  const [paramConfig, setParamConfig] = useState<{
+    enabled: boolean;    // 全局开关
+    headers: string[];
+    rows: string[][];
+    enabledRows: boolean[];  // 每行是否启用
+  }>({ enabled: false, headers: [], rows: [], enabledRows: [] });
   const [mainEditingRuleIdx, setMainEditingRuleIdx] = useState<number | null>(null);
   // 前置动作规则编辑状态
   const [preEditingRuleIdx, setPreEditingRuleIdx] = useState<number | null>(null);
   // 后置动作规则编辑状态
   const [postEditingRuleIdx, setPostEditingRuleIdx] = useState<number | null>(null);
-  // 最终断言规则编辑状态
-  const [finalEditingRuleIdx, setFinalEditingRuleIdx] = useState<number | null>(null);
   const [editingUrl, setEditingUrl] = useState(false);
   const [draftUrl, setDraftUrl] = useState('');
+
+  // Initialize api state for new pages immediately
+  useEffect(() => {
+    if (isNew) {
+      setApi({
+        id: 0, user_id: 0, name: '', method: 'GET', url: '', protocol: 'https',
+        headers: '', body: '', description: '', tags: '', status: 'draft',
+        content_type: 'json', assertions: '[]',
+        created_at: '', updated_at: '',
+      });
+    }
+  }, [isNew]);
 
   const ensureCreated = async (): Promise<string | null> => {
     if (realIdRef.current) return realIdRef.current;
     try {
       const payload = { ...form,
+        test_type: 'api',
         assertions: JSON.stringify(mainRules),
         pre_assertions: JSON.stringify([...preExtractionRules, ...preAssertionRules]),
         post_assertions: JSON.stringify([...postExtractionRules, ...postAssertionRules]),
-        final_assertions: JSON.stringify(finalAssertionRules),
+        pre_actions: JSON.stringify(preActions),
+        post_actions: JSON.stringify(postActions),
       };
       const res = await apiFetch<{ id: number }>('/apis', { method: 'POST', body: JSON.stringify(payload) }) as { code: number; message?: string; data?: { id: number } };
       if (res.code === 201 && res.data) {
@@ -167,10 +187,10 @@ export default function ApiDetail() {
         setApi(prev => prev ? { ...prev, id: res.data!.id } : prev);
         return realIdRef.current;
       }
-      setModalType('error'); setModalMsg(res.message || '创建失败'); setModalOpen(true);
+      notification.error(res.message || '创建失败');
       return null;
     } catch (err) {
-      setModalType('error'); setModalMsg(err instanceof Error ? err.message : '创建失败'); setModalOpen(true);
+      notification.error(err instanceof Error ? err.message : '创建失败');
       return null;
     }
   };
@@ -178,15 +198,44 @@ export default function ApiDetail() {
   const { activeEnv } = useEnvironment();
 
   const handleExecute = async () => {
-    if (!realIdRef.current) { setModalType('warning'); setModalMsg('请先保存案例后再执行'); setModalOpen(true); return; }
-    setExecuting(true); setLastResult(null); setResultCollapsed(false);
+    if (!realIdRef.current) { notification.warning('请先保存案例后再执行'); return; }
+    setExecuting(true);
     try {
-      const res = await apiFetch<ApiLog>(`/apis/${realIdRef.current}/execute`, { method: 'POST', body: JSON.stringify({ environmentId: activeEnv?.id }) }) as { code: number; data?: ApiLog };
-      if (res.code === 200 && res.data) {
-        setLastResult(res.data);
-        const logsRes = await apiFetch<ApiLog[]>(`/apis/${realIdRef.current}/logs`) as { code: number; data?: ApiLog[] };
-        if (logsRes.code === 200 && logsRes.data) setLogs(logsRes.data);
+      await apiFetch<ApiLog>(`/apis/${realIdRef.current}/execute`, { method: 'POST', body: JSON.stringify({ environmentId: activeEnv?.id }) });
+      const execRes = await apiFetch<ApiExecution[]>(`/apis/${realIdRef.current}/executions`) as { code: number; data?: ApiExecution[] };
+      if (execRes.code === 200 && execRes.data && execRes.data.length > 0) {
+        const firstExec = execRes.data[0];
+        setExecutions(execRes.data);
+
+        // Check if it's a batch execution - batch leader has sub_executions
+        const isBatch = firstExec.sub_executions && firstExec.sub_executions.length > 0;
+
+        if (isBatch) {
+          // Fetch details for batch leader and all sub executions
+          const [leaderDetail, ...subDetails] = await Promise.all([
+            apiFetch<ApiExecution & { steps: ApiExecutionStep[] }>(`/apis/${realIdRef.current}/executions/${firstExec.id}`) as { code: number; data?: ApiExecution & { steps: ApiExecutionStep[] } },
+            ...firstExec.sub_executions!.map(sub =>
+              apiFetch<ApiExecution & { steps: ApiExecutionStep[] }>(`/apis/${realIdRef.current}/executions/${sub.id}`) as { code: number; data?: ApiExecution & { steps: ApiExecutionStep[] } }
+            )
+          ]);
+          const subsWithDetails = subDetails.map(r => r.data).filter(Boolean) as ApiExecution[];
+          const batchWithDetails = { ...(leaderDetail.data || firstExec), sub_executions: subsWithDetails };
+          setSelectedExecution(batchWithDetails);
+          setExecutions(prev => prev.map(e => e.id === firstExec.id ? batchWithDetails : e));
+        } else {
+          // 自动获取最新一条记录的详情
+          if (!firstExec.steps) {
+            const detailRes = await apiFetch<ApiExecution & { steps: ApiExecutionStep[] }>(`/apis/${realIdRef.current}/executions/${firstExec.id}`) as { code: number; data?: ApiExecution & { steps: ApiExecutionStep[] } };
+            if (detailRes.code === 200 && detailRes.data) {
+              setExecutions(prev => prev.map(e => e.id === firstExec.id ? detailRes.data! : e));
+              setSelectedExecution(detailRes.data!);
+            }
+          } else {
+            setSelectedExecution(firstExec);
+          }
+        }
       }
+      setActiveTab('logs');
     } catch (err) { setError(err instanceof Error ? err.message : 'Execute failed'); }
     finally { setExecuting(false); }
   };
@@ -208,9 +257,9 @@ export default function ApiDetail() {
           post_db_name: d.post_db_name || '', post_db_query: d.post_db_query || '',
           pre_assertions: d.pre_assertions || '[]',
           post_assertions: d.post_assertions || '[]',
-          final_assertions: d.final_assertions || '[]',
           pre_actions: d.pre_actions || '[]',
           post_actions: d.post_actions || '[]',
+          parameters: d.parameters || '',
         });
         // 主体动作：所有规则合并存储
         try {
@@ -228,35 +277,109 @@ export default function ApiDetail() {
           setPostExtractionRules(allPostRules.filter(r => r.assert === false));
           setPostAssertionRules(allPostRules.filter(r => r.assert !== false));
         } catch { setPostExtractionRules([]); setPostAssertionRules([]); }
-        try { setFinalAssertionRules(JSON.parse(d.final_assertions || '[]')); } catch { setFinalAssertionRules([]); }
         // 前后置动作列表（组件化格式）
         try { setPreActions(JSON.parse(d.pre_actions || '[]')); } catch { setPreActions([]); }
         try { setPostActions(JSON.parse(d.post_actions || '[]')); } catch { setPostActions([]); }
+        // 参数化配置
+        try {
+          const params = typeof d.parameters === 'string' ? JSON.parse(d.parameters) : d.parameters;
+          if (params && typeof params === 'object') {
+            setParamConfig({
+              enabled: params.enabled || false,
+              headers: params.headers || [],
+              rows: params.rows || [],
+              enabledRows: params.enabledRows || params.rows?.map(() => true) || [],
+            });
+          }
+        } catch { setParamConfig({ enabled: false, headers: [], rows: [], enabledRows: [] }); }
         if (searchParams.get('exec') === '1' && !autoExecRef.current) { autoExecRef.current = true; handleExecute(); }
       }
     });
     apiFetch<ApiLog[]>(`/apis/${id}/logs`).then((res) => { const r = res as { code: number; data?: ApiLog[] }; if (r.code === 200 && r.data) setLogs(r.data); });
+    apiFetch<ApiExecution[]>(`/apis/${id}/executions`).then((res) => {
+      const r = res as { code: number; data?: ApiExecution[] };
+      if (r.code === 200 && r.data && r.data.length > 0) {
+        const firstExec = r.data[0];
+        setExecutions(r.data);
+        // 自动获取第一条记录的详情
+        if (!firstExec.steps) {
+          apiFetch<ApiExecution & { steps: ApiExecutionStep[] }>(`/apis/${id}/executions/${firstExec.id}`).then((detailRes) => {
+            const detail = detailRes as unknown as { code: number; data?: ApiExecution & { steps: ApiExecutionStep[] } };
+            if (detail.code === 200 && detail.data) {
+              setExecutions(prev => prev.map(e => e.id === firstExec.id ? detail.data! : e));
+              setSelectedExecution(detail.data!);
+            }
+          });
+        } else {
+          setSelectedExecution(firstExec);
+        }
+      }
+    });
   }, [id]);
+
+  const handleSelectExecution = useCallback(async (exec: ApiExecution) => {
+    if (selectedExecution?.id === exec.id) {
+      setSelectedExecution(null);
+    } else {
+      const isBatch = exec.sub_executions && exec.sub_executions.length > 0;
+      if (isBatch) {
+        // Fetch details for batch leader and all sub executions
+        const [leaderDetail, ...subDetails] = await Promise.all([
+          apiFetch<ApiExecution & { steps: ApiExecutionStep[] }>(`/apis/${id}/executions/${exec.id}`) as { code: number; data?: ApiExecution & { steps: ApiExecutionStep[] } },
+          ...exec.sub_executions!.map(sub =>
+            apiFetch<ApiExecution & { steps: ApiExecutionStep[] }>(`/apis/${id}/executions/${sub.id}`) as { code: number; data?: ApiExecution & { steps: ApiExecutionStep[] } }
+          )
+        ]);
+        const subsWithDetails = subDetails.map(r => r.data).filter(Boolean) as ApiExecution[];
+        const batchWithDetails = { ...(leaderDetail.data || exec), sub_executions: subsWithDetails };
+        setSelectedExecution(batchWithDetails);
+        setExecutions(prev => prev.map(e => e.id === exec.id ? batchWithDetails : e));
+      } else {
+        setSelectedExecution(exec);
+        if (!exec.steps) {
+          apiFetch<ApiExecution & { steps: ApiExecutionStep[] }>(`/apis/${id}/executions/${exec.id}`).then((res) => {
+            const r = res as unknown as { code: number; data?: ApiExecution & { steps: ApiExecutionStep[] } };
+            if (r.code === 200 && r.data) {
+              setExecutions(prev => prev.map(e => e.id === exec.id ? r.data! : e));
+              setSelectedExecution(r.data!);
+            }
+          });
+        }
+      }
+    }
+  }, [id, selectedExecution?.id]);
 
   
 
   const handleSave = async () => {
     setError('');
+    // 必填字段校验
+    if (!form.name.trim()) {
+      notification.warning('请输入接口名称');
+      setActiveTab('detail');
+      return;
+    }
+    if (!form.url.trim()) {
+      notification.warning('请输入请求地址');
+      setActiveTab('main');
+      return;
+    }
     const rid = await ensureCreated(); if (!rid) return;
     try {
       const payload = { ...form,
         assertions: JSON.stringify(mainRules),
         pre_assertions: JSON.stringify([...preExtractionRules, ...preAssertionRules]),
         post_assertions: JSON.stringify([...postExtractionRules, ...postAssertionRules]),
-        final_assertions: JSON.stringify(finalAssertionRules),
         pre_actions: JSON.stringify(preActions),
         post_actions: JSON.stringify(postActions),
+        parameters: JSON.stringify({ enabled: paramConfig.enabled, headers: paramConfig.headers, rows: paramConfig.rows, enabledRows: paramConfig.enabledRows }),
       };
       const res = await apiFetch(`/apis/${rid}`, { method: 'PUT', body: JSON.stringify(payload) }) as { code: number; message?: string };
-      if (res.code !== 200) { setModalType('error'); setModalMsg(res.message || '保存失败'); setModalOpen(true); return; }
+      if (res.code !== 200) { notification.error(res.message || '保存失败'); return; }
       setApi({ ...api!, ...payload, updated_at: new Date().toISOString() } as ApiItem);
       dirtyRef.current = false;
-    } catch (err) { setModalType('error'); setModalMsg(err instanceof Error ? err.message : '保存失败'); setModalOpen(true); }
+      notification.success('保存成功');
+    } catch (err) { notification.error(err instanceof Error ? err.message : '保存失败'); }
   };
 
   const handleFormat = useCallback((field: 'headers' | 'body') => {
@@ -309,13 +432,6 @@ export default function ApiDetail() {
     const updated = [...postAssertionRules]; updated[idx] = { ...updated[idx], [field]: value } as AssertionRule;
     setPostAssertionRules(updated); dirtyRef.current = true;
   };
-  // Final assertion helpers
-  const addFinalRule = () => setFinalAssertionRules([...finalAssertionRules, defaultAssertion(finalAssertionRules.length + 1)]);
-  const removeFinalRule = (idx: number) => setFinalAssertionRules(finalAssertionRules.filter((_, i) => i !== idx));
-  const updateFinalRule = (idx: number, field: keyof AssertionRule, value: string | boolean) => {
-    const updated = [...finalAssertionRules]; updated[idx] = { ...updated[idx], [field]: value } as AssertionRule;
-    setFinalAssertionRules(updated); dirtyRef.current = true;
-  };
   // 统一切换规则校验状态（与 PrePostActionItem.toggleAssert 完全一致）
   const toggleMainRule = (idx: number) => {
     const rule = mainRules[idx];
@@ -327,18 +443,6 @@ export default function ApiDetail() {
       const updated = [...mainRules];
       updated[idx] = { ...rule, assert: true };
       setMainRules(updated); dirtyRef.current = true;
-    }
-  };
-  const toggleFinalRule = (idx: number) => {
-    const rule = finalAssertionRules[idx];
-    if (rule.assert !== false) {
-      const updated = [...finalAssertionRules];
-      updated[idx] = { ...rule, assert: false, operator: 'equals', expected: '' };
-      setFinalAssertionRules(updated); dirtyRef.current = true;
-    } else {
-      const updated = [...finalAssertionRules];
-      updated[idx] = { ...rule, assert: true };
-      setFinalAssertionRules(updated); dirtyRef.current = true;
     }
   };
 
@@ -368,12 +472,12 @@ export default function ApiDetail() {
             </span>
           )}
           <select value={rule.source} onChange={(e) => onUpdate(idx, 'source', e.target.value)}>{ASSERTION_SOURCES.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}</select>
-          <input className="rule-key" placeholder={rule.source === 'status' ? '(自动)' : rule.source === 'header' ? 'Header名' : '路径如 data.id'} value={rule.key} onChange={(e) => onUpdate(idx, 'key', e.target.value)} disabled={rule.source === 'status'} />
+          <input className="rule-key" placeholder={rule.source === 'status' ? '(自动)' : rule.source === 'header' ? 'Header名' : rule.source === 'vars' ? '变量名' : '路径如 data.id'} value={rule.key} onChange={(e) => onUpdate(idx, 'key', e.target.value)} disabled={rule.source === 'status'} />
           {mode === 'assert' && (
             <>
               {/* 校验开关：打开显示"检查"+下拉+输入框，关闭显示"提取"+隐藏下拉和输入框 */}
               <label className="rule-switch">
-                <input type="checkbox" checked={rule.assert !== false} onChange={() => toggleFinalRule(idx)} />
+                <input type="checkbox" checked={rule.assert !== false} onChange={() => { onUpdate(idx, 'assert', rule.assert === false); }} />
                 <span className="rule-switch-slider"><span className="rule-switch-label">{rule.assert !== false ? '检查' : '提取'}</span></span>
               </label>
               <select className="rule-operator" value={rule.operator} onChange={(e) => onUpdate(idx, 'operator', e.target.value)} style={{ display: rule.assert === false ? 'none' : undefined }}>{ASSERTION_OPERATORS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}</select>
@@ -398,18 +502,18 @@ export default function ApiDetail() {
     <div className="tab-content-wrapper tab-detail-wrapper">
       <div className="ad-section ad-section-fill">
         <div className="api-detail-row">
-          <div className="field"><label>接口名称</label><InlineText value={form.name} onChange={v => { setForm(f => ({ ...f, name: v })); dirtyRef.current = true; }} placeholder="点击输入接口名称" /></div>
+          <div className="field"><label>接口名称 <span className="required">*</span></label><InlineText value={form.name} onChange={v => { setForm(f => ({ ...f, name: v })); dirtyRef.current = true; }} placeholder="点击输入接口名称" /></div>
         </div>
         <div className="api-detail-row">
           <div className="field"><label>描述</label><InlineText value={form.description} onChange={v => { setForm(f => ({ ...f, description: v })); dirtyRef.current = true; }} placeholder="点击输入描述" multiline /></div>
         </div>
         <div className="api-detail-row">
-          <div className="field"><label>标签</label><InlineText value={form.tags} onChange={v => { setForm(f => ({ ...f, tags: v })); dirtyRef.current = true; }} placeholder="点击输入标签" /></div>
+          <div className="field"><label>标签</label><TagInput value={form.tags} onChange={v => { setForm(f => ({ ...f, tags: v })); dirtyRef.current = true; }} onDirty={() => { dirtyRef.current = true; }} placeholder="输入标签，回车确认" /></div>
           <div className="field"><label>状态</label><InlineSelect value={form.status} options={STATUS_OPTIONS} onChange={v => { setForm(f => ({ ...f, status: v })); dirtyRef.current = true; }} renderDisplay={(v, label) => <span className={`status-text status-${v}`}>{label}</span>} /></div>
         </div>
         <div className="api-detail-row">
-          <div className="field"><label>创建时间</label><span className="field-value">{api.created_at ? api.created_at.replace('T', ' ').slice(0, 19) : '-'}</span></div>
-          <div className="field"><label>更新时间</label><span className="field-value">{api.updated_at ? api.updated_at.replace('T', ' ').slice(0, 19) : '-'}</span></div>
+          <div className="field"><label>创建时间</label><span className="field-value">{toLocalDateTime(api.created_at)}</span></div>
+          <div className="field"><label>更新时间</label><span className="field-value">{toLocalDateTime(api.updated_at)}</span></div>
         </div>
       </div>
     </div>
@@ -441,7 +545,7 @@ export default function ApiDetail() {
           <div className="field"><label>协议</label><InlineSelect value={form.protocol} options={PROTOCOL_OPTIONS} onChange={v => { setForm(f => ({ ...f, protocol: v })); dirtyRef.current = true; }} /></div>
         </div>
         <div className="api-detail-row">
-          <div className="field field-url"><label>请求地址</label>
+          <div className="field field-url"><label>请求地址 <span className="required">*</span></label>
             <span className="ie-field ie-mono url-editable" onClick={() => setEditingUrl(true)}>
               <VarHoverTip text={form.url} className="ie-url-display" />
               <span className="ie-icon">✎</span>
@@ -467,8 +571,8 @@ export default function ApiDetail() {
           </div>
         </div>
         <div className="ad-editor-section">
-          <div className="ad-editor-label"><label>请求头</label><button type="button" className="ad-btn ad-btn-sm" onClick={() => handleFormat('headers')}>格式化</button></div>
-          <CodeMirror value={form.headers} height="120px" extensions={[json(), linter(jsonParseLinter())]} onChange={(val) => { setForm({ ...form, headers: val }); dirtyRef.current = true; }} placeholder={HEADER_HINT} basicSetup={{ lineNumbers: true, foldGutter: true, highlightActiveLine: true, bracketMatching: true }} />
+          <div className="ad-editor-label"><label>请求头</label><button type="button" className="btn btn-sm" onClick={() => handleFormat('headers')}>格式化</button></div>
+          <CodeMirrorHover value={form.headers} height="120px" extensions={[json(), linter(jsonParseLinter())]} onChange={(val) => { setForm({ ...form, headers: val }); dirtyRef.current = true; }} placeholder={HEADER_HINT} basicSetup={{ lineNumbers: true, foldGutter: true, highlightActiveLine: true, bracketMatching: true }} />
         </div>
         <div className="api-detail-row" style={{ marginTop: 12 }}>
           <div className="field">
@@ -480,8 +584,8 @@ export default function ApiDetail() {
           </div>
         </div>
         <div className="ad-editor-section">
-          <div className="ad-editor-label"><label>请求体</label><button type="button" className="ad-btn ad-btn-sm" onClick={() => handleFormat('body')}>格式化</button></div>
-          <CodeMirror value={form.body} height="200px" extensions={getEditorLang(form.content_type) || []} onChange={(val) => { setForm({ ...form, body: val }); dirtyRef.current = true; }} placeholder={BODY_HINTS[form.content_type]} basicSetup={{ lineNumbers: true, foldGutter: true, highlightActiveLine: true, bracketMatching: true }} />
+          <div className="ad-editor-label"><label>请求体</label><button type="button" className="btn btn-sm" onClick={() => handleFormat('body')}>格式化</button></div>
+          <CodeMirrorHover value={form.body} height="200px" extensions={getEditorLang(form.content_type) || []} onChange={(val) => { setForm({ ...form, body: val }); dirtyRef.current = true; }} placeholder={BODY_HINTS[form.content_type]} basicSetup={{ lineNumbers: true, foldGutter: true, highlightActiveLine: true, bracketMatching: true }} />
         </div>
       </div>
 
@@ -536,7 +640,7 @@ export default function ApiDetail() {
             <div style={{ fontSize: '0.75rem', color: '#bbb', marginBottom: 8 }}>暂无提取和断言规则</div>
           )}
         </div>
-        <button type="button" className="ad-btn ad-btn-sm" style={{ marginTop: 8, display: 'block' }} onClick={() => { addMainRule(); dirtyRef.current = true; }}>+ 添加规则</button>
+        <button type="button" className="btn btn-sm" style={{ marginTop: 8, display: 'block' }} onClick={() => { addMainRule(); dirtyRef.current = true; }}>+ 添加规则</button>
       </div>
     </div>
   );
@@ -553,17 +657,6 @@ export default function ApiDetail() {
           label="添加后置动作"
           databases={getDatabasesFromEnv(activeEnv)}
         />
-      </div>
-    </div>
-  );
-
-  // ─── Tab: Final ───
-  const renderFinalTab = () => (
-    <div className="tab-content-wrapper">
-      <div className="ad-section">
-        <div className="ad-section-head"><label>最终断言</label></div>
-        {renderRuleCards(finalAssertionRules, addFinalRule, removeFinalRule, updateFinalRule, 'assert', finalEditingRuleIdx, setFinalEditingRuleIdx)}
-        <button type="button" className="ad-btn ad-btn-sm" style={{ marginTop: 8, display: 'block' }} onClick={addFinalRule}>+ 添加断言</button>
       </div>
     </div>
   );
@@ -673,69 +766,274 @@ export default function ApiDetail() {
     return null;
   };
 
+  // ─── Tab: Params ───
+  const renderParamsTab = () => {
+    // 全局开关切换
+    const toggleEnabled = () => {
+      setParamConfig(p => ({ ...p, enabled: !p.enabled }));
+      dirtyRef.current = true;
+    };
+
+    // 添加新列
+    const addColumn = () => {
+      setParamConfig(p => ({
+        ...p,
+        headers: [...p.headers, `col${p.headers.length + 1}`],
+        rows: p.rows.map(row => [...row, '']),
+        enabledRows: p.enabledRows.length < p.rows.length
+          ? [...p.enabledRows, ...new Array(p.rows.length - p.enabledRows.length).fill(true)]
+          : p.enabledRows,
+      }));
+      dirtyRef.current = true;
+    };
+    // 删除列
+    const removeColumn = (colIdx: number) => {
+      setParamConfig(p => ({
+        ...p,
+        headers: p.headers.filter((_, i) => i !== colIdx),
+        rows: p.rows.map(row => row.filter((_, i) => i !== colIdx)),
+      }));
+      dirtyRef.current = true;
+    };
+    // 添加行
+    const addRow = () => {
+      setParamConfig(p => ({
+        ...p,
+        rows: [...p.rows, new Array(p.headers.length).fill('')],
+        enabledRows: [...p.enabledRows, true],
+      }));
+      dirtyRef.current = true;
+    };
+    // 删除行
+    const removeRow = (rowIdx: number) => {
+      setParamConfig(p => ({
+        ...p,
+        rows: p.rows.filter((_, i) => i !== rowIdx),
+        enabledRows: p.enabledRows.filter((_, i) => i !== rowIdx),
+      }));
+      dirtyRef.current = true;
+    };
+    // 切换行启用状态
+    const toggleRowEnabled = (rowIdx: number) => {
+      setParamConfig(p => {
+        const enabledRows = [...p.enabledRows];
+        enabledRows[rowIdx] = !enabledRows[rowIdx];
+        return { ...p, enabledRows };
+      });
+      dirtyRef.current = true;
+    };
+    // 全选 / 全不选
+    const toggleAllRows = (checked: boolean) => {
+      setParamConfig(p => ({
+        ...p,
+        enabledRows: p.rows.map(() => checked),
+      }));
+      dirtyRef.current = true;
+    };
+    // 修改列头
+    const setHeader = (colIdx: number, val: string) => {
+      setParamConfig(p => {
+        const headers = [...p.headers];
+        headers[colIdx] = val;
+        return { ...p, headers };
+      });
+      dirtyRef.current = true;
+    };
+    // 修改单元格
+    const setCell = (rowIdx: number, colIdx: number, val: string) => {
+      setParamConfig(p => {
+        const rows = p.rows.map((row, ri) => ri === rowIdx ? row.map((cell, ci) => ci === colIdx ? val : cell) : row);
+        return { ...p, rows };
+      });
+      dirtyRef.current = true;
+    };
+
+    // CSV 上传 + 与现有数据合并
+    const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const text = ev.target?.result as string;
+        const lines = text.trim().split('\n');
+        if (lines.length < 2) { notification.warning('CSV 至少需要一行表头和一行数据'); return; }
+        const csvHeaders = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
+        const csvRows = lines.slice(1).map(line => line.split(',').map(cell => cell.trim().replace(/^"|"$/g, '')));
+
+        setParamConfig(p => {
+          // 合并列头（去重追加）
+          const allHeaders = [...p.headers];
+          const existingSet = new Set(p.headers.map(h => h.toLowerCase()));
+          for (const h of csvHeaders) {
+            if (h && !existingSet.has(h.toLowerCase())) { allHeaders.push(h); existingSet.add(h.toLowerCase()); }
+          }
+          // 建立 header → column index 映射
+          const headerIdx = new Map<string, number>();
+          allHeaders.forEach((h, i) => headerIdx.set(h.toLowerCase(), i));
+          for (const h of csvHeaders) { if (h) headerIdx.set(h.toLowerCase(), allHeaders.indexOf(h)); }
+          // 构建合并后的行：取行数较多者
+          const maxRows = Math.max(p.rows.length, csvRows.length);
+          const mergedRows: string[][] = [];
+          const mergedEnabled: boolean[] = [];
+          for (let i = 0; i < maxRows; i++) {
+            const row = new Array(allHeaders.length).fill('');
+            if (i < p.rows.length) {
+              p.rows[i].forEach((val, ci) => { if (ci < allHeaders.length) row[ci] = val; });
+            }
+            if (i < csvRows.length) {
+              csvRows[i].forEach((val, ci) => {
+                const h = csvHeaders[ci];
+                if (h) {
+                  const idx = allHeaders.indexOf(h);
+                  if (idx !== -1) row[idx] = val;
+                }
+              });
+            }
+            mergedRows.push(row);
+            mergedEnabled.push(i < p.enabledRows.length ? p.enabledRows[i] : true);
+          }
+          for (let i = p.enabledRows.length; i < maxRows; i++) mergedEnabled[i] = true;
+          return { ...p, headers: allHeaders, rows: mergedRows, enabledRows: mergedEnabled };
+        });
+        dirtyRef.current = true;
+      };
+      reader.readAsText(file);
+      e.target.value = '';
+    };
+
+    // 下载模板
+    const downloadTemplate = () => {
+      const headers = paramConfig.headers.length > 0 ? paramConfig.headers : ['var1', 'var2'];
+      const sampleRow = headers.map(() => 'value');
+      const csv = [headers.join(','), sampleRow.join(',')].join('\n');
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = 'template.csv'; a.click();
+      URL.revokeObjectURL(url);
+    };
+
+    return (
+      <div className="tab-content-wrapper">
+        <div className="ad-section">
+          {/* 全局启用开关 */}
+          <div className="param-enable-row">
+            <label className="param-switch">
+              <input type="checkbox" checked={paramConfig.enabled} onChange={toggleEnabled} />
+              <span className="param-switch-slider"></span>
+            </label>
+            <span className="param-enable-label">{paramConfig.enabled ? '已启用' : '已禁用'}</span>
+          </div>
+
+          <div className="param-table-wrapper">
+            <div className="param-action-row">
+              <button type="button" className="btn btn-sm" onClick={addColumn}>添加列</button>
+              <button type="button" className="btn btn-sm" onClick={addRow}>添加行</button>
+              <label className="param-upload-btn">
+                <input type="file" accept=".csv,.xlsx,.xls" style={{ display: 'none' }} onChange={handleFileUpload} />
+                上传 CSV
+              </label>
+              <button type="button" className="btn btn-sm" onClick={downloadTemplate}>下载模板</button>
+            </div>
+
+            {paramConfig.headers.length === 0 ? (
+              <div className="param-empty-hint">点击「添加列」或「上传 CSV」开始配置参数</div>
+            ) : (
+              <table className="param-table">
+                <thead>
+                  <tr>
+                    <th className="param-th-check">
+                      {paramConfig.rows.length > 0 && (
+                        <input
+                          type="checkbox"
+                          title="全选 / 全不选"
+                          checked={paramConfig.rows.every((_, i) => paramConfig.enabledRows[i] !== false)}
+                          onChange={e => toggleAllRows(e.target.checked)}
+                        />
+                      )}
+                    </th>
+                    <th className="param-th-del"></th>
+                    {paramConfig.headers.map((h, ci) => (
+                      <th key={ci}>
+                        <input className="param-header-input" value={h} onChange={e => setHeader(ci, e.target.value)} placeholder="变量名" />
+                        <button className="param-col-del" onClick={() => removeColumn(ci)} title="删除此列">✕</button>
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {paramConfig.rows.length === 0 ? (
+                    <tr><td colSpan={paramConfig.headers.length + 2} className="param-empty-row">暂无数据，点击「添加行」创建</td></tr>
+                  ) : paramConfig.rows.map((row, ri) => (
+                    <tr key={ri} className={paramConfig.enabledRows[ri] ? '' : 'param-row-disabled'}>
+                      <td>
+                        <label className="param-row-check">
+                          <input type="checkbox" checked={paramConfig.enabledRows[ri] !== false} onChange={() => toggleRowEnabled(ri)} />
+                        </label>
+                      </td>
+                      <td><button className="param-row-del" onClick={() => removeRow(ri)} title="删除此行">✕</button></td>
+                      {paramConfig.headers.map((_, ci) => (
+                        <td key={ci}>
+                          <input
+                            className="param-cell-input"
+                            value={row[ci] ?? ''}
+                            onChange={e => setCell(ri, ci, e.target.value)}
+                          />
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+
+          {paramConfig.headers.length > 0 && (
+            <div className="param-usage-hint">
+              <div className="param-usage-title">使用方式：</div>
+              <div>在请求地址、请求头、请求体中使用 <code>{"{{变量名}}"}</code> 引用参数</div>
+              <div>例如：<code>{"{{user}}"}</code> 会替换为当前行的变量值</div>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   // ─── Tab: Logs ───
   const renderLogsTab = () => (
     <div className="tab-content-wrapper">
-      {lastResult && (
-        <div className="ad-section">
-          <div className="ad-section-head"><label>最近执行结果</label><button className="ad-btn ad-btn-sm" onClick={() => setResultCollapsed(!resultCollapsed)}>{resultCollapsed ? '展开' : '收起'}</button></div>
-          <div className="exec-result">
-            <div className="exec-result-header">
-              <span className={`status-badge ${statusClass(lastResult.status_code)}`}>{lastResult.status_code || 'Error'}</span>
-              {lastResult.duration_ms != null && <span className="duration-badge">{lastResult.duration_ms} ms</span>}
-              {lastResult.executed_by && <span className="exec-user">执行人：{lastResult.executed_by}</span>}
-            </div>
-            {!resultCollapsed && (
-              <div className="log-detail-sections">
-                <div className="log-section"><div className="log-section-header">请求头</div><div className="log-section-content"><CodeMirror value={tryFormatJson(lastResult.request_headers)} height="auto" maxHeight="200px" extensions={[json()]} editable={false} basicSetup={{ lineNumbers: true, foldGutter: true }} /></div></div>
-                <div className="log-section"><div className="log-section-header">请求报文</div><div className="log-section-content"><CodeMirror value={tryFormatJson(lastResult.request_body) || '(空)'} height="auto" maxHeight="200px" extensions={[json()]} editable={false} basicSetup={{ lineNumbers: true, foldGutter: true }} /></div></div>
-                <div className="log-section"><div className="log-section-header">响应头</div><div className="log-section-content"><CodeMirror value={tryFormatJson(lastResult.response_headers)} height="auto" maxHeight="200px" extensions={[json()]} editable={false} basicSetup={{ lineNumbers: true, foldGutter: true }} /></div></div>
-                <div className="log-section"><div className="log-section-header">响应报文</div><div className="log-section-content"><CodeMirror value={tryFormatJson(lastResult.response_body)} height="auto" maxHeight="300px" extensions={[json()]} editable={false} basicSetup={{ lineNumbers: true, foldGutter: true }} /></div></div>
-                <div className="log-section">
-                  <div className="log-section-header">提取和断言{(() => { const s = getAssertionSummary(lastResult.assertion_results); return s ? (<span className="log-assert-summary">({s.pass}/{s.total} 通过)</span>) : null; })()}</div>
-                  <div className="log-section-content">
-                    {(() => { const results = parseAssertionResults(lastResult.assertion_results); return results.length > 0 ? renderAssertionResults(lastResult.assertion_results) : <div className="ad-empty-hint">暂无数据</div>; })()}
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
       <div className="ad-section">
         <div className="ad-section-head"><label>执行历史</label></div>
-        {logs.length === 0 ? (<div className="api-empty" style={{ padding: '24px 0' }}>暂无执行记录</div>) : (
+        {executions.length === 0 ? (<div className="api-empty" style={{ padding: '24px 0' }}>暂无执行记录</div>) : (
           <table className="log-table">
-            <thead><tr><th>时间</th><th>状态码</th><th>耗时</th><th>执行人</th><th>断言</th><th>操作</th></tr></thead>
-            <tbody>{logs.map((log) => {
-              const summary = getAssertionSummary(log.assertion_results);
-              const passCount = summary ? summary.pass : 0;
-              const totalCount = summary ? summary.total : 0;
+            <thead><tr><th>时间</th><th>状态</th><th>耗时</th><th>执行人</th><th>操作</th></tr></thead>
+            <tbody>{executions.map((exec) => {
+              const isSelected = selectedExecution?.id === exec.id;
+              const isBatch = exec.sub_executions && exec.sub_executions.length > 0;
               return (
-                <Fragment key={log.id}>
-                  <tr>
-                    <td>{log.executed_at.replace('T', ' ').slice(0, 19)}</td>
-                    <td><span className={`status-badge ${statusClass(log.status_code)}`}>{log.status_code || 'Error'}</span></td>
-                    <td>{log.duration_ms != null ? `${log.duration_ms} ms` : '-'}</td>
-                    <td>{log.executed_by || '-'}</td>
-                    <td>{totalCount > 0 ? (<span className={passCount === totalCount ? 'assert-pass' : 'assert-fail'}>{passCount}/{totalCount}</span>) : '-'}</td>
-                    <td><button className="log-view-btn" onClick={() => setExpandedLog(expandedLog === log.id ? null : log.id)}>{expandedLog === log.id ? '收起' : '查看'}</button></td>
+                <Fragment key={exec.id}>
+                  <tr className={isSelected ? 'log-row-selected' : ''}>
+                    <td>{toLocalDateTime(exec.started_at)}</td>
+                    <td><span className={`status-badge ${exec.status === 'success' ? 'success' : exec.status === 'failed' ? 'failed' : 'error'}`}>{exec.status}</span>{isBatch && <span className="batch-badge">({exec.sub_executions!.length + 1}组)</span>}</td>
+                    <td>{exec.duration_ms != null ? `${exec.duration_ms} ms` : '-'}</td>
+                    <td>{exec.executed_by || '-'}</td>
+                    <td><button className="log-view-btn" onClick={() => handleSelectExecution(exec)}>{isSelected ? '收起' : '查看'}</button></td>
                   </tr>
-                  {expandedLog === log.id && (
-                    <tr><td colSpan={6} className="log-expanded">
-                      <div className="log-detail-sections">
-                        <div className="log-section"><div className="log-section-header">请求头</div><div className="log-section-content"><CodeMirror value={tryFormatJson(log.request_headers)} height="auto" maxHeight="200px" extensions={[json()]} editable={false} basicSetup={{ lineNumbers: true, foldGutter: true }} /></div></div>
-                        <div className="log-section"><div className="log-section-header">请求报文</div><div className="log-section-content"><CodeMirror value={tryFormatJson(log.request_body) || '(空)'} height="auto" maxHeight="200px" extensions={[json()]} editable={false} basicSetup={{ lineNumbers: true, foldGutter: true }} /></div></div>
-                        <div className="log-section"><div className="log-section-header">响应头</div><div className="log-section-content"><CodeMirror value={tryFormatJson(log.response_headers)} height="auto" maxHeight="200px" extensions={[json()]} editable={false} basicSetup={{ lineNumbers: true, foldGutter: true }} /></div></div>
-                        <div className="log-section"><div className="log-section-header">响应报文</div><div className="log-section-content"><CodeMirror value={tryFormatJson(log.response_body)} height="auto" maxHeight="300px" extensions={[json()]} editable={false} basicSetup={{ lineNumbers: true, foldGutter: true }} /></div></div>
-                        <div className="log-section">
-                          <div className="log-section-header">提取和断言{summary && (<span className="log-assert-summary">({summary.pass}/{summary.total} 通过)</span>)}</div>
-                          <div className="log-section-content">
-                            {(() => { const results = parseAssertionResults(log.assertion_results); return results.length > 0 ? renderAssertionResults(log.assertion_results) : <div className="ad-empty-hint">暂无数据</div>; })()}
-                          </div>
-                        </div>
-                      </div>
-                    </td></tr>
+                  {isSelected && (
+                    <tr className="log-detail-row">
+                      <td colSpan={5}>
+                        {isBatch ? (
+                          <BatchExecutionView execution={selectedExecution} id={id!} />
+                        ) : (
+                          <ApiExecutionTimeline
+                            execution={selectedExecution}
+                            steps={selectedExecution.steps || []}
+                            assertionResults={{ pre: [], main: [], post: [], final: [] }}
+                          />
+                        )}
+                      </td>
+                    </tr>
                   )}
                 </Fragment>
               );
@@ -760,7 +1058,7 @@ export default function ApiDetail() {
             {activeTab === 'pre' && renderPreTab()}
             {activeTab === 'main' && renderMainTab()}
             {activeTab === 'post' && renderPostTab()}
-            {activeTab === 'final' && renderFinalTab()}
+            {activeTab === 'params' && renderParamsTab()}
             {activeTab === 'logs' && renderLogsTab()}
           </div>
           {activeTab !== 'logs' && (
@@ -772,7 +1070,6 @@ export default function ApiDetail() {
         </div>
       </div>
       {error && <div className="api-error">{error}</div>}
-      <MessageModal open={modalOpen} message={modalMsg} type={modalType} onClose={() => setModalOpen(false)} />
       <SelectFunctionModal
         open={fnModalOpen}
         onClose={() => setFnModalOpen(false)}
