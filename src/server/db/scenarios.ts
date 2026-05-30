@@ -236,6 +236,7 @@ export interface ScenarioExecutionRow {
   error_message: string | null;
   started_at: string;
   finished_at: string;
+  batch_id: number;
 }
 
 export interface ScenarioExecutionStepRow {
@@ -247,6 +248,7 @@ export interface ScenarioExecutionStepRow {
   node_type: string | null;
   log_text: string | null;
   log_data: string | null;
+  param_row_index: number | null;
   created_at: string;
 }
 
@@ -256,6 +258,7 @@ export interface ScenarioApiExecutionLinkRow {
   node_id: string;
   param_row_index: number | null;
   api_execution_id: number;
+  api_id: number | null;
 }
 
 export function createScenarioExecution(data: {
@@ -267,10 +270,11 @@ export function createScenarioExecution(data: {
   error_message?: string | null;
   started_at: string;
   finished_at: string;
+  batch_id?: number;
 }): number {
   const result = db.prepare(
-    `INSERT INTO scenario_executions (scenario_id, status, trigger_type, executed_by, duration_ms, error_message, started_at, finished_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+    `INSERT INTO scenario_executions (scenario_id, status, trigger_type, executed_by, duration_ms, error_message, started_at, finished_at, batch_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).run(
     data.scenario_id,
     data.status,
@@ -279,7 +283,8 @@ export function createScenarioExecution(data: {
     data.duration_ms ?? null,
     data.error_message ?? null,
     data.started_at,
-    data.finished_at
+    data.finished_at,
+    data.batch_id ?? -1
   );
   return result.lastInsertRowid as number;
 }
@@ -292,11 +297,12 @@ export function createScenarioExecutionStep(data: {
   node_type?: string | null;
   log_text?: string | null;
   log_data?: string | null;
+  param_row_index?: number | null;
   created_at: string;
 }): number {
   const result = db.prepare(
-    `INSERT INTO scenario_execution_steps (scenario_execution_id, step_order, log_type, node_id, node_type, log_text, log_data, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+    `INSERT INTO scenario_execution_steps (scenario_execution_id, step_order, log_type, node_id, node_type, log_text, log_data, param_row_index, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).run(
     data.scenario_execution_id,
     data.step_order,
@@ -305,7 +311,8 @@ export function createScenarioExecutionStep(data: {
     data.node_type ?? null,
     data.log_text ?? null,
     data.log_data ? JSON.stringify(data.log_data) : null,
-    data.created_at
+    data.param_row_index ?? null,
+    data.created_at,
   );
   return result.lastInsertRowid as number;
 }
@@ -315,15 +322,17 @@ export function linkScenarioApiExecution(data: {
   node_id: string;
   param_row_index?: number | null;
   api_execution_id: number;
+  api_id?: number | null;
 }): number {
   const result = db.prepare(
-    `INSERT INTO scenario_api_execution_links (scenario_execution_id, node_id, param_row_index, api_execution_id)
-     VALUES (?, ?, ?, ?)`
+    `INSERT INTO scenario_api_execution_links (scenario_execution_id, node_id, param_row_index, api_execution_id, api_id)
+     VALUES (?, ?, ?, ?, ?)`
   ).run(
     data.scenario_execution_id,
     data.node_id,
     data.param_row_index ?? null,
-    data.api_execution_id
+    data.api_execution_id,
+    data.api_id ?? null
   );
   return result.lastInsertRowid as number;
 }
@@ -349,6 +358,7 @@ export function updateScenarioExecution(id: number, data: {
   duration_ms?: number | null;
   error_message?: string | null;
   finished_at?: string;
+  batch_id?: number;
 }): boolean {
   const fields: string[] = [];
   const values: unknown[] = [];

@@ -57,6 +57,15 @@ if (!fs.existsSync(avatarDir)) {
 }
 
 db.exec(`
+  CREATE TABLE IF NOT EXISTS user_tags (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    UNIQUE(user_id, name)
+  );
+`);
+db.exec(`
   CREATE TABLE IF NOT EXISTS apis (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER NOT NULL,
@@ -398,10 +407,12 @@ db.exec(`
     error_message TEXT,
     started_at TEXT NOT NULL,
     finished_at TEXT NOT NULL,
+    batch_id INTEGER NOT NULL DEFAULT -1,
     FOREIGN KEY (scenario_id) REFERENCES scenarios(id) ON DELETE CASCADE
   );
 
   CREATE INDEX IF NOT EXISTS idx_scenario_executions_scenario_id ON scenario_executions(scenario_id);
+  CREATE INDEX IF NOT EXISTS idx_scenario_executions_batch_id ON scenario_executions(batch_id);
 
   CREATE TABLE IF NOT EXISTS scenario_execution_steps (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -412,6 +423,7 @@ db.exec(`
     node_type TEXT,
     log_text TEXT,
     log_data TEXT,
+    param_row_index INTEGER,
     created_at TEXT NOT NULL,
     FOREIGN KEY (scenario_execution_id) REFERENCES scenario_executions(id) ON DELETE CASCADE
   );
@@ -424,6 +436,7 @@ db.exec(`
     node_id TEXT NOT NULL,
     param_row_index INTEGER,
     api_execution_id INTEGER NOT NULL,
+    api_id INTEGER,
     FOREIGN KEY (scenario_execution_id) REFERENCES scenario_executions(id) ON DELETE CASCADE,
     FOREIGN KEY (api_execution_id) REFERENCES api_executions(id) ON DELETE CASCADE
   );
@@ -545,4 +558,34 @@ if (!nodeColNames.includes('pre_script')) {
 }
 if (!nodeColNames.includes('post_script')) {
   db.exec("ALTER TABLE scenario_nodes ADD COLUMN post_script TEXT");
+}
+
+const linkCols = db.prepare("PRAGMA table_info(scenario_api_execution_links)").all() as { name: string }[];
+if (!linkCols.some(c => c.name === 'api_id')) {
+  db.exec("ALTER TABLE scenario_api_execution_links ADD COLUMN api_id INTEGER");
+}
+
+// Migration: tags column for scenarios and scenario_sets
+const scenarioCols = db.prepare("PRAGMA table_info(scenarios)").all() as { name: string }[];
+if (!scenarioCols.some(c => c.name === 'tags')) {
+  db.exec("ALTER TABLE scenarios ADD COLUMN tags TEXT DEFAULT ''");
+}
+const setCols = db.prepare("PRAGMA table_info(scenario_sets)").all() as { name: string }[];
+if (!setCols.some(c => c.name === 'tags')) {
+  db.exec("ALTER TABLE scenario_sets ADD COLUMN tags TEXT DEFAULT ''");
+}
+if (!setCols.some(c => c.name === 'test_type')) {
+  db.exec("ALTER TABLE scenario_sets ADD COLUMN test_type TEXT DEFAULT 'api'");
+}
+
+// Migration: create user_tags table for existing databases
+const tagTableExists = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='user_tags'").get();
+if (!tagTableExists) {
+  db.exec(`CREATE TABLE IF NOT EXISTS user_tags (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    UNIQUE(user_id, name)
+  )`);
 }

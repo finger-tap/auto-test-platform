@@ -222,8 +222,6 @@ export async function executeScenario(
 
   const nodes = findNodesByScenarioId(scenarioId);
   const edges = findEdgesByScenarioId(scenarioId);
-  const startedAt = new Date().toISOString();
-  const stepOrder = { current: 0 };
 
   // Load environment
   const envContext: Record<string, string> = {};
@@ -245,36 +243,18 @@ export async function executeScenario(
     allDbConfigs = envToDbConfigs(env);
   }
 
-  // Create scenario execution record
-  const executionId = createScenarioExecution({
-    scenario_id: scenarioId,
-    status: 'running',
-    trigger_type: 'manual',
-    executed_by: executedBy,
-    started_at: startedAt,
-    finished_at: startedAt,
-  });
-
-  const addStep = (logType: string, nodeId: string | null, nodeType: string | null, logText: string, logData: Record<string, unknown> = {}) => {
-    stepOrder.current++;
-    createScenarioExecutionStep({
-      scenario_execution_id: executionId,
-      step_order: stepOrder.current,
-      log_type: logType,
-      node_id: nodeId,
-      node_type: nodeType,
-      log_text: logText,
-      log_data: JSON.stringify(logData),
-      created_at: new Date().toISOString(),
-    });
-  };
+  // Build adjacency map
+  const adjacency = new Map<string, ScenarioEdgeRow[]>();
+  for (const edge of edges) {
+    const list = adjacency.get(edge.source_node_id) || [];
+    list.push(edge);
+    adjacency.set(edge.source_node_id, list);
+  }
 
   // Find start node
   const startNode = nodes.find((n) => n.type === 'start');
   if (!startNode) {
-    updateScenarioExecution(executionId, { status: 'failed', error_message: '流程图为空，请先编排场景流程', finished_at: new Date().toISOString() });
-    addStep('scenario_end', null, null, '场景执行失败: 流程图为空', { error: '流程图为空，请先编排场景流程' });
-    return findScenarioExecutionWithSteps(executionId) as (ScenarioExecutionRow & { steps: ScenarioExecutionStepRow[]; api_links: ScenarioApiExecutionLinkRow[] });
+    throw new Error('流程图为空，请先编排场景流程');
   }
 
   // Parse scenario-level parameterization
@@ -288,30 +268,43 @@ export async function executeScenario(
       .filter(({ rowIdx }) => paramConfig!.enabledRows[rowIdx] !== false);
   }
 
-  const hasParamRows = paramRows.length > 0;
-
-  // Build adjacency map
-  const adjacency = new Map<string, ScenarioEdgeRow[]>();
-  for (const edge of edges) {
-    const list = adjacency.get(edge.source_node_id) || [];
-    list.push(edge);
-    adjacency.set(edge.source_node_id, list);
-  }
-
-  addStep('scenario_start', null, null, `开始执行场景: ${scenario.name}`, { scenario_id: scenarioId, scenario_name: scenario.name });
-
-  const allApiLinks: ScenarioApiExecutionLinkRow[] = [];
-  const allSteps: ScenarioExecutionStepRow[] = [];
-  let overallStatus: string = 'success';
-  let errorMessage: string | null = null;
+  // Execute once per param row, first execution is batch leader
+  const startedAt = new Date().toISOString();
+  const executionIds: number[] = [];
+  let batchLeaderId: number | null = null;
 
   const executeOnce = async (
     initialContext: Record<string, string>,
-    rowIdx: number | null
-  ): Promise<void> => {
+    rowIdx: number | null,
+    currentExecutionId: number
+  ): Promise<{ overallStatus: string; errorMessage: string | null; duration: number }> => {
+    const execStartedAt = new Date().toISOString();
+
+    const stepOrder = { current: 0 };
+    let currentParamRowIdx: number | null = rowIdx;
+
+    const addStep = (logType: string, nodeId: string | null, nodeType: string | null, logText: string, logData: Record<string, unknown> = {}) => {
+      stepOrder.current++;
+      createScenarioExecutionStep({
+        scenario_execution_id: currentExecutionId,
+        step_order: stepOrder.current,
+        log_type: logType,
+        node_id: nodeId,
+        node_type: nodeType,
+        log_text: logText,
+        log_data: JSON.stringify(logData),
+        param_row_index: currentParamRowIdx,
+        created_at: new Date().toISOString(),
+      });
+    };
+
+    addStep('scenario_start', null, null, `开始执行场景: ${scenario.name}`, { scenario_id: scenarioId, scenario_name: scenario.name });
+
     const context: Record<string, string> = { ...initialContext };
     const queue: string[] = [startNode.node_id];
     const visited = new Set<string>();
+    let overallStatus = 'success';
+    let errorMessage: string | null = null;
 
     while (queue.length > 0) {
       const currentNodeId = queue.shift()!;
@@ -347,7 +340,7 @@ export async function executeScenario(
           addStep('node_end', node.node_id, 'api', `完成节点: ${nodeName} - 错误: 未配置API`, { status: 'error', error: 'No API configured' });
           overallStatus = 'error';
           errorMessage = `节点 ${nodeName} 未配置API`;
-          return;
+          return { overallStatus, errorMessage, duration: 0 };
         }
 
         try {
@@ -364,7 +357,7 @@ export async function executeScenario(
               addStep('node_end', node.node_id, 'api', `完成节点: ${nodeName} - 错误: 前置脚本失败`, { status: 'error', error: preResult.error });
               overallStatus = 'error';
               errorMessage = `前置脚本错误: ${preResult.error}`;
-              return;
+              return { overallStatus, errorMessage, duration: 0 };
             }
           }
 
@@ -373,7 +366,7 @@ export async function executeScenario(
             sslCert: envSSL.cert,
             sslKey: envSSL.key,
             timeout: envSSL.timeout,
-            scenarioExecutionId: executionId,
+            scenarioExecutionId: currentExecutionId,
             scenarioId,
             nodeId: node.node_id,
             executedBy,
@@ -383,10 +376,11 @@ export async function executeScenario(
           // Link all API executions (support parametrized API)
           for (const apiResult of apiResults) {
             linkScenarioApiExecution({
-              scenario_execution_id: executionId,
+              scenario_execution_id: currentExecutionId,
               node_id: node.node_id,
               param_row_index: apiResult.param_row_index,
               api_execution_id: apiResult.execution_id,
+              api_id: config.api_id,
             });
           }
 
@@ -408,7 +402,7 @@ export async function executeScenario(
               addStep('node_end', node.node_id, 'api', `完成节点: ${nodeName} - 错误: 后置脚本失败`, { status: 'error', error: postResult.error });
               overallStatus = 'error';
               errorMessage = `后置脚本错误: ${postResult.error}`;
-              return;
+              return { overallStatus, errorMessage, duration: 0 };
             }
           }
 
@@ -427,9 +421,28 @@ export async function executeScenario(
             const allPassed = apiResults.every(r => r.status === 'success');
             const anyFailed = apiResults.some(r => r.status === 'failed');
             if (anyFailed) overallStatus = 'failed';
+            // Collect assertion results from all API executions
+            const allAssertionResults: Record<string, unknown>[] = [];
+            for (const apiResult of apiResults) {
+              if (apiResult.assertion_results) {
+                allAssertionResults.push(...apiResult.assertion_results.map((r: { rule: AssertionRule; passed: boolean; actual: string }) => ({
+                  param_row_index: apiResult.param_row_index,
+                  passed: r.passed,
+                  actual: r.actual,
+                  expected: r.rule.expected,
+                  source: r.rule.source,
+                  key: r.rule.key,
+                  operator: r.rule.operator,
+                })));
+              }
+            }
             addStep('node_end', node.node_id, 'api', `完成节点: ${nodeName} 状态码:${lastResult.status_code} (${lastResult.duration_ms}ms)${anyFailed ? ' 有断言失败' : ''}`, {
               status: anyFailed ? 'failed' : 'success',
               duration_ms: lastResult.duration_ms,
+              status_code: lastResult.status_code,
+              response_body: lastResult.response_body ? String(lastResult.response_body).slice(0, 500) : null,
+              extract_values: extractValues,
+              assertion_results: allAssertionResults,
               assertions: config.assertions,
             });
           } else {
@@ -439,6 +452,9 @@ export async function executeScenario(
             addStep('node_end', node.node_id, 'api', `完成节点: ${nodeName} 状态码:${lastResult.status_code} (${lastResult.duration_ms}ms)`, {
               status: lastResult.status,
               duration_ms: lastResult.duration_ms,
+              status_code: lastResult.status_code,
+              response_body: lastResult.response_body ? String(lastResult.response_body).slice(0, 500) : null,
+              extract_values: extractValues,
             });
           }
         } catch (err) {
@@ -447,7 +463,7 @@ export async function executeScenario(
           addStep('node_end', node.node_id, 'api', `完成节点: ${nodeName} - 错误: ${msg}`, { status: 'error', error: msg });
           overallStatus = 'error';
           errorMessage = msg;
-          return;
+          return { overallStatus, errorMessage, duration: 0 };
         }
 
         for (const next of getNextNodes(currentNodeId, adjacency, null)) queue.push(next);
@@ -467,7 +483,7 @@ export async function executeScenario(
           addStep('node_end', node.node_id, 'condition', `完成节点: ${nodeName} - 错误: 未配置表达式`, { status: 'error' });
           overallStatus = 'error';
           errorMessage = '条件节点未配置表达式';
-          return;
+          return { overallStatus, errorMessage, duration: 0 };
         }
 
         const condResult = evaluateCondition(expr, context);
@@ -485,38 +501,83 @@ export async function executeScenario(
       // Unknown node type
       for (const next of getNextNodes(currentNodeId, adjacency, null)) queue.push(next);
     }
+
+    const finishedAt = new Date().toISOString();
+    const duration = new Date(finishedAt).getTime() - new Date(execStartedAt).getTime();
+
+    addStep('scenario_end', null, null, `场景执行完成 - 状态: ${overallStatus} 耗时: ${duration}ms`, {
+      status: overallStatus,
+      duration_ms: duration,
+    });
+
+    updateScenarioExecution(currentExecutionId, {
+      status: overallStatus,
+      duration_ms: duration,
+      error_message: errorMessage,
+      finished_at: finishedAt,
+    });
+
+    return { overallStatus, errorMessage, duration };
   };
 
-  // Execute
-  if (hasParamRows) {
+  // Execute once per param row, first is batch leader
+  if (paramRows.length > 0) {
     for (const { rowIdx, values } of paramRows) {
       const paramContext: Record<string, string> = { ...envContext };
       for (let ci = 0; ci < paramConfig!.headers.length; ci++) {
         paramContext[paramConfig!.headers[ci]] = values[ci] || '';
       }
-      await executeOnce(paramContext, rowIdx);
-      if (overallStatus === 'error') break;
+      const execId = createScenarioExecution({
+        scenario_id: scenarioId,
+        status: 'running',
+        trigger_type: 'manual',
+        executed_by: executedBy,
+        started_at: startedAt,
+        finished_at: startedAt,
+        batch_id: -1, // temporary
+      });
+      executionIds.push(execId);
+      if (batchLeaderId === null) batchLeaderId = execId;
+    }
+    // Update all with correct batch_id
+    for (const execId of executionIds) {
+      updateScenarioExecution(execId, { batch_id: batchLeaderId! });
+    }
+    // Execute each
+    for (let i = 0; i < paramRows.length; i++) {
+      const { rowIdx, values } = paramRows[i];
+      const paramContext: Record<string, string> = { ...envContext };
+      for (let ci = 0; ci < paramConfig!.headers.length; ci++) {
+        paramContext[paramConfig!.headers[ci]] = values[ci] || '';
+      }
+      await executeOnce(paramContext, rowIdx, executionIds[i]);
     }
   } else {
-    await executeOnce({ ...envContext }, null);
+    const execId = createScenarioExecution({
+      scenario_id: scenarioId,
+      status: 'running',
+      trigger_type: 'manual',
+      executed_by: executedBy,
+      started_at: startedAt,
+      finished_at: startedAt,
+    });
+    executionIds.push(execId);
+    batchLeaderId = execId;
+    await executeOnce({ ...envContext }, null, execId);
   }
 
-  const finishedAt = new Date().toISOString();
-  const duration = new Date(finishedAt).getTime() - new Date(startedAt).getTime();
-
-  addStep('scenario_end', null, null, `场景执行完成 - 状态: ${overallStatus} 耗时: ${duration}ms`, {
-    status: overallStatus,
-    duration_ms: duration,
-  });
-
-  updateScenarioExecution(executionId, {
-    status: overallStatus,
-    duration_ms: duration,
-    error_message: errorMessage,
-    finished_at: finishedAt,
-  });
-
-  return findScenarioExecutionWithSteps(executionId) as (ScenarioExecutionRow & { steps: ScenarioExecutionStepRow[]; api_links: ScenarioApiExecutionLinkRow[] });
+  // Return leader execution with sub_executions attached
+  const leaderExecution = findScenarioExecutionWithSteps(batchLeaderId!) as (ScenarioExecutionRow & { steps: ScenarioExecutionStepRow[]; api_links: ScenarioApiExecutionLinkRow[] });
+  if (paramRows.length > 1) {
+    leaderExecution.api_links = [];
+    for (const execId of executionIds) {
+      const exec = findScenarioExecutionWithSteps(execId);
+      if (exec && exec.api_links) {
+        leaderExecution.api_links.push(...exec.api_links);
+      }
+    }
+  }
+  return leaderExecution;
 }
 
 function getNextNodes(

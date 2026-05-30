@@ -354,6 +354,7 @@ export interface ScenarioExecutionStep {
   node_type: string | null;
   log_text: string | null;
   log_data: string | null;
+  param_row_index: number | null;
   created_at: string;
 }
 
@@ -363,6 +364,7 @@ export interface ScenarioApiExecutionLink {
   node_id: string;
   param_row_index: number | null;
   api_execution_id: number;
+  api_id: number | null;
 }
 
 export interface ScenarioExecution {
@@ -375,8 +377,32 @@ export interface ScenarioExecution {
   error_message: string | null;
   started_at: string;
   finished_at: string;
+  batch_id: number;
+  sub_executions?: ScenarioExecution[];
   steps?: ScenarioExecutionStep[];
   api_links?: ScenarioApiExecutionLink[];
+}
+
+export interface ScenarioExecutionStep {
+  id: number;
+  scenario_execution_id: number;
+  step_order: number;
+  log_type: string;
+  node_id: string | null;
+  node_type: string | null;
+  log_text: string | null;
+  log_data: string | null;
+  param_row_index: number | null;
+  created_at: string;
+}
+
+export interface ScenarioApiExecutionLink {
+  id: number;
+  scenario_execution_id: number;
+  node_id: string;
+  param_row_index: number | null;
+  api_execution_id: number;
+  api_id: number | null;
 }
 
 export interface ScenarioSetExecutionItem {
