@@ -17,7 +17,7 @@ export interface ScenarioSetItem extends ScenarioSetRow {
   scenario_count: number;
   execution_summary?: {
     total: number;
-    success: number;
+    passed: number;
     failed: number;
     last_executed_at: string;
   } | null;
@@ -58,21 +58,20 @@ export function findSetsByUserIdPaginated(
 
     const summary = db.prepare(`
       SELECT
-        COUNT(*) AS total,
-        SUM(CASE WHEN status = 'success' THEN 1 ELSE 0 END) AS success,
-        SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) AS failed,
-        MAX(finished_at) AS last_executed_at
-      FROM scenario_set_executions WHERE set_id = ?
-    `).get(r.id) as { total: number; success: number; failed: number; last_executed_at: string | null } | undefined;
+        SUM(sse.passed_count) AS passed,
+        SUM(sse.failed_count) AS failed,
+        MAX(sse.finished_at) AS last_executed_at
+      FROM scenario_set_executions sse WHERE sse.set_id = ?
+    `).get(r.id) as { passed: number; failed: number; last_executed_at: string | null } | undefined;
 
     return {
       ...r,
       scenario_count: cnt,
-      execution_summary: summary && summary.total > 0 ? {
-        total: summary.total,
-        success: summary.success,
-        failed: summary.failed,
-        last_executed_at: summary.last_executed_at || '',
+      execution_summary: (summary && (summary.passed > 0 || summary.failed > 0)) || cnt > 0 ? {
+        total: cnt,
+        passed: summary?.passed || 0,
+        failed: summary?.failed || 0,
+        last_executed_at: summary?.last_executed_at || '',
       } : null,
     };
   });

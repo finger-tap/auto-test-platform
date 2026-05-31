@@ -1,6 +1,6 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-05-31T12:10:57.078Z
+> Auto-maintained by OpenWolf. Last scanned: 2026-05-31T12:17:01.805Z
 > Files: 181 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ../../.claude/plans/
@@ -167,7 +167,7 @@
 - `ScenarioSetDetail.css` — Styles: 118 rules (~5922 tok)
 - `ScenarioSetDetail.tsx` — STATUS_OPTIONS (~8154 tok)
 - `ScenarioSetList.css` — Styles: 15 rules (~507 tok)
-- `ScenarioSetList.tsx` — STATUS_MAP — renders form, table (~2569 tok)
+- `ScenarioSetList.tsx` — STATUS_MAP — renders form, table (~2644 tok)
 
 ## src/client/pages/scenario/
 
@@ -242,7 +242,7 @@
 - `mocks.ts` — Get all mocks for a user (no pagination, for engine lookup). (~1860 tok)
 - `pc-cases.ts` — Exports PcCaseRow, CreatePcCaseInput, UpdatePcCaseInput, PcCaseLogRow + 7 more (~1526 tok)
 - `scenario-sets-web.ts` — Exports ScenarioSetRow, ScenarioSetItem, findSetsByUserIdPaginated, findSetsByUserId + 4 more (~1224 tok)
-- `scenario-sets.ts` — Exports ScenarioSetRow, ScenarioSetItem, findSetsByUserIdPaginated, findSetsByUserId + 4 more (~1555 tok)
+- `scenario-sets.ts` — Exports ScenarioSetRow, ScenarioSetItem, findSetsByUserIdPaginated, findSetsByUserId + 4 more (~1540 tok)
 - `scenarios-web.ts` — Exports ScenarioRow, ScenarioNodeRow, ScenarioEdgeRow, ScenarioLogRow + 12 more (~1869 tok)
 - `scenarios.ts` — ── Row interfaces ── (~4547 tok)
 - `schedules.ts` — ── Schedule interfaces ── (~3021 tok)
