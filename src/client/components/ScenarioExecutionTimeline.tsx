@@ -88,7 +88,11 @@ export default function ScenarioExecutionTimeline({ steps, apiLinks, cacheKeyPre
                             className="api-link-jump"
                             onClick={() => {
                               const targetApiId = link.api_id || logData?.api_id;
-                              if (targetApiId) navigate(`/api-test/api-case/${targetApiId}?exec=${link.api_execution_id}`);
+                              if (targetApiId) {
+                                const params = new URLSearchParams({ exec: String(link.api_execution_id) });
+                                if (link.param_row_index != null && link.param_row_index >= 0) params.set('paramRow', String(link.param_row_index));
+                                navigate(`/api-test/api-case/${targetApiId}?${params}`);
+                              }
                             }}
                           >
                             API 执行 #{link.api_execution_id}{link.param_row_index != null && link.param_row_index >= 0 ? ` (行${link.param_row_index + 1})` : ''} →

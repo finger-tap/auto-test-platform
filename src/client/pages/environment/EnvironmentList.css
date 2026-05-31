@@ -1,73 +1,60 @@
 .elist {
-  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  padding: 0;
 }
 
 .elist-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
-}
-
-.elist-head h2 {
-  margin: 0;
-  font-size: 18px;
-  color: #1a1a1a;
-}
-
-.elist-btn-create {
-  padding: 7px 20px;
-  background: var(--primary);
-  color: #fff;
-  border: none;
-  border-radius: 6px;
-  font-size: 14px;
-  cursor: pointer;
-}
-
-.elist-btn-create:hover {
-  background: #0958d9;
+  display: none;
 }
 
 .elist-empty {
   text-align: center;
-  padding: 60px 0;
-  color: #999;
+  padding: 48px 0;
+  color: var(--fg-tertiary);
 }
 
 .elist-empty p {
   margin-bottom: 16px;
 }
 
-/* 横向一行展示 */
+/* Horizontal card layout */
 .elist-cards {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 16px;
+  flex: 1;
 }
 
 .elist-card {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: #fff;
-  border-radius: 8px;
+  background: var(--bg);
+  border-radius: var(--radius-md);
   padding: 14px 20px;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
-  border: 2px solid transparent;
+  border: 1px solid transparent;
+  cursor: pointer;
   transition: all 0.2s;
 }
 
 .elist-card:hover {
-  box-shadow: 0 2px 12px rgba(0,0,0,0.1);
+  border-color: var(--accent);
+  background: var(--accent-subtle);
 }
 
 .elist-card.is-active {
-  border-color: var(--primary);
-  background: linear-gradient(135deg, #f0f7ff 0%, #fff 100%);
+  border-color: var(--success);
+  background: var(--success-subtle);
 }
 
-/* 环境名称行 */
+/* Environment name row */
 .elist-card-info {
   display: flex;
   align-items: center;
@@ -86,20 +73,25 @@
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: var(--primary);
+  background: var(--success);
+  flex-shrink: 0;
+}
+
+.elist-card.is-active .elist-card-dot {
+  background: var(--success);
 }
 
 .elist-card-name {
   font-size: 15px;
   font-weight: 600;
-  color: #1a1a1a;
+  color: var(--fg);
 }
 
 .elist-card-meta {
   display: flex;
   gap: 16px;
   font-size: 12px;
-  color: #999;
+  color: var(--fg-tertiary);
 }
 
 .elist-card-meta span {
@@ -108,7 +100,7 @@
   gap: 3px;
 }
 
-/* 右侧操作按钮 */
+/* Right action buttons (embedded in card, show on hover) */
 .elist-card-actions {
   display: flex;
   align-items: center;
@@ -117,21 +109,19 @@
 
 .elist-active-tag {
   font-size: 12px;
-  color: var(--primary);
+  color: var(--success);
   font-weight: 500;
 }
 
 .elist-btn-use {
   padding: 5px 14px;
-  background: var(--primary);
+  background: var(--accent);
   color: #fff;
   border: none;
   border-radius: 16px;
   font-size: 12px;
   cursor: pointer;
   transition: background 0.15s;
-  opacity: 0;
-  pointer-events: none;
 }
 
 .elist-card.is-active .elist-btn-use {
@@ -139,12 +129,30 @@
 }
 
 .elist-card:hover .elist-btn-use {
-  opacity: 1;
-  pointer-events: auto;
+  display: block;
 }
 
 .elist-btn-use:hover {
-  background: #0958d9;
+  background: var(--accent-hover);
+}
+
+.elist-btn-create {
+  padding: 10px 24px;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.elist-btn-create:hover {
+  background: var(--accent-hover);
 }
 
 .elist-btn-edit,
@@ -152,24 +160,92 @@
   width: 28px;
   height: 28px;
   border-radius: 50%;
-  border: 1px solid #e8e8e8;
-  background: #fff;
+  border: 1px solid var(--border);
+  background: var(--surface);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 12px;
-  color: #999;
+  color: var(--fg-tertiary);
   transition: all 0.15s;
 }
 
 .elist-btn-edit:hover {
-  border-color: var(--primary);
-  color: var(--primary);
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
 .elist-btn-del:hover {
-  border-color: #ff4d4f;
-  color: #ff4d4f;
-  background: #fff1f0;
+  border-color: var(--danger);
+  color: var(--danger);
+  background: var(--danger-subtle);
+}
+
+/* Table layout */
+.elist-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.elist-table th {
+  text-align: left;
+  padding: 10px 12px;
+  font-weight: 500;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--fg-tertiary);
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-raised);
+  white-space: nowrap;
+}
+
+.elist-table td {
+  padding: 12px;
+  border-bottom: 1px solid var(--border-subtle);
+  vertical-align: middle;
+}
+
+.elist-table tbody tr:hover {
+  background: var(--accent-subtle);
+}
+
+/* Row actions */
+.elist-table .row-actions {
+  display: flex;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.elist-table tbody tr:hover .row-actions {
+  opacity: 1;
+}
+
+.elist-table .row-action-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  color: var(--fg-tertiary);
+  transition: all 0.15s;
+}
+
+.elist-table .row-action-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.elist-table .row-action-del:hover {
+  border-color: var(--danger);
+  color: var(--danger);
+  background: var(--danger-subtle);
 }

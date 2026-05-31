@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { apiFetch } from '../../utils/api';
+import { formatDateTime } from '../../utils/datetime';
+import FormSelect from '../../components/FormSelect';
 import './MockList.css';
 
 interface MockEndpoint {
@@ -9,6 +11,7 @@ interface MockEndpoint {
   method: string;
   path_pattern: string;
   description: string | null;
+  status: string;
   response_status: number;
   response_delay_ms: number;
   enabled: number;
@@ -18,7 +21,7 @@ interface MockEndpoint {
   updated_at: string;
 }
 
-export default function MockList() {
+export default function MockList({ basePath = '/api-test', testType = 'api' }: { basePath?: string; testType?: string } = {}) {
   const navigate = useNavigate();
   const [mocks, setMocks] = useState<MockEndpoint[]>([]);
   const [loading, setLoading] = useState(true);
@@ -26,21 +29,17 @@ export default function MockList() {
   const [pageSize, setPageSize] = useState(10);
   const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
-  const [showModal, setShowModal] = useState(false);
-  const [newName, setNewName] = useState('');
-  const [newMethod, setNewMethod] = useState('GET');
-  const [newPath, setNewPath] = useState('');
-  const [newStatus, setNewStatus] = useState(200);
-  const [creating, setCreating] = useState(false);
-  const [msg, setMsg] = useState('');
-  const [msgType, setMsgType] = useState<'success' | 'error'>('success');
-  const [msgOpen, setMsgOpen] = useState(false);
+
+  // Filter
+  const [fName, setFName] = useState('');
+  const [fMethod, setFMethod] = useState('');
+  const [fPath, setFPath] = useState('');
 
   const fetchMocks = async (pageNum = 1, pageSz = pageSize) => {
     setLoading(true);
     try {
       const res = await apiFetch<{ items: MockEndpoint[]; total: number; totalPages: number }>(
-        `/mocks?page=${pageNum}&pageSize=${pageSz}`
+        `/mocks?page=${pageNum}&pageSize=${pageSz}&test_type=${testType}`
       );
       if (res.code === 200 && res.data) {
         setMocks(res.data.items);
@@ -55,43 +54,18 @@ export default function MockList() {
 
   useEffect(() => { fetchMocks(); }, []);
 
-  async function doCreate() {
-    if (!newName.trim() || !newPath.trim()) {
-      setMsg('名称和路径不能为空'); setMsgType('error'); setMsgOpen(true); return;
-    }
-    setCreating(true);
-    try {
-      const res = await apiFetch<{ id: number }>('/mocks', {
-        method: 'POST',
-        body: JSON.stringify({
-          name: newName.trim(),
-          method: newMethod,
-          path_pattern: newPath.trim(),
-          response_status: newStatus,
-        }),
-      });
-      if (res.code === 201 && res.data) {
-        setShowModal(false);
-        setNewName(''); setNewPath(''); setNewMethod('GET'); setNewStatus(200);
-        navigate(`/mock/${res.data.id}`);
-      } else {
-        setMsg(res.message || '创建失败'); setMsgType('error'); setMsgOpen(true);
-      }
-    } finally {
-      setCreating(false);
-    }
-  }
-
   async function doDelete(id: number, name: string) {
     if (!confirm(`确认删除 Mock「${name}」？`)) return;
-    await apiFetch(`/mocks/${id}`, { method: 'DELETE' });
+    await apiFetch(`/mocks/${id}?test_type=${testType}`, { method: 'DELETE' });
     fetchMocks(page, pageSize);
   }
 
   function toggleEnabled(mock: MockEndpoint) {
+    const newEnabled = mock.enabled ? 0 : 1;
+    const newStatus = mock.status === 'active' ? 'disabled' : 'active';
     apiFetch(`/mocks/${mock.id}`, {
       method: 'PUT',
-      body: JSON.stringify({ enabled: !mock.enabled }),
+      body: JSON.stringify({ enabled: newEnabled, status: newStatus }),
     }).then(() => fetchMocks(page, pageSize));
   }
 
@@ -104,121 +78,114 @@ export default function MockList() {
     GET: '#52c41a', POST: '#1677ff', PUT: '#faad14', DELETE: '#ff4d4f', PATCH: '#722ed1', '*': '#999',
   };
 
+  const filtered = mocks.filter(m => {
+    if (fName && !m.name.toLowerCase().includes(fName.toLowerCase())) return false;
+    if (fMethod && m.method !== fMethod) return false;
+    if (fPath && !m.path_pattern.toLowerCase().includes(fPath.toLowerCase())) return false;
+    return true;
+  });
+
+  const handleReset = () => { setFName(''); setFMethod(''); setFPath(''); };
+
   return (
     <div className="mock-list-root">
-      <div className="mock-list-head">
-        <h2>Mock 服务</h2>
-        <button className="sset-btn-create" onClick={() => setShowModal(true)}>+ 新建 Mock</button>
+      {/* Filter Area */}
+      <div className="alist-filter">
+        <div className="alist-filter-row">
+          <div className="alist-filter-item">
+            <label>名称</label>
+            <input placeholder="搜索名称" value={fName} onChange={e => setFName(e.target.value)} />
+          </div>
+          <div className="alist-filter-item">
+            <label>方法</label>
+            <FormSelect
+              value={fMethod}
+              options={[{ value: '', label: '全部' }, { value: 'GET', label: 'GET' }, { value: 'POST', label: 'POST' }, { value: 'PUT', label: 'PUT' }, { value: 'DELETE', label: 'DELETE' }, { value: 'PATCH', label: 'PATCH' }, { value: '*', label: '*' }]}
+              onChange={val => setFMethod(val)}
+            />
+          </div>
+          <div className="alist-filter-item">
+            <label>路径</label>
+            <input placeholder="搜索路径" value={fPath} onChange={e => setFPath(e.target.value)} />
+          </div>
+          <div className="alist-filter-actions">
+            <button className="btn btn-default" onClick={handleReset}>重置</button>
+            <button className="btn btn-primary" onClick={() => navigate(`${basePath}/mock/new`)}>新增</button>
+          </div>
+        </div>
       </div>
 
+      {/* Table */}
       {loading && mocks.length === 0 ? (
-        <div className="mock-list-loading">加载中...</div>
-      ) : mocks.length === 0 ? (
-        <div className="mock-list-empty">
+        <div className="alist-loading">加载中...</div>
+      ) : filtered.length === 0 ? (
+        <div className="alist-empty">
           <p>暂无 Mock 端点</p>
-          <p className="mock-list-empty-hint">创建 Mock 端点，可拦截指定请求并返回预设响应</p>
-          <button className="sset-btn-create" onClick={() => setShowModal(true)}>+ 新建第一个 Mock</button>
+          <p className="alist-empty-hint">创建 Mock 端点，可拦截指定请求并返回预设响应</p>
+          <button className="sset-btn-create" onClick={() => navigate(`${basePath}/mock/new`)}>+ 新建第一个 Mock</button>
         </div>
       ) : (
         <>
-          <table className="mock-table">
-            <thead>
-              <tr>
-                <th>状态</th>
-                <th>名称</th>
-                <th>方法</th>
-                <th>路径</th>
-                <th>响应状态</th>
-                <th>延迟</th>
-                <th>命中</th>
-                <th>更新时间</th>
-                <th>操作</th>
-              </tr>
-            </thead>
-            <tbody>
-              {mocks.map(m => (
-                <tr key={m.id} className={`mock-row ${m.enabled ? '' : 'mock-row-disabled'}`}>
-                  <td>
-                    <button
-                      className={`mock-enabled-btn ${m.enabled ? 'on' : 'off'}`}
-                      onClick={() => toggleEnabled(m)}
-                      title={m.enabled ? '点击禁用' : '点击启用'}
-                    >
-                      {m.enabled ? '启用' : '禁用'}
-                    </button>
-                  </td>
-                  <td className="mock-name" onClick={() => navigate(`/mock/${m.id}`)}>{m.name}</td>
-                  <td>
-                    <span
-                      className="mock-method-badge"
-                      style={{ background: METHOD_COLORS[m.method] || '#999', color: '#fff' }}
-                    >
-                      {m.method}
-                    </span>
-                  </td>
-                  <td className="mock-path">{m.path_pattern}</td>
-                  <td className={m.response_status >= 400 ? 'mock-status-error' : ''}>{m.response_status}</td>
-                  <td>{m.response_delay_ms > 0 ? `${m.response_delay_ms}ms` : '—'}</td>
-                  <td>{m.hit_count}</td>
-                  <td className="mock-time">{m.updated_at.slice(0, 16).replace('T', ' ')}</td>
-                  <td>
-                    <button className="mock-action-btn" onClick={() => navigate(`/mock/${m.id}`)}>编辑</button>
-                    <button className="mock-action-btn mock-action-del" onClick={() => doDelete(m.id, m.name)}>删除</button>
-                  </td>
+          <div className="alist-table-wrap">
+            <table className="alist-table">
+              <thead>
+                <tr>
+                  <th style={{ width: 72 }}>状态</th>
+                  <th>名称</th>
+                  <th style={{ width: 72 }}>方法</th>
+                  <th>路径</th>
+                  <th style={{ width: 70 }}>状态码</th>
+                  <th style={{ width: 72 }}>延迟</th>
+                  <th style={{ width: 56 }}>命中</th>
+                  <th style={{ width: 148 }}>更新时间</th>
+                  <th style={{ width: 80 }}></th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {filtered.map(m => (
+                  <tr
+                    key={m.id}
+                    className={`alist-row ${m.enabled ? '' : 'alist-row-disabled'}`}
+                    onClick={() => navigate(`${basePath}/mock/${m.id}`)}
+                    style={{ cursor: 'pointer' }}
+                  >
+                    <td onClick={e => e.stopPropagation()}>
+                      <button className={`mock-enabled-btn ${m.enabled ? 'on' : 'off'}`} onClick={() => toggleEnabled(m)}>
+                        {m.enabled ? '启用' : '禁用'}
+                      </button>
+                    </td>
+                    <td className="alist-name-col mock-name">{m.name}</td>
+                    <td>
+                      <span className="mock-method-badge" style={{ background: METHOD_COLORS[m.method] || '#999', color: '#fff' }}>
+                        {m.method}
+                      </span>
+                    </td>
+                    <td className="mock-path">{m.path_pattern}</td>
+                    <td className={m.response_status >= 400 ? 'mock-status-error' : ''}>{m.response_status}</td>
+                    <td>{m.response_delay_ms > 0 ? `${m.response_delay_ms}ms` : '—'}</td>
+                    <td>{m.hit_count}</td>
+                    <td className="mock-time">{formatDateTime(m.updated_at)}</td>
+                    <td>
+                      <div className="row-actions">
+                        <button className="row-action-btn" title="编辑" onClick={(e) => { e.stopPropagation(); navigate(`${basePath}/mock/${m.id}`); }}>✎</button>
+                        <button className="row-action-btn row-action-del" title="删除" onClick={(e) => { e.stopPropagation(); doDelete(m.id, m.name); }}>✕</button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
 
           <div className="alist-pagination">
-            <button className="page-btn" disabled={page <= 1} onClick={() => handlePageChange(page - 1)}>上一页</button>
+            <button className="btn btn-sm" disabled={page <= 1} onClick={() => handlePageChange(page - 1)}>上一页</button>
             <span className="page-info">{page} / {totalPages}</span>
-            <button className="page-btn" disabled={page >= totalPages} onClick={() => handlePageChange(page + 1)}>下一页</button>
-            <select className="page-size-select" value={pageSize} onChange={e => fetchMocks(1, Number(e.target.value))}>
-              <option value={10}>10条/页</option>
-              <option value={20}>20条/页</option>
-              <option value={50}>50条/页</option>
-            </select>
+            <button className="btn btn-sm" disabled={page >= totalPages} onClick={() => handlePageChange(page + 1)}>下一页</button>
+            <FormSelect value={String(pageSize)} options={[{value:"10",label:"10条/页"},{value:"20",label:"20条/页"},{value:"50",label:"50条/页"}]} onChange={val => fetchMocks(1, Number(val))} />
           </div>
         </>
       )}
 
-      {/* Create Modal */}
-      {showModal && (
-        <div className="sset-modal-overlay" onClick={() => setShowModal(false)}>
-          <div className="sset-modal" onClick={e => e.stopPropagation()}>
-            <h3>新建 Mock 端点</h3>
-            <div className="sset-modal-field">
-              <label>名称 <span className="required">*</span></label>
-              <input autoFocus placeholder="例如：获取用户列表" value={newName} onChange={e => setNewName(e.target.value)} />
-            </div>
-            <div className="sset-modal-field" style={{ display: 'flex', gap: 8 }}>
-              <div style={{ flex: 1 }}>
-                <label>方法</label>
-                <select value={newMethod} onChange={e => setNewMethod(e.target.value)}>
-                  {['GET', 'POST', 'PUT', 'DELETE', 'PATCH', '*'].map(m => <option key={m} value={m}>{m}</option>)}
-                </select>
-              </div>
-              <div style={{ flex: 2 }}>
-                <label>路径 <span className="required">*</span></label>
-                <input placeholder="/api/users/:id" value={newPath} onChange={e => setNewPath(e.target.value)} />
-              </div>
-            </div>
-            <div className="sset-modal-field">
-              <label>响应状态码</label>
-              <input type="number" value={newStatus} onChange={e => setNewStatus(Number(e.target.value))} />
-            </div>
-            <div className="sset-modal-actions">
-              <button onClick={() => setShowModal(false)}>取消</button>
-              <button className="sset-btn-primary" onClick={doCreate} disabled={creating}>
-                {creating ? '创建中...' : '创建'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {msgOpen && <div className="sset-msg-toast" data-type={msgType} onClick={() => setMsgOpen(false)}>{msg}</div>}
     </div>
   );
 }

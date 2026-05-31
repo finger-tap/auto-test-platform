@@ -1,0 +1,26 @@
+### 接口测试
+#### 仪表盘
+用例总数、几个本月新增、场景数、几个运行中、通过率、场景集数、正在运行数都应该是通过接口查询到的数据,而不是页面上写死的数据!!!!
+#### 用例列表页
+当前有输入筛选条件就出发查询,那就去掉查询按钮吧.
+按照描述查询应该是模糊查询.
+页面应该有重置查询条件的按钮,点击之后清除所有的筛选条件后并触发一次查询.
+#### 用例详情页
+检查下后端接口校验了哪些字段,必填的字段应该有个标记.另外用户没填的情况下应该提示弹窗之后切换tab到属性所在的tab.
+
+#### 场景详情页面
+流程图中案例节点点击之后提示TypeError: Cannot read properties of undefined (reading 'filter')
+    at ApiNodeConfigPanel (NodeConfigPanel.tsx:326:29)
+    at renderWithHooks (chunk-TYILIMWK.js?v=a9543495:11548:26)
+    at mountIndeterminateComponent (chunk-TYILIMWK.js?v=a9543495:14926:21)
+    at beginWork (chunk-TYILIMWK.js?v=a9543495:15914:22)
+    at HTMLUnknownElement.callCallback2 (chunk-TYILIMWK.js?v=a9543495:3674:22)
+    at Object.invokeGuardedCallbackDev (chunk-TYILIMWK.js?v=a9543495:3699:24)
+    at invokeGuardedCallback (chunk-TYILIMWK.js?v=a9543495:3733:39)
+    at beginWork$1 (chunk-TYILIMWK.js?v=a9543495:19765:15)
+    at performUnitOfWork (chunk-TYILIMWK.js?v=a9543495:19198:20)
+    at workLoopSync (chunk-TYILIMWK.js?v=a9543495:19137:13)
+
+
+#### 定时任务列表页
+后面的设置图标太小了,看不清楚,鼠标移上去页没个提示!!

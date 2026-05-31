@@ -8,7 +8,7 @@ export type ActionType = 'script' | 'db';
 
 export interface AssertionRule {
   name?: string;
-  source: 'status' | 'header' | 'body';
+  source: 'status' | 'header' | 'body' | 'vars' | 'result' | 'row_count';
   key: string;
   operator: 'equals' | 'not_equals' | 'contains' | 'not_contains' | 'less_than' | 'greater_than' | 'exists' | 'not_exists';
   expected: string;
@@ -25,6 +25,8 @@ export interface PrePostAction {
   dbQuery: string;
   // 合并的提取和断言规则
   rules: AssertionRule[];
+  // 是否在主体动作失败时仍执行
+  alwaysRun?: boolean;
 }
 
 export const defaultAction = (name: string = ''): PrePostAction => ({
@@ -36,6 +38,7 @@ export const defaultAction = (name: string = ''): PrePostAction => ({
   dbName: '',
   dbQuery: '',
   rules: [],
+  alwaysRun: false,
 });
 
 // 断言操作符
@@ -50,8 +53,27 @@ const OPERATORS = [
   { value: 'not_exists', label: '不存在' },
 ];
 
-// 来源选项
-const SOURCES = [
+// 来源选项（根据动作类型使用不同选项）
+const SOURCES = {
+  script: [
+    { value: 'vars', label: '变量' },
+    { value: 'result', label: '执行结果' },
+  ],
+  db: [
+    { value: 'result', label: '查询结果' },
+    { value: 'row_count', label: '行数' },
+  ],
+  http: [
+    { value: 'status', label: '状态码' },
+    { value: 'header', label: '响应头' },
+    { value: 'body', label: '响应体' },
+  ],
+};
+
+const ALL_SOURCES = [
+  { value: 'vars', label: '变量' },
+  { value: 'result', label: '执行结果' },
+  { value: 'row_count', label: '行数' },
   { value: 'status', label: '状态码' },
   { value: 'header', label: '响应头' },
   { value: 'body', label: '响应体' },
@@ -79,9 +101,10 @@ export const PrePostActionItem: React.FC<ActionItemProps> = ({
 
   // 添加规则
   const addRule = () => {
+    const defaultSource = action.type === 'db' ? 'result' : 'vars';
     const newRule: AssertionRule = {
       name: `规则${action.rules.length + 1}`,
-      source: 'body',
+      source: defaultSource,
       key: '',
       operator: 'equals',
       expected: '',
@@ -154,6 +177,17 @@ export const PrePostActionItem: React.FC<ActionItemProps> = ({
           }}
           placeholder="动作描述"
         />
+        <label className="action-always-run">
+          <input
+            type="checkbox"
+            checked={action.alwaysRun || false}
+            onChange={e => {
+              onChange({ ...action, alwaysRun: e.target.checked });
+              onDirty?.();
+            }}
+          />
+          <span>主体失败时仍执行</span>
+        </label>
         <button type="button" className="action-item-remove" onClick={onRemove}>×</button>
       </div>
 
@@ -237,11 +271,11 @@ export const PrePostActionItem: React.FC<ActionItemProps> = ({
                 value={rule.source}
                 onChange={e => updateRule(idx, 'source', e.target.value)}
               >
-                {SOURCES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+                {(action.type === 'db' ? SOURCES.db : SOURCES.script).map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
               </select>
               <input
                 className="rule-key"
-                placeholder={rule.source === 'status' ? '(自动)' : '路径如 data.id'}
+                placeholder={rule.source === 'status' ? '(自动)' : '变量名或路径如 data.id'}
                 value={rule.key}
                 onChange={e => updateRule(idx, 'key', e.target.value)}
                 disabled={rule.source === 'status'}

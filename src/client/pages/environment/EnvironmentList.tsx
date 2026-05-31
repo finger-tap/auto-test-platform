@@ -1,16 +1,16 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { apiFetch } from '../../utils/api';
+import { formatDateTime } from '../../utils/datetime';
 import { useEnvironment } from '../../contexts/EnvironmentContext';
 import type { Environment, EnvVariable } from '../../types';
 
 import './EnvironmentList.css';
 
-export default function EnvironmentList() {
+export default function EnvironmentList({ basePath = '/api-test', testType = 'api' }: { basePath?: string; testType?: string } = {}) {
   const [envs, setEnvs] = useState<Environment[]>([]);
   const [loading, setLoading] = useState(true);
-  
-  const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [fName, setFName] = useState('');
 
   const navigate = useNavigate();
   const { activeEnv, setActiveEnv } = useEnvironment();
@@ -33,6 +33,7 @@ export default function EnvironmentList() {
 
   function load() {
     setLoading(true);
+    // 不带 test_type 过滤器，把所有环境都拉回来，右侧切换器也会同步更新
     apiFetch<Environment[]>('/environments').then(res => {
       if (res.code === 200) setEnvs(res.data || []);
     }).finally(() => setLoading(false));
@@ -47,19 +48,15 @@ export default function EnvironmentList() {
 
   async function doDelete(env: Environment) {
     if (!confirm(`确认删除环境「${env.name}」？`)) return;
-    setDeletingId(env.id);
-    const res = await apiFetch(`/environments/${env.id}`, { method: 'DELETE' });
-    setDeletingId(null);
-    if (res.code === 200) {
-      load();
-      if (activeEnv?.id === env.id) {
-        apiFetch<Environment[]>('/environments').then(r => {
-          if (r.code === 200) {
-            const def = r.data?.find(e => e.is_default === 1);
-            setActiveEnv(def || null);
-          }
-        });
-      }
+    await apiFetch(`/environments/${env.id}`, { method: 'DELETE' });
+    load();
+    if (activeEnv?.id === env.id) {
+      apiFetch<Environment[]>('/environments').then(r => {
+        if (r.code === 200) {
+          const def = r.data?.find(e => e.is_default === 1);
+          setActiveEnv(def || null);
+        }
+      });
     }
   }
 
@@ -77,61 +74,89 @@ export default function EnvironmentList() {
       }),
     });
     if (res.code === 200) {
-      // Sync active env to context immediately
       setActiveEnv(env);
-      // Reload list to get updated is_default status
       load();
     }
   }
 
+  // 本地按 testType 过滤（API 类型显示所有，其他类型严格过滤）
+  const filtered = envs.filter(env => {
+    if (fName && !env.name.toLowerCase().includes(fName.toLowerCase())) return false;
+    if (testType !== 'api' && env.test_type && env.test_type !== testType) return false;
+    return true;
+  });
+
   return (
     <div className="elist">
-      <div className="elist-head">
-        <h2>环境管理</h2>
-        <button className="elist-btn-create" onClick={() => navigate('/api-test/environment/new')}>+ 新建环境</button>
+      {/* Filter Area */}
+      <div className="alist-filter">
+        <div className="alist-filter-row">
+          <div className="alist-filter-item">
+            <label>环境名称</label>
+            <input placeholder="搜索环境" value={fName} onChange={e => setFName(e.target.value)} />
+          </div>
+          <div className="alist-filter-actions">
+            <button className="btn btn-default" onClick={() => navigate(`${basePath}/environment/new`)}>新增</button>
+          </div>
+        </div>
       </div>
 
-      {loading ? (
-        <div className="elist-empty">加载中...</div>
-      ) : envs.length === 0 ? (
-        <div className="elist-empty">
-          <p>暂无环境</p>
-          <button className="elist-btn-create" onClick={() => navigate('/api-test/environment/new')}>+ 新建第一个环境</button>
-        </div>
-      ) : (
-        <div className="elist-cards">
-          {envs.map(env => {
-            const isActive = activeEnv?.id === env.id;
-            const varsRaw = normalizeVars(env.variables);
-            const varCount = varsRaw.filter((v) => v.key?.trim()).length;
-            const hasCert = !!env.ssl_cert?.trim();
-            const hasKey = !!env.ssl_key?.trim();
+      {/* Table */}
+      <div className="alist-table-wrap">
+        {loading ? (
+          <div className="elist-empty">加载中...</div>
+        ) : filtered.length === 0 ? (
+          <div className="elist-empty">
+            <p>暂无环境</p>
+            <button className="elist-btn-create" onClick={() => navigate(`${basePath}/environment/new`)}>+ 新建第一个环境</button>
+          </div>
+        ) : (
+          <table className="elist-table">
+            <thead>
+              <tr>
+                <th>环境名称</th>
+                <th>变量数</th>
+                <th>SSL证书</th>
+                <th>超时</th>
+                <th>默认</th>
+                <th>创建时间</th>
+                <th style={{ width: 80 }}></th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map(env => {
+                const isActive = activeEnv?.id === env.id;
+                const varsRaw = normalizeVars(env.variables);
+                const varCount = varsRaw.filter((v) => v.key?.trim()).length;
+                const hasCert = !!env.ssl_cert?.trim();
+                const hasKey = !!env.ssl_key?.trim();
 
-            return (
-              <div key={env.id} className={`elist-card${isActive ? ' is-active' : ''}`}>
-                <div className="elist-card-info">
-                  <div className="elist-card-name-row">
-                    {isActive && <span className="elist-card-dot" />}
-                    <span className="elist-card-name">{env.name}</span>
-                  </div>
-                  <div className="elist-card-meta">
-                    <span>变量 {varCount} 个</span>
-                    {hasCert && <span>🔒 证书</span>}
-                    {hasKey && <span>🔑 密钥</span>}
-                    <span>超时 {((env.timeout || 30000) / 1000)}s</span>
-                  </div>
-                </div>
-                <div className="elist-card-actions">
-                  {isActive && <span className="elist-active-tag">使用中</span>}
-                  <button className="elist-btn-use" onClick={() => useEnv(env)}>使用此环境</button>
-                  <button className="elist-btn-edit" title="编辑" onClick={() => navigate(`/api-test/environment/${env.id}`)}>✎</button>
-                  <button className="elist-btn-del" title="删除" onClick={() => doDelete(env)} disabled={deletingId === env.id}>✕</button>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
+                return (
+                  <tr key={env.id} onClick={() => navigate(`${basePath}/environment/${env.id}`)} style={{ cursor: 'pointer' }}>
+                    <td>
+                      {isActive && <span className="elist-card-dot" style={{ display: 'inline-block', marginRight: 6 }} />}
+                      {env.name}
+                    </td>
+                    <td>{varCount} 个</td>
+                    <td>{hasCert ? '✅' : '-'}{hasKey && ' 🔑'}</td>
+                    <td>{((env.timeout || 30000) / 1000)}s</td>
+                    <td>{isActive ? <span className="elist-active-tag">当前使用中</span> : '-'}</td>
+                    <td>{formatDateTime(env.created_at)}</td>
+                    <td>
+                      <div className="row-actions">
+                        {!isActive && (
+                          <button className="row-action-btn" title="设为默认" onClick={(e) => { e.stopPropagation(); useEnv(env); }}>★</button>
+                        )}
+                        <button className="row-action-btn row-action-del" title="删除" onClick={(e) => { e.stopPropagation(); doDelete(env); }}>✕</button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
+      </div>
     </div>
   );
 }

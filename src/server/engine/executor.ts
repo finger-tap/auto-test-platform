@@ -14,6 +14,7 @@ import {
 } from '../db/scenarios.js';
 import { executeApi, extractValue, type ApiExecutionResult } from './api-executor.js';
 import { executeScript, evalCondition as evalScriptCondition } from '../db/scripts/pre-post.js';
+import { generateBatchId } from '../utils/id.js';
 
 import { type AssertionRule, findApiById } from '../db/apis.js';
 
@@ -272,6 +273,9 @@ export async function executeScenario(
   const startedAt = new Date().toISOString();
   const executionIds: number[] = [];
   let batchLeaderId: number | null = null;
+  // Generate a snowflake batch ID for all API executions in this scenario run
+  const scenarioBatchId = generateBatchId();
+  console.log('[executeScenario] scenarioBatchId:', scenarioBatchId);
 
   const executeOnce = async (
     initialContext: Record<string, string>,
@@ -371,6 +375,7 @@ export async function executeScenario(
             nodeId: node.node_id,
             executedBy,
             scenarioParamRowIndex: rowIdx,
+            scenarioBatchId,
           });
 
           // Link all API executions (support parametrized API)
@@ -539,9 +544,9 @@ export async function executeScenario(
       executionIds.push(execId);
       if (batchLeaderId === null) batchLeaderId = execId;
     }
-    // Update all with correct batch_id
+    // Update all with correct batch_id (use snowflake scenarioBatchId)
     for (const execId of executionIds) {
-      updateScenarioExecution(execId, { batch_id: batchLeaderId! });
+      updateScenarioExecution(execId, { batch_id: scenarioBatchId });
     }
     // Execute each
     for (let i = 0; i < paramRows.length; i++) {
@@ -563,6 +568,8 @@ export async function executeScenario(
     });
     executionIds.push(execId);
     batchLeaderId = execId;
+    // Use snowflake scenarioBatchId for all scenario executions
+    updateScenarioExecution(execId, { batch_id: scenarioBatchId });
     await executeOnce({ ...envContext }, null, execId);
   }
 

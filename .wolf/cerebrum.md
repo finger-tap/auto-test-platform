@@ -32,3 +32,4 @@
 - **2026-05-26**: 共享页面（场景、定时、报告、Mock、环境）通过 basePath prop 复用，而非为移动端创建独立副本
 - **2026-05-27**: 四种测试类型后端完全隔离原则：API测试用 apis 表 + /apis，Web测试用 web_test_cases 表 + /web-cases，PC测试用 pc_test_cases 表 + /pc-cases，移动端用 mobile_test_cases 表 + /mobile-tests。前端共享组件通过 testType prop + test_type 查询参数区分数据。
 - **2026-05-28**: 前端共享组件隔离模式升级：场景/场景集等前端组件不再依赖 test_type 查询参数，改用 API_PATH_MAP 常量直接映射到隔离端点（/scenarios, /scenarios-web, /scenarios-pc, /scenarios-mobile），避免后端再按 test_type 过滤
+- **2026-05-31**: 调度器重构：node-cron 替代 30 秒轮询，场景集粒度调度（schedule_sets 表），启动时加载所有 active 任务创建 cron job，pause/resume/remove/upsert/configure 接口同步调用 scheduler 方法

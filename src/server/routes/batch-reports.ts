@@ -9,7 +9,8 @@ batchReportRoutes.use(authMiddleware);
 batchReportRoutes.get('/', (req: Request, res: Response) => {
   const page = Math.max(1, Number(req.query.page) || 1);
   const pageSize = Math.min(100, Math.max(1, Number(req.query.pageSize) || 10));
-  const result = findAllBatchReportsByUserIdPaginated(req.user!.userId, page, pageSize);
+  const testType = req.query.test_type as string | undefined;
+  const result = findAllBatchReportsByUserIdPaginated(req.user!.userId, page, pageSize, testType);
 
   const items = result.items.map(r => {
     try {
@@ -46,7 +47,8 @@ batchReportRoutes.get('/', (req: Request, res: Response) => {
 // GET /api/batch-reports/:id
 batchReportRoutes.get('/:id', (req: Request, res: Response) => {
   const id = Number(req.params.id);
-  const row = findBatchReportById(id, req.user!.userId);
+  const testType = req.query.test_type as string | undefined;
+  const row = findBatchReportById(id, req.user!.userId, testType);
   if (!row) {
     res.status(404).json({ code: 404, message: 'Report not found' });
     return;

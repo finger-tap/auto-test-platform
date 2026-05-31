@@ -3,8 +3,8 @@ import http from 'http';
 
 const PORT = process.env.PORT || 3000;
 
-// Start tsx watch as child process
-const server = spawn('npx', ['tsx', 'watch', '--ignore', 'vite.config.ts.timestamp-*', 'src/server/index.ts'], {
+// Start tsx watch as child process (add --inspect to enable debugging)
+const server = spawn('npx', ['tsx', 'watch', '--inspect=9229', '--ignore', 'vite.config.ts.timestamp-*', 'src/server/index.ts'], {
   stdio: 'inherit',
   env: { ...process.env },
 });

@@ -5,10 +5,12 @@ import ApiExecutionTimeline from '../../components/ApiExecutionTimeline';
 interface Props {
   execution: ApiExecution;
   id: string;
+  /** Initial active row index (for jumping to specific member) */
+  defaultActiveRow?: number;
 }
 
-export default function BatchExecutionView({ execution, id }: Props) {
-  const [activeRow, setActiveRow] = useState(0);
+export default function BatchExecutionView({ execution, id, defaultActiveRow }: Props) {
+  const [activeRow, setActiveRow] = useState(defaultActiveRow ?? 0);
 
   const allRows = [execution, ...(execution.sub_executions || [])].sort((a, b) => a.param_row_index - b.param_row_index);
 

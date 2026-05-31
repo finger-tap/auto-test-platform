@@ -1,0 +1,412 @@
+.mtd {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+/* Header */
+.mtd-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px;
+  background: var(--surface);
+  border-radius: 8px;
+  margin-bottom: 16px;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+}
+
+.mtd-back {
+  border: none;
+  background: none;
+  font-size: 18px;
+  cursor: pointer;
+  color: var(--fg-tertiary);
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+.mtd-back:hover {
+  background: var(--bg);
+  color: var(--fg);
+}
+
+.mtd-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--fg);
+  flex: 1;
+}
+
+.mtd-title-input {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--fg);
+  border: 1px solid transparent;
+  border-radius: 4px;
+  padding: 2px 8px;
+  flex: 1;
+  outline: none;
+  background: transparent;
+}
+
+.mtd-title-input:focus {
+  border-color: var(--success);
+  background: var(--surface);
+}
+
+.mtd-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.mtd-btn {
+  padding: 6px 16px;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  border: none;
+  transition: all 0.2s;
+}
+
+.mtd-btn-save {
+  background: var(--success);
+  color: #fff;
+}
+
+.mtd-btn-save:hover {
+  background: var(--success);
+}
+
+.mtd-btn-exec {
+  background: var(--surface);
+  border: 1px solid var(--success);
+  color: var(--success);
+}
+
+.mtd-btn-exec:hover {
+  background: var(--success);
+  color: #fff;
+}
+
+.mtd-btn-del {
+  background: var(--surface);
+  border: 1px solid var(--danger);
+  color: var(--danger);
+}
+
+.mtd-btn-del:hover {
+  background: var(--danger);
+  color: #fff;
+}
+
+/* Tabs */
+.mtd-tabs {
+  display: flex;
+  gap: 0;
+  background: var(--surface);
+  border-radius: 8px;
+  padding: 0 20px;
+  margin-bottom: 16px;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+  overflow-x: auto;
+}
+
+.mtd-tab {
+  padding: 12px 20px;
+  border: none;
+  background: none;
+  font-size: 13px;
+  cursor: pointer;
+  color: var(--fg-secondary);
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.mtd-tab:hover {
+  color: var(--success);
+}
+
+.mtd-tab.active {
+  color: var(--success);
+  border-bottom-color: var(--success);
+  font-weight: 500;
+}
+
+/* Tab content */
+.mtd-body {
+  flex: 1;
+  background: var(--surface);
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+  overflow-y: auto;
+  min-height: 0;
+}
+
+/* Form */
+.mtd-form {
+  max-width: 720px;
+}
+
+.mtd-field {
+  margin-bottom: 16px;
+}
+
+.mtd-field label {
+  display: block;
+  font-size: 13px;
+  color: var(--fg-secondary);
+  margin-bottom: 6px;
+  font-weight: 500;
+}
+
+.mtd-field input,
+.mtd-field select,
+.mtd-field textarea {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 13px;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.mtd-field input:focus,
+.mtd-field select:focus,
+.mtd-field textarea:focus {
+  border-color: var(--success);
+  box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.1);
+}
+
+.mtd-field textarea {
+  resize: vertical;
+  min-height: 80px;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.mtd-field-hint {
+  font-size: 11px;
+  color: var(--fg-tertiary);
+  margin-top: 4px;
+}
+
+.mtd-row {
+  display: flex;
+  gap: 16px;
+}
+
+.mtd-row .mtd-field {
+  flex: 1;
+}
+
+/* Platform-specific fields */
+.mtd-platform-section {
+  margin-top: 8px;
+  padding: 16px;
+  background: var(--surface-raised);
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+
+.mtd-platform-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--fg);
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Steps editor */
+.mtd-steps {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.mtd-step-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+
+.mtd-step-row:last-child {
+  border-bottom: none;
+}
+
+.mtd-step-num {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--success);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.mtd-step-action {
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-size: 12px;
+  outline: none;
+  min-width: 80px;
+}
+
+.mtd-step-input {
+  flex: 1;
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-size: 12px;
+  outline: none;
+}
+
+.mtd-step-input:focus,
+.mtd-step-action:focus {
+  border-color: var(--success);
+}
+
+.mtd-step-del {
+  border: none;
+  background: none;
+  color: var(--danger);
+  cursor: pointer;
+  font-size: 16px;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.mtd-step-del:hover {
+  background: var(--danger-subtle);
+}
+
+.mtd-step-add {
+  display: block;
+  width: 100%;
+  padding: 10px;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--fg-tertiary);
+  cursor: pointer;
+  font-size: 13px;
+  margin-top: 8px;
+  transition: all 0.2s;
+}
+
+.mtd-step-add:hover {
+  border-color: var(--success);
+  color: var(--success);
+}
+
+/* Assertions */
+.mtd-assertion-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+
+.mtd-assertion-row select,
+.mtd-assertion-row input {
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-size: 12px;
+  outline: none;
+}
+
+/* Log list */
+.mtd-log-item {
+  padding: 12px 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-bottom: 8px;
+  font-size: 13px;
+}
+
+.mtd-log-status {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.mtd-log-status-success {
+  background: var(--success-subtle);
+  color: var(--success);
+}
+
+.mtd-log-status-failed {
+  background: var(--danger-subtle);
+  color: var(--danger);
+}
+
+.mtd-log-status-error {
+  background: var(--warning-subtle);
+  color: var(--warning);
+}
+
+.mtd-log-meta {
+  color: var(--fg-tertiary);
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+.mtd-log-steps {
+  margin-top: 8px;
+  padding: 8px;
+  background: var(--surface-raised);
+  border-radius: 4px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  white-space: pre-wrap;
+  word-break: break-all;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+/* Message toast */
+.mtd-toast {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  padding: 10px 20px;
+  border-radius: 6px;
+  font-size: 13px;
+  z-index: 1000;
+  animation: mtdFadeIn 0.2s ease;
+}
+
+.mtd-toast-success {
+  background: var(--success-subtle);
+  color: var(--success);
+  border: 1px solid var(--success-subtle);
+}
+
+.mtd-toast-error {
+  background: var(--danger-subtle);
+  color: var(--danger);
+  border: 1px solid var(--danger-subtle);
+}
+
+@keyframes mtdFadeIn {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}

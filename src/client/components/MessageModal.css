@@ -9,7 +9,7 @@
 }
 
 .msg-modal {
-  background: #fff;
+  background: var(--surface);
   border-radius: 12px;
   padding: 32px;
   width: 360px;
@@ -32,13 +32,13 @@
   font-weight: bold;
 }
 
-.msg-icon-error { background: #fff1f0; color: #ff4d4f; }
-.msg-icon-warning { background: #fffbe6; color: #faad14; }
-.msg-icon-success { background: #f6ffed; color: #52c41a; }
+.msg-icon-error { background: var(--danger-subtle); color: var(--danger); }
+.msg-icon-warning { background: var(--warning-subtle); color: var(--warning); }
+.msg-icon-success { background: var(--success-subtle); color: var(--success); }
 
 .msg-content {
   font-size: 14px;
-  color: #333;
+  color: var(--fg);
   text-align: center;
   line-height: 1.6;
 }
@@ -48,9 +48,9 @@
   border-radius: 4px;
   font-size: 13px;
   cursor: pointer;
-  border: 1px solid #d9d9d9;
-  background: #fff;
-  color: #333;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--fg);
   transition: all 0.15s;
 }
 

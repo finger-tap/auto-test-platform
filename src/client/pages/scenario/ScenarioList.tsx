@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { apiFetch } from '../../utils/api';
+import { formatDateTime } from '../../utils/datetime';
 import type { Scenario } from '../../types';
 import TagFilterSelect from '../../components/TagFilterSelect';
 import FormSelect from '../../components/FormSelect';
@@ -192,8 +193,8 @@ export default function ScenarioList({ basePath = '/api-test', testType = 'api' 
                     )) : '-'}
                   </td>
                   <td><span className={`status-text status-${s.status}`}>{statusLabel(s.status)}</span></td>
-                  <td>{s.created_at.replace('T', ' ').slice(0, 16)}</td>
-                  <td>{s.updated_at.replace('T', ' ').slice(0, 16)}</td>
+                  <td>{formatDateTime(s.created_at)}</td>
+                  <td>{formatDateTime(s.updated_at)}</td>
                   <td>
                     <div className="row-actions">
                       <button className="row-action-btn" title="执行" onClick={(e) => { e.stopPropagation(); navigate(`${basePath}/scene-case/${s.id}?exec=1`); }}>▶</button>

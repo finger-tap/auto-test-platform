@@ -1,130 +1,307 @@
-.home-dashboard {
+/* ── Home Shell ── */
+.home-shell {
   min-height: 100vh;
-  background: #fff;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+}
+
+/* ── Header ── */
+.home-header {
+  height: var(--header-h);
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: space-between;
+  padding: 0 28px;
+  flex-shrink: 0;
+}
+
+.home-header-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.home-header-title svg {
+  flex-shrink: 0;
+}
+
+.home-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.home-user-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 2px;
+  border-radius: 50%;
+  transition: box-shadow 0.15s;
+}
+
+.home-user-btn:hover {
+  box-shadow: 0 0 0 2px var(--accent-subtle);
+}
+
+.home-user-avatar {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--accent-subtle);
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent);
+  overflow: hidden;
+}
+
+.home-user-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* ── Body ── */
+.home-body {
+  flex: 1;
+  padding: 28px 32px;
+  max-width: 1120px;
+  width: 100%;
+  margin: 0 auto;
+  box-sizing: border-box;
+}
+
+.home-welcome {
+  font-size: 22px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.home-subtitle {
+  font-size: 13px;
+  color: var(--fg-tertiary);
+  margin-bottom: 28px;
+}
+
+/* ── Kanban Grid ── */
+.kanban-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+  margin-bottom: 28px;
+}
+
+.kanban-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  cursor: pointer;
+  transition: all 0.2s;
   position: relative;
 }
 
-/* Logo区 */
-.home-logo-section {
-  text-align: center;
-  margin-bottom: 32px;
+.kanban-card:hover {
+  border-color: var(--accent);
+  box-shadow: var(--shadow-md);
 }
 
-.home-logo-wrapper {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  margin-bottom: 8px;
+.kanban-enter {
+  position: absolute;
+  top: 16px;
+  right: 16px;
 }
 
-.home-logo-icon {
-  width: 48px;
-  height: 48px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-radius: 12px;
+.kanban-enter-btn {
+  font-size: 12px;
+  color: var(--accent);
+  background: var(--accent-subtle);
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 5px 12px;
+  cursor: pointer;
+  font-family: var(--font-sans);
+  font-weight: 500;
+  transition: all 0.15s;
+}
+
+.kanban-enter-btn:hover {
+  background: var(--accent);
+  color: #fff;
+}
+
+.kanban-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-md);
+  display: grid;
+  place-items: center;
+  margin-bottom: 14px;
+}
+
+.kanban-icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.kanban-name {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 2px;
+}
+
+.kanban-desc {
+  font-size: 12px;
+  color: var(--fg-tertiary);
+  margin-bottom: 18px;
+}
+
+.kanban-stats {
+  display: flex;
+  gap: 24px;
+  margin-bottom: 14px;
+}
+
+.kanban-stat-val {
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1;
+  margin-bottom: 4px;
+}
+
+.kanban-stat-label {
+  font-size: 11px;
+  color: var(--fg-tertiary);
+}
+
+.kanban-rate {
   display: flex;
   align-items: center;
-  justify-content: center;
+  gap: 10px;
 }
 
-.home-logo-icon svg {
-  width: 28px;
-  height: 28px;
-  fill: #fff;
+.kanban-rate-bar {
+  flex: 1;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--border-subtle);
+  overflow: hidden;
 }
 
-.home-logo-text {
-  font-size: 24px;
-  font-weight: 700;
-  color: #333;
+.kanban-rate-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.4s ease;
 }
 
-.home-tagline {
-  color: #999;
-  font-size: 13px;
+.kanban-rate-val {
+  font-size: 12px;
+  font-weight: 600;
+  min-width: 32px;
+  text-align: right;
 }
 
-/* 统计区 */
-.home-stats-grid {
+/* ── Bottom panels ── */
+.home-bottom {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: 1fr 1fr;
   gap: 16px;
-  margin-bottom: 24px;
 }
 
-.home-stat-card {
-  background: #fff;
-  border: 1px solid #e8e8e8;
-  border-radius: 12px;
-  padding: 20px 16px;
-  text-align: center;
-  transition: all 0.25s ease;
-  cursor: pointer;
+.home-panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 20px;
 }
 
-.home-stat-card:hover {
-  border-color: #667eea;
-  box-shadow: 0 4px 16px rgba(102, 126, 234, 0.12);
+.home-panel-head {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 14px;
 }
 
-.home-stat-number {
-  font-size: 32px;
-  font-weight: 700;
-  color: #333;
-  margin-bottom: 6px;
+.home-panel-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
-.home-stat-label {
-  color: #666;
+/* ── Activity items ── */
+.activity-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   font-size: 13px;
 }
 
-/* 快捷入口 */
-.home-quick-actions {
+.activity-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.activity-text {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--fg-secondary);
+}
+
+.activity-time {
+  font-size: 11px;
+  color: var(--fg-tertiary);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* ── Shortcut grid ── */
+.shortcut-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 12px;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
 }
 
-.home-quick-btn {
-  background: #fff;
-  border: 1px solid #e8e8e8;
-  border-radius: 10px;
-  padding: 16px 12px;
-  text-align: center;
+.shortcut-btn {
+  padding: 10px 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  font-size: 13px;
+  color: var(--fg-secondary);
   cursor: pointer;
-  transition: all 0.25s ease;
+  font-family: var(--font-sans);
+  transition: all 0.15s;
 }
 
-.home-quick-btn:hover {
-  border-color: #667eea;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.1);
+.shortcut-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-subtle);
 }
 
-.home-quick-icon {
-  font-size: 20px;
-  margin-bottom: 8px;
-}
+/* ── Responsive ── */
+@media (max-width: 900px) {
+  .kanban-grid {
+    grid-template-columns: 1fr;
+  }
 
-.home-quick-text {
-  font-size: 12px;
-  color: #333;
-}
+  .home-bottom {
+    grid-template-columns: 1fr;
+  }
 
-/* 底部 */
-.home-footer {
-  margin-top: 32px;
-  text-align: center;
-  color: #ccc;
-  font-size: 12px;
-}
-
-@media (max-width: 768px) {
-  .home-stats-grid,
-  .home-quick-actions { grid-template-columns: repeat(2, 1fr); }
+  .shortcut-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }

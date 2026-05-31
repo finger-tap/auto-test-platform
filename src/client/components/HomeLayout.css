@@ -1,18 +1,7 @@
 .home-layout {
-  min-height: 100vh;
+  height: 100vh;
   display: flex;
   flex-direction: column;
-  background: #fff;
-}
-
-.home-layout-main {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
-}
-
-.home-dashboard {
-  /* 纯背景，不显示任何内容 */
+  background: var(--bg);
+  overflow: hidden;
 }

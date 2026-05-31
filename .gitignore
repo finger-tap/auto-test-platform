@@ -8,3 +8,5 @@ data/
 .idea/
 .vscode/
 *.tsbuildinfo
+.claude/
+.wolf/

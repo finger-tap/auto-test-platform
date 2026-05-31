@@ -1,8 +1,8 @@
 import { Router, Request, Response } from 'express';
 import { authMiddleware } from '../auth/middleware.js';
-import { findApisByUserIdPaginated, findApisByUserId, findApiById, createApi, updateApi, deleteApi, createApiLog, findLogsByApiId, type ApiRow } from '../db/apis.js';
+import { findApisByUserIdPaginated, findApisByUserId, findApiById, createApi, updateApi, deleteApi, findApiExecutionsByApiId, findApiExecutionWithSteps, type ApiRow, type ApiExecutionRow } from '../db/apis.js';
 import type { AssertionRule } from '../db/apis.js';
-import { evaluateAssertions } from '../engine/api-executor.js';
+import { executeApi, evaluateAssertions } from '../engine/api-executor.js';
 import { evalBuiltin } from '../engine/builtins.js';
 import { findUserById } from '../db/users.js';
 import { executeWsSession } from '../engine/ws-executor.js';
@@ -83,24 +83,28 @@ async function executeWs(api: ApiRow, req: Request, res: Response) {
     );
   } catch (err) {
     const duration = Date.now() - start;
-    const logId = createApiLog(api.id, {
-      status_code: 0,
+    const execId = createApiExecution({
+      api_id: api.id,
+      status: 'error',
+      executed_by: executedBy,
       request_headers: '[]',
       request_body: null,
       response_headers: null,
       response_body: JSON.stringify({ error: err instanceof Error ? err.message : 'Unknown error' }),
       duration_ms: duration,
-      executed_by: executedBy,
-      assertion_results: JSON.stringify({ pre: preAssertResults, post: [], final: [] }),
+      error_message: err instanceof Error ? err.message : 'Unknown error',
+      started_at: new Date(start).toISOString(),
+      finished_at: new Date().toISOString(),
     });
     res.json({
       code: 200, message: 'ok', data: {
-        id: logId, api_id: api.id, status_code: 0,
+        id: execId, api_id: api.id, status_code: 0,
         request_headers: '[]', request_body: null, response_headers: null,
         response_body: JSON.stringify({ error: err instanceof Error ? err.message : 'Unknown error', ws_session: true }),
         duration_ms: duration, executed_by: executedBy,
-        assertion_results: { pre: preAssertResults, post: [], final: [], ws: { connected: false } },
+        assertion_results: { pre: preAssertResults, main: [], post: [], final: [], ws: { connected: false } },
         script_error: preError || undefined,
+        execution_id: execId,
       },
     });
     return;
@@ -147,20 +151,23 @@ async function executeWs(api: ApiRow, req: Request, res: Response) {
     error: wsResult.error_message,
   }, null, 2);
 
-  const logId = createApiLog(api.id, {
-    status_code: wsResult.connected ? 101 : 0,
+  const execId = createApiExecution({
+    api_id: api.id,
+    status: wsResult.connected ? 'success' : 'error',
+    executed_by: executedBy,
     request_headers: JSON.stringify([]),
     request_body: api.ws_send || null,
     response_headers: JSON.stringify({ 'sec-websocket-protocol': 'ws-received' }),
     response_body: respBody,
     duration_ms: duration,
-    executed_by: executedBy,
-    assertion_results: JSON.stringify({ pre: preAssertResults, post: postAssertResults, final: finalAssertResults }),
+    error_message: wsResult.error_message || null,
+    started_at: new Date(start).toISOString(),
+    finished_at: new Date().toISOString(),
   });
 
   res.json({
     code: 200, message: 'ok', data: {
-      id: logId, api_id: api.id,
+      id: execId, api_id: api.id,
       status_code: wsResult.connected ? 101 : 0,
       request_headers: JSON.stringify([]),
       request_body: api.ws_send || null,
@@ -172,6 +179,7 @@ async function executeWs(api: ApiRow, req: Request, res: Response) {
         ws: { connected: wsResult.connected, sent: wsResult.sent, received: wsResult.received, assertion_results: wsResult.assertion_results, error_message: wsResult.error_message },
       },
       script_error: preError || undefined,
+      execution_id: execId,
     },
   });
 }
@@ -182,13 +190,14 @@ apiRoutes.get('/', (req: Request, res: Response) => {
   const pageSize = Math.min(100, Math.max(1, Number(req.query.pageSize) || 10));
   const sort = (req.query.sort as string) || 'updated_at';
   const order = (req.query.order as string) || 'DESC';
-  const { items, total } = findApisByUserIdPaginated(req.user!.userId, page, pageSize, sort, order);
+  const testType = (req.query.test_type as string) || 'api';
+  const { items, total } = findApisByUserIdPaginated(req.user!.userId, page, pageSize, sort, order, testType);
   res.json({ code: 200, message: 'ok', data: { items, total, page, pageSize } });
 });
 
 // POST /api/apis
 apiRoutes.post('/', (req: Request, res: Response) => {
-  const { name, method, url, protocol, headers, body, description, tags, status, content_type, assertions, pre_script, post_script, pre_db_name, pre_db_query, post_db_name, post_db_query, pre_assertions, post_assertions, final_assertions, ws_send, ws_expect, pre_actions, post_actions } = req.body;
+  const { name, method, url, protocol, headers, body, description, tags, status, content_type, assertions, pre_script, post_script, pre_db_name, pre_db_query, post_db_name, post_db_query, pre_assertions, post_assertions, final_assertions, ws_send, ws_expect, pre_actions, post_actions, parameters, test_type } = req.body;
 
   if (!name || typeof name !== 'string' || !name.trim()) {
     res.status(400).json({ code: 400, message: 'Name is required' });
@@ -203,7 +212,7 @@ apiRoutes.post('/', (req: Request, res: Response) => {
     return;
   }
 
-  const id = createApi(req.user!.userId, { name: name.trim(), method, url: url.trim(), protocol, headers, body, description, tags, status, content_type, assertions, pre_script, post_script, pre_db_name, pre_db_query, post_db_name, post_db_query, pre_assertions, post_assertions, final_assertions, ws_send, ws_expect, pre_actions, post_actions });
+  const id = createApi(req.user!.userId, { name: name.trim(), method, url: url.trim(), protocol, headers, body, description, tags, status, content_type, assertions, pre_script, post_script, pre_db_name, pre_db_query, post_db_name, post_db_query, pre_assertions, post_assertions, final_assertions, ws_send, ws_expect, pre_actions, post_actions, test_type: test_type || 'api' });
   res.status(201).json({ code: 201, message: 'Created', data: { id } });
 });
 
@@ -238,13 +247,13 @@ apiRoutes.put('/:id', (req: Request, res: Response) => {
   const api = checkOwnership(req, res);
   if (!api) return;
 
-  const { name, method, url, protocol, headers, body, description, tags, status, content_type, assertions, pre_script, post_script, pre_db_name, pre_db_query, post_db_name, post_db_query, pre_assertions, post_assertions, final_assertions, ws_send, ws_expect, pre_actions, post_actions } = req.body;
+  const { name, method, url, protocol, headers, body, description, tags, status, content_type, assertions, pre_script, post_script, pre_db_name, pre_db_query, post_db_name, post_db_query, pre_assertions, post_assertions, final_assertions, ws_send, ws_expect, pre_actions, post_actions, parameters } = req.body;
   if (method && !VALID_METHODS.includes(method)) {
     res.status(400).json({ code: 400, message: 'Invalid method' });
     return;
   }
 
-  updateApi(api.id, { name, method, url, protocol, headers, body, description, tags, status, content_type, assertions, pre_script, post_script, pre_db_name, pre_db_query, post_db_name, post_db_query, pre_assertions, post_assertions, final_assertions, ws_send, ws_expect, pre_actions, post_actions });
+  updateApi(api.id, { name, method, url, protocol, headers, body, description, tags, status, content_type, assertions, pre_script, post_script, pre_db_name, pre_db_query, post_db_name, post_db_query, pre_assertions, post_assertions, final_assertions, ws_send, ws_expect, pre_actions, post_actions, parameters });
   res.json({ code: 200, message: 'Updated' });
 });
 
@@ -269,7 +278,6 @@ apiRoutes.post('/:id/execute', async (req: Request, res: Response) => {
   }
 
   // ── HTTP/HTTPS protocol execution ──
-
   const executor = findUserById(req.user!.userId);
   const executedBy = executor?.nickname || executor?.account || 'unknown';
 
@@ -278,7 +286,6 @@ apiRoutes.post('/:id/execute', async (req: Request, res: Response) => {
   let sslCert: string | undefined;
   let sslKey: string | undefined;
   let envTimeout: number | undefined;
-  let allDbConfigs: Record<string, import('../db/environments.js').DbConfig> | null = null;
 
   if (req.body.environmentId) {
     const { findEnvById, envToMap, envToDbConfigs } = await import('../db/environments.js');
@@ -288,283 +295,113 @@ apiRoutes.post('/:id/execute', async (req: Request, res: Response) => {
       if (env.ssl_cert) sslCert = env.ssl_cert;
       if (env.ssl_key) sslKey = env.ssl_key;
       if (env.timeout) envTimeout = env.timeout;
-      allDbConfigs = envToDbConfigs(env);
     }
   }
 
-  // ── Substitution helper: supports {{var}} using envContext + scriptVars ──
-  const scriptVars: Record<string, string> = {};
-  function substitute(text: string): string {
-    return evalBuiltin(text, { ...envContext, ...scriptVars });
-  }
-
-  const start = Date.now();
-
-  // ── Step 1: Pre-script (legacy or new action format) ──
-  let preError: string | null = null;
-
-  let effectivePreScript = api.pre_script || '';
-
-  // Support new action format: pre_actions is JSON array of {type, script, dbName, dbQuery}
-  if (api.pre_actions) {
-    try {
-      const actions = JSON.parse(api.pre_actions) as Array<{ type: string; script?: string; dbName?: string; dbQuery?: string }>;
-      for (const action of actions) {
-        if (action.type === 'db' && action.dbQuery?.trim()) {
-          const q = action.dbQuery.trim().replace(/;$/, '');
-          effectivePreScript += `\n// [数据库查询] ${action.dbName || '默认数据库'}\nconst result = db.query(\`${q}\`);`;
-        } else if (action.type === 'script' && action.script?.trim()) {
-          effectivePreScript += `\n// [脚本] ${action.script.split('\n')[0]}\n${action.script}`;
-        }
-      }
-    } catch { /* ignore invalid JSON */ }
-  } else if (api.pre_db_query && api.pre_db_query.trim()) {
-    const q = api.pre_db_query.trim().replace(/;$/, '');
-    effectivePreScript = `const result = db.query(\`${q}\`);\n${effectivePreScript}`;
-  }
-
-  if (effectivePreScript.trim()) {
-    const { executeScript } = await import('../db/scripts/pre-post.js');
-    const preResult = await executeScript(effectivePreScript, {
-      vars: { ...envContext, ...scriptVars },
-      env: envContext,
-      prevApi: undefined,
-      dbConfigs: allDbConfigs,
-      dbName: api.pre_db_name || undefined,
-    });
-    if (!preResult.success) {
-      preError = `前置脚本错误: ${preResult.error}`;
-    } else if (preResult.vars) {
-      Object.assign(scriptVars, preResult.vars);
-    }
-  }
-
-  // ── Step 2: Pre extraction (apply pre-extraction rules → merge into scriptVars) ──
-  // ── Step 3: Pre assertions (validate pre-extracted values) ──
-  let preAssertResults: import('../db/apis.js').AssertionResult[] = [];
-  if (api.pre_assertions && !preError) {
-    try {
-      const preRules: AssertionRule[] = JSON.parse(api.pre_assertions);
-      const allVars = { ...envContext, ...scriptVars };
-      const { results, extracted } = evaluateAssertions(preRules, 0, {}, JSON.stringify(allVars));
-      preAssertResults = results;
-      // Merge extracted values into scriptVars so they can be used in HTTP request
-      Object.assign(scriptVars, extracted);
-    } catch { /* ignore */ }
-  }
-
-  // ── Step 4: HTTP Request (can use {{extracted_var}} from pre phase) ──
-  let fullUrl = substitute(api.url);
-  if (!/^https?:\/\//i.test(fullUrl)) {
-    fullUrl = `${api.protocol}://${fullUrl}`;
-  }
-
-  const reqHeaders: Record<string, string> = {};
-  if (api.headers) {
-    try { Object.assign(reqHeaders, JSON.parse(substitute(api.headers))); } catch { /* ignore */ }
-  }
-  if (api.body && !Object.keys(reqHeaders).some((k) => k.toLowerCase() === 'content-type')) {
-    const ct = api.content_type || 'json';
-    if (ct === 'json') reqHeaders['Content-Type'] = 'application/json';
-    else if (ct === 'form') reqHeaders['Content-Type'] = 'application/x-www-form-urlencoded';
-    else if (ct === 'xml') reqHeaders['Content-Type'] = 'application/xml';
-    else reqHeaders['Content-Type'] = 'text/plain';
-  }
-
-  let statusCode: number | null = null;
-  let respHeaders: string | null = null;
-  let respBody: string | null = null;
-  const requestHeadersStr = JSON.stringify(reqHeaders);
-  const requestBodyStr = api.body || null;
-
-  let mainStatusCode: number | null = null;
-  let mainRespHeaders: Record<string, string> = {};
-  let mainRespBody: string | null = null;
-
+  // ── Execute via new engine ──
   try {
-    const fetchOptions: RequestInit & { agent?: unknown } = {
-      method: api.method,
-      headers: reqHeaders,
-      body: ['POST', 'PUT', 'PATCH'].includes(api.method) && api.body ? substitute(api.body) : undefined,
-      signal: AbortSignal.timeout(envTimeout || 30000),
-    };
-
-    const urlObj = new URL(fullUrl);
-    if (urlObj.protocol === 'https:' && (sslCert || sslKey)) {
-      const { default: https } = await import('node:https');
-      fetchOptions.agent = new https.Agent({ cert: sslCert, key: sslKey });
-    }
-
-    const response = await fetch(fullUrl, fetchOptions as Parameters<typeof fetch>[1]);
-    const duration = Date.now() - start;
-
-    statusCode = response.status;
-    mainStatusCode = statusCode;
-    const respHeadersObj = Object.fromEntries(response.headers.entries());
-    mainRespHeaders = respHeadersObj;
-    respHeaders = JSON.stringify(respHeadersObj);
-    respBody = await response.text();
-    mainRespBody = respBody;
-
-    if (respBody.length > 1_000_000) {
-      respBody = respBody.slice(0, 1_000_000) + '\n\n[Response truncated at 1MB]';
-      mainRespBody = respBody;
-    }
-
-    // ── Step 5: Main extraction (apply main-extraction rules → merge into scriptVars) ──
-    // ── Step 6: Main assertions (validate HTTP response) ──
-    let assertions: AssertionRule[] = [];
-    if (api.assertions) { try { assertions = JSON.parse(api.assertions); } catch { /* ignore */ } }
-    let mainResults: { rule: AssertionRule; passed: boolean; actual: string }[] = [];
-    if (assertions.length > 0) {
-      const { results, extracted } = evaluateAssertions(assertions, mainStatusCode, mainRespHeaders, mainRespBody || '');
-      mainResults = results;
-      Object.assign(scriptVars, extracted);
-    }
-
-    // ── Step 7: Post-script (legacy or new action format, can use {{main_extracted_var}}) ──
-    let postError: string | null = null;
-    let effectivePostScript = api.post_script || '';
-
-    // Support new action format for post actions
-    if (api.post_actions) {
-      try {
-        const actions = JSON.parse(api.post_actions) as Array<{ type: string; script?: string; dbName?: string; dbQuery?: string }>;
-        for (const action of actions) {
-          if (action.type === 'db' && action.dbQuery?.trim()) {
-            const q = action.dbQuery.trim().replace(/;$/, '');
-            effectivePostScript += `\n// [数据库查询] ${action.dbName || '默认数据库'}\nconst result = db.query(\`${q}\`);`;
-          } else if (action.type === 'script' && action.script?.trim()) {
-            effectivePostScript += `\n// [脚本] ${action.script.split('\n')[0]}\n${action.script}`;
-          }
-        }
-      } catch { /* ignore invalid JSON */ }
-    } else if (api.post_db_query && api.post_db_query.trim()) {
-      const q = api.post_db_query.trim().replace(/;$/, '');
-      effectivePostScript = `const result = db.query(\`${q}\`);\n${effectivePostScript}`;
-    }
-    if (effectivePostScript.trim() && !preError) {
-      const { executeScript } = await import('../db/scripts/pre-post.js');
-      const postResult = await executeScript(effectivePostScript, {
-        vars: { ...envContext, ...scriptVars },
-        env: envContext,
-        prevApi: {
-          status_code: statusCode,
-          response_body: respBody || '',
-          response_headers: respHeadersObj,
-        },
-        dbConfigs: allDbConfigs,
-        dbName: api.post_db_name || undefined,
-      });
-      if (!postResult.success) {
-        postError = `后置脚本错误: ${postResult.error}`;
-      } else if (postResult.vars) {
-        Object.assign(scriptVars, postResult.vars);
-      }
-    }
-
-    // ── Step 8: Post extraction (apply post-extraction rules → merge into scriptVars) ──
-    // ── Step 9: Post assertions (validate HTTP response + post-script context) ──
-    let postAssertResults: import('../db/apis.js').AssertionResult[] = [];
-    if (api.post_assertions && !postError) {
-      try {
-        const postRules: AssertionRule[] = JSON.parse(api.post_assertions);
-        // Merge scriptVars into body for extraction: response_body + { vars: scriptVars }
-        const postBody = mainRespBody
-          ? `${mainRespBody}\n${JSON.stringify({ _vars: scriptVars })}`
-          : JSON.stringify({ _vars: scriptVars });
-        const { results, extracted } = evaluateAssertions(postRules, mainStatusCode, mainRespHeaders, postBody);
-        postAssertResults = results;
-        Object.assign(scriptVars, extracted);
-      } catch { /* ignore */ }
-    }
-
-    // ── Step 10: Final assertions (all phases done, full context available) ──
-    let finalAssertResults: import('../db/apis.js').AssertionResult[] = [];
-    if (api.final_assertions) {
-      try {
-        const finalRules: AssertionRule[] = JSON.parse(api.final_assertions);
-        // Include all accumulated scriptVars in body for extraction + assertion
-        const finalBody = mainRespBody
-          ? `${mainRespBody}\n${JSON.stringify({ _vars: scriptVars })}`
-          : JSON.stringify({ _vars: scriptVars });
-        const { results, extracted } = evaluateAssertions(finalRules, mainStatusCode, mainRespHeaders, finalBody);
-        finalAssertResults = results;
-        Object.assign(scriptVars, extracted);
-      } catch { /* ignore */ }
-    }
-
-    const assertionResults = JSON.stringify({ main: mainResults, pre: preAssertResults, post: postAssertResults, final: finalAssertResults });
-
-    const logId = createApiLog(api.id, {
-      status_code: statusCode,
-      request_headers: requestHeadersStr,
-      request_body: requestBodyStr,
-      response_headers: respHeaders,
-      response_body: respBody,
-      duration_ms: duration,
-      executed_by: executedBy,
-      assertion_results: assertionResults,
+    const paramConfig = api.parameters ? JSON.parse(api.parameters) : null;
+    const results = await executeApi(api.id, envContext, undefined, undefined, {
+      sslCert, sslKey, timeout: envTimeout, executedBy, paramConfig,
     });
+
+    // Build response from results (backward compatible shape)
+    const first = results[0];
+    const allRows = results.map(r => ({
+      row: r.param_row_index,
+      status: r.status_code,
+      duration_ms: r.duration_ms,
+      passed: r.assertion_results.main.filter(a => a.passed).length,
+      failed: r.assertion_results.main.filter(a => !a.passed).length,
+    }));
+    const totalDuration = results.reduce((s, r) => s + r.duration_ms, 0);
 
     res.json({
       code: 200,
       message: 'ok',
       data: {
-        id: logId,
+        id: first?.execution_id,
         api_id: api.id,
-        status_code: statusCode,
-        request_headers: requestHeadersStr,
-        request_body: requestBodyStr,
-        response_headers: respHeaders,
-        response_body: respBody,
-        duration_ms: duration,
+        status_code: first?.status_code,
+        request_headers: JSON.stringify(first?.request_headers || {}),
+        request_body: first?.request_body,
+        response_headers: JSON.stringify(first?.response_headers || {}),
+        response_body: first?.response_body,
+        duration_ms: totalDuration,
         executed_by: executedBy,
-        assertion_results: { main: mainResults, pre: preAssertResults, post: postAssertResults, final: finalAssertResults },
-        script_error: preError || undefined,
+        assertion_results: first?.assertion_results,
+        param_summary: { total_rows: results.length, results: allRows },
+        // Include new execution_id for drill-down
+        execution_id: first?.execution_id,
+        steps: first?.steps,
       },
     });
   } catch (err) {
-    const duration = Date.now() - start;
     const errorMsg = err instanceof Error ? err.message : 'Unknown error';
-
-    const logId = createApiLog(api.id, {
-      status_code: 0,
-      request_headers: requestHeadersStr,
-      request_body: requestBodyStr,
-      response_headers: null,
-      response_body: JSON.stringify({ error: errorMsg }),
-      duration_ms: duration,
-      executed_by: executedBy,
-      assertion_results: null,
-    });
-
-    res.json({
-      code: 200,
-      message: 'ok',
-      data: {
-        id: logId,
-        api_id: api.id,
-        status_code: 0,
-        request_headers: requestHeadersStr,
-        request_body: requestBodyStr,
-        response_headers: null,
-        response_body: JSON.stringify({ error: errorMsg }),
-        duration_ms: duration,
-        executed_by: executedBy,
-        assertion_results: { main: [], pre: [], post: [], final: [] },
-        script_error: preError || undefined,
-      },
-    });
+    res.status(500).json({ code: 500, message: errorMsg });
   }
 });
 
-// GET /api/apis/:id/logs
+// GET /api/apis/:id/logs — list executions (new table)
 apiRoutes.get('/:id/logs', (req: Request, res: Response) => {
   const api = checkOwnership(req, res);
   if (!api) return;
 
   const limit = Math.min(Number(req.query.limit) || 10, 100);
-  const logs = findLogsByApiId(api.id, limit);
-  res.json({ code: 200, message: 'ok', data: logs });
+  const executions = findApiExecutionsByApiId(api.id, limit);
+  res.json({ code: 200, message: 'ok', data: executions });
+});
+
+// GET /api/apis/:id/executions — list all execution sessions (new table)
+apiRoutes.get('/:id/executions', (req: Request, res: Response) => {
+  const api = checkOwnership(req, res);
+  if (!api) return;
+
+  const limit = Math.min(Number(req.query.limit) || 20, 100);
+  const allExecutions = findApiExecutionsByApiId(api.id, limit);
+  console.log('[executions] apiId:', api.id, 'count:', allExecutions.length, 'executions:', allExecutions.map(e => ({ id: e.id, batch_id: e.batch_id, param_row_index: e.param_row_index })));
+
+  // Group into batches:
+  // - batch_id === id → batch leader (show as entry, with sub_executions)
+  // - batch_id === -1 → standalone single execution
+  // - batch_id !== id && batch_id !== -1 → batch member (hidden, attached to leader)
+
+  // Build result: group all by batch_id, each group becomes one entry with sub_executions
+  const batchMap = new Map<number, ApiExecutionRow & { sub_executions: ApiExecutionRow[] }>();
+  const standalone: ApiExecutionRow[] = [];
+
+  for (const exec of allExecutions) {
+    if (exec.batch_id === -1) {
+      standalone.push(exec);
+    } else {
+      const batchKey = exec.batch_id;
+      if (!batchMap.has(batchKey)) {
+        batchMap.set(batchKey, { ...exec, sub_executions: [] });
+      } else {
+        batchMap.get(batchKey)!.sub_executions.push(exec);
+      }
+    }
+  }
+
+  const result = Array.from(batchMap.values()).map(entry => ({
+    ...entry,
+    sub_executions: entry.sub_executions.sort((a, b) => a.param_row_index - b.param_row_index),
+  }));
+
+  result.push(...standalone.map(s => ({ ...s, sub_executions: [] as ApiExecutionRow[] })));
+
+  res.json({ code: 200, message: 'ok', data: result });
+});
+
+// GET /api/apis/:id/executions/:execId — get execution detail with steps
+apiRoutes.get('/:id/executions/:execId', (req: Request, res: Response) => {
+  const api = checkOwnership(req, res);
+  if (!api) return;
+
+  const execId = Number(req.params.execId);
+  if (!execId) { res.status(400).json({ code: 400, message: 'Invalid execId' }); return; }
+
+  const detail = findApiExecutionWithSteps(execId);
+  if (!detail) { res.status(404).json({ code: 404, message: 'Execution not found' }); return; }
+  res.json({ code: 200, message: 'ok', data: detail });
 });

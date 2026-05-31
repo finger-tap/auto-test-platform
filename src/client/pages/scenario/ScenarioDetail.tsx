@@ -29,6 +29,7 @@ import EndNode from './nodes/EndNode';
 import NodeConfigPanel from './NodeConfigPanel';
 import ExecutionResultPanel from './ExecutionResultPanel';
 import ScenarioExecutionTimeline from '../../components/ScenarioExecutionTimeline';
+import ScenarioBatchExecutionView from './ScenarioBatchExecutionView';
 import './nodes/NodeStyles.css';
 import './ScenarioDetail.css';
 
@@ -85,6 +86,7 @@ export default function ScenarioDetail({ basePath = '/api-test', testType = 'api
   const [executing, setExecuting] = useState(false);
   const [executionResult, setExecutionResult] = useState<ScenarioLog | null>(null);
   const [expandedLog, setExpandedLog] = useState<number | null>(null);
+  const [activeParamRow, setActiveParamRow] = useState<number>(0); // Active param row tab in logs
   const [logs, setLogs] = useState<ScenarioLog[]>([]);
   const [scenarioExecutions, setScenarioExecutions] = useState<ScenarioExecution[]>([]);
   const [selectedScenarioExecution, setSelectedScenarioExecution] = useState<ScenarioExecution | null>(null);
@@ -326,17 +328,27 @@ export default function ScenarioDetail({ basePath = '/api-test', testType = 'api
     apiFetch<ScenarioExecution[]>(`${apiPath.detail}/${id}/executions`).then((res) => {
       if (res.code === 200 && res.data && res.data.length > 0) {
         setScenarioExecutions(res.data);
-        const firstExec = res.data[0];
-        if (!firstExec.steps) {
-          apiFetch<ScenarioExecution & { steps: ScenarioExecutionStep[] }>(`${apiPath.detail}/${id}/executions/${firstExec.id}`).then((detailRes) => {
+        // Fetch steps for leader and all members
+        const fetchDetail = (exec: ScenarioExecution): Promise<ScenarioExecution> => {
+          return apiFetch<ScenarioExecution & { steps: ScenarioExecutionStep[] }>(`${apiPath.detail}/${id}/executions/${exec.id}`).then((detailRes) => {
             if (detailRes.code === 200 && detailRes.data) {
-              setScenarioExecutions(prev => prev.map(e => e.id === firstExec.id ? detailRes.data! : e));
-              setSelectedScenarioExecution(detailRes.data!);
+              return { ...exec, ...detailRes.data };
             }
+            return exec;
           });
-        } else {
-          setSelectedScenarioExecution(firstExec);
-        }
+        };
+        // Build updated list with steps for leader + all sub_executions
+        Promise.all(res.data.map(async (exec) => {
+          const leader = await fetchDetail(exec);
+          if (leader.sub_executions && leader.sub_executions.length > 0) {
+            const subs = await Promise.all(leader.sub_executions.map(sub => fetchDetail(sub)));
+            return { ...leader, sub_executions: subs };
+          }
+          return leader;
+        })).then((updated) => {
+          setScenarioExecutions(updated);
+          setSelectedScenarioExecution(updated[0] || null);
+        });
       }
     });
   }, [id]);
@@ -458,19 +470,28 @@ export default function ScenarioDetail({ basePath = '/api-test', testType = 'api
         }
         if (execRes.code === 200 && execRes.data && execRes.data.length > 0) {
           setScenarioExecutions(execRes.data);
-          const firstExec = execRes.data[0];
-          if (!firstExec.steps) {
-            apiFetch<ScenarioExecution & { steps: ScenarioExecutionStep[] }>(`${API_PATH_MAP[testType]?.detail || '/scenarios'}/${realIdRef.current}/executions/${firstExec.id}`).then((detailRes) => {
+          // Fetch detail for leader + sub_executions
+          const fetchDetail = (exec: ScenarioExecution): Promise<ScenarioExecution> => {
+            return apiFetch<ScenarioExecution & { steps: ScenarioExecutionStep[] }>(`${API_PATH_MAP[testType]?.detail || '/scenarios'}/${realIdRef.current}/executions/${exec.id}`).then((detailRes) => {
               if (detailRes.code === 200 && detailRes.data) {
-                setScenarioExecutions(prev => prev.map(e => e.id === firstExec.id ? detailRes.data! : e));
-                setSelectedScenarioExecution(detailRes.data!);
+                return { ...exec, ...detailRes.data };
               }
+              return exec;
             });
-          } else {
-            setSelectedScenarioExecution(firstExec);
-          }
+          };
+          Promise.all(execRes.data.map(async (exec) => {
+            const leader = await fetchDetail(exec);
+            if (leader.sub_executions && leader.sub_executions.length > 0) {
+              const subs = await Promise.all(leader.sub_executions.map(sub => fetchDetail(sub)));
+              return { ...leader, sub_executions: subs };
+            }
+            return leader;
+          })).then((updated) => {
+            setScenarioExecutions(updated);
+            setSelectedScenarioExecution(updated[0] || null);
+            setActiveTab('logs');
+          });
         }
-        setActiveTab('logs');
       }
     } catch (err) { setError(err instanceof Error ? err.message : 'Execution failed'); }
     finally { setExecuting(false); }
@@ -680,6 +701,41 @@ export default function ScenarioDetail({ basePath = '/api-test', testType = 'api
       URL.revokeObjectURL(url);
     };
 
+    // 从流程图节点提取参数化 keys
+    const extractFromNodes = async () => {
+      const apiNodes = nodes.filter(n => n.type === 'api');
+      if (apiNodes.length === 0) { alert('流程图中没有 API 节点'); return; }
+      const seen = new Set<string>();
+      const newHeaders: string[] = [];
+
+      for (const n of apiNodes) {
+        const config = (n.data || {}) as ApiNodeConfig;
+        if (!config.api_id) continue;
+        try {
+          const res = await apiFetch<ApiItem>(`/apis/${config.api_id}`);
+          if (res.code === 200 && res.data?.parameters) {
+            const params = JSON.parse(res.data.parameters);
+            if (params.headers && Array.isArray(params.headers)) {
+              params.headers.forEach((h: string) => {
+                if (h && !seen.has(h)) { seen.add(h); newHeaders.push(h); }
+              });
+            }
+          }
+        } catch (err) { console.error('提取参数失败', err); }
+      }
+
+      if (newHeaders.length === 0) { alert('未从节点中提取到参数化字段'); return; }
+
+      setParamConfig(prev => {
+        const combinedHeaders = [...prev.headers, ...newHeaders.filter(h => !prev.headers.includes(h))];
+        const rowsWithCorrectCols = prev.rows.length > 0
+          ? prev.rows.map(row => { const nr = [...row]; while (nr.length < combinedHeaders.length) nr.push(''); return nr; })
+          : [];
+        return { ...prev, headers: combinedHeaders, rows: rowsWithCorrectCols };
+      });
+      dirtyRef.current = true;
+    };
+
     return (
       <div className="tab-content-wrapper">
         <div className="ad-section">
@@ -687,6 +743,7 @@ export default function ScenarioDetail({ basePath = '/api-test', testType = 'api
             <div className="param-action-row">
               <button type="button" className="ad-btn ad-btn-sm" onClick={addColumn}>添加列</button>
               <button type="button" className="ad-btn ad-btn-sm" onClick={addRow}>添加行</button>
+              <button type="button" className="ad-btn ad-btn-sm" onClick={extractFromNodes}>从节点提取</button>
               <label className="param-upload-btn">
                 <input type="file" accept=".csv,.xlsx,.xls" style={{ display: 'none' }} onChange={handleFileUpload} />
                 上传 CSV
@@ -759,36 +816,57 @@ export default function ScenarioDetail({ basePath = '/api-test', testType = 'api
   };
 
   // ─── Tab: Logs ───
-  const renderLogsTab = () => (
-    <div className="tab-content-wrapper">
-      {scenarioExecutions.length === 0 ? (<div className="scenario-logs-empty">暂无执行记录</div>) : (
-        <table className="scenario-logs-table">
-          <thead><tr><th>执行时间</th><th>状态</th><th>耗时</th><th>执行人</th><th>操作</th></tr></thead>
-          <tbody>
-            {scenarioExecutions.map((exec) => (
-              <Fragment key={exec.id}>
-                <tr>
-                  <td>{toLocalDateTime(exec.started_at)}</td>
-                  <td><span className={`scenario-log-status scenario-log-${exec.status}`}>{exec.status}</span></td>
-                  <td>{exec.duration_ms != null ? `${exec.duration_ms} ms` : '-'}</td>
-                  <td>{exec.executed_by || '-'}</td>
-                  <td><button className="scenario-log-view" onClick={() => setExpandedLog(expandedLog === exec.id ? null : exec.id)}>{expandedLog === exec.id ? '收起' : '查看'}</button></td>
-                </tr>
-                {expandedLog === exec.id && (
-                  <tr><td colSpan={5} className="scenario-log-expanded">
-                    <ScenarioExecutionTimeline
-                      steps={(exec as ScenarioExecution).steps || []}
-                      apiLinks={(exec as ScenarioExecution).api_links || []}
-                    />
-                  </td></tr>
-                )}
-              </Fragment>
-            ))}
-          </tbody>
-        </table>
-      )}
-    </div>
-  );
+  const renderLogsTab = () => {
+    // Backend already groups by batch_id, just sort by time
+    const displayRows = [...scenarioExecutions].sort((a, b) =>
+      (b.started_at || '').localeCompare(a.started_at || '')
+    );
+
+    const renderExecutionRow = (execItem: ScenarioExecution & { sub_executions?: ScenarioExecution[] }) => {
+      const subCount = execItem.sub_executions?.length || 0;
+      const batchLabel = subCount > 0 ? ` (${subCount + 1}组)` : '';
+      const isExpanded = expandedLog === execItem.id;
+      return (
+        <Fragment key={execItem.id}>
+          <tr className="scenario-log-row" onClick={() => { setExpandedLog(isExpanded ? null : execItem.id); setActiveParamRow(1); }}>
+            <td>{toLocalDateTime(execItem.started_at)}</td>
+            <td>
+              <span className={`scenario-log-status scenario-log-${execItem.status}`}>{execItem.status}</span>
+              {batchLabel && <span className="scenario-log-batch">{batchLabel}</span>}
+            </td>
+            <td>{execItem.duration_ms != null ? `${execItem.duration_ms} ms` : '-'}</td>
+            <td>{execItem.executed_by || '-'}</td>
+            <td>{isExpanded ? '收起' : '查看'}</td>
+          </tr>
+          {isExpanded && (
+            <tr><td colSpan={5} className="scenario-log-expanded">
+              {subCount > 0 ? (
+                <ScenarioBatchExecutionView execution={execItem} />
+              ) : (
+                <ScenarioExecutionTimeline
+                  steps={execItem.steps || []}
+                  apiLinks={execItem.api_links || []}
+                />
+              )}
+            </td></tr>
+          )}
+        </Fragment>
+      );
+    };
+
+    return (
+      <div className="tab-content-wrapper">
+        {scenarioExecutions.length === 0 ? (<div className="scenario-logs-empty">暂无执行记录</div>) : (
+          <table className="scenario-logs-table">
+            <thead><tr><th>执行时间</th><th>状态</th><th>耗时</th><th>执行人</th><th>操作</th></tr></thead>
+            <tbody>
+              {displayRows.map((row) => renderExecutionRow(row))}
+            </tbody>
+          </table>
+        )}
+      </div>
+    );
+  };
 
   // Compute route base for navigation based on test type
   const routeBase = testType === 'api' ? '/api-test/scene-case' : testType === 'web' ? '/web-test/scene' : testType === 'pc' ? '/pc-test/scene' : '/mobile-test/scene-case';

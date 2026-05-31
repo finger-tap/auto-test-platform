@@ -5,7 +5,7 @@ import type { UserInfo } from '../types';
 import './Profile.css';
 
 export default function Profile() {
-  const { user, logout } = useAuth();
+  const { user, updateUser } = useAuth();
   const [nickname, setNickname] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
@@ -53,7 +53,7 @@ export default function Profile() {
         });
         const data = await res.json();
         if (data.code === 200 && data.data) {
-          setUserInfo(data.data);
+          updateUser(data.data);
           setAvatarPreview(data.data.avatar || '');
           setAvatarFile(null);
         }
@@ -64,7 +64,7 @@ export default function Profile() {
         body: JSON.stringify({ nickname: nickname.trim() || null, email: email.trim() || null, phone: phone.trim() || null }),
       });
       if (res.code === 200 && res.data) {
-        setUserInfo(res.data);
+        updateUser(res.data);
         setMessage('保存成功');
       }
     } catch {

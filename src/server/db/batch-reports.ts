@@ -1,5 +1,33 @@
 import db from './index.js';
-import type { BatchLogRow, BatchReport } from '../engine/batch-executor.js';
+
+export interface BatchLogRow {
+  id: number;
+  set_id: number;
+  report: string;
+  passed: number;
+  failed: number;
+  total_duration_ms: number;
+  executed_by: string;
+  executed_at: string;
+}
+
+export interface BatchReport {
+  set_id: number;
+  set_name: string;
+  total: number;
+  passed: number;
+  failed: number;
+  total_duration_ms: number;
+  scenarios: Array<{
+    scenario_id: number;
+    scenario_name: string;
+    status: string;
+    duration_ms: number | null;
+    error_message?: string | null;
+  }>;
+  executed_at: string;
+  executed_by: string;
+}
 
 export function saveBatchReport(report: BatchReport): number {
   const result = db.prepare(

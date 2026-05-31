@@ -4,8 +4,8 @@
   align-items: center;
   justify-content: space-between;
   padding: 0 24px;
-  background: #fff;
-  border-bottom: 1px solid #f0f0f0;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
   flex-shrink: 0;
 }
 
@@ -24,11 +24,11 @@
 
 .hdr-switch {
   padding: 4px 14px;
-  border: 1px solid #d9d9d9;
+  border: 1px solid var(--border);
   border-radius: 6px;
-  background: #fff;
+  background: var(--surface);
   font-size: 13px;
-  color: #666;
+  color: var(--fg-secondary);
   cursor: pointer;
   transition: all 0.2s;
 }
@@ -55,7 +55,7 @@
 }
 
 .hdr-user-btn:hover {
-  background: #f5f5f5;
+  background: var(--bg);
 }
 
 /* ── Header Icon Buttons (Notification, Help) ── */
@@ -69,13 +69,13 @@
   border: none;
   cursor: pointer;
   border-radius: 6px;
-  color: #666;
+  color: var(--fg-secondary);
   transition: all 0.15s;
   margin-right: 4px;
 }
 
 .hdr-icon-btn:hover {
-  background: #f5f5f5;
+  background: var(--bg);
   color: var(--primary);
 }
 
@@ -101,12 +101,12 @@
 
 .hdr-username {
   font-size: 14px;
-  color: #333;
+  color: var(--fg);
 }
 
 .hdr-arrow {
   font-size: 12px;
-  color: #999;
+  color: var(--fg-tertiary);
   transition: transform 0.2s;
 }
 
@@ -119,9 +119,9 @@
   top: 100%;
   right: 0;
   margin-top: 4px;
-  background: #fff;
+  background: var(--surface);
   border-radius: 8px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  box-shadow: var(--shadow-md);
   min-width: 140px;
   padding: 4px 0;
   z-index: 100;
@@ -135,7 +135,7 @@
   background: none;
   border: none;
   font-size: 14px;
-  color: #333;
+  color: var(--fg);
   cursor: pointer;
 }
 
@@ -149,11 +149,11 @@
   align-items: center;
   gap: 6px;
   padding: 5px 12px;
-  border: 1px solid #d9d9d9;
+  border: 1px solid var(--border);
   border-radius: 6px;
-  background: #fff;
+  background: var(--surface);
   font-size: 13px;
-  color: #333;
+  color: var(--fg);
   cursor: pointer;
   transition: all 0.2s;
 }
@@ -167,22 +167,22 @@
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #52c41a;
+  background: var(--success);
   display: inline-block;
   flex-shrink: 0;
 }
 
 .hdr-env-dot.inactive {
-  background: #d9d9d9;
+  background: var(--border);
 }
 
 .hdr-env-dropdown {
   position: absolute;
   top: calc(100% + 4px);
   right: 0;
-  background: #fff;
+  background: var(--surface);
   border-radius: 8px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  box-shadow: var(--shadow-md);
   min-width: 160px;
   padding: 4px 0;
   z-index: 200;
@@ -197,13 +197,13 @@
   background: none;
   border: none;
   font-size: 13px;
-  color: #333;
+  color: var(--fg);
   cursor: pointer;
   text-align: left;
 }
 
 .hdr-env-item:hover {
-  background: #f5f5f5;
+  background: var(--bg);
 }
 
 .hdr-env-item.active {
@@ -212,5 +212,5 @@
 }
 
 .hdr-dropdown-item:hover {
-  background: #f5f5f5;
+  background: var(--bg);
 }

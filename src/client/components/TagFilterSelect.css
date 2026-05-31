@@ -1,0 +1,134 @@
+/* Tag Filter Select */
+.tfs-root {
+  position: relative;
+  display: inline-block;
+  min-width: 140px;
+}
+
+.tfs-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 4px 10px;
+  cursor: pointer;
+  background: var(--surface);
+  font-size: 13px;
+  min-height: 32px;
+  transition: border-color 0.2s;
+  user-select: none;
+}
+
+.tfs-trigger:hover {
+  border-color: var(--accent);
+}
+
+.tfs-placeholder {
+  color: var(--fg-tertiary);
+}
+
+.tfs-tag-active {
+  color: var(--accent);
+  background: var(--accent-subtle);
+  padding: 1px 6px;
+  border-radius: 8px;
+  font-size: 12px;
+}
+
+.tfs-clear {
+  margin-left: 4px;
+  color: var(--fg-tertiary);
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.tfs-clear:hover {
+  color: var(--danger);
+}
+
+.tfs-arrow {
+  font-size: 9px;
+  color: var(--fg-tertiary);
+  flex-shrink: 0;
+}
+
+.tfs-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  min-width: 200px;
+  max-width: 280px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: var(--shadow-md);
+  z-index: 1000;
+  overflow: hidden;
+}
+
+.tfs-search-wrap {
+  padding: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.tfs-search {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 13px;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.tfs-search:focus {
+  border-color: var(--accent);
+}
+
+.tfs-options {
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.tfs-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 7px 12px;
+  cursor: pointer;
+  font-size: 13px;
+  transition: background 0.1s;
+}
+
+.tfs-option:hover {
+  background: var(--surface-raised);
+}
+
+.tfs-option-selected {
+  background: var(--accent-subtle) !important;
+  color: var(--accent);
+}
+
+.tfs-opt-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tfs-opt-count {
+  font-size: 11px;
+  color: var(--fg-tertiary);
+  margin-left: 8px;
+  flex-shrink: 0;
+}
+
+.tfs-empty {
+  padding: 16px;
+  text-align: center;
+  color: var(--fg-tertiary);
+  font-size: 13px;
+}

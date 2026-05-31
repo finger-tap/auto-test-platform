@@ -1,4 +1,4869 @@
 {
   "version": 1,
-  "bugs": []
+  "bugs": [
+    {
+      "id": "bug-001",
+      "timestamp": "2026-05-25T15:20:35.712Z",
+      "error_message": "Type error",
+      "file": "src/client/pages/scenario/ScenarioList.tsx",
+      "root_cause": "Missing or incorrect type annotation",
+      "fix": "Added type assertion/annotation",
+      "tags": [
+        "auto-detected",
+        "type-fix",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-25T15:20:35.712Z"
+    },
+    {
+      "id": "bug-002",
+      "timestamp": "2026-05-25T15:20:41.198Z",
+      "error_message": "Incorrect value in code",
+      "file": "src/client/pages/scenario/ScenarioList.tsx",
+      "root_cause": "Had '/api-test/scene-case/new'",
+      "fix": "Changed to `${basePath}/scene-case/new`",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-25T15:20:41.198Z"
+    },
+    {
+      "id": "bug-003",
+      "timestamp": "2026-05-25T15:21:01.653Z",
+      "error_message": "Type error",
+      "file": "src/client/pages/scenario-set/ScenarioSetList.tsx",
+      "root_cause": "Missing or incorrect type annotation",
+      "fix": "Added type assertion/annotation",
+      "tags": [
+        "auto-detected",
+        "type-fix",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-25T15:21:01.653Z"
+    },
+    {
+      "id": "bug-004",
+      "timestamp": "2026-05-25T15:21:01.904Z",
+      "error_message": "Incorrect value in code",
+      "file": "src/client/pages/scenario-set/ScenarioSetList.tsx",
+      "root_cause": "Had '/api-test/scene-set/new'",
+      "fix": "Changed to `${basePath}/scene-set/new`",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 2,
+      "last_seen": "2026-05-25T15:21:02.147Z"
+    },
+    {
+      "id": "bug-005",
+      "timestamp": "2026-05-25T15:21:38.599Z",
+      "error_message": "Type error",
+      "file": "src/client/pages/schedule/ScheduleList.tsx",
+      "root_cause": "Missing or incorrect type annotation",
+      "fix": "Added type assertion/annotation",
+      "tags": [
+        "auto-detected",
+        "type-fix",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-25T15:21:38.599Z"
+    },
+    {
+      "id": "bug-006",
+      "timestamp": "2026-05-25T15:21:38.851Z",
+      "error_message": "Incorrect value in code",
+      "file": "src/client/pages/schedule/ScheduleList.tsx",
+      "root_cause": "Had `/api-test/scene-case/${floatBtn.item.scenario_id}",
+      "fix": "Changed to `${basePath}/scene-case/${floatBtn.item.scenario_i",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-25T15:21:38.851Z"
+    },
+    {
+      "id": "bug-007",
+      "timestamp": "2026-05-25T15:21:39.070Z",
+      "error_message": "Type error",
+      "file": "src/client/pages/batch-report/BatchReportList.tsx",
+      "root_cause": "Missing or incorrect type annotation",
+      "fix": "Added type assertion/annotation",
+      "tags": [
+        "auto-detected",
+        "type-fix",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-25T15:21:39.070Z"
+    },
+    {
+      "id": "bug-008",
+      "timestamp": "2026-05-25T15:21:39.281Z",
+      "error_message": "Incorrect value in code",
+      "file": "src/client/pages/batch-report/BatchReportList.tsx",
+      "root_cause": "Had `/api-test/batch-report/${floatBtn.id}`",
+      "fix": "Changed to `${basePath}/batch-report/${floatBtn.id}`",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-25T15:21:39.281Z"
+    },
+    {
+      "id": "bug-009",
+      "timestamp": "2026-05-25T15:21:39.488Z",
+      "error_message": "Type error",
+      "file": "src/client/pages/mock/MockList.tsx",
+      "root_cause": "Missing or incorrect type annotation",
+      "fix": "Added type assertion/annotation",
+      "tags": [
+        "auto-detected",
+        "type-fix",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-25T15:21:39.488Z"
+    },
+    {
+      "id": "bug-010",
+      "timestamp": "2026-05-25T15:21:39.700Z",
+      "error_message": "Incorrect value in code",
+      "file": "src/client/pages/mock/MockList.tsx",
+      "root_cause": "Had '/api-test/mock/new'",
+      "fix": "Changed to `${basePath}/mock/new`",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 3,
+      "last_seen": "2026-05-25T15:21:40.153Z"
+    },
+    {
+      "id": "bug-011",
+      "timestamp": "2026-05-25T15:21:40.393Z",
+      "error_message": "Type error",
+      "file": "src/client/pages/environment/EnvironmentList.tsx",
+      "root_cause": "Missing or incorrect type annotation",
+      "fix": "Added type assertion/annotation",
+      "tags": [
+        "auto-detected",
+        "type-fix",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-25T15:21:40.393Z"
+    },
+    {
+      "id": "bug-012",
+      "timestamp": "2026-05-25T15:21:40.607Z",
+      "error_message": "Incorrect value in code",
+      "file": "src/client/pages/environment/EnvironmentList.tsx",
+      "root_cause": "Had '/api-test/environment/new'",
+      "fix": "Changed to `${basePath}/environment/new`",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 2,
+      "last_seen": "2026-05-25T15:21:40.817Z"
+    },
+    {
+      "id": "bug-013",
+      "timestamp": "2026-05-25T15:22:19.799Z",
+      "error_message": "CSS fix: label",
+      "file": "src/client/components/Layout.tsx",
+      "root_cause": "label: '系统配置', path: '/api-test/system-config', icon: '⚙️' → '系统配置', path: '/mobile-test/system-config', icon: '⚙️'",
+      "fix": "Changed label: '系统配置', path: '/api-test/system-config', icon: '⚙️' → '系统配置', path: '/mobile-test/system-config', icon: '⚙️'",
+      "tags": [
+        "auto-detected",
+        "style-fix",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-25T15:22:19.799Z"
+    },
+    {
+      "id": "bug-014",
+      "timestamp": "2026-05-27T12:14:20.323Z",
+      "error_message": "Significant refactor of ",
+      "file": "../../.claude/plans/shimmying-fluttering-eich.md",
+      "root_cause": "6 lines replaced/restructured",
+      "fix": "Rewrote 10→15 lines (6 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "md"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-27T12:14:20.323Z"
+    },
+    {
+      "id": "bug-015",
+      "timestamp": "2026-05-27T12:16:29.808Z",
+      "error_message": "Significant refactor of ",
+      "file": "src/client/pages/ForgotPassword.tsx",
+      "root_cause": "31 lines replaced/restructured",
+      "fix": "Rewrote 45→37 lines (31 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-27T12:16:29.808Z"
+    },
+    {
+      "id": "bug-016",
+      "timestamp": "2026-05-27T12:17:53.034Z",
+      "error_message": "Wrong reference: useAuth should be useEnvironment",
+      "file": "src/client/components/Layout.tsx",
+      "root_cause": "Used \"useAuth\" instead of \"useEnvironment\"",
+      "fix": "Changed useAuth → useEnvironment",
+      "tags": [
+        "auto-detected",
+        "wrong-reference",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-27T12:17:53.034Z"
+    },
+    {
+      "id": "bug-017",
+      "timestamp": "2026-05-27T12:27:38.278Z",
+      "error_message": "CSS fix: section",
+      "file": "src/client/components/Layout.tsx",
+      "root_cause": "section: '辅助功能', items: [ → '概览', items: [{ label: '仪表盘', path: '/pc-test', icon: 'dashboard'",
+      "fix": "Changed section: '辅助功能', items: [ → '概览', items: [{ label: '仪表盘', path: '/pc-test', icon: 'dashboard'",
+      "tags": [
+        "auto-detected",
+        "style-fix",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 2,
+      "last_seen": "2026-05-27T12:27:52.604Z"
+    },
+    {
+      "id": "bug-018",
+      "timestamp": "2026-05-27T12:31:47.117Z",
+      "error_message": "Wrong reference: Placeholder should be WebTestHome",
+      "file": "src/client/App.tsx",
+      "root_cause": "Used \"Placeholder\" instead of \"WebTestHome\"",
+      "fix": "Changed Placeholder → WebTestHome",
+      "tags": [
+        "auto-detected",
+        "wrong-reference",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 2,
+      "last_seen": "2026-05-27T12:31:51.366Z"
+    },
+    {
+      "id": "bug-019",
+      "timestamp": "2026-05-27T12:41:05.446Z",
+      "error_message": "Wrong reference: d6e4ff should be var",
+      "file": "src/client/pages/scenario/ScenarioDetail.css",
+      "root_cause": "Used \"d6e4ff\" instead of \"var\"",
+      "fix": "Changed d6e4ff → var",
+      "tags": [
+        "auto-detected",
+        "wrong-reference",
+        "css"
+      ],
+      "related_bugs": [],
+      "occurrences": 9,
+      "last_seen": "2026-05-27T12:44:40.602Z"
+    },
+    {
+      "id": "bug-020",
+      "timestamp": "2026-05-27T12:41:23.837Z",
+      "error_message": "CSS fix: box-shadow",
+      "file": "src/client/pages/api-test/ApiList.css",
+      "root_cause": "box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06) → var(--shadow-sm)",
+      "fix": "Changed box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06) → var(--shadow-sm)",
+      "tags": [
+        "auto-detected",
+        "style-fix",
+        "css"
+      ],
+      "related_bugs": [],
+      "occurrences": 5,
+      "last_seen": "2026-05-27T12:41:25.216Z"
+    },
+    {
+      "id": "bug-021",
+      "timestamp": "2026-05-27T12:41:33.314Z",
+      "error_message": "CSS fix: background",
+      "file": "src/client/pages/scenario/ScenarioDetail.css",
+      "root_cause": "background: #fff → var(--surface)",
+      "fix": "Changed background: #fff → var(--surface)",
+      "tags": [
+        "auto-detected",
+        "style-fix",
+        "css"
+      ],
+      "related_bugs": [],
+      "occurrences": 34,
+      "last_seen": "2026-05-27T12:45:11.403Z"
+    },
+    {
+      "id": "bug-022",
+      "timestamp": "2026-05-27T12:41:33.631Z",
+      "error_message": "CSS fix: background",
+      "file": "src/client/pages/scenario/nodes/NodeStyles.css",
+      "root_cause": "background: #fff → var(--surface)",
+      "fix": "Changed background: #fff → var(--surface)",
+      "tags": [
+        "auto-detected",
+        "style-fix",
+        "css"
+      ],
+      "related_bugs": [],
+      "occurrences": 8,
+      "last_seen": "2026-05-27T12:46:30.173Z"
+    },
+    {
+      "id": "bug-023",
+      "timestamp": "2026-05-27T12:41:33.983Z",
+      "error_message": "CSS fix: background",
+      "file": "src/client/pages/scenario-set/ScenarioSetDetail.css",
+      "root_cause": "background: #fff → var(--surface)",
+      "fix": "Changed background: #fff → var(--surface)",
+      "tags": [
+        "auto-detected",
+        "style-fix",
+        "css"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-27T12:41:33.983Z"
+    },
+    {
+      "id": "bug-024",
+      "timestamp": "2026-05-27T12:41:34.693Z",
+      "error_message": "CSS fix: background, box-shadow",
+      "file": "src/client/pages/mobile-test/MobileTestList.css",
+      "root_cause": "background: #fff → var(--surface); box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06) → var(--shadow-sm)",
+      "fix": "Changed background: #fff → var(--surface); box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06) → var(--shadow-sm)",
+      "tags": [
+        "auto-detected",
+        "style-fix",
+        "css"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-27T12:41:34.693Z"
+    },
+    {
+      "id": "bug-025",
+      "timestamp": "2026-05-27T12:41:35.066Z",
+      "error_message": "CSS fix: background, box-shadow",
+      "file": "src/client/pages/mobile-test/MobileTestDetail.css",
+      "root_cause": "background: #fff → var(--surface); box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06) → var(--shadow-sm)",
+      "fix": "Changed background: #fff → var(--surface); box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06) → var(--shadow-sm)",
+      "tags": [
+        "auto-detected",
+        "style-fix",
+        "css"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-27T12:41:35.066Z"
+    },
+    {
+      "id": "bug-026",
+      "timestamp": "2026-05-27T12:41:35.582Z",
+      "error_message": "CSS fix: background",
+      "file": "src/client/pages/system/SystemConfig.css",
+      "root_cause": "background: #fff → var(--surface)",
+      "fix": "Changed background: #fff → var(--surface)",
+      "tags": [
+        "auto-detected",
+        "style-fix",
+        "css"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-27T12:41:35.582Z"
+    },
+    {
+      "id": "bug-027",
+      "timestamp": "2026-05-27T12:41:35.929Z",
+      "error_message": "CSS fix: background, box-shadow",
+      "file": "src/client/pages/Profile.css",
+      "root_cause": "background: #fff → var(--surface); box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06) → var(--shadow-sm)",
+      "fix": "Changed background: #fff → var(--surface); box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06) → var(--shadow-sm)",
+      "tags": [
+        "auto-detected",
+        "style-fix",
+        "css"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-27T12:41:35.929Z"
+    },
+    {
+      "id": "bug-028",
+      "timestamp": "2026-05-27T12:41:36.297Z",
+      "error_message": "CSS fix: background",
+      "file": "src/client/components/Header.css",
+      "root_cause": "background: #fff → var(--surface)",
+      "fix": "Changed background: #fff → var(--surface)",
+      "tags": [
+        "auto-detected",
+        "style-fix",
+        "css"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-27T12:41:36.297Z"
+    },
+    {
+      "id": "bug-029",
+      "timestamp": "2026-05-27T12:41:36.661Z",
+      "error_message": "Wrong reference: rgba should be oklch",
+      "file": "src/client/components/HelpModal.css",
+      "root_cause": "Used \"rgba\" instead of \"oklch\"",
+      "fix": "Changed rgba → oklch",
+      "tags": [
+        "auto-detected",
+        "wrong-reference",
+        "css"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-27T12:41:36.661Z"
+    },
+    {
+      "id": "bug-030",
+      "timestamp": "2026-05-27T12:41:37.069Z",
+      "error_message": "Wrong reference: rgba should be oklch",
+      "file": "src/client/components/InlineEdit.css",
+      "root_cause": "Used \"rgba\" instead of \"oklch\"",
+      "fix": "Changed rgba → oklch",
+      "tags": [
+        "auto-detected",
+        "wrong-reference",
+        "css"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-27T12:41:37.069Z"
+    },
+    {
+      "id": "bug-031",
+      "timestamp": "2026-05-27T12:41:37.430Z",
+      "error_message": "Wrong reference: rgba should be oklch",
+      "file": "src/client/components/MessageModal.css",
+      "root_cause": "Used \"rgba\" instead of \"oklch\"",
+      "fix": "Changed rgba → oklch",
+      "tags": [
+        "auto-detected",
+        "wrong-reference",
+        "css"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-27T12:41:37.430Z"
+    },
+    {
+      "id": "bug-032",
+      "timestamp": "2026-05-27T12:41:37.806Z",
+      "error_message": "Wrong reference: rgba should be oklch",
+      "file": "src/client/components/SelectFunctionModal.css",
+      "root_cause": "Used \"rgba\" instead of \"oklch\"",
+      "fix": "Changed rgba → oklch",
+      "tags": [
+        "auto-detected",
+        "wrong-reference",
+        "css"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-27T12:41:37.806Z"
+    },
+    {
+      "id": "bug-033",
+      "timestamp": "2026-05-27T12:41:38.189Z",
+      "error_message": "CSS fix: background",
+      "file": "src/client/components/TagFilterSelect.css",
+      "root_cause": "background: #fff → var(--surface)",
+      "fix": "Changed background: #fff → var(--surface)",
+      "tags": [
+        "auto-detected",
+        "style-fix",
+        "css"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-27T12:41:38.189Z"
+    },
+    {
+      "id": "bug-034",
+      "timestamp": "2026-05-27T12:41:38.552Z",
+      "error_message": "CSS fix: box-shadow",
+      "file": "src/client/components/TagInput.css",
+      "root_cause": "box-shadow: 0 6px 32px rgba(0, 0, 0, 0.15) → var(--shadow-lg)",
+      "fix": "Changed box-shadow: 0 6px 32px rgba(0, 0, 0, 0.15) → var(--shadow-lg)",
+      "tags": [
+        "auto-detected",
+        "style-fix",
+        "css"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-27T12:41:38.552Z"
+    },
+    {
+      "id": "bug-035",
+      "timestamp": "2026-05-27T12:41:38.896Z",
+      "error_message": "Wrong reference: rgba should be oklch",
+      "file": "src/client/components/TestTypeModal.css",
+      "root_cause": "Used \"rgba\" instead of \"oklch\"",
+      "fix": "Changed rgba → oklch",
+      "tags": [
+        "auto-detected",
+        "wrong-reference",
+        "css"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-27T12:41:38.896Z"
+    },
+    {
+      "id": "bug-036",
+      "timestamp": "2026-05-27T12:41:45.343Z",
+      "error_message": "Wrong reference: d0d0d0 should be var",
+      "file": "src/client/pages/api-test/ApiDetail.css",
+      "root_cause": "Used \"d0d0d0\" instead of \"var\"",
+      "fix": "Changed d0d0d0 → var",
+      "tags": [
+        "auto-detected",
+        "wrong-reference",
+        "css"
+      ],
+      "related_bugs": [],
+      "occurrences": 14,
+      "last_seen": "2026-05-27T12:46:14.191Z"
+    },
+    {
+      "id": "bug-037",
+      "timestamp": "2026-05-27T12:41:45.753Z",
+      "error_message": "CSS fix: background, color",
+      "file": "src/client/pages/api-test/ApiDetail.css",
+      "root_cause": "background: #fff7e6 → var(--warning-subtle); color: #d48806 → var(--warning)",
+      "fix": "Changed background: #fff7e6 → var(--warning-subtle); color: #d48806 → var(--warning)",
+      "tags": [
+        "auto-detected",
+        "style-fix",
+        "css"
+      ],
+      "related_bugs": [],
+      "occurrences": 13,
+      "last_seen": "2026-05-27T12:45:37.678Z"
+    },
+    {
+      "id": "bug-038",
+      "timestamp": "2026-05-27T12:41:46.410Z",
+      "error_message": "Wrong reference: rgba should be oklch",
+      "file": "src/client/pages/scenario-set/ScenarioSetList.css",
+      "root_cause": "Used \"rgba\" instead of \"oklch\"",
+      "fix": "Changed rgba → oklch",
+      "tags": [
+        "auto-detected",
+        "wrong-reference",
+        "css"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-27T12:41:46.410Z"
+    },
+    {
+      "id": "bug-039",
+      "timestamp": "2026-05-27T12:42:48.877Z",
+      "error_message": "Wrong reference: d9f7be should be var",
+      "file": "src/client/pages/mock/MockList.css",
+      "root_cause": "Used \"d9f7be\" instead of \"var\"",
+      "fix": "Changed d9f7be → var",
+      "tags": [
+        "auto-detected",
+        "wrong-reference",
+        "css"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-27T12:42:48.877Z"
+    },
+    {
+      "id": "bug-040",
+      "timestamp": "2026-05-27T12:42:49.097Z",
+      "error_message": "CSS fix: color",
+      "file": "src/client/pages/mock/MockList.css",
+      "root_cause": "color: #666 !important → var(--fg-secondary) !important",
+      "fix": "Changed color: #666 !important → var(--fg-secondary) !important",
+      "tags": [
+        "auto-detected",
+        "style-fix",
+        "css"
+      ],
+      "related_bugs": [],
+      "occurrences": 6,
+      "last_seen": "2026-05-27T12:42:55.341Z"
+    },
+    {
+      "id": "bug-041",
+      "timestamp": "2026-05-27T12:43:08.765Z",
+      "error_message": "CSS fix: color, background",
+      "file": "src/client/pages/mock/MockDetail.css",
+      "root_cause": "color: #888 → var(--fg-tertiary); background: #f9f9f9 → var(--bg)",
+      "fix": "Changed color: #888 → var(--fg-tertiary); background: #f9f9f9 → var(--bg)",
+      "tags": [
+        "auto-detected",
+        "style-fix",
+        "css"
+      ],
+      "related_bugs": [],
+      "occurrences": 4,
+      "last_seen": "2026-05-27T12:43:23.293Z"
+    },
+    {
+      "id": "bug-042",
+      "timestamp": "2026-05-27T12:43:57.890Z",
+      "error_message": "Wrong reference: 888 should be var",
+      "file": "src/client/pages/batch-report/BatchReportList.css",
+      "root_cause": "Used \"888\" instead of \"var\"",
+      "fix": "Changed 888 → var",
+      "tags": [
+        "auto-detected",
+        "wrong-reference",
+        "css"
+      ],
+      "related_bugs": [],
+      "occurrences": 3,
+      "last_seen": "2026-05-27T12:43:58.740Z"
+    },
+    {
+      "id": "bug-043",
+      "timestamp": "2026-05-27T12:43:58.179Z",
+      "error_message": "CSS fix: color",
+      "file": "src/client/pages/batch-report/BatchReportList.css",
+      "root_cause": "color: #999 !important → var(--fg-tertiary) !important",
+      "fix": "Changed color: #999 !important → var(--fg-tertiary) !important",
+      "tags": [
+        "auto-detected",
+        "style-fix",
+        "css"
+      ],
+      "related_bugs": [],
+      "occurrences": 5,
+      "last_seen": "2026-05-27T12:44:04.606Z"
+    },
+    {
+      "id": "bug-044",
+      "timestamp": "2026-05-27T12:44:13.065Z",
+      "error_message": "Wrong reference: 4096ff should be var",
+      "file": "src/client/pages/batch-report/BatchReportDetail.css",
+      "root_cause": "Used \"4096ff\" instead of \"var\"",
+      "fix": "Changed 4096ff → var",
+      "tags": [
+        "auto-detected",
+        "wrong-reference",
+        "css"
+      ],
+      "related_bugs": [],
+      "occurrences": 4,
+      "last_seen": "2026-05-27T12:44:13.906Z"
+    },
+    {
+      "id": "bug-045",
+      "timestamp": "2026-05-27T12:45:11.320Z",
+      "error_message": "Wrong reference: 555 should be var",
+      "file": "src/client/pages/environment/EnvironmentDetail.css",
+      "root_cause": "Used \"555\" instead of \"var\"",
+      "fix": "Changed 555 → var",
+      "tags": [
+        "auto-detected",
+        "wrong-reference",
+        "css"
+      ],
+      "related_bugs": [],
+      "occurrences": 2,
+      "last_seen": "2026-05-27T12:45:11.561Z"
+    },
+    {
+      "id": "bug-046",
+      "timestamp": "2026-05-27T12:45:11.764Z",
+      "error_message": "Wrong reference: 4096ff should be var",
+      "file": "src/client/pages/schedule/ScheduleDetail.css",
+      "root_cause": "Used \"4096ff\" instead of \"var\"",
+      "fix": "Changed 4096ff → var",
+      "tags": [
+        "auto-detected",
+        "wrong-reference",
+        "css"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-27T12:45:11.764Z"
+    },
+    {
+      "id": "bug-047",
+      "timestamp": "2026-05-27T12:45:37.885Z",
+      "error_message": "CSS fix: box-shadow",
+      "file": "src/client/pages/environment/EnvironmentDetail.css",
+      "root_cause": "box-shadow: 0 1px 4px rgba(0,0,0,0.06) → var(--shadow-sm)",
+      "fix": "Changed box-shadow: 0 1px 4px rgba(0,0,0,0.06) → var(--shadow-sm)",
+      "tags": [
+        "auto-detected",
+        "style-fix",
+        "css"
+      ],
+      "related_bugs": [],
+      "occurrences": 2,
+      "last_seen": "2026-05-27T12:45:38.085Z"
+    },
+    {
+      "id": "bug-048",
+      "timestamp": "2026-05-27T12:46:23.678Z",
+      "error_message": "Wrong reference: fff2f0 should be var",
+      "file": "src/client/pages/scenario/nodes/NodeStyles.css",
+      "root_cause": "Used \"fff2f0\" instead of \"var\"",
+      "fix": "Changed fff2f0 → var",
+      "tags": [
+        "auto-detected",
+        "wrong-reference",
+        "css"
+      ],
+      "related_bugs": [],
+      "occurrences": 2,
+      "last_seen": "2026-05-27T12:46:23.886Z"
+    },
+    {
+      "id": "bug-049",
+      "timestamp": "2026-05-27T12:46:53.097Z",
+      "error_message": "CSS fix: background",
+      "file": "src/client/pages/scenario-set/ScenarioSetDetail.css",
+      "root_cause": "background: #fff → var(--surface)",
+      "fix": "Changed background: #fff → var(--surface)",
+      "tags": [
+        "auto-detected",
+        "style-fix",
+        "css"
+      ],
+      "related_bugs": [],
+      "occurrences": 9,
+      "last_seen": "2026-05-27T12:46:54.901Z"
+    },
+    {
+      "id": "bug-050",
+      "timestamp": "2026-05-27T12:46:53.692Z",
+      "error_message": "Wrong reference: rgba should be oklch",
+      "file": "src/client/pages/scenario-set/ScenarioSetDetail.css",
+      "root_cause": "Used \"rgba\" instead of \"oklch\"",
+      "fix": "Changed rgba → oklch",
+      "tags": [
+        "auto-detected",
+        "wrong-reference",
+        "css"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-27T12:46:53.692Z"
+    },
+    {
+      "id": "bug-051",
+      "timestamp": "2026-05-27T12:47:05.283Z",
+      "error_message": "CSS fix: background",
+      "file": "src/client/pages/scenario-set/ScenarioSetList.css",
+      "root_cause": "background: #fff → var(--surface)",
+      "fix": "Changed background: #fff → var(--surface)",
+      "tags": [
+        "auto-detected",
+        "style-fix",
+        "css"
+      ],
+      "related_bugs": [],
+      "occurrences": 4,
+      "last_seen": "2026-05-27T12:47:06.109Z"
+    },
+    {
+      "id": "bug-052",
+      "timestamp": "2026-05-27T12:47:05.898Z",
+      "error_message": "Wrong reference: 4096ff should be var",
+      "file": "src/client/pages/scenario-set/ScenarioSetList.css",
+      "root_cause": "Used \"4096ff\" instead of \"var\"",
+      "fix": "Changed 4096ff → var",
+      "tags": [
+        "auto-detected",
+        "wrong-reference",
+        "css"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-27T12:47:05.898Z"
+    },
+    {
+      "id": "bug-053",
+      "timestamp": "2026-05-27T12:47:20.456Z",
+      "error_message": "CSS fix: border-color, box-shadow",
+      "file": "src/client/pages/mobile-test/MobileTestList.css",
+      "root_cause": "border-color: #10b981 → var(--success); box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.1) → 0 0 0 2px oklch(62% 0.17 145 / 0.1)",
+      "fix": "Changed border-color: #10b981 → var(--success); box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.1) → 0 0 0 2px oklch(62% 0.17 145 / 0.1)",
+      "tags": [
+        "auto-detected",
+        "style-fix",
+        "css"
+      ],
+      "related_bugs": [],
+      "occurrences": 10,
+      "last_seen": "2026-05-27T12:47:40.332Z"
+    },
+    {
+      "id": "bug-054",
+      "timestamp": "2026-05-27T12:47:20.872Z",
+      "error_message": "Wrong reference: 10b981 should be var",
+      "file": "src/client/pages/mobile-test/MobileTestList.css",
+      "root_cause": "Used \"10b981\" instead of \"var\"",
+      "fix": "Changed 10b981 → var",
+      "tags": [
+        "auto-detected",
+        "wrong-reference",
+        "css"
+      ],
+      "related_bugs": [],
+      "occurrences": 6,
+      "last_seen": "2026-05-27T12:47:27.126Z"
+    },
+    {
+      "id": "bug-055",
+      "timestamp": "2026-05-27T12:47:53.462Z",
+      "error_message": "CSS fix: border-color, background",
+      "file": "src/client/pages/mobile-test/MobileTestDetail.css",
+      "root_cause": "border-color: #10b981 → var(--success); background: #fff → var(--surface)",
+      "fix": "Changed border-color: #10b981 → var(--success); background: #fff → var(--surface)",
+      "tags": [
+        "auto-detected",
+        "style-fix",
+        "css"
+      ],
+      "related_bugs": [],
+      "occurrences": 13,
+      "last_seen": "2026-05-27T12:49:46.579Z"
+    },
+    {
+      "id": "bug-056",
+      "timestamp": "2026-05-27T12:47:53.673Z",
+      "error_message": "Wrong reference: 059669 should be var",
+      "file": "src/client/pages/mobile-test/MobileTestDetail.css",
+      "root_cause": "Used \"059669\" instead of \"var\"",
+      "fix": "Changed 059669 → var",
+      "tags": [
+        "auto-detected",
+        "wrong-reference",
+        "css"
+      ],
+      "related_bugs": [],
+      "occurrences": 9,
+      "last_seen": "2026-05-27T12:49:39.487Z"
+    },
+    {
+      "id": "bug-057",
+      "timestamp": "2026-05-27T12:50:00.743Z",
+      "error_message": "CSS fix: color",
+      "file": "src/client/pages/system/SystemConfig.css",
+      "root_cause": "color: #888 → var(--fg-tertiary)",
+      "fix": "Changed color: #888 → var(--fg-tertiary)",
+      "tags": [
+        "auto-detected",
+        "style-fix",
+        "css"
+      ],
+      "related_bugs": [],
+      "occurrences": 4,
+      "last_seen": "2026-05-27T12:50:02.450Z"
+    },
+    {
+      "id": "bug-058",
+      "timestamp": "2026-05-27T12:50:00.952Z",
+      "error_message": "Wrong reference: 4096ff should be var",
+      "file": "src/client/pages/system/SystemConfig.css",
+      "root_cause": "Used \"4096ff\" instead of \"var\"",
+      "fix": "Changed 4096ff → var",
+      "tags": [
+        "auto-detected",
+        "wrong-reference",
+        "css"
+      ],
+      "related_bugs": [],
+      "occurrences": 6,
+      "last_seen": "2026-05-27T12:50:02.657Z"
+    },
+    {
+      "id": "bug-059",
+      "timestamp": "2026-05-27T12:50:11.820Z",
+      "error_message": "Wrong reference: rgba should be oklch",
+      "file": "src/client/pages/Profile.css",
+      "root_cause": "Used \"rgba\" instead of \"oklch\"",
+      "fix": "Changed rgba → oklch",
+      "tags": [
+        "auto-detected",
+        "wrong-reference",
+        "css"
+      ],
+      "related_bugs": [],
+      "occurrences": 2,
+      "last_seen": "2026-05-27T12:50:12.736Z"
+    },
+    {
+      "id": "bug-060",
+      "timestamp": "2026-05-27T12:50:12.045Z",
+      "error_message": "CSS fix: background, box-shadow",
+      "file": "src/client/pages/Profile.css",
+      "root_cause": "background: #fff → var(--surface); box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06) → var(--shadow-sm)",
+      "fix": "Changed background: #fff → var(--surface); box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06) → var(--shadow-sm)",
+      "tags": [
+        "auto-detected",
+        "style-fix",
+        "css"
+      ],
+      "related_bugs": [],
+      "occurrences": 3,
+      "last_seen": "2026-05-27T12:50:12.498Z"
+    },
+    {
+      "id": "bug-061",
+      "timestamp": "2026-05-27T12:50:21.988Z",
+      "error_message": "CSS fix: background",
+      "file": "src/client/components/Header.css",
+      "root_cause": "background: #fff → var(--surface)",
+      "fix": "Changed background: #fff → var(--surface)",
+      "tags": [
+        "auto-detected",
+        "style-fix",
+        "css"
+      ],
+      "related_bugs": [],
+      "occurrences": 4,
+      "last_seen": "2026-05-27T12:50:35.435Z"
+    },
+    {
+      "id": "bug-062",
+      "timestamp": "2026-05-27T12:50:50.375Z",
+      "error_message": "CSS fix: background",
+      "file": "src/client/components/HelpModal.css",
+      "root_cause": "background: #fff → var(--surface)",
+      "fix": "Changed background: #fff → var(--surface)",
+      "tags": [
+        "auto-detected",
+        "style-fix",
+        "css"
+      ],
+      "related_bugs": [],
+      "occurrences": 5,
+      "last_seen": "2026-05-27T12:50:53.222Z"
+    },
+    {
+      "id": "bug-063",
+      "timestamp": "2026-05-27T12:50:51.036Z",
+      "error_message": "Wrong reference: 222 should be var",
+      "file": "src/client/components/HelpModal.css",
+      "root_cause": "Used \"222\" instead of \"var\"",
+      "fix": "Changed 222 → var",
+      "tags": [
+        "auto-detected",
+        "wrong-reference",
+        "css"
+      ],
+      "related_bugs": [],
+      "occurrences": 5,
+      "last_seen": "2026-05-27T12:50:52.901Z"
+    },
+    {
+      "id": "bug-064",
+      "timestamp": "2026-05-27T12:51:10.592Z",
+      "error_message": "CSS fix: background, box-shadow",
+      "file": "src/client/components/InlineEdit.css",
+      "root_cause": "background: #fff → var(--surface); box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.1) → 0 0 0 2px oklch(55% 0.2 250 / 0.1)",
+      "fix": "Changed background: #fff → var(--surface); box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.1) → 0 0 0 2px oklch(55% 0.2 250 / 0.1)",
+      "tags": [
+        "auto-detected",
+        "style-fix",
+        "css"
+      ],
+      "related_bugs": [],
+      "occurrences": 4,
+      "last_seen": "2026-05-27T12:51:11.497Z"
+    },
+    {
+      "id": "bug-065",
+      "timestamp": "2026-05-27T12:51:11.801Z",
+      "error_message": "CSS fix: background",
+      "file": "src/client/components/MessageModal.css",
+      "root_cause": "background: #fff → var(--surface)",
+      "fix": "Changed background: #fff → var(--surface)",
+      "tags": [
+        "auto-detected",
+        "style-fix",
+        "css"
+      ],
+      "related_bugs": [],
+      "occurrences": 3,
+      "last_seen": "2026-05-27T12:51:12.447Z"
+    },
+    {
+      "id": "bug-066",
+      "timestamp": "2026-05-27T12:51:12.750Z",
+      "error_message": "CSS fix: background",
+      "file": "src/client/components/SelectFunctionModal.css",
+      "root_cause": "background: #fff → var(--surface)",
+      "fix": "Changed background: #fff → var(--surface)",
+      "tags": [
+        "auto-detected",
+        "style-fix",
+        "css"
+      ],
+      "related_bugs": [],
+      "occurrences": 3,
+      "last_seen": "2026-05-27T12:51:53.987Z"
+    },
+    {
+      "id": "bug-067",
+      "timestamp": "2026-05-27T12:51:53.390Z",
+      "error_message": "Wrong reference: eee should be var",
+      "file": "src/client/components/SelectFunctionModal.css",
+      "root_cause": "Used \"eee\" instead of \"var\"",
+      "fix": "Changed eee → var",
+      "tags": [
+        "auto-detected",
+        "wrong-reference",
+        "css"
+      ],
+      "related_bugs": [],
+      "occurrences": 7,
+      "last_seen": "2026-05-27T12:51:55.476Z"
+    },
+    {
+      "id": "bug-068",
+      "timestamp": "2026-05-27T12:52:13.256Z",
+      "error_message": "CSS fix: background, box-shadow",
+      "file": "src/client/components/TagFilterSelect.css",
+      "root_cause": "background: #fff → var(--surface); box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1) → var(--shadow-md)",
+      "fix": "Changed background: #fff → var(--surface); box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1) → var(--shadow-md)",
+      "tags": [
+        "auto-detected",
+        "style-fix",
+        "css"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-27T12:52:13.256Z"
+    },
+    {
+      "id": "bug-069",
+      "timestamp": "2026-05-27T12:52:13.521Z",
+      "error_message": "Wrong reference: f5f7fa should be var",
+      "file": "src/client/components/TagFilterSelect.css",
+      "root_cause": "Used \"f5f7fa\" instead of \"var\"",
+      "fix": "Changed f5f7fa → var",
+      "tags": [
+        "auto-detected",
+        "wrong-reference",
+        "css"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-27T12:52:13.521Z"
+    },
+    {
+      "id": "bug-070",
+      "timestamp": "2026-05-27T12:52:13.766Z",
+      "error_message": "CSS fix: border",
+      "file": "src/client/components/TagInput.css",
+      "root_cause": "border: 1px solid #adc6ff → 1px solid var(--accent-subtle)",
+      "fix": "Changed border: 1px solid #adc6ff → 1px solid var(--accent-subtle)",
+      "tags": [
+        "auto-detected",
+        "style-fix",
+        "css"
+      ],
+      "related_bugs": [],
+      "occurrences": 4,
+      "last_seen": "2026-05-27T12:52:14.783Z"
+    },
+    {
+      "id": "bug-071",
+      "timestamp": "2026-05-27T12:52:14.524Z",
+      "error_message": "Wrong reference: e6f0ff should be var",
+      "file": "src/client/components/TagInput.css",
+      "root_cause": "Used \"e6f0ff\" instead of \"var\"",
+      "fix": "Changed e6f0ff → var",
+      "tags": [
+        "auto-detected",
+        "wrong-reference",
+        "css"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-27T12:52:14.524Z"
+    },
+    {
+      "id": "bug-072",
+      "timestamp": "2026-05-27T12:52:15.035Z",
+      "error_message": "CSS fix: background",
+      "file": "src/client/components/TestTypeModal.css",
+      "root_cause": "background: #fff → var(--surface)",
+      "fix": "Changed background: #fff → var(--surface)",
+      "tags": [
+        "auto-detected",
+        "style-fix",
+        "css"
+      ],
+      "related_bugs": [],
+      "occurrences": 3,
+      "last_seen": "2026-05-27T12:52:15.559Z"
+    },
+    {
+      "id": "bug-073",
+      "timestamp": "2026-05-27T12:56:42.037Z",
+      "error_message": "Wrong reference: 10b981 should be var",
+      "file": "src/client/pages/mobile-test/MobileTestList.css",
+      "root_cause": "Used \"10b981\" instead of \"var\"",
+      "fix": "Changed 10b981 → var",
+      "tags": [
+        "auto-detected",
+        "wrong-reference",
+        "css"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-27T12:56:42.037Z"
+    },
+    {
+      "id": "bug-074",
+      "timestamp": "2026-05-27T12:57:28.824Z",
+      "error_message": "Wrong reference: fff should be var",
+      "file": "src/client/components/TagInput.css",
+      "root_cause": "Used \"fff\" instead of \"var\"",
+      "fix": "Changed fff → var",
+      "tags": [
+        "auto-detected",
+        "wrong-reference",
+        "css"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-27T12:57:28.824Z"
+    },
+    {
+      "id": "bug-075",
+      "timestamp": "2026-05-27T13:20:51.251Z",
+      "error_message": "Significant refactor of ",
+      "file": "src/client/pages/api-test/ApiList.tsx",
+      "root_cause": "2 lines replaced/restructured",
+      "fix": "Rewrote 7→4 lines (2 removed) | Also: // Close floating buttons on outside click; useEffect(() => {",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 2,
+      "last_seen": "2026-05-27T13:21:06.666Z"
+    },
+    {
+      "id": "bug-076",
+      "timestamp": "2026-05-27T13:28:01.011Z",
+      "error_message": "Significant refactor of ",
+      "file": "src/client/pages/mock/MockList.tsx",
+      "root_cause": "9 lines replaced/restructured",
+      "fix": "Rewrote 14→3 lines (9 removed) | Also: onClick={e => handleRowClick(e, m.id)}; <button className={`mock-enabled-btn ${m.enabled ?",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 2,
+      "last_seen": "2026-05-27T13:28:17.145Z"
+    },
+    {
+      "id": "bug-077",
+      "timestamp": "2026-05-27T13:28:05.143Z",
+      "error_message": "CSS fix: width",
+      "file": "src/client/pages/mock/MockList.tsx",
+      "root_cause": "width: 148 → 80",
+      "fix": "Changed width: 148 → 80",
+      "tags": [
+        "auto-detected",
+        "style-fix",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-27T13:28:05.143Z"
+    },
+    {
+      "id": "bug-078",
+      "timestamp": "2026-05-27T13:28:09.546Z",
+      "error_message": "Significant refactor of ",
+      "file": "src/client/pages/scenario/ScenarioList.tsx",
+      "root_cause": "6 lines replaced/restructured",
+      "fix": "Rewrote 10→3 lines (6 removed) | Also: const handleRowClick = (e: MouseEvent, id: number); e.stopPropagation(); | Also: {/* Floating Action Buttons */}; {floatBtn && (",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 3,
+      "last_seen": "2026-05-27T13:29:01.704Z"
+    },
+    {
+      "id": "bug-079",
+      "timestamp": "2026-05-27T13:28:15.113Z",
+      "error_message": "Missing await",
+      "file": "src/client/pages/batch-report/BatchReportList.tsx",
+      "root_cause": "Async call without await — returned Promise instead of value",
+      "fix": "Added await to async call",
+      "tags": [
+        "auto-detected",
+        "async-fix",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-27T13:28:15.113Z"
+    },
+    {
+      "id": "bug-080",
+      "timestamp": "2026-05-27T13:28:36.922Z",
+      "error_message": "Type error",
+      "file": "src/client/pages/scenario/ScenarioList.tsx",
+      "root_cause": "Missing or incorrect type annotation",
+      "fix": "Added type assertion/annotation",
+      "tags": [
+        "auto-detected",
+        "type-fix",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-27T13:28:36.922Z"
+    },
+    {
+      "id": "bug-081",
+      "timestamp": "2026-05-27T13:28:37.654Z",
+      "error_message": "Significant refactor of ",
+      "file": "src/client/pages/scenario-set/ScenarioSetList.tsx",
+      "root_cause": "9 lines replaced/restructured",
+      "fix": "Rewrote 21→9 lines (9 removed) | Also: onClick={e => handleRowClick(e, s.id)}; className={floatBtn?.id === s.id ? 'active-row' :  | Also: {/* Floating Action Buttons */}; {floatBtn && (",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 3,
+      "last_seen": "2026-05-27T13:28:59.531Z"
+    },
+    {
+      "id": "bug-082",
+      "timestamp": "2026-05-27T13:28:42.862Z",
+      "error_message": "Type error",
+      "file": "src/client/pages/scenario-set/ScenarioSetList.tsx",
+      "root_cause": "Missing or incorrect type annotation",
+      "fix": "Added type assertion/annotation",
+      "tags": [
+        "auto-detected",
+        "type-fix",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-27T13:28:42.862Z"
+    },
+    {
+      "id": "bug-083",
+      "timestamp": "2026-05-27T13:28:47.939Z",
+      "error_message": "Significant refactor of ",
+      "file": "src/client/pages/batch-report/BatchReportList.tsx",
+      "root_cause": "9 lines replaced/restructured",
+      "fix": "Rewrote 16→4 lines (9 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-27T13:28:47.939Z"
+    },
+    {
+      "id": "bug-084",
+      "timestamp": "2026-05-27T13:29:17.822Z",
+      "error_message": "Significant refactor of ",
+      "file": "src/client/pages/schedule/ScheduleList.tsx",
+      "root_cause": "2 lines replaced/restructured",
+      "fix": "Rewrote 8→6 lines (2 removed) | Also: // Close float on outside click; useEffect(() => { | Also: onClick={e => handleRowClick(e, item)}; className={floatBtn?.item.scenario_id === item.sce",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 3,
+      "last_seen": "2026-05-27T13:29:48.527Z"
+    },
+    {
+      "id": "bug-085",
+      "timestamp": "2026-05-27T13:29:17.993Z",
+      "error_message": "Wrong reference: setFTags should be setFilterTags",
+      "file": "src/client/pages/scenario/ScenarioList.tsx",
+      "root_cause": "Used \"setFTags\" instead of \"setFilterTags\"",
+      "fix": "Changed setFTags → setFilterTags",
+      "tags": [
+        "auto-detected",
+        "wrong-reference",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-27T13:29:17.993Z"
+    },
+    {
+      "id": "bug-086",
+      "timestamp": "2026-05-27T13:29:36.043Z",
+      "error_message": "Type error",
+      "file": "src/client/pages/schedule/ScheduleList.tsx",
+      "root_cause": "Missing or incorrect type annotation",
+      "fix": "Added type assertion/annotation",
+      "tags": [
+        "auto-detected",
+        "type-fix",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-27T13:29:36.043Z"
+    },
+    {
+      "id": "bug-087",
+      "timestamp": "2026-05-27T13:30:20.544Z",
+      "error_message": "Significant refactor of ",
+      "file": "src/client/pages/mobile-test/MobileTestList.tsx",
+      "root_cause": "10 lines replaced/restructured",
+      "fix": "Rewrote 25→12 lines (10 removed) | Also: {/* Floating actions */}; {floatBtn && (",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 2,
+      "last_seen": "2026-05-27T13:30:42.881Z"
+    },
+    {
+      "id": "bug-088",
+      "timestamp": "2026-05-27T13:30:25.452Z",
+      "error_message": "Type error",
+      "file": "src/client/pages/mobile-test/MobileTestList.tsx",
+      "root_cause": "Missing or incorrect type annotation",
+      "fix": "Added type assertion/annotation",
+      "tags": [
+        "auto-detected",
+        "type-fix",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-27T13:30:25.452Z"
+    },
+    {
+      "id": "bug-089",
+      "timestamp": "2026-05-27T13:59:44.635Z",
+      "error_message": "Significant refactor of ",
+      "file": "src/client/components/TagInput.css",
+      "root_cause": "8 lines replaced/restructured",
+      "fix": "Rewrote 12→27 lines (8 removed) | Also: gap: 4px;; padding: 4px 8px 4px 10px;",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "css"
+      ],
+      "related_bugs": [],
+      "occurrences": 2,
+      "last_seen": "2026-05-27T14:00:06.842Z"
+    },
+    {
+      "id": "bug-090",
+      "timestamp": "2026-05-27T14:00:29.180Z",
+      "error_message": "Significant refactor of ",
+      "file": "src/client/pages/api-test/ApiList.css",
+      "root_cause": "5 lines replaced/restructured",
+      "fix": "Rewrote 10→24 lines (5 removed) | Also: padding: 1px 6px;; background: var(--accent-subtle);",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "css"
+      ],
+      "related_bugs": [],
+      "occurrences": 2,
+      "last_seen": "2026-05-27T14:02:08.820Z"
+    },
+    {
+      "id": "bug-091",
+      "timestamp": "2026-05-27T14:09:24.399Z",
+      "error_message": "CSS fix: section",
+      "file": "src/client/components/Layout.tsx",
+      "root_cause": "section: '概览', items: [{ label: '仪表盘', path: '/web-test', icon: 'dashboard' → '辅助功能', items: [",
+      "fix": "Changed section: '概览', items: [{ label: '仪表盘', path: '/web-test', icon: 'dashboard' → '辅助功能', items: [",
+      "tags": [
+        "auto-detected",
+        "style-fix",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-27T14:09:24.399Z"
+    },
+    {
+      "id": "bug-092",
+      "timestamp": "2026-05-27T14:22:56.248Z",
+      "error_message": "Incorrect value in code",
+      "file": "src/client/App.tsx",
+      "root_cause": "Had \"/web-test/mock\"",
+      "fix": "Changed to \"/web-test/environment\"",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-27T14:22:56.249Z"
+    },
+    {
+      "id": "bug-093",
+      "timestamp": "2026-05-27T14:33:02.368Z",
+      "error_message": "CSS fix: page",
+      "file": "src/client/pages/schedule/ScheduleList.tsx",
+      "root_cause": "page: String(pageNum), pageSize: String(pageSz), sort: sortField, order: sortOrder → String(pageNum), pageSize: String(pageSz), sort: sortField, order: sortOrder, test_type: testType",
+      "fix": "Changed page: String(pageNum), pageSize: String(pageSz), sort: sortField, order: sortOrder → String(pageNum), pageSize: String(pageSz), sort: sortField, order: sortOrder, test_type: testType",
+      "tags": [
+        "auto-detected",
+        "style-fix",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-27T14:33:02.368Z"
+    },
+    {
+      "id": "bug-094",
+      "timestamp": "2026-05-27T14:33:02.990Z",
+      "error_message": "Incorrect value in code",
+      "file": "src/client/pages/batch-report/BatchReportList.tsx",
+      "root_cause": "Had `/batch-reports?page=${pageNum}&pageSize=${pageSz}",
+      "fix": "Changed to `/batch-reports?page=${pageNum}&pageSize=${pageSz}",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-27T14:33:02.990Z"
+    },
+    {
+      "id": "bug-095",
+      "timestamp": "2026-05-27T14:33:03.632Z",
+      "error_message": "Incorrect value in code",
+      "file": "src/client/pages/mock/MockList.tsx",
+      "root_cause": "Had `/mocks?page=${pageNum}&pageSize=${pageSz}`",
+      "fix": "Changed to `/mocks?page=${pageNum}&pageSize=${pageSz}&test_ty",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-27T14:33:03.632Z"
+    },
+    {
+      "id": "bug-096",
+      "timestamp": "2026-05-27T14:33:04.257Z",
+      "error_message": "Incorrect value in code",
+      "file": "src/client/pages/environment/EnvironmentList.tsx",
+      "root_cause": "Had '/environments'",
+      "fix": "Changed to `/environments?test_type=${testType}`",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-27T14:33:04.257Z"
+    },
+    {
+      "id": "bug-097",
+      "timestamp": "2026-05-27T14:33:32.264Z",
+      "error_message": "Significant refactor of ",
+      "file": "src/server/db/scenarios.ts",
+      "root_cause": "3 lines replaced/restructured",
+      "fix": "Rewrote 9→13 lines (3 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-27T14:33:32.264Z"
+    },
+    {
+      "id": "bug-098",
+      "timestamp": "2026-05-27T14:33:33.658Z",
+      "error_message": "Type error",
+      "file": "src/server/routes/batch-reports.ts",
+      "root_cause": "Missing or incorrect type annotation",
+      "fix": "Added type assertion/annotation",
+      "tags": [
+        "auto-detected",
+        "type-fix",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-27T14:33:33.658Z"
+    },
+    {
+      "id": "bug-099",
+      "timestamp": "2026-05-27T14:38:11.624Z",
+      "error_message": "Missing error handling in WebCaseDetail",
+      "file": "src/client/pages/web-test/WebCaseDetail.tsx",
+      "root_cause": "Code path had no error handling — exceptions would propagate uncaught",
+      "fix": "Added try/catch block",
+      "tags": [
+        "auto-detected",
+        "error-handling",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-27T14:38:11.624Z"
+    },
+    {
+      "id": "bug-100",
+      "timestamp": "2026-05-27T14:45:53.697Z",
+      "error_message": "CSS fix: background, color",
+      "file": "src/client/pages/mobile-test/MobileTestList.css",
+      "root_cause": "background: var(--accent-subtle) → oklch(96% 0.04 275); color: var(--accent) → oklch(38% 0.12 275)",
+      "fix": "Changed background: var(--accent-subtle) → oklch(96% 0.04 275); color: var(--accent) → oklch(38% 0.12 275)",
+      "tags": [
+        "auto-detected",
+        "style-fix",
+        "css"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-27T14:45:53.697Z"
+    },
+    {
+      "id": "bug-101",
+      "timestamp": "2026-05-27T14:55:07.493Z",
+      "error_message": "Type error",
+      "file": "src/client/pages/scenario-set/ScenarioSetDetail.tsx",
+      "root_cause": "Missing or incorrect type annotation",
+      "fix": "Added type assertion/annotation",
+      "tags": [
+        "auto-detected",
+        "type-fix",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-27T14:55:07.493Z"
+    },
+    {
+      "id": "bug-102",
+      "timestamp": "2026-05-27T14:55:07.688Z",
+      "error_message": "Type error",
+      "file": "src/client/pages/batch-report/BatchReportDetail.tsx",
+      "root_cause": "Missing or incorrect type annotation",
+      "fix": "Added type assertion/annotation",
+      "tags": [
+        "auto-detected",
+        "type-fix",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-27T14:55:07.688Z"
+    },
+    {
+      "id": "bug-103",
+      "timestamp": "2026-05-27T14:55:07.891Z",
+      "error_message": "Type error",
+      "file": "src/client/pages/environment/EnvironmentDetail.tsx",
+      "root_cause": "Missing or incorrect type annotation",
+      "fix": "Added type assertion/annotation",
+      "tags": [
+        "auto-detected",
+        "type-fix",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-27T14:55:07.891Z"
+    },
+    {
+      "id": "bug-104",
+      "timestamp": "2026-05-27T14:55:08.089Z",
+      "error_message": "Type error",
+      "file": "src/client/pages/mock/MockDetail.tsx",
+      "root_cause": "Missing or incorrect type annotation",
+      "fix": "Added type assertion/annotation",
+      "tags": [
+        "auto-detected",
+        "type-fix",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-27T14:55:08.089Z"
+    },
+    {
+      "id": "bug-105",
+      "timestamp": "2026-05-27T14:55:23.081Z",
+      "error_message": "Significant refactor of ",
+      "file": "src/server/db/environments.ts",
+      "root_cause": "3 lines replaced/restructured",
+      "fix": "Rewrote 7→10 lines (3 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-27T14:55:23.081Z"
+    },
+    {
+      "id": "bug-106",
+      "timestamp": "2026-05-27T14:55:23.283Z",
+      "error_message": "Wrong return value",
+      "file": "src/server/db/environments.ts",
+      "root_cause": "Was returning: db.prepare('SELECT * FROM environments WHERE id = ",
+      "fix": "Now returns: db.prepare(`SELECT * FROM environments WHERE ${con",
+      "tags": [
+        "auto-detected",
+        "return-value",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-27T14:55:23.283Z"
+    },
+    {
+      "id": "bug-107",
+      "timestamp": "2026-05-27T14:55:39.059Z",
+      "error_message": "Incorrect value in code",
+      "file": "src/client/pages/scenario-set/ScenarioSetDetail.tsx",
+      "root_cause": "Had '/scenarios?page=1&pageSize=1000'",
+      "fix": "Changed to `/scenarios?page=1&pageSize=1000&test_type=${testT",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-27T14:55:39.059Z"
+    },
+    {
+      "id": "bug-108",
+      "timestamp": "2026-05-27T14:55:39.257Z",
+      "error_message": "CSS fix: method",
+      "file": "src/client/pages/scenario-set/ScenarioSetDetail.tsx",
+      "root_cause": "method: 'PUT', body: JSON.stringify({ name: name.trim(), description, tags, status, scenario_ids: selectedIds → 'PUT', body: JSON.stringify({ name: name.trim(), description, tags, status, scenario_ids: selectedIds, test_type: testType",
+      "fix": "Changed method: 'PUT', body: JSON.stringify({ name: name.trim(), description, tags, status, scenario_ids: selectedIds → 'PUT', body: JSON.stringify({ name: name.trim(), description, tags, status, scenario_ids: selectedIds, test_type: testType",
+      "tags": [
+        "auto-detected",
+        "style-fix",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 2,
+      "last_seen": "2026-05-27T14:55:39.459Z"
+    },
+    {
+      "id": "bug-109",
+      "timestamp": "2026-05-27T14:55:40.925Z",
+      "error_message": "Type error",
+      "file": "src/server/routes/environments.ts",
+      "root_cause": "Missing or incorrect type annotation",
+      "fix": "Added type assertion/annotation",
+      "tags": [
+        "auto-detected",
+        "type-fix",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-27T14:55:40.925Z"
+    },
+    {
+      "id": "bug-110",
+      "timestamp": "2026-05-27T14:55:59.897Z",
+      "error_message": "Incorrect value in code",
+      "file": "src/client/pages/environment/EnvironmentDetail.tsx",
+      "root_cause": "Had `/environments/${id}`",
+      "fix": "Changed to `/environments/${id}?test_type=${testType}`",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-27T14:55:59.897Z"
+    },
+    {
+      "id": "bug-111",
+      "timestamp": "2026-05-27T14:56:00.299Z",
+      "error_message": "Incorrect value in code",
+      "file": "src/client/pages/mock/MockDetail.tsx",
+      "root_cause": "Had `/mocks/${id}`",
+      "fix": "Changed to `/mocks/${id}?test_type=${testType}`",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-27T14:56:00.299Z"
+    },
+    {
+      "id": "bug-112",
+      "timestamp": "2026-05-27T14:56:12.510Z",
+      "error_message": "Incorrect value in code",
+      "file": "src/client/App.tsx",
+      "root_cause": "Had \"/web-test/environment/:id\"",
+      "fix": "Changed to \"web\"",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 2,
+      "last_seen": "2026-05-27T14:56:12.707Z"
+    },
+    {
+      "id": "bug-113",
+      "timestamp": "2026-05-27T14:56:23.529Z",
+      "error_message": "Significant refactor of ",
+      "file": "src/server/db/mocks.ts",
+      "root_cause": "5 lines replaced/restructured",
+      "fix": "Rewrote 14→19 lines (5 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-27T14:56:23.529Z"
+    },
+    {
+      "id": "bug-114",
+      "timestamp": "2026-05-27T14:56:23.730Z",
+      "error_message": "Wrong return value",
+      "file": "src/server/db/mocks.ts",
+      "root_cause": "Was returning: db.prepare('SELECT * FROM mock_endpoints WHERE id ",
+      "fix": "Now returns: db.prepare('SELECT * FROM mock_endpoints WHERE id ",
+      "tags": [
+        "auto-detected",
+        "return-value",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-27T14:56:23.730Z"
+    },
+    {
+      "id": "bug-115",
+      "timestamp": "2026-05-27T14:56:54.375Z",
+      "error_message": "Type error",
+      "file": "src/server/routes/mocks.ts",
+      "root_cause": "Missing or incorrect type annotation",
+      "fix": "Added type assertion/annotation",
+      "tags": [
+        "auto-detected",
+        "type-fix",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-27T14:56:54.375Z"
+    },
+    {
+      "id": "bug-116",
+      "timestamp": "2026-05-27T14:57:09.340Z",
+      "error_message": "Type error",
+      "file": "src/server/routes/scenario-sets.ts",
+      "root_cause": "Missing or incorrect type annotation",
+      "fix": "Added type assertion/annotation",
+      "tags": [
+        "auto-detected",
+        "type-fix",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-27T14:57:09.340Z"
+    },
+    {
+      "id": "bug-117",
+      "timestamp": "2026-05-27T14:57:46.095Z",
+      "error_message": "Wrong return value",
+      "file": "src/server/db/scenarios.ts",
+      "root_cause": "Was returning: db.prepare('SELECT * FROM scenarios WHERE user_id ",
+      "fix": "Now returns: db.prepare('SELECT * FROM scenarios WHERE user_id ",
+      "tags": [
+        "auto-detected",
+        "return-value",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-27T14:57:46.095Z"
+    },
+    {
+      "id": "bug-118",
+      "timestamp": "2026-05-27T14:58:02.688Z",
+      "error_message": "Type error",
+      "file": "src/server/routes/batch-reports.ts",
+      "root_cause": "Missing or incorrect type annotation",
+      "fix": "Added type assertion/annotation",
+      "tags": [
+        "auto-detected",
+        "type-fix",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-27T14:58:02.688Z"
+    },
+    {
+      "id": "bug-119",
+      "timestamp": "2026-05-27T14:58:12.118Z",
+      "error_message": "Type error",
+      "file": "src/server/routes/scenarios.ts",
+      "root_cause": "Missing or incorrect type annotation",
+      "fix": "Added type assertion/annotation",
+      "tags": [
+        "auto-detected",
+        "type-fix",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-27T14:58:12.118Z"
+    },
+    {
+      "id": "bug-120",
+      "timestamp": "2026-05-27T15:05:17.249Z",
+      "error_message": "Wrong return value",
+      "file": "src/server/db/web-cases.ts",
+      "root_cause": "Was returning: db.prepare('SELECT * FROM web_test_cases WHERE id ",
+      "fix": "Now returns: db.prepare('SELECT * FROM web_test_cases WHERE id ",
+      "tags": [
+        "auto-detected",
+        "return-value",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-27T15:05:17.249Z"
+    },
+    {
+      "id": "bug-121",
+      "timestamp": "2026-05-27T15:05:47.956Z",
+      "error_message": "Type error",
+      "file": "src/server/routes/web-cases.ts",
+      "root_cause": "Missing or incorrect type annotation",
+      "fix": "Added type assertion/annotation",
+      "tags": [
+        "auto-detected",
+        "type-fix",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-27T15:05:47.956Z"
+    },
+    {
+      "id": "bug-122",
+      "timestamp": "2026-05-27T15:06:51.589Z",
+      "error_message": "CSS fix: section",
+      "file": "src/client/components/Layout.tsx",
+      "root_cause": "section: '概览', items: [{ label: '仪表盘', path: '/pc-test', icon: 'dashboard' → '辅助功能', items: [",
+      "fix": "Changed section: '概览', items: [{ label: '仪表盘', path: '/pc-test', icon: 'dashboard' → '辅助功能', items: [",
+      "tags": [
+        "auto-detected",
+        "style-fix",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-27T15:06:51.589Z"
+    },
+    {
+      "id": "bug-123",
+      "timestamp": "2026-05-27T15:13:03.279Z",
+      "error_message": "CSS fix: page",
+      "file": "src/client/pages/api-test/ApiList.tsx",
+      "root_cause": "page: String(pageNum), pageSize: String(pageSz), sort: sortField, order: sortOrder → String(pageNum), pageSize: String(pageSz), sort: sortField, order: sortOrder, test_type: 'api'",
+      "fix": "Changed page: String(pageNum), pageSize: String(pageSz), sort: sortField, order: sortOrder → String(pageNum), pageSize: String(pageSz), sort: sortField, order: sortOrder, test_type: 'api'",
+      "tags": [
+        "auto-detected",
+        "style-fix",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-27T15:13:03.279Z"
+    },
+    {
+      "id": "bug-124",
+      "timestamp": "2026-05-27T15:47:15.243Z",
+      "error_message": "Incorrect value in code",
+      "file": "src/client/pages/pc-test/PcCaseList.tsx",
+      "root_cause": "Had `/web-cases?${params}`",
+      "fix": "Changed to `/pc-cases?${params}`",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-27T15:47:15.243Z"
+    },
+    {
+      "id": "bug-125",
+      "timestamp": "2026-05-27T15:47:38.340Z",
+      "error_message": "Incorrect value in code",
+      "file": "src/client/pages/pc-test/PcCaseDetail.tsx",
+      "root_cause": "Had `/web-cases/${id}`",
+      "fix": "Changed to `/pc-cases/${id}`",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-27T15:47:38.340Z"
+    },
+    {
+      "id": "bug-126",
+      "timestamp": "2026-05-27T15:48:17.823Z",
+      "error_message": "Type error",
+      "file": "src/client/pages/pc-test/PcCaseDetail.tsx",
+      "root_cause": "Missing or incorrect type annotation",
+      "fix": "Added type assertion/annotation | Also: <button className=\"scenario-btn scenario-btn-primary\" onClic; {executing ? '执行中...' : '执行'}",
+      "tags": [
+        "auto-detected",
+        "type-fix",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 2,
+      "last_seen": "2026-05-27T15:48:57.400Z"
+    },
+    {
+      "id": "bug-127",
+      "timestamp": "2026-05-27T15:48:50.394Z",
+      "error_message": "Missing error handling in unknown",
+      "file": "src/client/pages/pc-test/PcCaseDetail.tsx",
+      "root_cause": "Code path had no error handling — exceptions would propagate uncaught",
+      "fix": "Added try/catch block",
+      "tags": [
+        "auto-detected",
+        "error-handling",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-27T15:48:50.394Z"
+    },
+    {
+      "id": "bug-128",
+      "timestamp": "2026-05-27T15:49:41.681Z",
+      "error_message": "Type error",
+      "file": "src/server/db/web-cases.ts",
+      "root_cause": "Missing or incorrect type annotation",
+      "fix": "Added type assertion/annotation",
+      "tags": [
+        "auto-detected",
+        "type-fix",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-27T15:49:41.681Z"
+    },
+    {
+      "id": "bug-129",
+      "timestamp": "2026-05-27T15:50:28.327Z",
+      "error_message": "Null/undefined access in ",
+      "file": "src/server/routes/web-cases.ts",
+      "root_cause": "Property access on potentially null/undefined value",
+      "fix": "Added null safety (optional chaining or null check)",
+      "tags": [
+        "auto-detected",
+        "null-safety",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-27T15:50:28.327Z"
+    },
+    {
+      "id": "bug-130",
+      "timestamp": "2026-05-27T15:51:12.083Z",
+      "error_message": "Type error",
+      "file": "src/client/pages/web-test/WebCaseDetail.tsx",
+      "root_cause": "Missing or incorrect type annotation",
+      "fix": "Added type assertion/annotation | Also: <button className=\"scenario-btn scenario-btn-primary\" onClic; {executing ? '执行中...' : '执行'}",
+      "tags": [
+        "auto-detected",
+        "type-fix",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 2,
+      "last_seen": "2026-05-27T15:51:33.459Z"
+    },
+    {
+      "id": "bug-131",
+      "timestamp": "2026-05-27T15:51:27.155Z",
+      "error_message": "Missing error handling in unknown",
+      "file": "src/client/pages/web-test/WebCaseDetail.tsx",
+      "root_cause": "Code path had no error handling — exceptions would propagate uncaught",
+      "fix": "Added try/catch block",
+      "tags": [
+        "auto-detected",
+        "error-handling",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-27T15:51:27.155Z"
+    },
+    {
+      "id": "bug-132",
+      "timestamp": "2026-05-27T15:54:09.948Z",
+      "error_message": "Type error",
+      "file": "src/client/pages/scenario/ScenarioDetail.tsx",
+      "root_cause": "Missing or incorrect type annotation",
+      "fix": "Added type assertion/annotation",
+      "tags": [
+        "auto-detected",
+        "type-fix",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-27T15:54:09.948Z"
+    },
+    {
+      "id": "bug-133",
+      "timestamp": "2026-05-27T15:54:16.696Z",
+      "error_message": "Incorrect value in code",
+      "file": "src/client/pages/scenario/ScenarioDetail.tsx",
+      "root_cause": "Had `/scenarios/${id}`",
+      "fix": "Changed to `/scenarios/${id}?test_type=${testType}`",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 3,
+      "last_seen": "2026-05-27T15:54:29.528Z"
+    },
+    {
+      "id": "bug-134",
+      "timestamp": "2026-05-27T15:54:42.930Z",
+      "error_message": "Type error",
+      "file": "src/client/pages/schedule/ScheduleDetail.tsx",
+      "root_cause": "Missing or incorrect type annotation",
+      "fix": "Added type assertion/annotation",
+      "tags": [
+        "auto-detected",
+        "type-fix",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-27T15:54:42.930Z"
+    },
+    {
+      "id": "bug-135",
+      "timestamp": "2026-05-28T11:46:54.644Z",
+      "error_message": "Incorrect value in code",
+      "file": "src/client/pages/schedule/ScheduleDetail.tsx",
+      "root_cause": "Had '/api-test/schedule'",
+      "fix": "Changed to `${basePath}/schedule`",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 2,
+      "last_seen": "2026-05-28T11:47:00.875Z"
+    },
+    {
+      "id": "bug-136",
+      "timestamp": "2026-05-28T11:47:06.634Z",
+      "error_message": "Incorrect value in code",
+      "file": "src/client/pages/pc-test/PcCaseList.tsx",
+      "root_cause": "Had `/web-cases/${id}`",
+      "fix": "Changed to `/pc-cases/${id}`",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-28T11:47:06.634Z"
+    },
+    {
+      "id": "bug-137",
+      "timestamp": "2026-05-28T11:47:39.483Z",
+      "error_message": "Null/undefined access in ",
+      "file": "src/client/pages/web-test/WebTestHome.tsx",
+      "root_cause": "Property access on potentially null/undefined value",
+      "fix": "Added null safety (optional chaining or null check)",
+      "tags": [
+        "auto-detected",
+        "null-safety",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-28T11:47:39.483Z"
+    },
+    {
+      "id": "bug-138",
+      "timestamp": "2026-05-28T13:28:20.696Z",
+      "error_message": "Missing error handling in unknown",
+      "file": "src/server/db/index.ts",
+      "root_cause": "Code path had no error handling — exceptions would propagate uncaught",
+      "fix": "Added try/catch block",
+      "tags": [
+        "auto-detected",
+        "error-handling",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-28T13:28:20.696Z"
+    },
+    {
+      "id": "bug-139",
+      "timestamp": "2026-05-28T14:23:00.471Z",
+      "error_message": "Incorrect value in code",
+      "file": "src/client/pages/environment/EnvironmentDetail.tsx",
+      "root_cause": "Had '/api-test/environment'",
+      "fix": "Changed to `${basePath}/environment`",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 2,
+      "last_seen": "2026-05-28T14:23:27.511Z"
+    },
+    {
+      "id": "bug-140",
+      "timestamp": "2026-05-28T14:24:14.756Z",
+      "error_message": "Missing error handling in unknown",
+      "file": "src/client/pages/web-test/WebTestHome.tsx",
+      "root_cause": "Code path had no error handling — exceptions would propagate uncaught",
+      "fix": "Added try/catch block",
+      "tags": [
+        "auto-detected",
+        "error-handling",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-28T14:24:14.756Z"
+    },
+    {
+      "id": "bug-141",
+      "timestamp": "2026-05-28T14:24:54.160Z",
+      "error_message": "Incorrect value in code",
+      "file": "src/client/pages/api-test/ApiDetail.tsx",
+      "root_cause": "Had ', assert: false });\n  const defaultAssertRule = (",
+      "fix": "Changed to ', assert: false });\nconst defaultAssertRule = (in",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-28T14:24:54.160Z"
+    },
+    {
+      "id": "bug-142",
+      "timestamp": "2026-05-28T14:37:38.694Z",
+      "error_message": "Significant refactor of ",
+      "file": "src/client/App.tsx",
+      "root_cause": "3 lines replaced/restructured",
+      "fix": "Rewrote 6→3 lines (3 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-28T14:37:38.694Z"
+    },
+    {
+      "id": "bug-143",
+      "timestamp": "2026-05-28T14:45:11.567Z",
+      "error_message": "CSS fix: headers",
+      "file": "src/client/pages/api-test/ApiDetail.tsx",
+      "root_cause": "headers: string[] → '', body: '', description: '', tags: '', status: 'draft',",
+      "fix": "Changed headers: string[] → '', body: '', description: '', tags: '', status: 'draft',",
+      "tags": [
+        "auto-detected",
+        "style-fix",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-28T14:45:11.567Z"
+    },
+    {
+      "id": "bug-144",
+      "timestamp": "2026-05-28T15:02:10.980Z",
+      "error_message": "Missing error handling in unknown",
+      "file": "src/client/pages/web-test/WebCaseDetail.tsx",
+      "root_cause": "Code path had no error handling — exceptions would propagate uncaught",
+      "fix": "Added try/catch block",
+      "tags": [
+        "auto-detected",
+        "error-handling",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-28T15:02:10.980Z"
+    },
+    {
+      "id": "bug-145",
+      "timestamp": "2026-05-28T15:03:02.566Z",
+      "error_message": "Missing guard clause",
+      "file": "src/client/pages/web-test/WebCaseDetail.tsx",
+      "root_cause": "No early return/throw for edge case: !newCol",
+      "fix": "Added guard clause: if (!newCol)",
+      "tags": [
+        "auto-detected",
+        "guard-clause",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-28T15:03:02.566Z"
+    },
+    {
+      "id": "bug-146",
+      "timestamp": "2026-05-28T15:07:03.243Z",
+      "error_message": "Missing error handling in ApiTestHome",
+      "file": "src/client/pages/ApiTestHome.tsx",
+      "root_cause": "Code path had no error handling — exceptions would propagate uncaught",
+      "fix": "Added try/catch block",
+      "tags": [
+        "auto-detected",
+        "error-handling",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-28T15:07:03.243Z"
+    },
+    {
+      "id": "bug-147",
+      "timestamp": "2026-05-28T15:07:09.268Z",
+      "error_message": "CSS fix: label",
+      "file": "src/client/pages/ApiTestHome.tsx",
+      "root_cause": "label: 'Mock 命中', value: '1,847', sub: '本周累计', color: 'var(--accent)' → '场景集数', value: loading ? '-' : stats.scenarioSetCount, sub: `${runningSets",
+      "fix": "Changed label: 'Mock 命中', value: '1,847', sub: '本周累计', color: 'var(--accent)' → '场景集数', value: loading ? '-' : stats.scenarioSetCount, sub: `${runningSets",
+      "tags": [
+        "auto-detected",
+        "style-fix",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-28T15:07:09.268Z"
+    },
+    {
+      "id": "bug-148",
+      "timestamp": "2026-05-28T15:07:15.968Z",
+      "error_message": "Significant refactor of ",
+      "file": "src/client/pages/api-test/ApiList.tsx",
+      "root_cause": "2 lines replaced/restructured",
+      "fix": "Rewrote 15→29 lines (2 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-28T15:07:15.968Z"
+    },
+    {
+      "id": "bug-149",
+      "timestamp": "2026-05-28T15:08:31.751Z",
+      "error_message": "CSS fix: color",
+      "file": "src/client/pages/api-test/ApiDetail.css",
+      "root_cause": "color: var(--fg-secondary) → var(--danger)",
+      "fix": "Changed color: var(--fg-secondary) → var(--danger)",
+      "tags": [
+        "auto-detected",
+        "style-fix",
+        "css"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-28T15:08:31.751Z"
+    },
+    {
+      "id": "bug-150",
+      "timestamp": "2026-05-28T15:41:59.172Z",
+      "error_message": "Type error",
+      "file": "src/server/routes/index.ts",
+      "root_cause": "Missing or incorrect type annotation",
+      "fix": "Added type assertion/annotation",
+      "tags": [
+        "auto-detected",
+        "type-fix",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-28T15:41:59.172Z"
+    },
+    {
+      "id": "bug-151",
+      "timestamp": "2026-05-28T15:44:21.278Z",
+      "error_message": "Significant refactor of ",
+      "file": "src/client/pages/scenario/ScenarioList.tsx",
+      "root_cause": "5 lines replaced/restructured",
+      "fix": "Rewrote 59→78 lines (5 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-28T15:44:21.278Z"
+    },
+    {
+      "id": "bug-152",
+      "timestamp": "2026-05-28T15:45:17.131Z",
+      "error_message": "Significant refactor of ",
+      "file": "src/client/pages/scenario-set/ScenarioSetList.tsx",
+      "root_cause": "4 lines replaced/restructured",
+      "fix": "Rewrote 46→62 lines (4 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-28T15:45:17.131Z"
+    },
+    {
+      "id": "bug-153",
+      "timestamp": "2026-05-28T15:45:21.301Z",
+      "error_message": "Incorrect value in code",
+      "file": "src/client/pages/scenario/ScenarioDetail.tsx",
+      "root_cause": "Had 'api'",
+      "fix": "Changed to '/api-test'",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 4,
+      "last_seen": "2026-05-28T15:45:57.496Z"
+    },
+    {
+      "id": "bug-154",
+      "timestamp": "2026-05-28T15:46:06.477Z",
+      "error_message": "Incorrect value in code",
+      "file": "src/client/App.tsx",
+      "root_cause": "Had \"api\"",
+      "fix": "Changed to \"/api-test\"",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 8,
+      "last_seen": "2026-05-28T15:47:18.837Z"
+    },
+    {
+      "id": "bug-155",
+      "timestamp": "2026-05-28T15:46:31.747Z",
+      "error_message": "Incorrect value in code",
+      "file": "src/client/pages/scenario-set/ScenarioSetDetail.tsx",
+      "root_cause": "Had 'api'",
+      "fix": "Changed to '/api-test'",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-28T15:46:31.747Z"
+    },
+    {
+      "id": "bug-156",
+      "timestamp": "2026-05-28T15:46:41.247Z",
+      "error_message": "CSS fix: method",
+      "file": "src/client/pages/scenario-set/ScenarioSetDetail.tsx",
+      "root_cause": "method: 'PUT', body: JSON.stringify({ name: name.trim(), description, tags, status, scenario_ids: selectedIds, test_type: testType → 'PUT', body: JSON.stringify({ name: name.trim(), description, tags, status, scenario_ids: selectedIds",
+      "fix": "Changed method: 'PUT', body: JSON.stringify({ name: name.trim(), description, tags, status, scenario_ids: selectedIds, test_type: testType → 'PUT', body: JSON.stringify({ name: name.trim(), description, tags, status, scenario_ids: selectedIds",
+      "tags": [
+        "auto-detected",
+        "style-fix",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 2,
+      "last_seen": "2026-05-28T15:46:47.801Z"
+    },
+    {
+      "id": "bug-157",
+      "timestamp": "2026-05-29T12:25:04.131Z",
+      "error_message": "Null/undefined access in ",
+      "file": "src/client/pages/scenario/NodeConfigPanel.tsx",
+      "root_cause": "Property access on potentially null/undefined value",
+      "fix": "Added null safety (optional chaining or null check)",
+      "tags": [
+        "auto-detected",
+        "null-safety",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-29T12:25:04.131Z"
+    },
+    {
+      "id": "bug-158",
+      "timestamp": "2026-05-29T12:36:04.102Z",
+      "error_message": "Significant refactor of ",
+      "file": "src/server/routes/apis.ts",
+      "root_cause": "2 lines replaced/restructured",
+      "fix": "Rewrote 5→5 lines (2 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-29T12:36:04.102Z"
+    },
+    {
+      "id": "bug-159",
+      "timestamp": "2026-05-29T12:38:20.032Z",
+      "error_message": "CSS fix: color, line-height",
+      "file": "src/client/App.css",
+      "root_cause": "color: var(--fg) → var(--fg-secondary); line-height: 1.5 → 1.6",
+      "fix": "Changed color: var(--fg) → var(--fg-secondary); line-height: 1.5 → 1.6",
+      "tags": [
+        "auto-detected",
+        "style-fix",
+        "css"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-29T12:38:20.032Z"
+    },
+    {
+      "id": "bug-160",
+      "timestamp": "2026-05-29T12:38:36.053Z",
+      "error_message": "Incorrect value in code",
+      "file": "src/client/pages/environment/EnvironmentDetail.tsx",
+      "root_cause": "Had '/api-test/environment'",
+      "fix": "Changed to `${basePath}/environment`",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-29T12:38:36.053Z"
+    },
+    {
+      "id": "bug-161",
+      "timestamp": "2026-05-29T12:40:52.930Z",
+      "error_message": "CSS fix: action, passed, id",
+      "file": "src/client/pages/web-test/WebCaseDetail.tsx",
+      "root_cause": "action: '检查元素', desc: '导航栏存在用户头像元素', passed: false → string; passed: true → boolean; id: 3, time: '2026-05-26 18:44:05', status: 'success', duration: '7.9s', executor: 'tester', passRate: '3/3' → number",
+      "fix": "Changed action: '检查元素', desc: '导航栏存在用户头像元素', passed: false → string; passed: true → boolean; id: 3, time: '2026-05-26 18:44:05', status: 'success', duration: '7.9s', executor: 'tester', passRate: '3/3' → number",
+      "tags": [
+        "auto-detected",
+        "style-fix",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-29T12:40:52.930Z"
+    },
+    {
+      "id": "bug-162",
+      "timestamp": "2026-05-29T12:40:53.150Z",
+      "error_message": "Incorrect value in code",
+      "file": "src/client/pages/pc-test/PcTestHome.tsx",
+      "root_cause": "Had '/web-cases?test_type=pc&page=1&pageSize=1'",
+      "fix": "Changed to '/pc-cases?page=1&pageSize=1'",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-29T12:40:53.150Z"
+    },
+    {
+      "id": "bug-163",
+      "timestamp": "2026-05-29T12:41:40.718Z",
+      "error_message": "Type error",
+      "file": "src/server/routes/web-cases.ts",
+      "root_cause": "Missing or incorrect type annotation",
+      "fix": "Added type assertion/annotation",
+      "tags": [
+        "auto-detected",
+        "type-fix",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-29T12:41:40.718Z"
+    },
+    {
+      "id": "bug-164",
+      "timestamp": "2026-05-29T13:00:24.010Z",
+      "error_message": "Type error",
+      "file": "src/server/engine/web-executor.ts",
+      "root_cause": "Missing or incorrect type annotation",
+      "fix": "Added type assertion/annotation | Also: await (agent as any).page.goto(step.desc, { waitUntil: 'domc; await (agent as any).page.waitForLoadState('networkidle', { ",
+      "tags": [
+        "auto-detected",
+        "type-fix",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 2,
+      "last_seen": "2026-05-29T13:03:46.205Z"
+    },
+    {
+      "id": "bug-165",
+      "timestamp": "2026-05-29T13:00:27.642Z",
+      "error_message": "Wrong reference: model should be modelName",
+      "file": "src/server/engine/web-executor.ts",
+      "root_cause": "Used \"model\" instead of \"modelName\"",
+      "fix": "Changed model → modelName",
+      "tags": [
+        "auto-detected",
+        "wrong-reference",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-29T13:00:27.642Z"
+    },
+    {
+      "id": "bug-166",
+      "timestamp": "2026-05-29T13:00:37.574Z",
+      "error_message": "Type error",
+      "file": "src/server/engine/pc-executor.ts",
+      "root_cause": "Missing or incorrect type annotation",
+      "fix": "Added type assertion/annotation | Also: await (agent as any).page.goto(step.desc, { waitUntil: 'domc; await (agent as any).page.waitForLoadState('networkidle', { ",
+      "tags": [
+        "auto-detected",
+        "type-fix",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 2,
+      "last_seen": "2026-05-29T13:03:54.201Z"
+    },
+    {
+      "id": "bug-167",
+      "timestamp": "2026-05-29T13:00:40.833Z",
+      "error_message": "Wrong reference: model should be modelName",
+      "file": "src/server/engine/pc-executor.ts",
+      "root_cause": "Used \"model\" instead of \"modelName\"",
+      "fix": "Changed model → modelName",
+      "tags": [
+        "auto-detected",
+        "wrong-reference",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-29T13:00:40.833Z"
+    },
+    {
+      "id": "bug-168",
+      "timestamp": "2026-05-29T13:00:49.632Z",
+      "error_message": "Type error",
+      "file": "src/server/engine/mobile-executor.ts",
+      "root_cause": "Missing or incorrect type annotation",
+      "fix": "Added type assertion/annotation | Also: androidAgent = await agentFromAdbDevice(testCase.platform ==; modelName: process.env.MIDSCENE_MODEL || 'gpt-4o',",
+      "tags": [
+        "auto-detected",
+        "type-fix",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 2,
+      "last_seen": "2026-05-29T13:01:04.324Z"
+    },
+    {
+      "id": "bug-169",
+      "timestamp": "2026-05-29T13:01:01.304Z",
+      "error_message": "Wrong reference: model should be modelName",
+      "file": "src/server/engine/mobile-executor.ts",
+      "root_cause": "Used \"model\" instead of \"modelName\"",
+      "fix": "Changed model → modelName",
+      "tags": [
+        "auto-detected",
+        "wrong-reference",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-29T13:01:01.304Z"
+    },
+    {
+      "id": "bug-170",
+      "timestamp": "2026-05-29T13:02:56.027Z",
+      "error_message": "Significant refactor of ",
+      "file": "src/server/engine/mobile-executor.ts",
+      "root_cause": "3 lines replaced/restructured",
+      "fix": "Rewrote 6→4 lines (3 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-29T13:02:56.027Z"
+    },
+    {
+      "id": "bug-171",
+      "timestamp": "2026-05-29T13:03:49.855Z",
+      "error_message": "Significant refactor of ",
+      "file": "src/server/engine/web-executor.ts",
+      "root_cause": "10 lines replaced/restructured",
+      "fix": "Rewrote 14→4 lines (10 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-29T13:03:49.855Z"
+    },
+    {
+      "id": "bug-172",
+      "timestamp": "2026-05-30T05:25:57.987Z",
+      "error_message": "Wrong operator: || should be &&",
+      "file": "src/client/pages/scenario/ExecutionResultPanel.tsx",
+      "root_cause": "Used \"||\" instead of \"&&\"",
+      "fix": "Changed operator || → &&",
+      "tags": [
+        "auto-detected",
+        "operator-fix",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-30T05:25:57.987Z"
+    },
+    {
+      "id": "bug-173",
+      "timestamp": "2026-05-30T05:46:24.465Z",
+      "error_message": "Null/undefined access in ",
+      "file": "src/server/db/apis.ts",
+      "root_cause": "Property access on potentially null/undefined value",
+      "fix": "Added null safety (optional chaining or null check)",
+      "tags": [
+        "auto-detected",
+        "null-safety",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-30T05:46:24.465Z"
+    },
+    {
+      "id": "bug-174",
+      "timestamp": "2026-05-30T05:46:57.504Z",
+      "error_message": "Null/undefined access in ",
+      "file": "src/server/db/scenarios.ts",
+      "root_cause": "Property access on potentially null/undefined value",
+      "fix": "Added null safety (optional chaining or null check)",
+      "tags": [
+        "auto-detected",
+        "null-safety",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-30T05:46:57.504Z"
+    },
+    {
+      "id": "bug-175",
+      "timestamp": "2026-05-30T05:50:16.089Z",
+      "error_message": "Significant refactor of ",
+      "file": "src/server/routes/scenario-sets.ts",
+      "root_cause": "4 lines replaced/restructured",
+      "fix": "Rewrote 22→44 lines (4 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-30T05:50:16.089Z"
+    },
+    {
+      "id": "bug-176",
+      "timestamp": "2026-05-30T05:50:46.434Z",
+      "error_message": "Significant refactor of ",
+      "file": "src/server/engine/executor.ts",
+      "root_cause": "11 lines replaced/restructured",
+      "fix": "Rewrote 24→9 lines (11 removed) | Also: const steps = [] as ScenarioExecutionStepRow[];; const api_links = [] as ScenarioApiExecutionLinkRo",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 2,
+      "last_seen": "2026-05-30T05:50:50.940Z"
+    },
+    {
+      "id": "bug-177",
+      "timestamp": "2026-05-30T05:52:58.493Z",
+      "error_message": "Significant refactor of ",
+      "file": "src/server/scheduler/scheduler.ts",
+      "root_cause": "3 lines replaced/restructured",
+      "fix": "Rewrote 6→4 lines (3 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-30T05:52:58.493Z"
+    },
+    {
+      "id": "bug-178",
+      "timestamp": "2026-05-30T06:02:17.264Z",
+      "error_message": "CSS fix: background, min-width, font-size",
+      "file": "src/client/pages/api-test/ApiDetail.css",
+      "root_cause": "background: var(--danger-subtle) → var(--bg-secondary); min-width: 60px → 0; font-size: 0.7rem → 0.8125rem",
+      "fix": "Changed background: var(--danger-subtle) → var(--bg-secondary); min-width: 60px → 0; font-size: 0.7rem → 0.8125rem",
+      "tags": [
+        "auto-detected",
+        "style-fix",
+        "css"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-30T06:02:17.264Z"
+    },
+    {
+      "id": "bug-179",
+      "timestamp": "2026-05-30T06:02:30.222Z",
+      "error_message": "Incorrect value in code",
+      "file": "src/client/pages/api-test/ApiDetail.tsx",
+      "root_cause": "Had './ApiDetail.css'",
+      "fix": "Changed to '../../components/ApiExecutionTimeline'",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-30T06:02:30.222Z"
+    },
+    {
+      "id": "bug-180",
+      "timestamp": "2026-05-30T06:02:49.047Z",
+      "error_message": "Significant refactor of ",
+      "file": "src/client/pages/api-test/ApiDetail.tsx",
+      "root_cause": "2 lines replaced/restructured",
+      "fix": "Rewrote 18→25 lines (2 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-30T06:02:49.047Z"
+    },
+    {
+      "id": "bug-181",
+      "timestamp": "2026-05-30T06:03:11.209Z",
+      "error_message": "Missing guard clause",
+      "file": "src/client/pages/api-test/ApiDetail.tsx",
+      "root_cause": "No early return/throw for edge case: !exec || !exec.steps",
+      "fix": "Added guard clause: if (!exec || !exec.steps)",
+      "tags": [
+        "auto-detected",
+        "guard-clause",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-30T06:03:11.209Z"
+    },
+    {
+      "id": "bug-182",
+      "timestamp": "2026-05-30T06:04:07.063Z",
+      "error_message": "Null/undefined access in ",
+      "file": "src/client/pages/api-test/ApiDetail.tsx",
+      "root_cause": "Property access on potentially null/undefined value",
+      "fix": "Added null safety (optional chaining or null check)",
+      "tags": [
+        "auto-detected",
+        "null-safety",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-30T06:04:07.063Z"
+    },
+    {
+      "id": "bug-183",
+      "timestamp": "2026-05-30T06:07:30.246Z",
+      "error_message": "CSS fix: color, font-size, padding",
+      "file": "src/client/pages/api-test/ApiDetail.css",
+      "root_cause": "color: var(--danger) → var(--primary); font-size: 0.8125rem → 0.75rem; padding: 0.25rem 0 → 2px 8px",
+      "fix": "Changed color: var(--danger) → var(--primary); font-size: 0.8125rem → 0.75rem; padding: 0.25rem 0 → 2px 8px",
+      "tags": [
+        "auto-detected",
+        "style-fix",
+        "css"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-30T06:07:30.246Z"
+    },
+    {
+      "id": "bug-184",
+      "timestamp": "2026-05-30T06:11:02.035Z",
+      "error_message": "Null/undefined access in ",
+      "file": "src/client/pages/scenario/ScenarioDetail.tsx",
+      "root_cause": "Property access on potentially null/undefined value",
+      "fix": "Added null safety (optional chaining or null check)",
+      "tags": [
+        "auto-detected",
+        "null-safety",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-30T06:11:02.035Z"
+    },
+    {
+      "id": "bug-185",
+      "timestamp": "2026-05-30T06:11:07.299Z",
+      "error_message": "CSS fix: font-size, background",
+      "file": "src/client/pages/scenario/ScenarioDetail.css",
+      "root_cause": "font-size: 0.8125rem → 0.75rem; background: var(--bg-secondary) → var(--primary-subtle)",
+      "fix": "Changed font-size: 0.8125rem → 0.75rem; background: var(--bg-secondary) → var(--primary-subtle)",
+      "tags": [
+        "auto-detected",
+        "style-fix",
+        "css"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-30T06:11:07.299Z"
+    },
+    {
+      "id": "bug-186",
+      "timestamp": "2026-05-30T06:12:16.686Z",
+      "error_message": "Significant refactor of ",
+      "file": "src/client/pages/scenario-set/ScenarioSetDetail.tsx",
+      "root_cause": "2 lines replaced/restructured",
+      "fix": "Rewrote 14→21 lines (2 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-30T06:12:16.686Z"
+    },
+    {
+      "id": "bug-187",
+      "timestamp": "2026-05-30T06:12:32.806Z",
+      "error_message": "Null/undefined access in ",
+      "file": "src/client/pages/scenario-set/ScenarioSetDetail.tsx",
+      "root_cause": "Property access on potentially null/undefined value",
+      "fix": "Added null safety (optional chaining or null check)",
+      "tags": [
+        "auto-detected",
+        "null-safety",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-30T06:12:32.806Z"
+    },
+    {
+      "id": "bug-188",
+      "timestamp": "2026-05-30T06:12:56.517Z",
+      "error_message": "CSS fix: cursor",
+      "file": "src/client/pages/scenario-set/ScenarioSetDetail.css",
+      "root_cause": "cursor: not-allowed → pointer",
+      "fix": "Changed cursor: not-allowed → pointer",
+      "tags": [
+        "auto-detected",
+        "style-fix",
+        "css"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-30T06:12:56.517Z"
+    },
+    {
+      "id": "bug-189",
+      "timestamp": "2026-05-30T06:31:53.669Z",
+      "error_message": "Significant refactor of ",
+      "file": "src/server/routes/apis.ts",
+      "root_cause": "209 lines replaced/restructured",
+      "fix": "Rewrote 282→42 lines (209 removed) | Also: // GET /api/apis/:id/logs; const logs = findLogsByApiId(api.id, limit);",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 2,
+      "last_seen": "2026-05-30T06:34:22.259Z"
+    },
+    {
+      "id": "bug-190",
+      "timestamp": "2026-05-30T06:32:24.013Z",
+      "error_message": "Null/undefined access in ",
+      "file": "src/server/routes/apis.ts",
+      "root_cause": "Property access on potentially null/undefined value",
+      "fix": "Added null safety (optional chaining or null check)",
+      "tags": [
+        "auto-detected",
+        "null-safety",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-30T06:32:24.013Z"
+    },
+    {
+      "id": "bug-191",
+      "timestamp": "2026-05-30T07:43:30.874Z",
+      "error_message": "Wrong reference: selectedExecutionId should be selectedExecution",
+      "file": "src/client/pages/api-test/ApiDetail.tsx",
+      "root_cause": "Used \"selectedExecutionId\" instead of \"selectedExecution\"",
+      "fix": "Changed selectedExecutionId → selectedExecution",
+      "tags": [
+        "auto-detected",
+        "wrong-reference",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-30T07:43:30.874Z"
+    },
+    {
+      "id": "bug-192",
+      "timestamp": "2026-05-30T07:44:42.428Z",
+      "error_message": "Type error",
+      "file": "src/client/pages/scenario/ScenarioDetail.tsx",
+      "root_cause": "Missing or incorrect type annotation",
+      "fix": "Added type assertion/annotation",
+      "tags": [
+        "auto-detected",
+        "type-fix",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-30T07:44:42.428Z"
+    },
+    {
+      "id": "bug-193",
+      "timestamp": "2026-05-30T07:45:46.290Z",
+      "error_message": "Null/undefined access in ",
+      "file": "src/client/pages/api-test/ApiDetail.tsx",
+      "root_cause": "Property access on potentially null/undefined value",
+      "fix": "Added null safety (optional chaining or null check)",
+      "tags": [
+        "auto-detected",
+        "null-safety",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-30T07:45:46.290Z"
+    },
+    {
+      "id": "bug-194",
+      "timestamp": "2026-05-30T07:46:11.946Z",
+      "error_message": "Type error",
+      "file": "src/client/pages/api-test/ApiDetail.tsx",
+      "root_cause": "Missing or incorrect type annotation",
+      "fix": "Added type assertion/annotation",
+      "tags": [
+        "auto-detected",
+        "type-fix",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-30T07:46:11.946Z"
+    },
+    {
+      "id": "bug-195",
+      "timestamp": "2026-05-30T07:48:53.770Z",
+      "error_message": "Wrong reference: setSelectedExecution should be handleSelectExecution",
+      "file": "src/client/pages/api-test/ApiDetail.tsx",
+      "root_cause": "Used \"setSelectedExecution\" instead of \"handleSelectExecution\"",
+      "fix": "Changed setSelectedExecution → handleSelectExecution",
+      "tags": [
+        "auto-detected",
+        "wrong-reference",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 2,
+      "last_seen": "2026-05-30T07:48:57.800Z"
+    },
+    {
+      "id": "bug-196",
+      "timestamp": "2026-05-30T08:43:51.845Z",
+      "error_message": "Significant refactor of ",
+      "file": "src/client/pages/api-test/ApiDetail.tsx",
+      "root_cause": "33 lines replaced/restructured",
+      "fix": "Rewrote 104→55 lines (33 removed) | Also: const [lastResult, setLastResult] = useState<ApiLo; const [resultCollapsed, setResultCollapsed] = useS | Also: setExecuting(true); setLastResult(null); setResult; const res = await apiFetch<ApiLog>(`/apis/${realId",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 3,
+      "last_seen": "2026-05-30T08:44:15.578Z"
+    },
+    {
+      "id": "bug-197",
+      "timestamp": "2026-05-30T08:45:18.077Z",
+      "error_message": "CSS fix: pre",
+      "file": "src/client/pages/api-test/ApiDetail.tsx",
+      "root_cause": "pre: [] as AssertionResult[], main: [] as AssertionResult[], post: [] as AssertionResult[], final: [] as AssertionResult[] → [], main: [], post: [], final: []",
+      "fix": "Changed pre: [] as AssertionResult[], main: [] as AssertionResult[], post: [] as AssertionResult[], final: [] as AssertionResult[] → [], main: [], post: [], final: []",
+      "tags": [
+        "auto-detected",
+        "style-fix",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-30T08:45:18.077Z"
+    },
+    {
+      "id": "bug-198",
+      "timestamp": "2026-05-30T08:45:29.909Z",
+      "error_message": "Null/undefined access in ",
+      "file": "src/client/pages/api-test/ApiDetail.tsx",
+      "root_cause": "Property access on potentially null/undefined value",
+      "fix": "Added null safety (optional chaining or null check)",
+      "tags": [
+        "auto-detected",
+        "null-safety",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-30T08:45:29.909Z"
+    },
+    {
+      "id": "bug-199",
+      "timestamp": "2026-05-30T08:52:46.690Z",
+      "error_message": "Wrong condition in logic",
+      "file": "src/client/pages/api-test/ApiDetail.tsx",
+      "root_cause": "Condition was: if (r.code === 200 && r.data)",
+      "fix": "Changed to: if (r.code === 200 && r.data && r.data.length > 0)",
+      "tags": [
+        "auto-detected",
+        "logic-fix",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-30T08:52:46.690Z"
+    },
+    {
+      "id": "bug-200",
+      "timestamp": "2026-05-30T09:03:54.428Z",
+      "error_message": "Significant refactor of ",
+      "file": "src/server/engine/api-executor.ts",
+      "root_cause": "8 lines replaced/restructured",
+      "fix": "Rewrote 24→37 lines (8 removed) | Also: addStep('post_action', '后置动作', '执行后置动作', {});; let postScript = api.post_script || '';",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 2,
+      "last_seen": "2026-05-30T09:04:19.407Z"
+    },
+    {
+      "id": "bug-201",
+      "timestamp": "2026-05-30T09:15:21.801Z",
+      "error_message": "Wrong reference: duration should be status",
+      "file": "src/client/pages/api-test/ApiDetail.css",
+      "root_cause": "Used \"duration\" instead of \"status\"",
+      "fix": "Changed duration → status",
+      "tags": [
+        "auto-detected",
+        "wrong-reference",
+        "css"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-30T09:15:21.801Z"
+    },
+    {
+      "id": "bug-202",
+      "timestamp": "2026-05-30T09:17:17.523Z",
+      "error_message": "Incorrect value in code",
+      "file": "src/client/pages/scenario/ScenarioDetail.tsx",
+      "root_cause": "Had ', '",
+      "fix": "Changed to \"field\"",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-30T09:17:17.523Z"
+    },
+    {
+      "id": "bug-203",
+      "timestamp": "2026-05-30T09:17:27.827Z",
+      "error_message": "Incorrect value in code",
+      "file": "src/client/pages/scenario-set/ScenarioSetDetail.tsx",
+      "root_cause": "Had '../../utils/notification'",
+      "fix": "Changed to '../../utils/datetime'",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-30T09:17:27.827Z"
+    },
+    {
+      "id": "bug-204",
+      "timestamp": "2026-05-30T09:17:54.698Z",
+      "error_message": "Incorrect value in code",
+      "file": "src/client/pages/api-test/ApiDetail.tsx",
+      "root_cause": "Had ', '",
+      "fix": "Changed to \"field\"",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-30T09:17:54.698Z"
+    },
+    {
+      "id": "bug-205",
+      "timestamp": "2026-05-30T09:18:02.268Z",
+      "error_message": "Incorrect value in code",
+      "file": "src/client/pages/batch-report/BatchReportDetail.tsx",
+      "root_cause": "Had './BatchReportDetail.css'",
+      "fix": "Changed to '../../utils/datetime'",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-30T09:18:02.268Z"
+    },
+    {
+      "id": "bug-206",
+      "timestamp": "2026-05-30T09:18:21.341Z",
+      "error_message": "Incorrect value in code",
+      "file": "src/client/pages/batch-report/BatchReportList.tsx",
+      "root_cause": "Had '../../types'",
+      "fix": "Changed to '../../utils/datetime'",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-30T09:18:21.341Z"
+    },
+    {
+      "id": "bug-207",
+      "timestamp": "2026-05-30T09:18:44.577Z",
+      "error_message": "Wrong reference: toLocalDateTime should be formatDateTime",
+      "file": "src/client/pages/batch-report/BatchReportDetail.tsx",
+      "root_cause": "Used \"toLocalDateTime\" instead of \"formatDateTime\"",
+      "fix": "Changed toLocalDateTime → formatDateTime",
+      "tags": [
+        "auto-detected",
+        "wrong-reference",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-30T09:18:44.577Z"
+    },
+    {
+      "id": "bug-208",
+      "timestamp": "2026-05-30T09:19:06.595Z",
+      "error_message": "Incorrect value in code",
+      "file": "src/client/pages/pc-test/PcCaseDetail.tsx",
+      "root_cause": "Had '../../utils/notification'",
+      "fix": "Changed to '../../utils/datetime'",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-30T09:19:06.595Z"
+    },
+    {
+      "id": "bug-209",
+      "timestamp": "2026-05-30T09:19:10.676Z",
+      "error_message": "CSS fix: time",
+      "file": "src/client/pages/pc-test/PcCaseDetail.tsx",
+      "root_cause": "time: log.executed_at.replace('T', ' ').slice(0, 19), → formatDateTime(log.executed_at),",
+      "fix": "Changed time: log.executed_at.replace('T', ' ').slice(0, 19), → formatDateTime(log.executed_at),",
+      "tags": [
+        "auto-detected",
+        "style-fix",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-30T09:19:10.676Z"
+    },
+    {
+      "id": "bug-210",
+      "timestamp": "2026-05-30T09:19:17.695Z",
+      "error_message": "Incorrect value in code",
+      "file": "src/client/pages/web-test/WebCaseDetail.tsx",
+      "root_cause": "Had '../../utils/notification'",
+      "fix": "Changed to '../../utils/datetime'",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-30T09:19:17.695Z"
+    },
+    {
+      "id": "bug-211",
+      "timestamp": "2026-05-30T09:19:21.724Z",
+      "error_message": "CSS fix: time",
+      "file": "src/client/pages/web-test/WebCaseDetail.tsx",
+      "root_cause": "time: log.executed_at.replace('T', ' ').slice(0, 19), → formatDateTime(log.executed_at),",
+      "fix": "Changed time: log.executed_at.replace('T', ' ').slice(0, 19), → formatDateTime(log.executed_at),",
+      "tags": [
+        "auto-detected",
+        "style-fix",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-30T09:19:21.724Z"
+    },
+    {
+      "id": "bug-212",
+      "timestamp": "2026-05-30T09:19:55.652Z",
+      "error_message": "Incorrect value in code",
+      "file": "src/client/pages/mock/MockDetail.tsx",
+      "root_cause": "Had '../../components/InlineEdit'",
+      "fix": "Changed to '../../utils/datetime'",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 2,
+      "last_seen": "2026-05-30T09:19:59.494Z"
+    },
+    {
+      "id": "bug-213",
+      "timestamp": "2026-05-30T09:20:06.958Z",
+      "error_message": "Incorrect value in code",
+      "file": "src/client/pages/mobile-test/MobileTestDetail.tsx",
+      "root_cause": "Had '../../utils/notification'",
+      "fix": "Changed to '../../utils/datetime'",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-30T09:20:06.958Z"
+    },
+    {
+      "id": "bug-214",
+      "timestamp": "2026-05-30T09:28:07.212Z",
+      "error_message": "Missing error handling in envToMap",
+      "file": "src/server/db/environments.ts",
+      "root_cause": "Code path had no error handling — exceptions would propagate uncaught",
+      "fix": "Added try/catch block",
+      "tags": [
+        "auto-detected",
+        "error-handling",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-30T09:28:07.212Z"
+    },
+    {
+      "id": "bug-215",
+      "timestamp": "2026-05-30T09:40:23.377Z",
+      "error_message": "Significant refactor of ",
+      "file": "src/server/engine/api-executor.ts",
+      "root_cause": "3 lines replaced/restructured",
+      "fix": "Rewrote 11→13 lines (3 removed) | Also: for (const action of postActionDetails) {; addStep('post_action', '数据库查询', `DB: ${action.dbNa",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 2,
+      "last_seen": "2026-05-30T09:40:28.139Z"
+    },
+    {
+      "id": "bug-216",
+      "timestamp": "2026-05-30T09:40:43.850Z",
+      "error_message": "Type error",
+      "file": "src/client/components/ApiExecutionTimeline.tsx",
+      "root_cause": "Missing or incorrect type annotation",
+      "fix": "Added type assertion/annotation",
+      "tags": [
+        "auto-detected",
+        "type-fix",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-30T09:40:43.850Z"
+    },
+    {
+      "id": "bug-217",
+      "timestamp": "2026-05-30T09:47:35.150Z",
+      "error_message": "Significant refactor of ",
+      "file": "src/client/components/PrePostActionItem.tsx",
+      "root_cause": "2 lines replaced/restructured",
+      "fix": "Rewrote 6→25 lines (2 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-30T09:47:35.150Z"
+    },
+    {
+      "id": "bug-218",
+      "timestamp": "2026-05-30T09:47:55.453Z",
+      "error_message": "CSS fix: source",
+      "file": "src/client/components/PrePostActionItem.tsx",
+      "root_cause": "source: 'status' | 'header' | 'body' → 'status' | 'header' | 'body' | 'vars' | 'result' | 'row_count'",
+      "fix": "Changed source: 'status' | 'header' | 'body' → 'status' | 'header' | 'body' | 'vars' | 'result' | 'row_count'",
+      "tags": [
+        "auto-detected",
+        "style-fix",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 2,
+      "last_seen": "2026-05-30T09:48:04.552Z"
+    },
+    {
+      "id": "bug-219",
+      "timestamp": "2026-05-30T09:49:35.595Z",
+      "error_message": "Missing error handling in evaluateActionRules",
+      "file": "src/server/engine/api-executor.ts",
+      "root_cause": "Code path had no error handling — exceptions would propagate uncaught",
+      "fix": "Added try/catch block | Also: // Execute the action and get result for rule evaluation; let dbResult: unknown[] = [];",
+      "tags": [
+        "auto-detected",
+        "error-handling",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 2,
+      "last_seen": "2026-05-30T09:51:35.124Z"
+    },
+    {
+      "id": "bug-220",
+      "timestamp": "2026-05-30T09:49:57.120Z",
+      "error_message": "Null/undefined access in ",
+      "file": "src/server/engine/api-executor.ts",
+      "root_cause": "Property access on potentially null/undefined value",
+      "fix": "Added null safety (optional chaining or null check) | Also: let envDbConfigs: Record<string, import('../db/environments.",
+      "tags": [
+        "auto-detected",
+        "null-safety",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 2,
+      "last_seen": "2026-05-30T09:51:49.585Z"
+    },
+    {
+      "id": "bug-221",
+      "timestamp": "2026-05-30T09:50:05.358Z",
+      "error_message": "Missing import: ../db/environments.js",
+      "file": "src/server/engine/api-executor.ts",
+      "root_cause": "Module(s) not imported: ../db/environments.js",
+      "fix": "Added import(s) for ../db/environments.js",
+      "tags": [
+        "auto-detected",
+        "missing-import",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 2,
+      "last_seen": "2026-05-30T09:50:50.309Z"
+    },
+    {
+      "id": "bug-222",
+      "timestamp": "2026-05-30T09:52:17.767Z",
+      "error_message": "Significant refactor of ",
+      "file": "src/server/engine/api-executor.ts",
+      "root_cause": "5 lines replaced/restructured",
+      "fix": "Rewrote 10→3 lines (5 removed) | Also: source: 'status' | 'header' | 'body',; key: string",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 2,
+      "last_seen": "2026-05-30T09:53:40.678Z"
+    },
+    {
+      "id": "bug-223",
+      "timestamp": "2026-05-30T09:54:11.586Z",
+      "error_message": "Type error",
+      "file": "src/server/engine/api-executor.ts",
+      "root_cause": "Missing or incorrect type annotation",
+      "fix": "Added type assertion/annotation | Also: } else if (rule.source === 'vars') {; actual = allExtracted[rule.key] || '';",
+      "tags": [
+        "auto-detected",
+        "type-fix",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 2,
+      "last_seen": "2026-05-30T09:54:22.219Z"
+    },
+    {
+      "id": "bug-224",
+      "timestamp": "2026-05-30T09:55:53.786Z",
+      "error_message": "Incorrect value in code",
+      "file": "src/server/engine/api-executor.ts",
+      "root_cause": "Had '../db-pool.js'",
+      "fix": "Changed to '../db-pool'",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 2,
+      "last_seen": "2026-05-30T09:56:41.071Z"
+    },
+    {
+      "id": "bug-225",
+      "timestamp": "2026-05-30T10:34:20.747Z",
+      "error_message": "Wrong reference: JSON should be logData",
+      "file": "src/server/engine/api-executor.ts",
+      "root_cause": "Used \"JSON\" instead of \"logData\"",
+      "fix": "Changed JSON → logData",
+      "tags": [
+        "auto-detected",
+        "wrong-reference",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-30T10:34:20.747Z"
+    },
+    {
+      "id": "bug-226",
+      "timestamp": "2026-05-30T10:59:53.306Z",
+      "error_message": "CSS fix: value",
+      "file": "src/client/pages/api-test/ApiDetail.tsx",
+      "root_cause": "value: 'body', label: '响应体' → 'vars', label: '变量'",
+      "fix": "Changed value: 'body', label: '响应体' → 'vars', label: '变量'",
+      "tags": [
+        "auto-detected",
+        "style-fix",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-30T10:59:53.306Z"
+    },
+    {
+      "id": "bug-227",
+      "timestamp": "2026-05-30T10:59:58.176Z",
+      "error_message": "Incorrect value in code",
+      "file": "src/client/pages/api-test/ApiDetail.tsx",
+      "root_cause": "Had '路径如 data.id'",
+      "fix": "Changed to 'vars'",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-30T10:59:58.176Z"
+    },
+    {
+      "id": "bug-228",
+      "timestamp": "2026-05-30T11:03:03.942Z",
+      "error_message": "Significant refactor of ",
+      "file": "src/client/pages/api-test/ApiDetail.tsx",
+      "root_cause": "6 lines replaced/restructured",
+      "fix": "Rewrote 10→3 lines (6 removed) | Also: const toggleFinalRule = (idx: number) => {; const rule = finalAssertionRules[idx]; | Also: // ─── Tab: Final ───; const renderFinalTab = () => (",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 3,
+      "last_seen": "2026-05-30T11:03:46.240Z"
+    },
+    {
+      "id": "bug-229",
+      "timestamp": "2026-05-30T11:05:32.800Z",
+      "error_message": "Missing guard clause",
+      "file": "src/server/engine/api-executor.ts",
+      "root_cause": "No early return/throw for edge case: postActionDetails.length > 0",
+      "fix": "Added guard clause: if (postActionDetails.length > 0)",
+      "tags": [
+        "auto-detected",
+        "guard-clause",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-30T11:05:32.800Z"
+    },
+    {
+      "id": "bug-230",
+      "timestamp": "2026-05-30T11:06:08.300Z",
+      "error_message": "CSS fix: color",
+      "file": "src/client/pages/api-test/ApiDetail.css",
+      "root_cause": "color: var(--danger) → var(--fg-tertiary)",
+      "fix": "Changed color: var(--danger) → var(--fg-tertiary)",
+      "tags": [
+        "auto-detected",
+        "style-fix",
+        "css"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-30T11:06:08.300Z"
+    },
+    {
+      "id": "bug-231",
+      "timestamp": "2026-05-30T11:08:29.857Z",
+      "error_message": "Wrong reference: toggleFinalRule should be onUpdate",
+      "file": "src/client/pages/api-test/ApiDetail.tsx",
+      "root_cause": "Used \"toggleFinalRule\" instead of \"onUpdate\"",
+      "fix": "Changed toggleFinalRule → onUpdate",
+      "tags": [
+        "auto-detected",
+        "wrong-reference",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-30T11:08:29.857Z"
+    },
+    {
+      "id": "bug-232",
+      "timestamp": "2026-05-30T11:10:33.084Z",
+      "error_message": "Significant refactor of ",
+      "file": "src/server/engine/api-executor.ts",
+      "root_cause": "11 lines replaced/restructured",
+      "fix": "Rewrote 18→3 lines (11 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-30T11:10:33.084Z"
+    },
+    {
+      "id": "bug-233",
+      "timestamp": "2026-05-30T11:20:25.846Z",
+      "error_message": "CSS fix: x",
+      "file": "src/client/pages/scenario/ScenarioDetail.tsx",
+      "root_cause": "x: 0, y: 0, zoom: 1.2 → 0, y: 0, zoom: 0.7",
+      "fix": "Changed x: 0, y: 0, zoom: 1.2 → 0, y: 0, zoom: 0.7",
+      "tags": [
+        "auto-detected",
+        "style-fix",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 3,
+      "last_seen": "2026-05-30T11:22:37.158Z"
+    },
+    {
+      "id": "bug-234",
+      "timestamp": "2026-05-30T11:24:37.347Z",
+      "error_message": "Null/undefined access in ",
+      "file": "src/client/pages/scenario/ScenarioDetail.tsx",
+      "root_cause": "Property access on potentially null/undefined value",
+      "fix": "Added null safety (optional chaining or null check)",
+      "tags": [
+        "auto-detected",
+        "null-safety",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-30T11:24:37.347Z"
+    },
+    {
+      "id": "bug-235",
+      "timestamp": "2026-05-30T11:27:49.562Z",
+      "error_message": "Incorrect value in code",
+      "file": "src/client/components/ScenarioExecutionTimeline.tsx",
+      "root_cause": "Had '../../types'",
+      "fix": "Changed to '../../utils/api'",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 3,
+      "last_seen": "2026-05-30T11:28:38.084Z"
+    },
+    {
+      "id": "bug-236",
+      "timestamp": "2026-05-30T11:28:13.734Z",
+      "error_message": "Type error",
+      "file": "src/client/components/ScenarioExecutionTimeline.tsx",
+      "root_cause": "Missing or incorrect type annotation",
+      "fix": "Added type assertion/annotation",
+      "tags": [
+        "auto-detected",
+        "type-fix",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-30T11:28:13.734Z"
+    },
+    {
+      "id": "bug-237",
+      "timestamp": "2026-05-30T11:28:17.640Z",
+      "error_message": "CSS fix: link",
+      "file": "src/client/components/ScenarioExecutionTimeline.tsx",
+      "root_cause": "link: ScenarioApiExecutionLink) => { → ScenarioApiExecutionLink, apiId: number) => {",
+      "fix": "Changed link: ScenarioApiExecutionLink) => { → ScenarioApiExecutionLink, apiId: number) => {",
+      "tags": [
+        "auto-detected",
+        "style-fix",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-30T11:28:17.640Z"
+    },
+    {
+      "id": "bug-238",
+      "timestamp": "2026-05-30T12:13:42.242Z",
+      "error_message": "Type error",
+      "file": "src/server/engine/api-executor.ts",
+      "root_cause": "Missing or incorrect type annotation",
+      "fix": "Added type assertion/annotation",
+      "tags": [
+        "auto-detected",
+        "type-fix",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-30T12:13:42.242Z"
+    },
+    {
+      "id": "bug-239",
+      "timestamp": "2026-05-30T12:14:55.000Z",
+      "error_message": "Significant refactor of ",
+      "file": "src/server/routes/apis.ts",
+      "root_cause": "2 lines replaced/restructured",
+      "fix": "Rewrote 9→27 lines (2 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-30T12:14:55.000Z"
+    },
+    {
+      "id": "bug-240",
+      "timestamp": "2026-05-30T12:15:02.157Z",
+      "error_message": "Type error",
+      "file": "src/server/routes/apis.ts",
+      "root_cause": "Missing or incorrect type annotation",
+      "fix": "Added type assertion/annotation | Also: const result: (ApiExecutionRow & { sub_executions: ApiExecut; result.push(...standalone.map(s => ({ ...s, sub_executions: ",
+      "tags": [
+        "auto-detected",
+        "type-fix",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 2,
+      "last_seen": "2026-05-30T12:16:57.414Z"
+    },
+    {
+      "id": "bug-241",
+      "timestamp": "2026-05-30T12:16:07.123Z",
+      "error_message": "Incorrect value in code",
+      "file": "src/client/pages/api-test/ApiDetail.tsx",
+      "root_cause": "Had './ApiDetail.css'",
+      "fix": "Changed to './BatchExecutionView'",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-30T12:16:07.123Z"
+    },
+    {
+      "id": "bug-242",
+      "timestamp": "2026-05-30T12:17:47.166Z",
+      "error_message": "CSS fix: background, color",
+      "file": "src/client/pages/api-test/ApiDetail.css",
+      "root_cause": "background: var(--primary-subtle) → var(--accent-subtle); color: var(--primary) → var(--accent)",
+      "fix": "Changed background: var(--primary-subtle) → var(--accent-subtle); color: var(--primary) → var(--accent)",
+      "tags": [
+        "auto-detected",
+        "style-fix",
+        "css"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-30T12:17:47.166Z"
+    },
+    {
+      "id": "bug-243",
+      "timestamp": "2026-05-30T12:38:43.358Z",
+      "error_message": "Wrong operator: && should be ||",
+      "file": "src/client/pages/api-test/ApiDetail.tsx",
+      "root_cause": "Used \"&&\" instead of \"||\"",
+      "fix": "Changed operator && → ||",
+      "tags": [
+        "auto-detected",
+        "operator-fix",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-30T12:38:43.358Z"
+    },
+    {
+      "id": "bug-244",
+      "timestamp": "2026-05-30T12:38:50.318Z",
+      "error_message": "Missing await",
+      "file": "src/client/pages/api-test/ApiDetail.tsx",
+      "root_cause": "Async call without await — returned Promise instead of value",
+      "fix": "Added await to async call",
+      "tags": [
+        "auto-detected",
+        "async-fix",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-30T12:38:50.318Z"
+    },
+    {
+      "id": "bug-245",
+      "timestamp": "2026-05-30T13:05:10.404Z",
+      "error_message": "CSS fix: null",
+      "file": "src/client/components/ScenarioExecutionTimeline.tsx",
+      "root_cause": "null: link.id) → key)",
+      "fix": "Changed null: link.id) → key)",
+      "tags": [
+        "auto-detected",
+        "style-fix",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-30T13:05:10.404Z"
+    },
+    {
+      "id": "bug-246",
+      "timestamp": "2026-05-30T14:37:51.183Z",
+      "error_message": "Significant refactor of ",
+      "file": "src/server/db/index.ts",
+      "root_cause": "3 lines replaced/restructured",
+      "fix": "Rewrote 8→4 lines (3 removed) | Also: // Ensure databases field exists; if (!hasDatabasesField) {",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 2,
+      "last_seen": "2026-05-30T14:40:34.902Z"
+    },
+    {
+      "id": "bug-247",
+      "timestamp": "2026-05-30T14:39:35.705Z",
+      "error_message": "Missing error handling in unknown",
+      "file": "src/server/db/index.ts",
+      "root_cause": "Code path had no error handling — exceptions would propagate uncaught",
+      "fix": "Added try/catch block | Also: try {; } catch {",
+      "tags": [
+        "auto-detected",
+        "error-handling",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 3,
+      "last_seen": "2026-05-30T14:42:39.002Z"
+    },
+    {
+      "id": "bug-248",
+      "timestamp": "2026-05-30T15:09:15.276Z",
+      "error_message": "Missing error handling in unknown",
+      "file": "src/client/pages/scenario/ScenarioDetail.tsx",
+      "root_cause": "Code path had no error handling — exceptions would propagate uncaught",
+      "fix": "Added try/catch block",
+      "tags": [
+        "auto-detected",
+        "error-handling",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-30T15:09:15.276Z"
+    },
+    {
+      "id": "bug-249",
+      "timestamp": "2026-05-30T15:18:19.880Z",
+      "error_message": "Null/undefined access in ",
+      "file": "src/server/engine/executor.ts",
+      "root_cause": "Property access on potentially null/undefined value",
+      "fix": "Added null safety (optional chaining or null check)",
+      "tags": [
+        "auto-detected",
+        "null-safety",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-30T15:18:19.880Z"
+    },
+    {
+      "id": "bug-250",
+      "timestamp": "2026-05-30T15:19:56.585Z",
+      "error_message": "Null/undefined access in ",
+      "file": "src/client/pages/scenario/ScenarioDetail.tsx",
+      "root_cause": "Property access on potentially null/undefined value",
+      "fix": "Added null safety (optional chaining or null check)",
+      "tags": [
+        "auto-detected",
+        "null-safety",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-30T15:19:56.585Z"
+    },
+    {
+      "id": "bug-251",
+      "timestamp": "2026-05-30T15:24:13.587Z",
+      "error_message": "CSS fix: headers",
+      "file": "src/client/pages/scenario/ScenarioDetail.tsx",
+      "root_cause": "headers: newHeaders → newHeaders, rows: rowsWithCorrectCols",
+      "fix": "Changed headers: newHeaders → newHeaders, rows: rowsWithCorrectCols",
+      "tags": [
+        "auto-detected",
+        "style-fix",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 2,
+      "last_seen": "2026-05-30T15:27:46.618Z"
+    },
+    {
+      "id": "bug-252",
+      "timestamp": "2026-05-30T15:24:58.232Z",
+      "error_message": "Wrong reference: newHeaders should be combinedHeaders",
+      "file": "src/client/pages/scenario/ScenarioDetail.tsx",
+      "root_cause": "Used \"newHeaders\" instead of \"combinedHeaders\"",
+      "fix": "Changed newHeaders → combinedHeaders",
+      "tags": [
+        "auto-detected",
+        "wrong-reference",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-30T15:24:58.232Z"
+    },
+    {
+      "id": "bug-253",
+      "timestamp": "2026-05-30T15:37:28.606Z",
+      "error_message": "Type error",
+      "file": "src/server/routes/scenarios.ts",
+      "root_cause": "Missing or incorrect type annotation",
+      "fix": "Added type assertion/annotation",
+      "tags": [
+        "auto-detected",
+        "type-fix",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-30T15:37:28.606Z"
+    },
+    {
+      "id": "bug-254",
+      "timestamp": "2026-05-30T15:37:57.252Z",
+      "error_message": "Significant refactor of ",
+      "file": "src/client/pages/scenario/ScenarioDetail.tsx",
+      "root_cause": "22 lines replaced/restructured",
+      "fix": "Rewrote 64→99 lines (22 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-30T15:37:57.252Z"
+    },
+    {
+      "id": "bug-255",
+      "timestamp": "2026-05-30T15:49:29.796Z",
+      "error_message": "Null/undefined access in ",
+      "file": "src/client/pages/scenario/ScenarioDetail.tsx",
+      "root_cause": "Property access on potentially null/undefined value",
+      "fix": "Added null safety (optional chaining or null check)",
+      "tags": [
+        "auto-detected",
+        "null-safety",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-30T15:49:29.796Z"
+    },
+    {
+      "id": "bug-256",
+      "timestamp": "2026-05-30T15:54:43.618Z",
+      "error_message": "Missing await",
+      "file": "src/client/pages/scenario/ScenarioDetail.tsx",
+      "root_cause": "Async call without await — returned Promise instead of value",
+      "fix": "Added await to async call | Also: // Fetch detail for leader + sub_executions; const fetchDetail = (exec: ScenarioExecution): Promise<Scena",
+      "tags": [
+        "auto-detected",
+        "async-fix",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 2,
+      "last_seen": "2026-05-30T15:54:50.351Z"
+    },
+    {
+      "id": "bug-257",
+      "timestamp": "2026-05-30T16:03:11.390Z",
+      "error_message": "Significant refactor of ",
+      "file": "src/client/pages/scenario/ScenarioDetail.tsx",
+      "root_cause": "16 lines replaced/restructured",
+      "fix": "Rewrote 49→31 lines (16 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-30T16:03:11.390Z"
+    },
+    {
+      "id": "bug-258",
+      "timestamp": "2026-05-30T16:04:23.252Z",
+      "error_message": "Null/undefined access in ",
+      "file": "src/client/pages/scenario/ScenarioBatchExecutionView.tsx",
+      "root_cause": "Property access on potentially null/undefined value",
+      "fix": "Added null safety (optional chaining or null check)",
+      "tags": [
+        "auto-detected",
+        "null-safety",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-30T16:04:23.252Z"
+    },
+    {
+      "id": "bug-259",
+      "timestamp": "2026-05-30T16:12:18.408Z",
+      "error_message": "CSS fix: font-size, background",
+      "file": "src/client/pages/scenario/ScenarioDetail.css",
+      "root_cause": "font-size: 0.8125rem → 0.7rem; background: var(--bg-secondary) → #fff2f0",
+      "fix": "Changed font-size: 0.8125rem → 0.7rem; background: var(--bg-secondary) → #fff2f0",
+      "tags": [
+        "auto-detected",
+        "style-fix",
+        "css"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-30T16:12:18.408Z"
+    },
+    {
+      "id": "bug-260",
+      "timestamp": "2026-05-30T16:30:43.932Z",
+      "error_message": "Null/undefined access in ",
+      "file": "src/client/components/ScenarioExecutionTimeline.tsx",
+      "root_cause": "Property access on potentially null/undefined value",
+      "fix": "Added null safety (optional chaining or null check)",
+      "tags": [
+        "auto-detected",
+        "null-safety",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-30T16:30:43.932Z"
+    },
+    {
+      "id": "bug-261",
+      "timestamp": "2026-05-30T16:44:59.335Z",
+      "error_message": "Null/undefined access in ",
+      "file": "src/client/components/ScenarioExecutionTimeline.tsx",
+      "root_cause": "Property access on potentially null/undefined value",
+      "fix": "Added null safety (optional chaining or null check)",
+      "tags": [
+        "auto-detected",
+        "null-safety",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-30T16:44:59.335Z"
+    },
+    {
+      "id": "bug-262",
+      "timestamp": "2026-05-30T16:45:31.416Z",
+      "error_message": "Significant refactor of ",
+      "file": "src/client/components/ScenarioExecutionTimeline.tsx",
+      "root_cause": "79 lines replaced/restructured",
+      "fix": "Rewrote 126→11 lines (79 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-30T16:45:31.416Z"
+    },
+    {
+      "id": "bug-263",
+      "timestamp": "2026-05-30T16:45:56.408Z",
+      "error_message": "CSS fix: steps",
+      "file": "src/client/components/ScenarioExecutionTimeline.tsx",
+      "root_cause": "steps: ApiExecutionStep[] → ScenarioExecutionStep[]",
+      "fix": "Changed steps: ApiExecutionStep[] → ScenarioExecutionStep[]",
+      "tags": [
+        "auto-detected",
+        "style-fix",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-30T16:45:56.408Z"
+    },
+    {
+      "id": "bug-264",
+      "timestamp": "2026-05-30T16:46:27.680Z",
+      "error_message": "Type error",
+      "file": "src/server/db/index.ts",
+      "root_cause": "Missing or incorrect type annotation",
+      "fix": "Added type assertion/annotation",
+      "tags": [
+        "auto-detected",
+        "type-fix",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-30T16:46:27.680Z"
+    },
+    {
+      "id": "bug-265",
+      "timestamp": "2026-05-31T04:12:59.544Z",
+      "error_message": "Null/undefined access in ",
+      "file": "src/server/engine/api-executor.ts",
+      "root_cause": "Property access on potentially null/undefined value",
+      "fix": "Added null safety (optional chaining or null check)",
+      "tags": [
+        "auto-detected",
+        "null-safety",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-31T04:12:59.544Z"
+    },
+    {
+      "id": "bug-266",
+      "timestamp": "2026-05-31T04:18:36.662Z",
+      "error_message": "Null/undefined access in ",
+      "file": "src/client/pages/api-test/ApiDetail.tsx",
+      "root_cause": "Property access on potentially null/undefined value",
+      "fix": "Added null safety (optional chaining or null check)",
+      "tags": [
+        "auto-detected",
+        "null-safety",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-31T04:18:36.662Z"
+    },
+    {
+      "id": "bug-267",
+      "timestamp": "2026-05-31T04:23:22.823Z",
+      "error_message": "Incorrect value in code",
+      "file": "src/server/engine/api-executor.ts",
+      "root_cause": "Had 'batchId will be:'",
+      "fix": "Changed to 'paramRows.length:'",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-31T04:23:22.823Z"
+    },
+    {
+      "id": "bug-268",
+      "timestamp": "2026-05-31T04:30:27.037Z",
+      "error_message": "Missing guard clause",
+      "file": "src/server/routes/apis.ts",
+      "root_cause": "No early return/throw for edge case: exec.batch_id === -1",
+      "fix": "Added guard clause: if (exec.batch_id === -1)",
+      "tags": [
+        "auto-detected",
+        "guard-clause",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-31T04:30:27.037Z"
+    },
+    {
+      "id": "bug-269",
+      "timestamp": "2026-05-31T04:43:01.845Z",
+      "error_message": "Significant refactor of ",
+      "file": "src/server/routes/apis.ts",
+      "root_cause": "11 lines replaced/restructured",
+      "fix": "Rewrote 29→12 lines (11 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-31T04:43:01.845Z"
+    },
+    {
+      "id": "bug-270",
+      "timestamp": "2026-05-31T04:59:18.119Z",
+      "error_message": "Type error",
+      "file": "src/server/engine/executor.ts",
+      "root_cause": "Missing or incorrect type annotation",
+      "fix": "Added type assertion/annotation",
+      "tags": [
+        "auto-detected",
+        "type-fix",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-31T04:59:18.119Z"
+    },
+    {
+      "id": "bug-271",
+      "timestamp": "2026-05-31T05:07:09.048Z",
+      "error_message": "Null/undefined access in ",
+      "file": "src/client/pages/scenario/ScenarioDetail.tsx",
+      "root_cause": "Property access on potentially null/undefined value",
+      "fix": "Added null safety (optional chaining or null check)",
+      "tags": [
+        "auto-detected",
+        "null-safety",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-31T05:07:09.048Z"
+    },
+    {
+      "id": "bug-272",
+      "timestamp": "2026-05-31T05:11:19.230Z",
+      "error_message": "Significant refactor of ",
+      "file": "src/server/routes/scenarios.ts",
+      "root_cause": "13 lines replaced/restructured",
+      "fix": "Rewrote 24→17 lines (13 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-31T05:11:19.230Z"
+    },
+    {
+      "id": "bug-273",
+      "timestamp": "2026-05-31T05:11:34.810Z",
+      "error_message": "Significant refactor of ",
+      "file": "src/client/pages/scenario/ScenarioDetail.tsx",
+      "root_cause": "11 lines replaced/restructured",
+      "fix": "Rewrote 15→6 lines (11 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-31T05:11:34.810Z"
+    },
+    {
+      "id": "bug-274",
+      "timestamp": "2026-05-31T05:18:00.813Z",
+      "error_message": "Null/undefined access in ",
+      "file": "src/client/pages/api-test/BatchExecutionView.tsx",
+      "root_cause": "Property access on potentially null/undefined value",
+      "fix": "Added null safety (optional chaining or null check)",
+      "tags": [
+        "auto-detected",
+        "null-safety",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-31T05:18:00.813Z"
+    },
+    {
+      "id": "bug-275",
+      "timestamp": "2026-05-31T05:19:11.589Z",
+      "error_message": "CSS fix: s",
+      "file": "src/client/pages/api-test/ApiDetail.tsx",
+      "root_cause": "s: ApiExecution) => s.id === targetId) → ApiExecution) => s.id === targetId) : 0",
+      "fix": "Changed s: ApiExecution) => s.id === targetId) → ApiExecution) => s.id === targetId) : 0",
+      "tags": [
+        "auto-detected",
+        "style-fix",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-31T05:19:11.589Z"
+    },
+    {
+      "id": "bug-276",
+      "timestamp": "2026-05-31T05:46:37.678Z",
+      "error_message": "Null/undefined access in ",
+      "file": "src/client/components/ScenarioExecutionTimeline.tsx",
+      "root_cause": "Property access on potentially null/undefined value",
+      "fix": "Added null safety (optional chaining or null check)",
+      "tags": [
+        "auto-detected",
+        "null-safety",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-31T05:46:37.678Z"
+    },
+    {
+      "id": "bug-277",
+      "timestamp": "2026-05-31T05:47:50.723Z",
+      "error_message": "Null/undefined access in ",
+      "file": "src/client/pages/api-test/ApiDetail.tsx",
+      "root_cause": "Property access on potentially null/undefined value",
+      "fix": "Added null safety (optional chaining or null check)",
+      "tags": [
+        "auto-detected",
+        "null-safety",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-31T05:47:50.723Z"
+    },
+    {
+      "id": "bug-278",
+      "timestamp": "2026-05-31T05:48:13.816Z",
+      "error_message": "Function not marked async",
+      "file": "src/client/pages/api-test/ApiDetail.tsx",
+      "root_cause": "Function uses await but wasn't declared async",
+      "fix": "Added async modifier",
+      "tags": [
+        "auto-detected",
+        "async-fix",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-31T05:48:13.816Z"
+    },
+    {
+      "id": "bug-279",
+      "timestamp": "2026-05-31T05:55:52.812Z",
+      "error_message": "Incorrect value in code",
+      "file": "src/client/pages/scenario-set/ScenarioSetDetail.tsx",
+      "root_cause": "Had '../../components/TagInput'",
+      "fix": "Changed to '../../components/FormSelect'",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-31T05:55:52.812Z"
+    },
+    {
+      "id": "bug-280",
+      "timestamp": "2026-05-31T05:59:44.465Z",
+      "error_message": "Type error",
+      "file": "src/server/routes/scenario-sets.ts",
+      "root_cause": "Missing or incorrect type annotation",
+      "fix": "Added type assertion/annotation",
+      "tags": [
+        "auto-detected",
+        "type-fix",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-31T05:59:44.465Z"
+    },
+    {
+      "id": "bug-281",
+      "timestamp": "2026-05-31T06:03:15.463Z",
+      "error_message": "Null/undefined access in ",
+      "file": "src/client/pages/scenario-set/ScenarioSetDetail.tsx",
+      "root_cause": "Property access on potentially null/undefined value",
+      "fix": "Added null safety (optional chaining or null check)",
+      "tags": [
+        "auto-detected",
+        "null-safety",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-31T06:03:15.463Z"
+    },
+    {
+      "id": "bug-282",
+      "timestamp": "2026-05-31T06:04:04.560Z",
+      "error_message": "CSS fix: background, color",
+      "file": "src/client/pages/scenario-set/ScenarioSetDetail.css",
+      "root_cause": "background: var(--primary-subtle) → var(--surface); color: var(--primary) → var(--fg-secondary)",
+      "fix": "Changed background: var(--primary-subtle) → var(--surface); color: var(--primary) → var(--fg-secondary)",
+      "tags": [
+        "auto-detected",
+        "style-fix",
+        "css"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-31T06:04:04.560Z"
+    },
+    {
+      "id": "bug-283",
+      "timestamp": "2026-05-31T06:54:45.676Z",
+      "error_message": "Missing guard clause",
+      "file": "src/client/pages/scenario-set/ScenarioSetDetail.tsx",
+      "root_cause": "No early return/throw for edge case: res.code === 200",
+      "fix": "Added guard clause: if (res.code === 200)",
+      "tags": [
+        "auto-detected",
+        "guard-clause",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-31T06:54:45.676Z"
+    },
+    {
+      "id": "bug-284",
+      "timestamp": "2026-05-31T09:39:13.100Z",
+      "error_message": "CSS fix: margin",
+      "file": "src/client/pages/scenario-set/ScenarioSetDetail.css",
+      "root_cause": "margin: 0.5rem 1rem → 0.5rem 0",
+      "fix": "Changed margin: 0.5rem 1rem → 0.5rem 0",
+      "tags": [
+        "auto-detected",
+        "style-fix",
+        "css"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-31T09:39:13.100Z"
+    },
+    {
+      "id": "bug-285",
+      "timestamp": "2026-05-31T09:45:55.325Z",
+      "error_message": "CSS fix: padding",
+      "file": "src/client/pages/scenario-set/ScenarioSetDetail.css",
+      "root_cause": "padding: 0.75rem → 0",
+      "fix": "Changed padding: 0.75rem → 0",
+      "tags": [
+        "auto-detected",
+        "style-fix",
+        "css"
+      ],
+      "related_bugs": [],
+      "occurrences": 6,
+      "last_seen": "2026-05-31T09:55:56.949Z"
+    },
+    {
+      "id": "bug-286",
+      "timestamp": "2026-05-31T09:52:40.213Z",
+      "error_message": "Significant refactor of ",
+      "file": "src/client/pages/scenario-set/ScenarioSetDetail.tsx",
+      "root_cause": "3 lines replaced/restructured",
+      "fix": "Rewrote 9→5 lines (3 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-31T09:52:40.213Z"
+    },
+    {
+      "id": "bug-287",
+      "timestamp": "2026-05-31T09:52:51.927Z",
+      "error_message": "Null/undefined access in ",
+      "file": "src/client/pages/scenario-set/ScenarioSetDetail.tsx",
+      "root_cause": "Property access on potentially null/undefined value",
+      "fix": "Added null safety (optional chaining or null check)",
+      "tags": [
+        "auto-detected",
+        "null-safety",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-31T09:52:51.927Z"
+    },
+    {
+      "id": "bug-288",
+      "timestamp": "2026-05-31T09:58:22.225Z",
+      "error_message": "Significant refactor of ",
+      "file": "src/client/pages/scenario-set/ScenarioSetDetail.css",
+      "root_cause": "3 lines replaced/restructured",
+      "fix": "Rewrote 27→36 lines (3 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "css"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-31T09:58:22.225Z"
+    },
+    {
+      "id": "bug-289",
+      "timestamp": "2026-05-31T10:05:39.049Z",
+      "error_message": "CSS fix: background, color, border",
+      "file": "src/client/pages/scenario-set/ScenarioSetDetail.css",
+      "root_cause": "background: var(--bg) → var(--danger-subtle); color: var(--fg-tertiary) → var(--danger); border: 1px solid var(--border) → 1px solid var(--danger-subtle)",
+      "fix": "Changed background: var(--bg) → var(--danger-subtle); color: var(--fg-tertiary) → var(--danger); border: 1px solid var(--border) → 1px solid var(--danger-subtle)",
+      "tags": [
+        "auto-detected",
+        "style-fix",
+        "css"
+      ],
+      "related_bugs": [],
+      "occurrences": 5,
+      "last_seen": "2026-05-31T10:15:16.693Z"
+    },
+    {
+      "id": "bug-290",
+      "timestamp": "2026-05-31T10:06:49.568Z",
+      "error_message": "Incorrect value in code",
+      "file": "src/client/pages/scenario-set/ScenarioSetDetail.tsx",
+      "root_cause": "Had \"sset-exec-icon\"",
+      "fix": "Changed to \"sset-exec-name\"",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-31T10:06:49.568Z"
+    },
+    {
+      "id": "bug-291",
+      "timestamp": "2026-05-31T10:07:22.666Z",
+      "error_message": "Wrong reference: icon should be name",
+      "file": "src/client/pages/scenario-set/ScenarioSetDetail.css",
+      "root_cause": "Used \"icon\" instead of \"name\"",
+      "fix": "Changed icon → name",
+      "tags": [
+        "auto-detected",
+        "wrong-reference",
+        "css"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-31T10:07:22.666Z"
+    },
+    {
+      "id": "bug-292",
+      "timestamp": "2026-05-31T10:15:04.194Z",
+      "error_message": "Significant refactor of ",
+      "file": "src/client/pages/scenario-set/ScenarioSetDetail.tsx",
+      "root_cause": "10 lines replaced/restructured",
+      "fix": "Rewrote 39→29 lines (10 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-31T10:15:04.194Z"
+    },
+    {
+      "id": "bug-293",
+      "timestamp": "2026-05-31T10:22:12.105Z",
+      "error_message": "Significant refactor of ",
+      "file": "src/client/components/TagFilterSelect.tsx",
+      "root_cause": "4 lines replaced/restructured",
+      "fix": "Rewrote 12→7 lines (4 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-31T10:22:12.105Z"
+    },
+    {
+      "id": "bug-294",
+      "timestamp": "2026-05-31T10:41:52.017Z",
+      "error_message": "Significant refactor of ",
+      "file": "src/client/pages/schedule/ScheduleList.tsx",
+      "root_cause": "2 lines replaced/restructured",
+      "fix": "Rewrote 6→4 lines (2 removed) | Also: const toggleSort = (field: string) => {; if (sortField === field) setSortOrder(o => o === ' | Also: <th className=\"sortable\" onClick={() => toggleSort; <th className=\"sortable\" onClick={() => toggleSort",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 3,
+      "last_seen": "2026-05-31T10:42:23.955Z"
+    },
+    {
+      "id": "bug-295",
+      "timestamp": "2026-05-31T11:07:04.517Z",
+      "error_message": "Incorrect value in code",
+      "file": "src/server/routes/index.ts",
+      "root_cause": "Had '/schedules'",
+      "fix": "Changed to '/environments'",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 2,
+      "last_seen": "2026-05-31T11:09:22.011Z"
+    },
+    {
+      "id": "bug-296",
+      "timestamp": "2026-05-31T11:13:27.442Z",
+      "error_message": "CSS fix: padding",
+      "file": "src/client/pages/schedule/ScheduleList.tsx",
+      "root_cause": "padding: '5px 8px', border: '1px solid #d9d9d9', borderRadius: 6, minWidth: 70 → '5px 8px', border: '1px solid #d9d9d9', borderRadius: 6, minWidth: f.label === '分' ? 80 : 70",
+      "fix": "Changed padding: '5px 8px', border: '1px solid #d9d9d9', borderRadius: 6, minWidth: 70 → '5px 8px', border: '1px solid #d9d9d9', borderRadius: 6, minWidth: f.label === '分' ? 80 : 70",
+      "tags": [
+        "auto-detected",
+        "style-fix",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-31T11:13:27.442Z"
+    },
+    {
+      "id": "bug-297",
+      "timestamp": "2026-05-31T11:44:39.786Z",
+      "error_message": "Incorrect value in code",
+      "file": "src/client/pages/schedule/ScheduleList.tsx",
+      "root_cause": "Had \">{item.last_run_at ? item.last_run_at.replace('",
+      "fix": "Changed to \">{item.last_run_at ? formatDateTime(item.last_run",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-31T11:44:39.786Z"
+    },
+    {
+      "id": "bug-298",
+      "timestamp": "2026-05-31T11:46:55.171Z",
+      "error_message": "Incorrect value in code",
+      "file": "src/client/pages/mock/MockList.tsx",
+      "root_cause": "Had '../../components/FormSelect'",
+      "fix": "Changed to '../../utils/datetime'",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-31T11:46:55.171Z"
+    },
+    {
+      "id": "bug-299",
+      "timestamp": "2026-05-31T11:46:56.170Z",
+      "error_message": "Incorrect value in code",
+      "file": "src/client/pages/scenario/ScenarioList.tsx",
+      "root_cause": "Had '../../types'",
+      "fix": "Changed to '../../utils/datetime'",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-31T11:46:56.170Z"
+    },
+    {
+      "id": "bug-300",
+      "timestamp": "2026-05-31T11:46:57.037Z",
+      "error_message": "Incorrect value in code",
+      "file": "src/client/pages/api-test/ApiList.tsx",
+      "root_cause": "Had '../../types'",
+      "fix": "Changed to '../../utils/datetime'",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-31T11:46:57.037Z"
+    },
+    {
+      "id": "bug-301",
+      "timestamp": "2026-05-31T11:46:57.902Z",
+      "error_message": "Incorrect value in code",
+      "file": "src/client/pages/environment/EnvironmentList.tsx",
+      "root_cause": "Had '../../contexts/EnvironmentContext'",
+      "fix": "Changed to '../../utils/datetime'",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-31T11:46:57.902Z"
+    },
+    {
+      "id": "bug-302",
+      "timestamp": "2026-05-31T11:46:58.760Z",
+      "error_message": "Incorrect value in code",
+      "file": "src/client/pages/mobile-test/MobileTestList.tsx",
+      "root_cause": "Had '../../components/FormSelect'",
+      "fix": "Changed to '../../utils/datetime'",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-31T11:46:58.760Z"
+    },
+    {
+      "id": "bug-303",
+      "timestamp": "2026-05-31T11:47:15.605Z",
+      "error_message": "Incorrect value in code",
+      "file": "src/client/pages/pc-test/PcCaseList.tsx",
+      "root_cause": "Had '../../components/FormSelect'",
+      "fix": "Changed to '../../utils/datetime'",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-31T11:47:15.605Z"
+    },
+    {
+      "id": "bug-304",
+      "timestamp": "2026-05-31T11:47:17.557Z",
+      "error_message": "Incorrect value in code",
+      "file": "src/client/pages/web-test/WebCaseList.tsx",
+      "root_cause": "Had '../../components/FormSelect'",
+      "fix": "Changed to '../../utils/datetime'",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-31T11:47:17.557Z"
+    }
+  ]
 }

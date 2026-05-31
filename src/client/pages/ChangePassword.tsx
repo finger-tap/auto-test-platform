@@ -42,45 +42,29 @@ export default function ChangePassword() {
   };
 
   return (
-    <div className="auth-card">
-      <h2>Change Password</h2>
-      <form className="auth-form" onSubmit={handleSubmit}>
-        {error && <div className="auth-error">{error}</div>}
-        {success && <div className="auth-success">{success}</div>}
-        <div className="form-item">
-          <label>Current Password</label>
-          <input
-            type="password"
-            placeholder="Current password"
-            value={oldPassword}
-            onChange={(e) => setOldPassword(e.target.value)}
-            required
-          />
-        </div>
-        <div className="form-item">
-          <label>New Password</label>
-          <input
-            type="password"
-            placeholder="At least 6 characters"
-            value={newPassword}
-            onChange={(e) => setNewPassword(e.target.value)}
-            required
-          />
-        </div>
-        <div className="form-item">
-          <label>Confirm New Password</label>
-          <input
-            type="password"
-            placeholder="Confirm new password"
-            value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
-            required
-          />
-        </div>
-        <button type="submit" disabled={loading}>
-          {loading ? 'Changing...' : 'Change Password'}
-        </button>
-      </form>
+    <div style={{ maxWidth: 400, margin: '40px auto' }}>
+      <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '32px', boxShadow: 'var(--shadow-md)' }}>
+        <h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: 24 }}>修改密码</h2>
+        <form className="auth-form" onSubmit={handleSubmit}>
+          {error && <div className="auth-error">{error}</div>}
+          {success && <div className="auth-success">{success}</div>}
+          <div className="form-group">
+            <label className="form-label">当前密码</label>
+            <input type="password" placeholder="请输入当前密码" value={oldPassword} onChange={(e) => setOldPassword(e.target.value)} required />
+          </div>
+          <div className="form-group">
+            <label className="form-label">新密码</label>
+            <input type="password" placeholder="至少 6 位字符" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required />
+          </div>
+          <div className="form-group">
+            <label className="form-label">确认新密码</label>
+            <input type="password" placeholder="再次输入新密码" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required />
+          </div>
+          <button className="auth-btn auth-btn-primary" type="submit" disabled={loading}>
+            {loading ? '修改中...' : '修改密码'}
+          </button>
+        </form>
+      </div>
     </div>
   );
 }

@@ -24,7 +24,8 @@ function checkOwnership(req: Request, res: Response, mockId: number) {
 mockRoutes.get('/', (req: Request, res: Response) => {
   const page = Math.max(1, Number(req.query.page) || 1);
   const pageSize = Math.min(100, Math.max(1, Number(req.query.pageSize) || 10));
-  const result = findMocksByUserIdPaginated(req.user!.userId, page, pageSize);
+  const testType = req.query.test_type as string | undefined;
+  const result = findMocksByUserIdPaginated(req.user!.userId, page, pageSize, testType);
   res.json({
     code: 200, message: 'ok',
     data: {
@@ -39,16 +40,17 @@ mockRoutes.get('/', (req: Request, res: Response) => {
 
 // POST /api/mocks
 mockRoutes.post('/', (req: Request, res: Response) => {
-  const { name, method, path_pattern, description, response_status, response_headers, response_body, response_delay_ms, conditions, match_mode, enabled } = req.body;
+  const { name, method, path_pattern, description, tags, status, response_status, response_headers, response_body, response_delay_ms, conditions, match_mode, enabled, test_type } = req.body;
   if (!name || !path_pattern) {
     res.status(400).json({ code: 400, message: 'Name and path_pattern are required' });
     return;
   }
   const id = createMock({
     userId: req.user!.userId,
-    name, method, path_pattern, description,
+    name, method, path_pattern, description, tags, status,
     response_status, response_headers, response_body,
     response_delay_ms, conditions, match_mode, enabled,
+    test_type: test_type || 'api',
   });
   res.status(201).json({ code: 201, message: 'Created', data: { id } });
 });
@@ -56,7 +58,8 @@ mockRoutes.post('/', (req: Request, res: Response) => {
 // GET /api/mocks/:id
 mockRoutes.get('/:id', (req: Request, res: Response) => {
   const id = Number(req.params.id);
-  const mock = findMockById(id);
+  const testType = req.query.test_type as string | undefined;
+  const mock = findMockById(id, testType);
   if (!mock || mock.user_id !== req.user!.userId) {
     res.status(404).json({ code: 404, message: 'Mock not found' });
     return;
@@ -70,12 +73,13 @@ mockRoutes.put('/:id', (req: Request, res: Response) => {
   const mock = checkOwnership(req, res, id);
   if (!mock) return;
 
-  const { name, method, path_pattern, description, response_status, response_headers, response_body, response_delay_ms, conditions, match_mode, enabled } = req.body;
+  const { name, method, path_pattern, description, tags, status, response_status, response_headers, response_body, response_delay_ms, conditions, match_mode, enabled, test_type } = req.body;
   updateMock(id, req.user!.userId, {
-    name, method, path_pattern, description,
+    name, method, path_pattern, description, tags, status,
     response_status, response_headers, response_body,
     response_delay_ms, conditions, match_mode,
     enabled,
+    test_type,
   });
   res.json({ code: 200, message: 'Updated' });
 });

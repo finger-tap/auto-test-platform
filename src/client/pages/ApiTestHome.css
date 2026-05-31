@@ -1,145 +1,235 @@
-.api-test-home {
-  height: 100%;
-  background: #fafafa;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+/* ── Dashboard (shared: api-test, mobile-test, etc.) ── */
+.dashboard-home {
+  max-width: 960px;
+  margin: 0 auto;
 }
 
-.api-test-home-content {
-  max-width: 900px;
-  width: 100%;
-  padding: 0 24px;
-  display: flex;
-  flex-direction: column;
-  min-height: calc(100vh - 200px);
-  justify-content: flex-start;
-  padding-top: 60px;
-}
-
-/* Logo区 */
-.api-test-logo-section {
-  text-align: center;
-  margin-bottom: 40px;
-}
-
-.api-test-logo-wrapper {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  margin-bottom: 8px;
-}
-
-.api-test-logo-icon {
-  width: 56px;
-  height: 56px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-radius: 14px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 4px 16px rgba(102, 126, 234, 0.35);
-}
-
-.api-test-logo-icon svg {
-  width: 32px;
-  height: 32px;
-  fill: #fff;
-}
-
-.api-test-logo-text {
-  font-size: 28px;
-  font-weight: 700;
-  color: #333;
-}
-
-.api-test-tagline {
-  color: #999;
-  font-size: 14px;
-}
-
-/* 统计区 */
-.api-test-stats-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 20px;
-  margin-bottom: 32px;
-}
-
-.api-test-stat-card {
-  background: #fff;
-  border-radius: 12px;
-  padding: 28px 24px;
-  text-align: center;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-  transition: all 0.25s ease;
-  cursor: pointer;
-  border: 1px solid #f0f0f0;
-}
-
-.api-test-stat-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 8px 24px rgba(102, 126, 234, 0.15);
-  border-color: #667eea;
-}
-
-.api-test-stat-number {
-  font-size: 42px;
-  font-weight: 700;
-  font-family: 'JetBrains Mono', monospace;
-  color: #333;
-  margin-bottom: 8px;
-}
-
-.api-test-stat-label {
-  color: #666;
-  font-size: 14px;
-}
-
-/* 快捷入口 */
-.api-test-quick-actions {
+/* ── Stat cards ── */
+.dashboard-cards {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  margin-bottom: 24px;
+}
+
+.dashboard-stat-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+}
+
+.dashboard-stat-label {
+  font-size: 12px;
+  color: var(--fg-tertiary);
+  margin-bottom: 8px;
+}
+
+.dashboard-stat-value {
+  font-size: 28px;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  line-height: 1;
+  margin-bottom: 6px;
+}
+
+.dashboard-stat-sub {
+  font-size: 11px;
+  color: var(--fg-tertiary);
+}
+
+/* ── Panel ── */
+.dashboard-panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+}
+
+.dashboard-panel-head {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 14px;
+}
+
+.dashboard-empty {
+  text-align: center;
+  padding: 32px 0;
+  color: var(--fg-tertiary);
+  font-size: 13px;
+}
+
+/* ── Bottom dual panel ── */
+.dashboard-bottom {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 16px;
 }
 
-.api-test-quick-btn {
-  background: #fff;
-  border: 1px solid #f0f0f0;
-  border-radius: 10px;
-  padding: 20px;
-  text-align: center;
-  cursor: pointer;
-  transition: all 0.25s ease;
+/* ── Trend chart ── */
+.trend-chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  height: 120px;
+  padding-bottom: 4px;
 }
 
-.api-test-quick-btn:hover {
-  box-shadow: 0 4px 16px rgba(102, 126, 234, 0.12);
-  border-color: #667eea;
-  transform: translateY(-2px);
+.trend-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  height: 100%;
 }
 
-.api-test-quick-icon {
-  font-size: 24px;
-  margin-bottom: 10px;
+.trend-bar-wrap {
+  flex: 1;
+  width: 100%;
+  display: flex;
+  align-items: flex-end;
 }
 
-.api-test-quick-text {
+.trend-bar {
+  width: 100%;
+  border-radius: 4px 4px 0 0;
+  min-height: 4px;
+  transition: height 0.3s ease;
+}
+
+.trend-label {
+  font-size: 10px;
+  color: var(--fg-tertiary);
+  flex-shrink: 0;
+}
+
+/* ── Shortcut grid ── */
+.shortcut-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+
+.shortcut-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
   font-size: 13px;
-  color: #333;
+  color: var(--fg-secondary);
+  cursor: pointer;
+  font-family: var(--font-sans);
+  transition: all 0.15s;
 }
 
-/* 底部 */
-.api-test-footer {
-  margin-top: auto;
-  padding: 40px 0 24px;
-  text-align: center;
-  color: #ccc;
+.shortcut-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-subtle);
+}
+
+.shortcut-btn svg {
+  flex-shrink: 0;
+}
+
+/* ── Table ── */
+.dashboard-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.dashboard-table th {
+  text-align: left;
+  padding: 8px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--fg-tertiary);
+  border-bottom: 1px solid var(--border);
+}
+
+.dashboard-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-subtle);
+  color: var(--fg-secondary);
+}
+
+.dashboard-table tbody tr {
+  cursor: pointer;
+  transition: background 0.12s;
+}
+
+.dashboard-table tbody tr:hover {
+  background: var(--surface-raised);
+}
+
+.dashboard-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.td-name {
+  font-weight: 500;
+  color: var(--fg);
+}
+
+.td-pass {
+  color: var(--success);
+  font-weight: 600;
+}
+
+.td-fail {
+  color: var(--danger);
+  font-weight: 600;
+}
+
+.td-mono {
+  font-family: var(--font-mono);
   font-size: 12px;
 }
 
+.td-time {
+  color: var(--fg-tertiary);
+  white-space: nowrap;
+}
+
+/* ── Pass rate badge ── */
+.td-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  font-family: var(--font-mono);
+}
+
+.td-badge-success {
+  background: var(--success-subtle);
+  color: var(--success);
+}
+
+.td-badge-warning {
+  background: var(--warning-subtle);
+  color: var(--warning);
+}
+
+.td-badge-danger {
+  background: var(--danger-subtle);
+  color: var(--danger);
+}
+
+/* ── Responsive ── */
 @media (max-width: 768px) {
-  .api-test-stats-grid,
-  .api-test-quick-actions { grid-template-columns: repeat(2, 1fr); }
+  .dashboard-cards {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .dashboard-bottom {
+    grid-template-columns: 1fr;
+  }
 }

@@ -9,6 +9,7 @@ interface AuthContextType {
   register: (account: string, password: string, nickname?: string, avatarFile?: File) => Promise<void>;
   guestLogin: () => Promise<void>;
   logout: () => void;
+  updateUser: (user: UserInfo) => void;
   changePassword: (oldPassword: string, newPassword: string) => Promise<void>;
   resetPassword: (account: string, newPassword: string) => Promise<void>;
 }
@@ -103,6 +104,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   };
 
+  const updateUser = (u: UserInfo) => {
+    setUser(u);
+    setUserInfo(u);
+  };
+
   const changePassword = async (oldPassword: string, newPassword: string) => {
     const res = await apiFetch('/auth/change-password', {
       method: 'POST',
@@ -120,7 +126,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, guestLogin, logout, changePassword, resetPassword }}>
+    <AuthContext.Provider value={{ user, loading, login, register, guestLogin, logout, updateUser, changePassword, resetPassword }}>
       {children}
     </AuthContext.Provider>
   );

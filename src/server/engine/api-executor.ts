@@ -1,6 +1,7 @@
 import { findApiById, type AssertionRule, createApiExecution, createApiExecutionStep, updateApiExecution, type ApiExecutionRow, type ApiExecutionStepRow } from '../db/apis.js';
 import { evalBuiltin } from './builtins.js';
 import { executeScript } from '../db/scripts/pre-post.js';
+import { generateBatchId } from '../utils/id.js';
 import type { DbConfig } from '../db/environments.js';
 
 export interface ApiExecutionResult {
@@ -45,6 +46,8 @@ export interface ExecuteApiOptions {
   dbConfigs?: Record<string, DbConfig> | null;
   /** Scenario-level param row index (passed from scenario execution loop) */
   scenarioParamRowIndex?: number | null;
+  /** Scenario-level batch ID — all API executions in same scenario run share this batch_id */
+  scenarioBatchId?: number;
 }
 
 export interface ApiParamConfig {
@@ -266,7 +269,9 @@ export async function executeApi(
     : (allParamRows.length > 0 ? allParamRows : [null]);
 
   const results: ApiExecutionResult[] = [];
-  let batchId: number | null = null;
+  // Generate batch_id once for this execution group
+  // If scenarioBatchId is provided, use it directly; otherwise generate a unique batch_id
+  const batchId = options.scenarioBatchId ?? generateBatchId();
 
   for (let rowIdx = 0; rowIdx < paramRows.length; rowIdx++) {
     const paramRow = paramRows[rowIdx];
@@ -294,15 +299,8 @@ export async function executeApi(
       executed_by: executedBy,
       started_at: startedAt,
       finished_at: startedAt,
-      batch_id: batchId ?? -1,  // -1 means standalone (no batch)
+      batch_id: batchId,  // All rows in this execution group share same batch_id
     });
-
-    // First execution becomes the batch leader
-    if (batchId === null) {
-      batchId = executionId;
-      // Update first record to point to itself as batch leader
-      updateApiExecution(executionId, { batch_id: executionId });
-    }
 
     const addStep = (logType: ApiExecutionStep['log_type'], stepName: string, logText: string, logData: Record<string, unknown> = {}) => {
       stepOrder.current++;

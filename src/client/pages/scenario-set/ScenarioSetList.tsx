@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { apiFetch } from '../../utils/api';
+import { formatDateTime } from '../../utils/datetime';
 import TagFilterSelect from '../../components/TagFilterSelect';
 import FormSelect from '../../components/FormSelect';
 import './ScenarioSetList.css';
@@ -181,8 +182,8 @@ export default function ScenarioSetList({ basePath = '/api-test', testType = 'ap
                       </span>
                     </td>
                     <td>{s.scenario_count} 个场景</td>
-                    <td>{s.created_at.replace('T', ' ').slice(0, 16)}</td>
-                    <td>{s.updated_at.replace('T', ' ').slice(0, 16)}</td>
+                    <td>{formatDateTime(s.created_at)}</td>
+                    <td>{formatDateTime(s.updated_at)}</td>
                     <td>
                       <div className="row-actions">
                         <button className="row-action-btn row-action-del" title="删除" onClick={(e) => { e.stopPropagation(); doDelete(s.id, s.name); }}>✕</button>

@@ -1,0 +1,223 @@
+/* System Config Page */
+.sys-root {
+  padding: 24px;
+  width: 100%;
+}
+
+.sys-head {
+  margin-bottom: 24px;
+}
+
+.sys-head h2 {
+  margin: 0;
+  font-size: 18px;
+  color: var(--fg);
+  font-weight: 600;
+}
+
+.sys-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 24px;
+  margin-bottom: 20px;
+  width: 100%;
+}
+
+.sys-card-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--fg);
+  margin-bottom: 6px;
+}
+
+.sys-card-desc {
+  font-size: 13px;
+  color: var(--fg-tertiary);
+  margin-bottom: 16px;
+}
+
+/* Tag add */
+.sys-tag-add {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+  max-width: 400px;
+}
+
+.sys-tag-input {
+  width: 200px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 6px 12px;
+  font-size: 13px;
+  font-family: var(--font-sans);
+  outline: none;
+  transition: border-color 0.2s;
+  background: var(--surface);
+  color: var(--fg);
+  box-sizing: border-box;
+}
+
+.sys-tag-input:focus {
+  border-color: var(--accent);
+}
+
+.sys-tag-add-btn {
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  padding: 6px 16px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.sys-tag-add-btn:hover {
+  background: var(--accent-hover);
+}
+
+.sys-tag-loading,
+.sys-tag-empty {
+  text-align: center;
+  padding: 24px;
+  color: var(--fg-tertiary);
+  font-size: 13px;
+}
+
+/* Tag list */
+.sys-tag-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.sys-tag-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px 4px 10px;
+  border-radius: 14px;
+  background: var(--accent-subtle);
+  border: 1px solid var(--accent-subtle);
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.sys-tag-item:hover {
+  background: var(--accent-subtle);
+  border-color: var(--accent);
+}
+
+.sys-tag-info {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sys-tag-name {
+  font-size: 13px;
+  color: var(--fg);
+  font-weight: 500;
+  cursor: pointer;
+  transition: color 0.15s;
+}
+
+.sys-tag-name:hover {
+  color: var(--accent);
+}
+
+.sys-tag-edit-input {
+  font-size: 13px;
+  font-weight: 500;
+  padding: 1px 6px;
+  border-radius: 4px;
+  border: 1px solid var(--accent);
+  outline: none;
+  background: var(--surface);
+  min-width: 60px;
+}
+
+.sys-tag-count {
+  font-size: 11px;
+  color: var(--fg-tertiary);
+}
+
+.sys-tag-sources {
+  display: flex;
+  gap: 4px;
+}
+
+.sys-tag-src {
+  font-size: 11px;
+  color: var(--fg-tertiary);
+  background: rgba(0,0,0,0.04);
+  padding: 1px 4px;
+  border-radius: 3px;
+}
+
+.sys-tag-del-icon {
+  opacity: 0;
+  color: var(--danger);
+  font-size: 12px;
+  cursor: pointer;
+  padding: 2px;
+  transition: opacity 0.15s, color 0.15s;
+}
+
+.sys-tag-item:hover .sys-tag-del-icon {
+  opacity: 1;
+}
+
+.sys-tag-del-icon:hover {
+  color: var(--danger);
+}
+
+.sys-tag-actions {
+  display: flex;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.sys-tag-item:hover .sys-tag-actions {
+  opacity: 1;
+}
+
+.sys-tag-edit-icon {
+  font-size: 12px;
+  color: var(--fg-tertiary);
+  cursor: pointer;
+  padding: 2px;
+  transition: color 0.15s;
+}
+
+.sys-tag-edit-icon:hover {
+  color: var(--accent);
+}
+
+/* Toast */
+.sys-toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 10px 20px;
+  border-radius: 6px;
+  font-size: 14px;
+  z-index: 9999;
+  cursor: pointer;
+  box-shadow: var(--shadow-md);
+}
+
+.sys-toast[data-type="success"] {
+  background: var(--success-subtle);
+  color: var(--success);
+  border: 1px solid var(--success-subtle);
+}
+
+.sys-toast[data-type="error"] {
+  background: var(--danger-subtle);
+  color: var(--danger);
+  border: 1px solid var(--danger-subtle);
+}

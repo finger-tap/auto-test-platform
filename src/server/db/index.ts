@@ -517,6 +517,7 @@ db.exec(`
     total_duration_ms INTEGER DEFAULT 0,
     executed_by TEXT,
     executed_at TEXT NOT NULL DEFAULT (datetime('now', '+8 hours')),
+    test_type TEXT DEFAULT 'api',
     FOREIGN KEY (set_id) REFERENCES scenario_sets(id) ON DELETE CASCADE
   );
 
@@ -548,6 +549,85 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_mock_endpoints_user_id ON mock_endpoints(user_id);
 `);
 
+// ── Web test cases table ──
+db.exec(`
+  CREATE TABLE IF NOT EXISTS web_test_cases (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    description TEXT,
+    tags TEXT,
+    status TEXT NOT NULL DEFAULT 'active',
+    steps TEXT,
+    check_points TEXT,
+    data_drive TEXT,
+    preconditions TEXT,
+    browser TEXT DEFAULT 'chromium',
+    window_size TEXT DEFAULT '1920x1080',
+    timeout INTEGER DEFAULT 30000,
+    headless_mode INTEGER DEFAULT 0,
+    base_url TEXT,
+    test_type TEXT DEFAULT 'web',
+    created_at TEXT NOT NULL DEFAULT (datetime('now', '+8 hours')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now', '+8 hours')),
+    created_by TEXT,
+    updated_by TEXT,
+    FOREIGN KEY (user_id) REFERENCES users(id)
+  );
+`);
+
+// ── PC test cases table ──
+db.exec(`
+  CREATE TABLE IF NOT EXISTS pc_test_cases (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    description TEXT,
+    tags TEXT,
+    status TEXT NOT NULL DEFAULT 'active',
+    steps TEXT,
+    check_points TEXT,
+    data_drive TEXT,
+    preconditions TEXT,
+    window_size TEXT DEFAULT '1920x1080',
+    timeout INTEGER DEFAULT 30000,
+    test_type TEXT DEFAULT 'pc',
+    created_at TEXT NOT NULL DEFAULT (datetime('now', '+8 hours')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now', '+8 hours')),
+    created_by TEXT,
+    updated_by TEXT,
+    FOREIGN KEY (user_id) REFERENCES users(id)
+  );
+`);
+
+// ── Mobile test cases table ──
+db.exec(`
+  CREATE TABLE IF NOT EXISTS mobile_test_cases (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    description TEXT,
+    platform TEXT DEFAULT 'android',
+    device_name TEXT,
+    platform_version TEXT,
+    app_package TEXT,
+    app_activity TEXT,
+    bundle_id TEXT,
+    appium_url TEXT DEFAULT 'http://localhost:4723',
+    capabilities TEXT,
+    test_script TEXT,
+    assertions TEXT,
+    tags TEXT,
+    status TEXT NOT NULL DEFAULT 'active',
+    test_type TEXT DEFAULT 'mobile',
+    created_at TEXT NOT NULL DEFAULT (datetime('now', '+8 hours')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now', '+8 hours')),
+    created_by TEXT,
+    updated_by TEXT,
+    FOREIGN KEY (user_id) REFERENCES users(id)
+  );
+`);
+
 export default db;
 
 // Migration: add pre/post script columns to scenario_nodes
@@ -563,6 +643,12 @@ if (!nodeColNames.includes('post_script')) {
 const linkCols = db.prepare("PRAGMA table_info(scenario_api_execution_links)").all() as { name: string }[];
 if (!linkCols.some(c => c.name === 'api_id')) {
   db.exec("ALTER TABLE scenario_api_execution_links ADD COLUMN api_id INTEGER");
+}
+
+// Migration: test_type column for batch_reports
+const batchReportCols = db.prepare("PRAGMA table_info(batch_reports)").all() as { name: string }[];
+if (!batchReportCols.some(c => c.name === 'test_type')) {
+  db.exec("ALTER TABLE batch_reports ADD COLUMN test_type TEXT DEFAULT 'api'");
 }
 
 // Migration: tags column for scenarios and scenario_sets

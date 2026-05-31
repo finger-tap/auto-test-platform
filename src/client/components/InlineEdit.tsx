@@ -144,33 +144,51 @@ interface InlineSelectProps {
 }
 
 export function InlineSelect({ value, options, onChange, onDirty, renderDisplay }: InlineSelectProps) {
-  const [editing, setEditing] = useState(false);
-  const selectRef = useRef<HTMLSelectElement>(null);
+  const [open, setOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => { if (editing && selectRef.current) selectRef.current.focus(); }, [editing]);
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
-  const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const newVal = e.target.value;
-    setEditing(false);
-    if (newVal !== value) {
-      onChange?.(newVal);
+  const handleSelect = (val: string) => {
+    setOpen(false);
+    if (val !== value) {
+      onChange?.(val);
       onDirty?.();
     }
   };
 
-  if (editing) {
-    return (
-      <select ref={selectRef} className="ie-select" value={value} onChange={handleChange} onBlur={() => setEditing(false)}>
-        {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-      </select>
-    );
-  }
-
   const currentLabel = options.find(o => o.value === value)?.label || value;
+
   return (
-    <span className="ie-field" onClick={() => setEditing(true)}>
-      {renderDisplay ? renderDisplay(value, currentLabel) : <span className="ie-text">{currentLabel}</span>}
-      <span className="ie-icon">✎</span>
-    </span>
+    <div ref={containerRef} className="ie-select-wrap">
+      <span
+        className="ie-field"
+        onClick={() => setOpen(o => !o)}
+      >
+        {renderDisplay ? renderDisplay(value, currentLabel) : <span className="ie-text">{currentLabel}</span>}
+        <span className="ie-icon">✎</span>
+      </span>
+      {open && (
+        <div className="ie-select-dropdown">
+          {options.map(o => (
+            <div
+              key={o.value}
+              className={`ie-select-option ${o.value === value ? 'selected' : ''}`}
+              onMouseDown={e => { e.preventDefault(); handleSelect(o.value); }}
+            >
+              {o.label}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }

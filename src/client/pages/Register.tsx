@@ -52,52 +52,43 @@ export default function Register() {
   };
 
   return (
-    <div className="auth-card">
-      <h2>Register</h2>
-      <form className="auth-form" onSubmit={handleSubmit}>
-        {error && <div className="auth-error">{error}</div>}
-        {success && <div className="auth-success">{success}</div>}
-
-        {/* Avatar upload */}
-        <div className="reg-avatar-row">
-          <div className="reg-avatar" onClick={() => fileRef.current?.click()}>
-            {avatarPreview ? (
-              <img src={avatarPreview} alt="" />
-            ) : (
-              <span className="reg-avatar-placeholder">+</span>
-            )}
+    <div className="auth-wrap">
+      <div className="auth-card">
+        <div className="auth-header">
+          <div className="auth-logo">
+            <svg width="24" height="24" fill="none" viewBox="0 0 24 24"><path d="M9 3L5 7l4 4" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><path d="M15 3l4 4-4 4" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><path d="M13 7l-2 10" stroke="#fff" strokeWidth="2" strokeLinecap="round"/></svg>
           </div>
-          <div className="reg-avatar-text">
-            <button type="button" className="reg-avatar-btn" onClick={() => fileRef.current?.click()}>
-              {avatarPreview ? '更换头像' : '上传头像'}
+          <div className="auth-title">注册账号</div>
+          <div className="auth-subtitle">创建你的 Auto Test Platform 账号</div>
+        </div>
+        <div className="auth-body">
+          <form className="auth-form" onSubmit={handleSubmit}>
+            {error && <div className="auth-error">{error}</div>}
+            {success && <div className="auth-success">{success}</div>}
+            <div className="form-group">
+              <label className="form-label">账号</label>
+              <input type="text" placeholder="请输入账号" value={account} onChange={(e) => setAccount(e.target.value)} required />
+            </div>
+            <div className="form-group">
+              <label className="form-label">昵称（选填）</label>
+              <input type="text" placeholder="留空则使用账号前3位" value={nickname} onChange={(e) => setNickname(e.target.value)} />
+            </div>
+            <div className="form-group">
+              <label className="form-label">密码</label>
+              <input type="password" placeholder="至少 6 位字符" value={password} onChange={(e) => setPassword(e.target.value)} required />
+            </div>
+            <div className="form-group">
+              <label className="form-label">确认密码</label>
+              <input type="password" placeholder="再次输入密码" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required />
+            </div>
+            <button className="auth-btn auth-btn-primary" type="submit" disabled={loading}>
+              {loading ? '注册中...' : '注 册'}
             </button>
-            <span className="reg-avatar-hint">不上传将自动生成像素头像</span>
-          </div>
-          <input ref={fileRef} type="file" accept="image/*" onChange={handleFileChange} style={{ display: 'none' }} />
+            <div className="auth-footer">
+              已有账号？<Link to="/login">立即登录</Link>
+            </div>
+          </form>
         </div>
-
-        <div className="form-item">
-          <label>Account</label>
-          <input type="text" placeholder="Email or phone number" value={account} onChange={(e) => setAccount(e.target.value)} required />
-        </div>
-        <div className="form-item">
-          <label>Nickname (optional)</label>
-          <input type="text" placeholder="Leave blank to use first 3 chars of account" value={nickname} onChange={(e) => setNickname(e.target.value)} />
-        </div>
-        <div className="form-item">
-          <label>Password</label>
-          <input type="password" placeholder="At least 6 characters" value={password} onChange={(e) => setPassword(e.target.value)} required />
-        </div>
-        <div className="form-item">
-          <label>Confirm Password</label>
-          <input type="password" placeholder="Confirm password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required />
-        </div>
-        <button type="submit" disabled={loading}>
-          {loading ? 'Registering...' : 'Register'}
-        </button>
-      </form>
-      <div className="auth-footer">
-        Already have an account? <Link to="/login">Login</Link>
       </div>
     </div>
   );

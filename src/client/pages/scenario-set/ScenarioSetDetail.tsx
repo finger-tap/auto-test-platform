@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { apiFetch } from '../../utils/api';
-import { toLocalDateTime } from '../../utils/datetime';
+import { toLocalDateTime, formatDateTime } from '../../utils/datetime';
 import notification from '../../utils/notification';
 import { useEnvironment } from '../../contexts/EnvironmentContext';
 import { InlineText, InlineSelect } from '../../components/InlineEdit';
@@ -486,7 +486,7 @@ export default function ScenarioSetDetail({ basePath = '/api-test', testType = '
                       <td className="td-desc">{s.description || '-'}</td>
                       <td>{s.tags ? s.tags.split(',').filter(Boolean).map(t => (<span key={t} className="tag-badge">{t.trim()}</span>)) : '-'}</td>
                       <td><span className={`sset-status-badge status-${s.status}`}>{s.status === 'active' ? '启用' : s.status === 'disabled' ? '禁用' : '草稿'}</span></td>
-                      <td>{s.created_at.replace('T', ' ').slice(0, 16)}</td>
+                      <td>{formatDateTime(s.created_at)}</td>
                     </tr>
                   ))}</tbody>
                 </table>

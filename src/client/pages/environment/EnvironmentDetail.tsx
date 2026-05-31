@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { apiFetch } from '../../utils/api';
 import { useEnvironment } from '../../contexts/EnvironmentContext';
 import type { Environment, EnvVariable } from '../../types';
-import MessageModal from '../../components/MessageModal';
+import notification from '../../utils/notification';
 import './EnvironmentDetail.css';
 
 // Database entry type (matches backend)
@@ -17,7 +17,8 @@ interface DbEntry {
   database: string;
 }
 
-export default function EnvironmentDetail() {
+export default function EnvironmentDetail({ testType = 'api' }: { testType?: string }) {
+  const basePath = testType === 'web' ? '/web-test' : testType === 'mobile' ? '/mobile-test' : testType === 'pc' ? '/pc-test' : '/api-test';
   const { id } = useParams();
   const navigate = useNavigate();
   const isNew = !id || id === 'new';
@@ -35,15 +36,13 @@ export default function EnvironmentDetail() {
   const [connTestMsg, setConnTestMsg] = useState('');
   const [connTestOk, setConnTestOk] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [msg, setMsg] = useState('');
-  const [msgType, setMsgType] = useState<'success' | 'error' | 'warning'>('error');
-  const [msgOpen, setMsgOpen] = useState(false);
+  const [variables, setVariables] = useState<EnvVariable[]>([]);
   const [dirty, setDirty] = useState(false);
   const { activeEnv, setActiveEnv } = useEnvironment();
 
   useEffect(() => {
     if (!isNew) {
-      apiFetch<Environment>(`/environments/${id}`).then(res => {
+      apiFetch<Environment>(`/environments/${id}?test_type=${testType}`).then(res => {
         if (res.code === 200 && res.data) {
           const e = res.data;
           setName(e.name || '');
@@ -151,7 +150,7 @@ export default function EnvironmentDetail() {
 
   async function doSave() {
     if (!name.trim()) {
-      setMsgType('warning'); setMsg('请输入环境名称'); setMsgOpen(true);
+      notification.warning('请输入环境名称');
       return;
     }
     const cleanVars = vars.filter(v => v.key.trim());
@@ -167,6 +166,7 @@ export default function EnvironmentDetail() {
         timeout: reqTimeout,
         is_default: isDefault,
         databases: cleanDbs,
+        test_type: testType,
       };
       let res;
       if (isNew) {
@@ -186,14 +186,15 @@ export default function EnvironmentDetail() {
           setActiveEnv(res.data);
         }
         window.dispatchEvent(new Event('envs-changed'));
+        notification.success('保存成功');
         if (isNew) {
-          window.setTimeout(() => navigate('/api-test/environment'), 1200);
+          window.setTimeout(() => navigate(`${basePath}/environment`), 1200);
         }
       } else {
-        setMsgType('error'); setMsg(res.message || '保存失败'); setMsgOpen(true);
+        notification.error(res.message || '保存失败');
       }
     } catch {
-      setMsgType('error'); setMsg('保存失败'); setMsgOpen(true);
+      notification.error('保存失败');
     } finally {
       setSaving(false);
     }
@@ -206,7 +207,7 @@ export default function EnvironmentDetail() {
   return (
     <div className="envdt">
       <div className="envdt-head">
-        <button className="envdt-back" onClick={() => navigate('/api-test/environment')}>← 返回列表</button>
+        <button className="envdt-back" onClick={() => navigate(`${basePath}/environment`)}>← 返回列表</button>
         <h2>{isNew ? '新建环境' : '编辑环境'}</h2>
       </div>
 
@@ -217,7 +218,7 @@ export default function EnvironmentDetail() {
           <div className="envdt-fields">
             <div className="envdt-field">
               <label>环境名称 <span className="required">*</span></label>
-              <input value={name} onChange={e => { setName(e.target.value); setDirty(true); }} placeholder="如：测试环境、生产环境" />
+              <input type="text" value={name} onChange={e => { setName(e.target.value); setDirty(true); }} placeholder="如：测试环境、生产环境" />
             </div>
             <div className="envdt-field envdt-field-row">
               <div className="envdt-field">
@@ -356,13 +357,13 @@ export default function EnvironmentDetail() {
 
       {/* Footer */}
       <div className="envdt-foot">
-        <button className="envdt-btn-cancel" onClick={() => navigate('/api-test/environment')}>取消</button>
+        <button className="envdt-btn-cancel" onClick={() => navigate(`${basePath}/environment`)}>取消</button>
         <button className={`envdt-btn-save${dirty ? ' dirty' : ''}`} onClick={doSave} disabled={saving}>
           {saving ? '保存中...' : '保存'}
         </button>
       </div>
 
-      <MessageModal open={msgOpen} message={msg} type={msgType} onClose={() => setMsgOpen(false)} />
+      
     </div>
   );
 }

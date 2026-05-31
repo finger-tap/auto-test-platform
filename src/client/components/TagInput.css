@@ -1,0 +1,184 @@
+/* 显示态样式 */
+.tag-display-text {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.tag-pill-display {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  font-size: 12px;
+  background: var(--surface);
+  cursor: default;
+  transition: all 0.15s;
+}
+
+.tag-pill-display:hover {
+  transform: translateY(-1px);
+}
+
+.tag-pill-display[data-tag="核心"] { background: #dcfce7; color: #166534; border-color: #bbf7d0; }
+.tag-pill-display[data-tag="认证"] { background: #eef2ff; color: #3730a3; border-color: #c7d2fe; }
+.tag-pill-display[data-tag="订单"] { background: #fef3c7; color: #92400e; border-color: #fde68a; }
+.tag-pill-display[data-tag="支付"] { background: #fef9c3; color: #78350f; border-color: #fde047; }
+.tag-pill-display[data-tag="回归"] { background: #e0e7ff; color: #3730a3; border-color: #a5b4fc; }
+.tag-pill-display[data-tag="冒烟"] { background: #fce7f3; color: #831843; border-color: #fbcfe8; }
+.tag-pill-display[data-tag="性能"] { background: #fef3c7; color: #78350f; border-color: #fde68a; }
+.tag-pill-display[data-tag="安全"] { background: #fef2f2; color: #881337; border-color: #fecaca; }
+.tag-pill-display[data-tag="用户管理"] { background: #fdf4ff; color: #6b21a8; border-color: #e9d5ff; }
+.tag-pill-display[data-tag="权限"] { background: #ecfdf5; color: oklch(35% 0.12 170); border-color: #a7f3d0; }
+
+/* ─── 下拉框样式 ─── */
+.tag-dropdown-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9998;
+}
+
+.tag-dropdown {
+  position: fixed;
+  width: 320px;
+  max-height: 380px;
+  background: var(--surface);
+  border-radius: 10px;
+  box-shadow: var(--shadow-lg);
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.tag-dropdown-header {
+  padding: 14px 14px 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.tag-dropdown-title {
+  display: block;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--fg);
+  margin-bottom: 10px;
+}
+
+.tag-dropdown-search {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 7px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.tag-dropdown-search:focus {
+  border-color: var(--accent);
+}
+
+.tag-dropdown-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 6px;
+}
+
+.tag-dropdown-empty {
+  text-align: center;
+  padding: 28px 16px;
+  color: var(--fg-tertiary);
+  font-size: 13px;
+}
+
+.tag-dropdown-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  cursor: pointer;
+  transition: all 0.15s;
+  font-size: 12px;
+  background: var(--surface);
+  color: var(--fg);
+  margin: 3px;
+}
+
+.tag-dropdown-item:hover {
+  transform: translateY(-1px);
+}
+
+.tag-dropdown-item.checked {
+  border-color: var(--accent);
+}
+
+.tag-dropdown-item[data-tag="核心"] { background: #dcfce7; color: #166534; border-color: #bbf7d0; }
+.tag-dropdown-item[data-tag="认证"] { background: #eef2ff; color: #3730a3; border-color: #c7d2fe; }
+.tag-dropdown-item[data-tag="订单"] { background: #fef3c7; color: #92400e; border-color: #fde68a; }
+.tag-dropdown-item[data-tag="支付"] { background: #fef9c3; color: #78350f; border-color: #fde047; }
+.tag-dropdown-item[data-tag="回归"] { background: #e0e7ff; color: #3730a3; border-color: #a5b4fc; }
+.tag-dropdown-item[data-tag="冒烟"] { background: #fce7f3; color: #831843; border-color: #fbcfe8; }
+.tag-dropdown-item[data-tag="性能"] { background: #fef3c7; color: #78350f; border-color: #fde68a; }
+.tag-dropdown-item[data-tag="安全"] { background: #fef2f2; color: #881337; border-color: #fecaca; }
+.tag-dropdown-item[data-tag="用户管理"] { background: #fdf4ff; color: #6b21a8; border-color: #e9d5ff; }
+.tag-dropdown-item[data-tag="权限"] { background: #ecfdf5; color: oklch(35% 0.12 170); border-color: #a7f3d0; }
+
+.tag-dropdown-check {
+  font-size: 11px;
+  color: var(--accent);
+  margin-left: 2px;
+}
+
+.tag-dropdown-footer {
+  padding: 10px 14px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.tag-dropdown-hint {
+  font-size: 12px;
+  color: var(--fg-tertiary);
+}
+
+.tag-dropdown-btns {
+  display: flex;
+  gap: 8px;
+}
+
+.tag-dropdown-btn-cancel,
+.tag-dropdown-btn-confirm {
+  padding: 5px 16px;
+  border-radius: 5px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.tag-dropdown-btn-cancel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--fg-secondary);
+}
+
+.tag-dropdown-btn-cancel:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.tag-dropdown-btn-confirm {
+  background: var(--accent);
+  border: 1px solid var(--accent);
+  color: #fff;
+}
+
+.tag-dropdown-btn-confirm:hover {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+}

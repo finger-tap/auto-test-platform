@@ -414,6 +414,7 @@ export interface ScenarioSetExecutionItem {
   duration_ms: number | null;
   error_message: string | null;
   scenario_execution_id: number | null;
+  scenario_execution?: ScenarioExecution;
 }
 
 export interface ScenarioSetExecution {

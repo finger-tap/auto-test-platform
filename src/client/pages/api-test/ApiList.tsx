@@ -1,6 +1,7 @@
 import { useState, useEffect, type MouseEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { apiFetch } from '../../utils/api';
+import { formatDateTime } from '../../utils/datetime';
 import type { ApiItem } from '../../types';
 import VarHoverTip from '../../components/VarHoverTip';
 import TagFilterSelect from '../../components/TagFilterSelect';
@@ -209,8 +210,8 @@ export default function ApiList() {
                     )) : '-'}
                   </td>
                   <td><span className={`status-text status-${api.status}`}>{statusLabel(api.status)}</span></td>
-                  <td>{api.created_at.replace('T', ' ').slice(0, 16)}</td>
-                  <td>{api.updated_at.replace('T', ' ').slice(0, 16)}</td>
+                  <td>{formatDateTime(api.created_at)}</td>
+                  <td>{formatDateTime(api.updated_at)}</td>
                   <td>
                     <div className="row-actions">
                       <button className="row-action-btn" title="执行" onClick={(e) => { e.stopPropagation(); navigate(`/api-test/api-case/${api.id}?exec=1`); }}>▶</button>

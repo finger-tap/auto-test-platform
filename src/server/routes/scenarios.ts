@@ -11,7 +11,8 @@ import {
   upsertNodes,
   findEdgesByScenarioId,
   upsertEdges,
-  findLogsByScenarioId,
+  findScenarioExecutionsByScenarioId,
+  findScenarioExecutionWithSteps,
 } from '../db/scenarios.js';
 import { findUserById } from '../db/users.js';
 
@@ -43,20 +44,22 @@ scenarioRoutes.get('/', (req: Request, res: Response) => {
   const pageSize = Math.min(100, Math.max(1, Number(req.query.pageSize) || 10));
   const sort = (req.query.sort as string) || 'updated_at';
   const order = (req.query.order as string) || 'DESC';
-  const { items, total } = findScenariosByUserIdPaginated(req.user!.userId, page, pageSize, sort, order);
+  const testType = req.query.test_type as string | undefined;
+  const name = req.query.name as string | undefined;
+  const { items, total } = findScenariosByUserIdPaginated(req.user!.userId, page, pageSize, sort, order, testType, name);
   res.json({ code: 200, message: 'ok', data: { items, total, page, pageSize } });
 });
 
 // POST /api/scenarios
 scenarioRoutes.post('/', (req: Request, res: Response) => {
-  const { name, description, status, tags } = req.body;
+  const { name, description, status, tags, parameters, test_type } = req.body;
 
   if (!name || typeof name !== 'string' || !name.trim()) {
     res.status(400).json({ code: 400, message: 'Name is required' });
     return;
   }
 
-  const id = createScenario(req.user!.userId, { name: name.trim(), description, status, tags });
+  const id = createScenario(req.user!.userId, { name: name.trim(), description, status, tags, parameters, test_type });
 
   // Create default start and end nodes
   upsertNodes(id, [
@@ -69,8 +72,13 @@ scenarioRoutes.post('/', (req: Request, res: Response) => {
 
 // GET /api/scenarios/:id
 scenarioRoutes.get('/:id', (req: Request, res: Response) => {
+  const testType = req.query.test_type as string | undefined;
   const scenario = checkOwnership(req, res);
   if (!scenario) return;
+  if (testType && scenario.test_type !== testType) {
+    res.status(404).json({ code: 404, message: 'Scenario not found' });
+    return;
+  }
 
   const nodes = findNodesByScenarioId(scenario.id);
   const edges = findEdgesByScenarioId(scenario.id);
@@ -87,8 +95,8 @@ scenarioRoutes.put('/:id', (req: Request, res: Response) => {
   const scenario = checkOwnership(req, res);
   if (!scenario) return;
 
-  const { name, description, status, tags } = req.body;
-  updateScenario(scenario.id, { name, description, status, tags });
+  const { name, description, status, tags, parameters } = req.body;
+  updateScenario(scenario.id, { name, description, status, tags, parameters });
   res.json({ code: 200, message: 'Updated' });
 });
 
@@ -139,12 +147,54 @@ scenarioRoutes.post('/:id/execute', async (req: Request, res: Response) => {
   }
 });
 
-// GET /api/scenarios/:id/logs
+// GET /api/scenarios/:id/logs — list executions (new table)
 scenarioRoutes.get('/:id/logs', (req: Request, res: Response) => {
   const scenario = checkOwnership(req, res);
   if (!scenario) return;
 
   const limit = Math.min(Number(req.query.limit) || 10, 100);
-  const logs = findLogsByScenarioId(scenario.id, limit);
-  res.json({ code: 200, message: 'ok', data: logs });
+  const executions = findScenarioExecutionsByScenarioId(scenario.id, limit);
+  res.json({ code: 200, message: 'ok', data: executions });
+});
+
+// GET /api/scenarios/:id/executions — list all execution sessions, grouped by batch
+scenarioRoutes.get('/:id/executions', (req: Request, res: Response) => {
+  const scenario = checkOwnership(req, res);
+  if (!scenario) return;
+
+  const limit = Math.min(Number(req.query.limit) || 20, 100);
+  const executions = findScenarioExecutionsByScenarioId(scenario.id, limit);
+
+  // Group by batch_id: all records with same batch_id are grouped together
+  const batchMap = new Map<number, (typeof executions)[0] & { sub_executions?: (typeof executions)[0][] }>();
+  for (const exec of executions) {
+    if (exec.batch_id === null || exec.batch_id === -1) {
+      // Standalone execution (no batch)
+      batchMap.set(-exec.id, { ...exec, sub_executions: [] });  // use negative id as key
+    } else {
+      // Has batch_id: group by batch_id
+      if (!batchMap.has(exec.batch_id)) {
+        batchMap.set(exec.batch_id, { ...exec, sub_executions: [] });
+      } else {
+        batchMap.get(exec.batch_id)!.sub_executions!.push(exec);
+      }
+    }
+  }
+
+  const results = Array.from(batchMap.values());
+
+  res.json({ code: 200, message: 'ok', data: results });
+});
+
+// GET /api/scenarios/:id/executions/:execId — get execution detail with steps and api links
+scenarioRoutes.get('/:id/executions/:execId', (req: Request, res: Response) => {
+  const scenario = checkOwnership(req, res);
+  if (!scenario) return;
+
+  const execId = Number(req.params.execId);
+  if (!execId) { res.status(400).json({ code: 400, message: 'Invalid execId' }); return; }
+
+  const detail = findScenarioExecutionWithSteps(execId);
+  if (!detail) { res.status(404).json({ code: 404, message: 'Execution not found' }); return; }
+  res.json({ code: 200, message: 'ok', data: detail });
 });

@@ -14,14 +14,16 @@ envRoutes.use(authMiddleware);
 
 // GET /api/environments
 envRoutes.get('/', (req: Request, res: Response) => {
-  const envs = findEnvsByUserId(req.user!.userId);
+  const testType = req.query.test_type as string | undefined;
+  const envs = findEnvsByUserId(req.user!.userId, testType);
   res.json({ code: 200, message: 'ok', data: envs });
 });
 
 // GET /api/environments/:id
 envRoutes.get('/:id', (req: Request, res: Response) => {
   const id = Number(req.params.id);
-  const env = findEnvById(id, req.user!.userId);
+  const testType = req.query.test_type as string | undefined;
+  const env = findEnvById(id, req.user!.userId, testType);
   if (!env) {
     res.status(404).json({ code: 404, message: '环境不存在' });
     return;
@@ -37,7 +39,7 @@ envRoutes.get('/default', (req: Request, res: Response) => {
 
 // POST /api/environments
 envRoutes.post('/', (req: Request, res: Response) => {
-  const { name, variables, ssl_cert, ssl_key, timeout, is_default, databases } = req.body as {
+  const { name, variables, ssl_cert, ssl_key, timeout, is_default, databases, test_type } = req.body as {
     name?: string;
     variables?: Array<{ key: string; value: string; description?: string; enabled?: boolean }>;
     ssl_cert?: string;
@@ -45,6 +47,7 @@ envRoutes.post('/', (req: Request, res: Response) => {
     timeout?: number;
     is_default?: boolean;
     databases?: Array<{ name: string; type: string; host: string; port: number; user: string; password: string; database: string }>;
+    test_type?: string;
   };
 
   if (!name?.trim()) {
@@ -53,7 +56,7 @@ envRoutes.post('/', (req: Request, res: Response) => {
   }
 
   const id = createEnv(req.user!.userId, name.trim(), variables || [], {
-    ssl_cert, ssl_key, timeout, is_default, databases,
+    ssl_cert, ssl_key, timeout, is_default, databases, test_type,
   });
   const env = findEnvById(id, req.user!.userId);
   res.json({ code: 200, message: '创建成功', data: env });

@@ -8,7 +8,12 @@ import {
   updateSet,
   deleteSet,
 } from '../db/scenario-sets.js';
-import { findScenariosByUserId } from '../db/scenarios.js';
+import {
+  findScenariosByUserId,
+  findScenarioSetExecutionsBySetId,
+  findScenarioSetExecutionWithItems,
+  findScenarioExecutionWithSteps,
+} from '../db/scenarios.js';
 import { findReportsBySetId } from '../db/batch-reports.js';
 import { findUserById } from '../db/users.js';
 
@@ -33,6 +38,7 @@ setRoutes.get('/', (req: Request, res: Response) => {
     name: req.query.name as string,
     tags: req.query.tags as string,
     status: req.query.status as string,
+    test_type: req.query.test_type as string,
   };
   const result = findSetsByUserIdPaginated(req.user!.userId, page, pageSize, filters, sort, order);
   res.json({ code: 200, message: 'ok', data: result });
@@ -40,25 +46,26 @@ setRoutes.get('/', (req: Request, res: Response) => {
 
 // POST /api/scenario-sets
 setRoutes.post('/', (req: Request, res: Response) => {
-  const { name, description, scenario_ids, tags, status } = req.body;
+  const { name, description, scenario_ids, tags, status, test_type } = req.body;
   if (!name || typeof name !== 'string' || !name.trim()) {
     res.status(400).json({ code: 400, message: 'Name is required' });
     return;
   }
-  const id = createSet(req.user!.userId, name.trim(), description, scenario_ids || [], tags, status);
+  const id = createSet(req.user!.userId, name.trim(), description, scenario_ids || [], tags, status, test_type || 'api');
   res.status(201).json({ code: 201, message: 'Created', data: { id } });
 });
 
 // GET /api/scenario-sets/:id
 setRoutes.get('/:id', (req: Request, res: Response) => {
   const id = Number(req.params.id);
+  const testType = req.query.test_type as string | undefined;
   const set = checkOwnership(req, res, id);
   if (!set) return;
 
   let scenarioIds: number[] = [];
   try { scenarioIds = JSON.parse(set.scenario_ids || '[]'); } catch { scenarioIds = []; }
 
-  const allScenarios = findScenariosByUserId(req.user!.userId);
+  const allScenarios = findScenariosByUserId(req.user!.userId, testType);
   const scenariosInSet = allScenarios.filter(s => scenarioIds.includes(s.id));
 
   res.json({
@@ -74,8 +81,8 @@ setRoutes.put('/:id', (req: Request, res: Response) => {
   const set = checkOwnership(req, res, id);
   if (!set) return;
 
-  const { name, description, scenario_ids, tags, status } = req.body;
-  updateSet(id, req.user!.userId, { name, description, scenario_ids, tags, status });
+  const { name, description, scenario_ids, tags, status, test_type } = req.body;
+  updateSet(id, req.user!.userId, { name, description, scenario_ids, tags, status, test_type });
   res.json({ code: 200, message: 'Updated' });
 });
 
@@ -99,16 +106,51 @@ setRoutes.post('/:id/execute', async (req: Request, res: Response) => {
 
   try {
     const { runBatch } = await import('../engine/batch-executor.js');
-    const { saveBatchReport } = await import('../db/batch-reports.js');
     const environmentId = req.body.environmentId ? Number(req.body.environmentId) : undefined;
 
-    const report = await runBatch(id, executedBy, environmentId);
-    saveBatchReport(report);
-    res.json({ code: 200, message: 'ok', data: report });
+    const result = await runBatch(id, executedBy, environmentId);
+    res.json({ code: 200, message: 'ok', data: result });
   } catch (err) {
     const errorMsg = err instanceof Error ? err.message : 'Execution failed';
     res.status(500).json({ code: 500, message: errorMsg });
   }
+});
+
+// GET /api/scenario-sets/:id/executions — list all execution sessions
+setRoutes.get('/:id/executions', (req: Request, res: Response) => {
+  const id = Number(req.params.id);
+  const set = checkOwnership(req, res, id);
+  if (!set) return;
+
+  const limit = Math.min(Number(req.query.limit) || 20, 100);
+  const executions = findScenarioSetExecutionsBySetId(id, limit);
+  res.json({ code: 200, message: 'ok', data: executions });
+});
+
+// GET /api/scenario-sets/:id/executions/:execId — get execution detail with scenario execution steps
+setRoutes.get('/:id/executions/:execId', (req: Request, res: Response) => {
+  const id = Number(req.params.id);
+  const execId = Number(req.params.execId);
+  const set = checkOwnership(req, res, id);
+  if (!set) return;
+  if (!execId) { res.status(400).json({ code: 400, message: 'Invalid execId' }); return; }
+
+  const detail = findScenarioSetExecutionWithItems(execId);
+  if (!detail) { res.status(404).json({ code: 404, message: 'Execution not found' }); return; }
+
+  // Enrich each item with scenario execution steps and api links
+  if (detail.items) {
+    for (const item of detail.items) {
+      if (item.scenario_execution_id) {
+        const scenarioDetail = findScenarioExecutionWithSteps(item.scenario_execution_id);
+        if (scenarioDetail) {
+          (item as any).scenario_execution = scenarioDetail;
+        }
+      }
+    }
+  }
+
+  res.json({ code: 200, message: 'ok', data: detail });
 });
 
 // GET /api/scenario-sets/:id/reports

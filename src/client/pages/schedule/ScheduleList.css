@@ -1,6 +1,30 @@
 /* Schedule List */
 @import '../api-test/ApiList.css';
 
+/* ── Row Action Buttons ── */
+.alist-table .row-action-btn {
+  width: 26px;
+  height: 26px;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.12s;
+  background: none;
+  color: var(--fg-secondary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.alist-table .row-action-btn:hover {
+  background: var(--accent-subtle);
+  color: var(--accent);
+}
+.alist-table .row-action-btn.row-action-del:hover {
+  background: var(--danger-subtle);
+  color: var(--danger);
+}
+
 /* ── Status Badge ── */
 .schedule-status-badge {
   display: inline-block;
@@ -11,48 +35,48 @@
 }
 
 .status-none {
-  background: #f5f5f5;
-  color: #999;
+  background: var(--bg);
+  color: var(--fg-tertiary);
 }
 
 .status-paused {
   background: #fff7e6;
-  color: #fa8c16;
+  color: var(--warning);
 }
 
 .status-active {
-  background: #f6ffed;
-  color: #52c41a;
+  background: var(--success-subtle);
+  color: var(--success);
 }
 
 /* ── Next Run Time ── */
 .td-next-run {
   font-size: 12px;
-  color: #666;
+  color: var(--fg-secondary);
 }
 
 /* ── Floating Action Buttons ── */
 .alist-float-pause {
-  color: #fa8c16;
+  color: var(--warning);
 }
 .alist-float-pause:hover {
   background: #fff7e6;
 }
 
 .alist-float-resume {
-  color: #52c41a;
+  color: var(--success);
 }
 .alist-float-resume:hover {
-  background: #f6ffed;
+  background: var(--success-subtle);
 }
 
 .alist-float-remove {
-  color: #ff4d4f;
+  color: var(--danger);
 }
 .alist-float-remove:hover:not(:disabled) {
-  background: #fff1f0;
+  background: var(--danger-subtle);
 }
 .alist-float-remove:disabled {
-  color: #bbb;
+  color: var(--fg-tertiary);
   cursor: not-allowed;
 }

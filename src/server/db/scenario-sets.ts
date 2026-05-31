@@ -8,6 +8,7 @@ export interface ScenarioSetRow {
   tags: string; // comma separated
   status: string; // active, disabled, draft
   scenario_ids: string; // JSON array of scenario IDs
+  test_type: string;
   created_at: string;
   updated_at: string;
 }
@@ -20,7 +21,7 @@ export function findSetsByUserIdPaginated(
   userId: number,
   page: number,
   pageSize: number,
-  filters: { name?: string; tags?: string; status?: string } = {},
+  filters: { name?: string; tags?: string; status?: string; test_type?: string } = {},
   sort = 'updated_at',
   order = 'DESC'
 ): { items: ScenarioSetItem[]; total: number; page: number; pageSize: number } {
@@ -34,6 +35,7 @@ export function findSetsByUserIdPaginated(
   if (filters.name) { conditions.push('name LIKE ?'); params.push(`%${filters.name}%`); }
   if (filters.tags) { conditions.push('tags LIKE ?'); params.push(`%${filters.tags}%`); }
   if (filters.status) { conditions.push('status = ?'); params.push(filters.status); }
+  if (filters.test_type) { conditions.push('test_type = ?'); params.push(filters.test_type); }
 
   const where = conditions.join(' AND ');
   const rows = db.prepare(
@@ -68,15 +70,16 @@ export function findSetById(id: number): ScenarioSetRow | undefined {
   return db.prepare('SELECT * FROM scenario_sets WHERE id = ?').get(id) as ScenarioSetRow | undefined;
 }
 
-export function createSet(userId: number, name: string, description?: string, scenarioIds?: number[], tags?: string, status?: string): number {
+export function createSet(userId: number, name: string, description?: string, scenarioIds?: number[], tags?: string, status?: string, testType?: string): number {
   const now = new Date().toISOString();
   const result = db.prepare(
-    `INSERT INTO scenario_sets (user_id, name, description, scenario_ids, tags, status, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+    `INSERT INTO scenario_sets (user_id, name, description, scenario_ids, tags, status, test_type, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).run(
     userId, name, description || null,
     JSON.stringify(scenarioIds || []),
     tags || '', status || 'draft',
+    testType || 'api',
     now, now
   );
   return result.lastInsertRowid as number;
@@ -88,6 +91,7 @@ export function updateSet(id: number, userId: number, data: {
   tags?: string;
   status?: string;
   scenario_ids?: number[];
+  test_type?: string;
 }): boolean {
   const fields: string[] = [];
   const vals: unknown[] = [];
@@ -97,6 +101,7 @@ export function updateSet(id: number, userId: number, data: {
   if (data.tags !== undefined) { fields.push('tags = ?'); vals.push(data.tags); }
   if (data.status !== undefined) { fields.push('status = ?'); vals.push(data.status); }
   if (data.scenario_ids !== undefined) { fields.push('scenario_ids = ?'); vals.push(JSON.stringify(data.scenario_ids)); }
+  if (data.test_type !== undefined) { fields.push('test_type = ?'); vals.push(data.test_type); }
 
   if (fields.length === 0) return false;
 

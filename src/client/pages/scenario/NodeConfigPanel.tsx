@@ -2,13 +2,25 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import type { Node } from '@xyflow/react';
 import type { ApiItem, ApiNodeConfig, ConditionNodeConfig, ExtractRule, AssertionRule } from '../../types';
 
+// Rich variable info with source tracking
+export interface AvailableVar {
+  varName: string;
+  sourceNode: string;
+  sourceNodeName: string;
+}
+
 interface Props {
   node: Node;
   apis: ApiItem[];
-  availableVariables: string[];
+  availableVariables: AvailableVar[];
   onUpdate: (data: Record<string, unknown>) => void;
   onDelete: () => void;
   onClose: () => void;
+}
+
+// Flat string list for components that just need var names
+export function flattenVars(vars: AvailableVar[]): string[] {
+  return vars.map((v) => v.varName);
 }
 
 export default function NodeConfigPanel({ node, apis, availableVariables, onUpdate, onDelete, onClose }: Props) {
@@ -113,7 +125,7 @@ function migrateAssertions(config: ApiNodeConfig): AssertionRule[] {
   return [];
 }
 
-function ApiNodeConfigPanel({ node, apis, onUpdate, onDelete, onClose }: Omit<Props, 'availableVariables'>) {
+function ApiNodeConfigPanel({ node, apis, availableVariables, onUpdate, onDelete, onClose }: Props) {
   const config = node.data as unknown as ApiNodeConfig;
   const apiList = Array.isArray(apis) ? apis : [];
   // 当前选中的接口ID
@@ -310,6 +322,23 @@ function ApiNodeConfigPanel({ node, apis, onUpdate, onDelete, onClose }: Omit<Pr
           </div>
         </div>
 
+        {/* 上游节点传下来的变量（只读，不可修改） */}
+        {(availableVariables ?? []).filter(v => v.sourceNode).length > 0 && (
+          <div className="scenario-config-field">
+            <label>上游变量</label>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              {(availableVariables ?? [])
+                .filter(v => v.sourceNode)
+                .map((v) => (
+                  <div key={v.varName} className="upstream-var-row">
+                    <span className="upstream-var-name">{`{${v.varName}}`}</span>
+                    <span className="upstream-var-source">来自 {v.sourceNodeName}</span>
+                  </div>
+                ))}
+            </div>
+          </div>
+        )}
+
         {/* 提取和断言 */}
         <div className="ad-section">
           <div className="ad-section-head">
@@ -424,16 +453,20 @@ function ConditionNodeConfigPanel({ node, availableVariables, onUpdate, onDelete
         </div>
 
         <div className="scenario-config-field">
-          <label>可用变量 (点击插入)</label>
+          <label>前置节点提取的变量 (点击插入)</label>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+            {availableVariables.length === 0 && (
+              <span style={{ color: '#999', fontSize: 12 }}>前置无可用变量</span>
+            )}
             {availableVariables.map((v) => (
               <button
-                key={v}
+                key={v.varName}
                 className="scenario-toolbar-btn"
-                style={{ padding: '4px 8px', fontSize: 11 }}
-                onClick={() => insertVar(v)}
+                style={{ padding: '4px 8px', fontSize: 11, position: 'relative' }}
+                onClick={() => insertVar(v.varName)}
+                title={`来自: ${v.sourceNodeName}`}
               >
-                {`{${v}}`}
+                {`{${v.varName}}`}
               </button>
             ))}
           </div>

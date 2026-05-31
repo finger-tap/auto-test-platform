@@ -219,7 +219,7 @@ export default function OpenAPIImportModal({ onImported }: Props) {
                       <div className="api-preview-name">{api.name}</div>
                       <div className="api-preview-url">{api.method} {api.url}</div>
                       {api.tags.length > 0 && (
-                        <div className="api-preview-tags">{api.tags.map(t => <span key={t} className="tag">{t}</span>)}</div>
+                        <div className="api-preview-tags">{api.tags.map(t => <span key={t} className="tag" data-tag={t}>{t}</span>)}</div>
                       )}
                     </div>
                     <span

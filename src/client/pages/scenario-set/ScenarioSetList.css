@@ -3,34 +3,34 @@
 
 /* Keep modal styles from original */
 .sset-modal-overlay {
-  position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 1000;
+  position: fixed; inset: 0; background: rgba(0, 0, 0, 0.45); z-index: 1000;
   display: flex; align-items: center; justify-content: center;
 }
 .sset-modal {
-  background: #fff; border-radius: 12px; padding: 28px; width: 480px; max-width: 90vw;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+  background: var(--surface); border-radius: 12px; padding: 28px; width: 480px; max-width: 90vw;
+  box-shadow: var(--shadow-lg);
 }
-.sset-modal h3 { margin: 0 0 20px; font-size: 16px; color: #1a1a1a; }
+.sset-modal h3 { margin: 0 0 20px; font-size: 16px; color: var(--fg); }
 .sset-modal-field { margin-bottom: 16px; }
-.sset-modal-field label { display: block; font-size: 13px; color: #666; margin-bottom: 6px; }
-.sset-modal-field .required { color: #ff4d4f; }
+.sset-modal-field label { display: block; font-size: 13px; color: var(--fg-secondary); margin-bottom: 6px; }
+.sset-modal-field .required { color: var(--danger); }
 .sset-modal-field input {
-  width: 100%; padding: 8px 12px; border: 1px solid #d9d9d9; border-radius: 6px;
+  width: 100%; padding: 8px 12px; border: 1px solid var(--border); border-radius: 6px;
   font-size: 14px; box-sizing: border-box;
 }
 .sset-modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px; }
 .sset-modal-actions button {
-  padding: 8px 20px; border: 1px solid #d9d9d9; border-radius: 6px;
-  background: #fff; cursor: pointer; font-size: 14px;
+  padding: 8px 20px; border: 1px solid var(--border); border-radius: 6px;
+  background: var(--surface); cursor: pointer; font-size: 14px;
 }
 .sset-modal-actions .sset-btn-primary {
-  background: #1677ff; color: #fff; border: none;
+  background: var(--accent); color: #fff; border: none;
 }
-.sset-modal-actions .sset-btn-primary:hover { background: #4096ff; }
+.sset-modal-actions .sset-btn-primary:hover { background: var(--accent-hover); }
 
 .sset-msg-toast {
   position: fixed; top: 24px; left: 50%; transform: translateX(-50%);
   padding: 10px 24px; border-radius: 6px; font-size: 14px; z-index: 2000;
 }
-.sset-msg-toast[data-type="success"] { background: #f6ffed; color: #52c41a; border: 1px solid #b7eb8f; }
-.sset-msg-toast[data-type="error"] { background: #fff2f0; color: #ff4d4f; border: 1px solid #ffccc7; }
+.sset-msg-toast[data-type="success"] { background: var(--success-subtle); color: var(--success); border: 1px solid var(--success-subtle); }
+.sset-msg-toast[data-type="error"] { background: var(--danger-subtle); color: var(--danger); border: 1px solid var(--danger-subtle); }

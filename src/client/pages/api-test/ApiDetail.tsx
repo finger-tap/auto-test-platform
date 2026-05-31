@@ -119,6 +119,8 @@ export default function ApiDetail() {
   // New execution state
   const [executions, setExecutions] = useState<ApiExecution[]>([]);
   const [selectedExecution, setSelectedExecution] = useState<ApiExecution | null>(null);
+  // When jumping to a specific execution, track which member tab to show by default
+  const [jumpMemberIndex, setJumpMemberIndex] = useState(0);
 
   // 前置/后置动作列表（组件化新格式）
   const [preActions, setPreActions] = useState<PrePostAction[]>([]);
@@ -296,22 +298,75 @@ export default function ApiDetail() {
       }
     });
     apiFetch<ApiLog[]>(`/apis/${id}/logs`).then((res) => { const r = res as { code: number; data?: ApiLog[] }; if (r.code === 200 && r.data) setLogs(r.data); });
-    apiFetch<ApiExecution[]>(`/apis/${id}/executions`).then((res) => {
+    apiFetch<ApiExecution[]>(`/apis/${id}/executions`).then(async (res) => {
       const r = res as { code: number; data?: ApiExecution[] };
       if (r.code === 200 && r.data && r.data.length > 0) {
-        const firstExec = r.data[0];
         setExecutions(r.data);
-        // 自动获取第一条记录的详情
-        if (!firstExec.steps) {
-          apiFetch<ApiExecution & { steps: ApiExecutionStep[] }>(`/apis/${id}/executions/${firstExec.id}`).then((detailRes) => {
-            const detail = detailRes as unknown as { code: number; data?: ApiExecution & { steps: ApiExecutionStep[] } };
-            if (detail.code === 200 && detail.data) {
-              setExecutions(prev => prev.map(e => e.id === firstExec.id ? detail.data! : e));
-              setSelectedExecution(detail.data!);
+        const execParam = searchParams.get('exec');
+        const paramRowParam = searchParams.get('paramRow');
+        if (execParam === '1') {
+          // auto execute
+          autoExecRef.current = true;
+          handleExecute();
+        } else if (execParam && !isNaN(Number(execParam))) {
+          // jump to specific execution id
+          const targetId = Number(execParam);
+          const targetExec = r.data.find(e => e.id === targetId || e.sub_executions?.some((s: ApiExecution) => s.id === targetId));
+          if (targetExec) {
+            const isBatch = targetExec.sub_executions && targetExec.sub_executions.length > 0;
+            if (isBatch) {
+              // Fetch leader + all sub execution details for batch
+              const [leaderDetail, ...subDetails] = await Promise.all([
+                apiFetch<ApiExecution & { steps: ApiExecutionStep[] }>(`/apis/${id}/executions/${targetExec.id}`) as Promise<{ code: number; data?: ApiExecution & { steps: ApiExecutionStep[] } }>,
+                ...targetExec.sub_executions!.map(sub =>
+                  apiFetch<ApiExecution & { steps: ApiExecutionStep[] }>(`/apis/${id}/executions/${sub.id}`) as Promise<{ code: number; data?: ApiExecution & { steps: ApiExecutionStep[] } }>
+                )
+              ]);
+              const subsWithDetails = subDetails.map(r => r.data).filter(Boolean) as ApiExecution[];
+              const batchWithDetails = { ...(leaderDetail.data || targetExec), sub_executions: subsWithDetails };
+              // Calculate correct tab index: allRows = [leader, ...subs] sorted by param_row_index
+              const allRows = [batchWithDetails, ...subsWithDetails].sort((a, b) => a.param_row_index - b.param_row_index);
+              let memberIdx = 0;
+              if (paramRowParam != null) {
+                memberIdx = allRows.findIndex(r => r.param_row_index === Number(paramRowParam));
+                if (memberIdx < 0) memberIdx = 0;
+              } else {
+                memberIdx = allRows.findIndex(r => r.id === targetId);
+                if (memberIdx < 0) memberIdx = 0;
+              }
+              setJumpMemberIndex(memberIdx);
+              setExecutions(prev => prev.map(e => e.id === targetExec.id ? batchWithDetails : e));
+              setSelectedExecution(batchWithDetails);
+              setExpandedLog(targetExec.id);
+              setActiveTab('logs');
+            } else {
+              // Single execution (no batch)
+              apiFetch<ApiExecution & { steps: ApiExecutionStep[] }>(`/apis/${id}/executions/${targetExec.id}`).then((detailRes) => {
+                const detail = detailRes as unknown as { code: number; data?: ApiExecution & { steps: ApiExecutionStep[] } };
+                if (detail.code === 200 && detail.data) {
+                  setExecutions(prev => prev.map(e => e.id === targetExec.id ? detail.data! : e));
+                  setSelectedExecution(detail.data!);
+                  setExpandedLog(targetExec.id);
+                  setActiveTab('logs');
+                }
+              });
             }
-          });
+          }
         } else {
-          setSelectedExecution(firstExec);
+          // normal: select first execution
+          setJumpMemberIndex(0);
+          const firstExec = r.data[0];
+          if (!firstExec.steps) {
+            apiFetch<ApiExecution & { steps: ApiExecutionStep[] }>(`/apis/${id}/executions/${firstExec.id}`).then((detailRes) => {
+              const detail = detailRes as unknown as { code: number; data?: ApiExecution & { steps: ApiExecutionStep[] } };
+              if (detail.code === 200 && detail.data) {
+                setExecutions(prev => prev.map(e => e.id === firstExec.id ? detail.data! : e));
+                setSelectedExecution(detail.data!);
+              }
+            });
+          } else {
+            setSelectedExecution(firstExec);
+          }
         }
       }
     });
@@ -1024,7 +1079,7 @@ export default function ApiDetail() {
                     <tr className="log-detail-row">
                       <td colSpan={5}>
                         {isBatch ? (
-                          <BatchExecutionView execution={selectedExecution} id={id!} />
+                          <BatchExecutionView execution={selectedExecution} id={id!} defaultActiveRow={jumpMemberIndex} />
                         ) : (
                           <ApiExecutionTimeline
                             execution={selectedExecution}
