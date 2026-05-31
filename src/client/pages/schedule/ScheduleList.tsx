@@ -295,17 +295,17 @@ export default function ScheduleList({ basePath = '/api-test' }: { basePath?: st
                   <td className="td-next-run">{item.status === 'active' && item.next_run_at ? item.next_run_at : '—'}</td>
                   <td className="td-next-run">{item.last_run_at ? item.last_run_at.replace('T', ' ').slice(0, 16) : '—'}</td>
                   <td>
-                    <div className="row-actions">
-                      <button className="row-action-btn row-action-enter" title="进入场景集" onClick={() => navigate(`${basePath}/scenario-set/${item.scenario_set_id}`)}>→</button>
-                      <button className="row-action-btn" title="配置" onClick={() => setConfigItem(item)}>⚙</button>
+                    <div className="row-actions" style={{ gap: 4, flexWrap: 'wrap' }}>
+                      <button className="btn btn-sm" onClick={() => navigate(`${basePath}/scene-set/${item.scenario_set_id}`)}>进入</button>
+                      <button className="btn btn-sm btn-default" onClick={() => setConfigItem(item)}>配置</button>
                       {item.status === 'active' && (
-                        <button className="row-action-btn" title="暂停" onClick={() => handlePause(item)}>⏸</button>
+                        <button className="btn btn-sm" onClick={() => handlePause(item)}>暂停</button>
                       )}
                       {item.status === 'paused' && (
-                        <button className="row-action-btn" title="启用" onClick={() => handleResume(item)}>▶</button>
+                        <button className="btn btn-sm" onClick={() => handleResume(item)}>启用</button>
                       )}
                       {item.id > 0 && (
-                        <button className="row-action-btn row-action-del" title="移除配置" onClick={() => handleRemove(item)}>✕</button>
+                        <button className="btn btn-sm btn-danger" onClick={() => handleRemove(item)}>移除</button>
                       )}
                     </div>
                   </td>
