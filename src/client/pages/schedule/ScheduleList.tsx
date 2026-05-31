@@ -1,13 +1,15 @@
-import { useState, useEffect, type MouseEvent } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { apiFetch } from '../../utils/api';
+import FormSelect from '../../components/FormSelect';
 import './ScheduleList.css';
 
 interface ScheduleSetItem {
   id: number;
-  scenario_id: number;
-  scenario_name: string;
-  scenario_description: string | null;
+  scenario_set_id: number;
+  scenario_set_name: string;
+  scenario_set_description: string | null;
+  scenario_count: number;
   creator_name: string;
   cron_expr: string | null;
   status: 'none' | 'paused' | 'active';
@@ -76,9 +78,9 @@ function InlineScheduleConfig({ item, onClose, onUpdated }: {
       const body = { cron_expr: cronExpr, status: enableImmediately ? 'active' : status };
       let res;
       if (item.id > 0) {
-        res = await apiFetch(`/schedules/${item.id}/configure`, { method: 'PUT', body: JSON.stringify(body) });
+        res = await apiFetch(`/schedule-sets/${item.id}/configure`, { method: 'PUT', body: JSON.stringify(body) });
       } else {
-        res = await apiFetch(`/schedules/scenario/${item.scenario_id}`, { method: 'PUT', body: JSON.stringify(body) });
+        res = await apiFetch(`/schedule-sets/set/${item.scenario_set_id}`, { method: 'PUT', body: JSON.stringify(body) });
       }
       const data = await res;
       setSaving(false);
@@ -103,8 +105,8 @@ function InlineScheduleConfig({ item, onClose, onUpdated }: {
           </div>
 
           <div style={{ background: '#fafafa', borderRadius: 8, padding: '12px 16px', marginBottom: 20, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-            <div><span style={{ fontSize: 12, color: '#999' }}>场景</span><div style={{ fontSize: 14, marginTop: 2 }}>{item.scenario_name}</div></div>
-            <div><span style={{ fontSize: 12, color: '#999' }}>描述</span><div style={{ fontSize: 14, marginTop: 2 }}>{item.scenario_description || '-'}</div></div>
+            <div><span style={{ fontSize: 12, color: '#999' }}>场景集</span><div style={{ fontSize: 14, marginTop: 2 }}>{item.scenario_set_name}</div></div>
+            <div><span style={{ fontSize: 12, color: '#999' }}>场景数</span><div style={{ fontSize: 14, marginTop: 2 }}>{item.scenario_count}</div></div>
           </div>
 
           <div style={{ marginBottom: 16 }}>
@@ -180,28 +182,22 @@ function InlineScheduleConfig({ item, onClose, onUpdated }: {
   );
 }
 
-export default function ScheduleList() {
+export default function ScheduleList({ basePath = '/api-test' }: { basePath?: string } = {}) {
   const navigate = useNavigate();
   const [list, setList] = useState<ScheduleSetItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [total, setTotal] = useState(0);
-  const [floatBtn, setFloatBtn] = useState<{ x: number; y: number; item: ScheduleSetItem } | null>(null);
   const [configItem, setConfigItem] = useState<ScheduleSetItem | null>(null);
   const [nameFilter, setNameFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [creatorFilter, setCreatorFilter] = useState('');
-  const [sortField, setSortField] = useState('updated_at');
-  const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC'>('DESC');
-  const floatMenuRef = useState<React.RefObject<HTMLDivElement | null>>({} as React.RefObject<HTMLDivElement | null>)[0];
 
   const fetchList = async (pageNum = 1, pageSz = pageSize) => {
     setLoading(true);
     try {
-      const params = new URLSearchParams({ page: String(pageNum), pageSize: String(pageSz), sort: sortField, order: sortOrder });
-      if (creatorFilter) params.set('creator', creatorFilter);
-      const res = await apiFetch<{ items: ScheduleSetItem[]; total: number; page: number; pageSize: number }>(`/schedules?${params}`);
+      const res = await apiFetch<{ items: ScheduleSetItem[]; total: number; page: number; pageSize: number }>(`/schedule-sets?page=${pageNum}&pageSize=${pageSz}`);
       if (res.code === 200 && res.data) {
         setList(res.data.items || []);
         setTotal(res.data.total || 0);
@@ -211,47 +207,29 @@ export default function ScheduleList() {
     } finally { setLoading(false); }
   };
 
-  useEffect(() => { fetchList(); }, [sortField, sortOrder]);
-
-  // Close float on outside click
-  useEffect(() => {
-    if (!floatBtn) return;
-    const handler = (e: MouseEvent) => {
-      if (floatMenuRef.current && !(floatMenuRef.current as any)?.contains?.(e.target)) setFloatBtn(null);
-    };
-    setTimeout(() => document.addEventListener('click', handler as unknown as EventListener), 0);
-    return () => document.removeEventListener('click', handler as unknown as EventListener);
-  }, [floatBtn]);
-
-  const handleRowClick = (e: MouseEvent, item: ScheduleSetItem) => {
-    e.stopPropagation();
-    setFloatBtn({ x: e.clientX, y: e.clientY, item });
-  };
+  useEffect(() => { fetchList(); }, []);
 
   const handlePause = async (item: ScheduleSetItem) => {
-    setFloatBtn(null);
     if (item.id <= 0) return;
-    await apiFetch(`/schedules/${item.id}/pause`, { method: 'POST' });
+    await apiFetch(`/schedule-sets/${item.id}/pause`, { method: 'POST' });
     fetchList(page);
   };
 
   const handleResume = async (item: ScheduleSetItem) => {
-    setFloatBtn(null);
     if (item.id <= 0) return;
-    await apiFetch(`/schedules/${item.id}/resume`, { method: 'POST' });
+    await apiFetch(`/schedule-sets/${item.id}/resume`, { method: 'POST' });
     fetchList(page);
   };
 
   const handleRemove = async (item: ScheduleSetItem) => {
-    setFloatBtn(null);
     if (item.id <= 0) return;
-    if (!confirm(`确认移除「${item.scenario_name}」的定时配置？`)) return;
-    await apiFetch(`/schedules/${item.id}/remove`, { method: 'POST' });
+    if (!confirm(`确认移除「${item.scenario_set_name}」的定时配置？`)) return;
+    await apiFetch(`/schedule-sets/${item.id}/remove`, { method: 'POST' });
     fetchList(page);
   };
 
   const filtered = list.filter(item => {
-    if (nameFilter && !item.scenario_name.includes(nameFilter)) return false;
+    if (nameFilter && !item.scenario_set_name.includes(nameFilter)) return false;
     if (statusFilter && item.status !== statusFilter) return false;
     if (creatorFilter && !(item.creator_name || '').includes(creatorFilter)) return false;
     return true;
@@ -264,14 +242,6 @@ export default function ScheduleList() {
   };
 
   const handleReset = () => { setNameFilter(''); setStatusFilter(''); setCreatorFilter(''); fetchList(1); };
-  const toggleSort = (field: string) => {
-    if (sortField === field) setSortOrder(o => o === 'ASC' ? 'DESC' : 'ASC');
-    else { setSortField(field); setSortOrder('DESC'); }
-  };
-  const sortIcon = (field: string) => {
-    if (sortField !== field) return <span className="sort-icon">⇅</span>;
-    return <span className="sort-icon sort-active">{sortOrder === 'ASC' ? '↑' : '↓'}</span>;
-  };
 
   return (
     <div className="alist">
@@ -288,15 +258,10 @@ export default function ScheduleList() {
           </div>
           <div className="alist-filter-item">
             <label>状态</label>
-            <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
-              <option value="">全部状态</option>
-              <option value="none">未设置</option>
-              <option value="paused">暂停</option>
-              <option value="active">正常</option>
-            </select>
+            <FormSelect value={statusFilter} options={[{value:"",label:"全部状态"},{value:"none",label:"未设置"},{value:"paused",label:"暂停"},{value:"active",label:"正常"}]} onChange={val => setStatusFilter(val)} />
           </div>
           <div className="alist-filter-actions">
-            <button className="alist-btn-query" onClick={handleReset}>重置</button>
+            <button className="btn btn-default" onClick={handleReset}>重置</button>
           </div>
         </div>
       </div>
@@ -311,25 +276,39 @@ export default function ScheduleList() {
           <table className="alist-table">
             <thead>
               <tr>
-                <th className="sortable" onClick={() => toggleSort('name')}>场景名称 {sortIcon('name')}</th>
+                <th>场景集名称</th>
+                <th>场景数</th>
                 <th>创建人</th>
                 <th>任务状态</th>
-                <th className="sortable" onClick={() => toggleSort('next_run_at')}>下次执行时间 {sortIcon('next_run_at')}</th>
-                <th className="sortable" onClick={() => toggleSort('last_run_at')}>最近执行 {sortIcon('last_run_at')}</th>
+                <th>下次执行时间</th>
+                <th>最近执行</th>
+                <th style={{ width: 80 }}></th>
               </tr>
             </thead>
             <tbody>
               {filtered.map(item => (
-                <tr
-                  key={item.scenario_id}
-                  onClick={e => handleRowClick(e, item)}
-                  className={floatBtn?.item.scenario_id === item.scenario_id ? 'active-row' : ''}
-                >
-                  <td>{item.scenario_name}</td>
+                <tr key={item.scenario_set_id}>
+                  <td>{item.scenario_set_name}</td>
+                  <td>{item.scenario_count}</td>
                   <td>{item.creator_name}</td>
                   <td><span className={getBadgeClass(item.status)}>{STATUS_LABELS[item.status]}</span></td>
                   <td className="td-next-run">{item.status === 'active' && item.next_run_at ? item.next_run_at : '—'}</td>
                   <td className="td-next-run">{item.last_run_at ? item.last_run_at.replace('T', ' ').slice(0, 16) : '—'}</td>
+                  <td>
+                    <div className="row-actions">
+                      <button className="row-action-btn row-action-enter" title="进入场景集" onClick={() => navigate(`${basePath}/scenario-set/${item.scenario_set_id}`)}>→</button>
+                      <button className="row-action-btn" title="配置" onClick={() => setConfigItem(item)}>⚙</button>
+                      {item.status === 'active' && (
+                        <button className="row-action-btn" title="暂停" onClick={() => handlePause(item)}>⏸</button>
+                      )}
+                      {item.status === 'paused' && (
+                        <button className="row-action-btn" title="启用" onClick={() => handleResume(item)}>▶</button>
+                      )}
+                      {item.id > 0 && (
+                        <button className="row-action-btn row-action-del" title="移除配置" onClick={() => handleRemove(item)}>✕</button>
+                      )}
+                    </div>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -340,40 +319,10 @@ export default function ScheduleList() {
       {/* Pagination */}
       <div className="alist-pagination">
         <span className="page-info">共 {total} 条，第 {page} / {Math.ceil(total / pageSize) || 1} 页</span>
-        <button className="page-btn" disabled={page <= 1} onClick={() => fetchList(page - 1)}>上一页</button>
-        <button className="page-btn" disabled={page >= Math.ceil(total / pageSize) || total === 0} onClick={() => fetchList(page + 1)}>下一页</button>
-        <select className="page-size-select" value={pageSize} onChange={e => { setPageSize(Number(e.target.value)); setPage(1); fetchList(1); }}>
-          <option value={10}>10条/页</option>
-          <option value={20}>20条/页</option>
-          <option value={50}>50条/页</option>
-          <option value={100}>100条/页</option>
-        </select>
+        <button className="btn btn-sm" disabled={page <= 1} onClick={() => fetchList(page - 1)}>上一页</button>
+        <button className="btn btn-sm" disabled={page >= Math.ceil(total / pageSize) || total === 0} onClick={() => fetchList(page + 1)}>下一页</button>
+        <FormSelect value={String(pageSize)} options={[{value:"10",label:"10条/页"},{value:"20",label:"20条/页"},{value:"50",label:"50条/页"},{value:"100",label:"100条/页"}]} onChange={val => { setPageSize(Number(val)); setPage(1); fetchList(1); }} />
       </div>
-
-      {/* Floating action buttons */}
-      {floatBtn && (
-        <div
-          ref={floatMenuRef as React.RefObject<HTMLDivElement>}
-          className="alist-float"
-          style={{ left: floatBtn.x, top: floatBtn.y }}
-          onClick={e => e.stopPropagation()}>
-          <button className="alist-float-btn" style={{ color: '#1677ff' }} onClick={() => { setFloatBtn(null); navigate(`/api-test/scene-case/${floatBtn.item.scenario_id}`); }}>
-            查看场景集
-          </button>
-          <button className="alist-float-btn" style={{ color: '#1677ff' }} onClick={() => { setFloatBtn(null); setConfigItem(floatBtn.item); }}>
-            配置
-          </button>
-          {floatBtn.item.status === 'active' && (
-            <button className="alist-float-btn" style={{ color: '#fa8c16' }} onClick={() => handlePause(floatBtn.item)}>暂停</button>
-          )}
-          {floatBtn.item.status === 'paused' && (
-            <button className="alist-float-btn" style={{ color: '#52c41a' }} onClick={() => handleResume(floatBtn.item)}>启用</button>
-          )}
-          {floatBtn.item.id > 0 && (
-            <button className="alist-float-btn" style={{ color: '#ff4d4f' }} onClick={() => handleRemove(floatBtn.item)}>移除配置</button>
-          )}
-        </div>
-      )}
 
       {/* Inline schedule config */}
       {configItem && (
