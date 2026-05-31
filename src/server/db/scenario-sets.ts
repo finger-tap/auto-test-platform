@@ -15,6 +15,13 @@ export interface ScenarioSetRow {
 
 export interface ScenarioSetItem extends ScenarioSetRow {
   scenario_count: number;
+  last_execution?: {
+    status: string;
+    passed_count: number;
+    failed_count: number;
+    total_duration_ms: number;
+    executed_at: string;
+  } | null;
 }
 
 export function findSetsByUserIdPaginated(
@@ -49,7 +56,23 @@ export function findSetsByUserIdPaginated(
   const items = rows.map(r => {
     let cnt = 0;
     try { const ids = JSON.parse(r.scenario_ids || '[]'); cnt = Array.isArray(ids) ? ids.length : 0; } catch { cnt = 0; }
-    return { ...r, scenario_count: cnt };
+
+    // Fetch latest execution for this set
+    const lastExec = db.prepare(
+      'SELECT status, passed_count, failed_count, total_duration_ms, finished_at FROM scenario_set_executions WHERE set_id = ? ORDER BY started_at DESC LIMIT 1'
+    ).get(r.id) as { status: string; passed_count: number; failed_count: number; total_duration_ms: number; finished_at: string } | undefined;
+
+    return {
+      ...r,
+      scenario_count: cnt,
+      last_execution: lastExec ? {
+        status: lastExec.status,
+        passed_count: lastExec.passed_count,
+        failed_count: lastExec.failed_count,
+        total_duration_ms: lastExec.total_duration_ms,
+        executed_at: lastExec.finished_at,
+      } : null,
+    };
   });
   return { items, total: count, page, pageSize };
 }

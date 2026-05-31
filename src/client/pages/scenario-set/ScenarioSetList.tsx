@@ -15,6 +15,13 @@ interface SetItem {
   scenario_count: number;
   created_at: string;
   updated_at: string;
+  last_execution?: {
+    status: string;
+    passed_count: number;
+    failed_count: number;
+    total_duration_ms: number;
+    executed_at: string;
+  } | null;
 }
 
 const STATUS_MAP: Record<string, { label: string; color: string }> = {
@@ -154,7 +161,7 @@ export default function ScenarioSetList({ basePath = '/api-test', testType = 'ap
                 <th className="sortable" onClick={() => toggleSort('name')}>场景集名称 {sortIcon('name')}</th>
                 <th>标签</th>
                 <th>状态</th>
-                <th>包含场景数</th>
+                <th>最近执行</th>
                 <th className="sortable" onClick={() => toggleSort('created_at')}>创建时间 {sortIcon('created_at')}</th>
                 <th className="sortable" onClick={() => toggleSort('updated_at')}>更新时间 {sortIcon('updated_at')}</th>
                 <th style={{ width: 80 }}></th>
@@ -181,7 +188,17 @@ export default function ScenarioSetList({ basePath = '/api-test', testType = 'ap
                         {statusInfo.label}
                       </span>
                     </td>
-                    <td>{s.scenario_count} 个场景</td>
+                    <td>
+                      {s.last_execution ? (
+                        <span style={{ fontSize: 12 }}>
+                          <span style={{ color: s.last_execution.status === 'success' ? '#52c41a' : s.last_execution.status === 'failed' ? '#ff4d4f' : '#999' }}>
+                            {s.last_execution.passed_count}/{s.last_execution.failed_count}
+                          </span>
+                          {' '}
+                          <span style={{ color: '#999' }}>{formatDateTime(s.last_execution.executed_at)}</span>
+                        </span>
+                      ) : <span style={{ color: '#999' }}>—</span>}
+                    </td>
                     <td>{formatDateTime(s.created_at)}</td>
                     <td>{formatDateTime(s.updated_at)}</td>
                     <td>

@@ -4864,6 +4864,38 @@
       "related_bugs": [],
       "occurrences": 1,
       "last_seen": "2026-05-31T11:47:17.557Z"
+    },
+    {
+      "id": "bug-305",
+      "timestamp": "2026-05-31T11:55:58.295Z",
+      "error_message": "Wrong return value",
+      "file": "src/server/db/scenario-sets.ts",
+      "root_cause": "Was returning: { ...r, scenario_count: cnt };",
+      "fix": "Now returns: {",
+      "tags": [
+        "auto-detected",
+        "return-value",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-31T11:55:58.295Z"
+    },
+    {
+      "id": "bug-306",
+      "timestamp": "2026-05-31T11:58:17.099Z",
+      "error_message": "CSS fix: color",
+      "file": "src/client/pages/scenario-set/ScenarioSetList.tsx",
+      "root_cause": "color: statusInfo.color → '#999'",
+      "fix": "Changed color: statusInfo.color → '#999'",
+      "tags": [
+        "auto-detected",
+        "style-fix",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-31T11:58:17.099Z"
     }
   ]
 }
