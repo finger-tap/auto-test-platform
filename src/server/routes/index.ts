@@ -5,7 +5,6 @@ import { scenarioRoutes } from './scenarios.js';
 import { scenarioRoutes as scenarioRoutesWeb } from './scenarios-web.js';
 import { scenarioRoutes as scenarioRoutesPc } from './scenarios-pc.js';
 import { scenarioRoutes as scenarioRoutesMobile } from './scenarios-mobile.js';
-import { scheduleRoutes } from './schedules.js';
 import { envRoutes } from './environments.js';
 import { setRoutes } from './scenario-sets.js';
 import { scenarioSetRoutes as scenarioSetRoutesWeb } from './scenario-sets-web.js';
@@ -37,8 +36,6 @@ routes.use('/scenarios-web', scenarioRoutesWeb);
 routes.use('/scenarios-pc', scenarioRoutesPc);
 // 移动端测试场景（独立表）
 routes.use('/scenarios-mobile', scenarioRoutesMobile);
-routes.use('/schedules', scheduleRoutes);
-routes.use('/schedule-sets', scheduleSetRoutes);
 routes.use('/environments', envRoutes);
 // 接口测试场景集（共用表，保持兼容性）
 routes.use('/scenario-sets', setRoutes);

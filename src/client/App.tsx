@@ -21,7 +21,6 @@ import MockDetail from './pages/mock/MockDetail';
 import BatchReportList from './pages/batch-report/BatchReportList';
 import BatchReportDetail from './pages/batch-report/BatchReportDetail';
 import ScheduleList from './pages/schedule/ScheduleList';
-import ScheduleDetail from './pages/schedule/ScheduleDetail';
 import EnvironmentList from './pages/environment/EnvironmentList';
 import EnvironmentDetail from './pages/environment/EnvironmentDetail';
 import SystemConfig from './pages/system/SystemConfig';
@@ -66,7 +65,6 @@ function App() {
                 <Route path="/api-test/scene-set" element={<ScenarioSetList basePath="/api-test" testType="api" />} />
                 <Route path="/api-test/scene-set/:id" element={<ScenarioSetDetail basePath="/api-test" testType="api" />} />
                 <Route path="/api-test/schedule" element={<ScheduleList basePath="/api-test" />} />
-                <Route path="/api-test/schedule/:id" element={<ScheduleDetail testType="api" />} />
                 <Route path="/api-test/batch-report" element={<BatchReportList basePath="/api-test" testType="api" />} />
                 <Route path="/api-test/batch-report/:id" element={<BatchReportDetail testType="api" />} />
                 <Route path="/api-test/mock" element={<MockList basePath="/api-test" testType="api" />} />
@@ -86,7 +84,6 @@ function App() {
                 <Route path="/web-test/scene-set" element={<ScenarioSetList basePath="/web-test" testType="web" />} />
                 <Route path="/web-test/scene-set/:id" element={<ScenarioSetDetail basePath="/web-test" testType="web" />} />
                 <Route path="/web-test/schedule" element={<ScheduleList basePath="/web-test" />} />
-                <Route path="/web-test/schedule/:id" element={<ScheduleDetail testType="web" />} />
                 <Route path="/web-test/batch-report" element={<BatchReportList basePath="/web-test" testType="web" />} />
                 <Route path="/web-test/batch-report/:id" element={<BatchReportDetail testType="web" />} />
                 <Route path="/web-test/environment" element={<EnvironmentList basePath="/web-test" testType="web" />} />
@@ -104,7 +101,6 @@ function App() {
                 <Route path="/mobile-test/scene-set" element={<ScenarioSetList basePath="/mobile-test" testType="mobile" />} />
                 <Route path="/mobile-test/scene-set/:id" element={<ScenarioSetDetail basePath="/mobile-test" testType="mobile" />} />
                 <Route path="/mobile-test/schedule" element={<ScheduleList basePath="/mobile-test" />} />
-                <Route path="/mobile-test/schedule/:id" element={<ScheduleDetail testType="mobile" />} />
                 <Route path="/mobile-test/batch-report" element={<BatchReportList basePath="/mobile-test" testType="mobile" />} />
                 <Route path="/mobile-test/batch-report/:id" element={<BatchReportDetail testType="mobile" />} />
                 <Route path="/mobile-test/mock" element={<MockList basePath="/mobile-test" testType="mobile" />} />
@@ -124,7 +120,6 @@ function App() {
                 <Route path="/pc-test/scene-set" element={<ScenarioSetList basePath="/pc-test" testType="pc" />} />
                 <Route path="/pc-test/scene-set/:id" element={<ScenarioSetDetail basePath="/pc-test" testType="pc" />} />
                 <Route path="/pc-test/schedule" element={<ScheduleList basePath="/pc-test" />} />
-                <Route path="/pc-test/schedule/:id" element={<ScheduleDetail testType="pc" />} />
                 <Route path="/pc-test/batch-report" element={<BatchReportList basePath="/pc-test" testType="pc" />} />
                 <Route path="/pc-test/batch-report/:id" element={<BatchReportDetail testType="pc" />} />
                 <Route path="/pc-test/environment" element={<EnvironmentList basePath="/pc-test" testType="pc" />} />
