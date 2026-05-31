@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { apiFetch } from '../../utils/api';
+import { formatDateTime } from '../../utils/datetime';
 import FormSelect from '../../components/FormSelect';
 import './ScheduleList.css';
 
@@ -300,8 +301,8 @@ export default function ScheduleList({ basePath = '/api-test' }: { basePath?: st
                   <td>{item.scenario_count}</td>
                   <td>{item.creator_name}</td>
                   <td><span className={getBadgeClass(item.status)}>{STATUS_LABELS[item.status]}</span></td>
-                  <td className="td-next-run">{item.status === 'active' && item.next_run_at ? item.next_run_at : '—'}</td>
-                  <td className="td-next-run">{item.last_run_at ? item.last_run_at.replace('T', ' ').slice(0, 16) : '—'}</td>
+                  <td className="td-next-run">{item.status === 'active' && item.next_run_at ? formatDateTime(item.next_run_at) : '—'}</td>
+                  <td className="td-next-run">{item.last_run_at ? formatDateTime(item.last_run_at) : '—'}</td>
                   <td>
                     <div className="row-actions" style={{ gap: 4, flexWrap: 'wrap' }}>
                       <button className="btn btn-sm" onClick={() => navigate(`${basePath}/scene-set/${item.scenario_set_id}`)}>进入</button>
