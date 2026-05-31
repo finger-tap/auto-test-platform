@@ -48,7 +48,7 @@ function InlineScheduleConfig({ item, onClose, onUpdated }: {
   const [modalType, setModalType] = useState<'success' | 'error'>('success');
   const [modalOpen, setModalOpen] = useState(false);
 
-  const MIN_OPTS = ['*', '0', '15', '30', '45'];
+  const MIN_OPTS = ['*', ...Array.from({ length: 60 }, (_, i) => String(i))];
   const HOUR_OPTS = ['*', ...Array.from({ length: 24 }, (_, i) => String(i))];
   const DAY_OPTS = ['*', ...Array.from({ length: 31 }, (_, i) => String(i + 1))];
   const MON_OPTS = ['*', ...Array.from({ length: 12 }, (_, i) => String(i + 1))];
@@ -70,6 +70,11 @@ function InlineScheduleConfig({ item, onClose, onUpdated }: {
   function buildCron() { return `${minute} ${hour} ${day} ${month} ${dow}`; }
   function applyPreset(v: string) { setCronExpr(v); parseCron(v); }
   function applyFromFields() { setCronExpr(buildCron()); }
+  function handleExprChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const val = e.target.value;
+    setCronExpr(val);
+    parseCron(val);
+  }
 
   async function doSave(enableImmediately: boolean) {
     if (status !== 'none' && !cronExpr) { setModalType('error'); setModalMsg('请选择执行时间'); setModalOpen(true); return; }
@@ -134,7 +139,7 @@ function InlineScheduleConfig({ item, onClose, onUpdated }: {
                 <div key={f.label} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                   <span style={{ fontSize: 12, color: '#666' }}>{f.label}</span>
                   <select value={f.val} onChange={e => { f.set(e.target.value); applyFromFields(); }}
-                    style={{ padding: '5px 8px', border: '1px solid #d9d9d9', borderRadius: 6, minWidth: 70 }}>
+                    style={{ padding: '5px 8px', border: '1px solid #d9d9d9', borderRadius: 6, minWidth: f.label === '分' ? 80 : 70 }}>
                     {f.opts.map(o => <option key={o} value={o}>{o === '*' ? `每${f.label}` : (f.label === '周' ? DOW_LABELS[o] || o : o)}</option>)}
                   </select>
                 </div>
@@ -142,18 +147,21 @@ function InlineScheduleConfig({ item, onClose, onUpdated }: {
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', background: '#fff', borderRadius: 6, border: '1px solid #e8e8e8' }}>
               <span style={{ fontSize: 12, color: '#999' }}>表达式</span>
-              <code style={{ fontSize: 13, fontFamily: 'Courier New', color: '#1677ff', background: '#e6f4ff', padding: '2px 6px', borderRadius: 3 }}>{cronExpr}</code>
+              <input
+                value={cronExpr}
+                onChange={handleExprChange}
+                style={{ flex: 1, border: 'none', outline: 'none', fontSize: 13, fontFamily: 'Courier New', color: '#1677ff', background: 'transparent' }}
+              />
             </div>
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
             <span style={{ fontSize: 14, color: '#333' }}>任务状态</span>
-            <select value={status} onChange={e => setStatus(e.target.value as typeof status)}
-              style={{ padding: '6px 12px', border: '1px solid #d9d9d9', borderRadius: 6, minWidth: 140 }}>
-              <option value="none">未设置</option>
-              <option value="paused">暂停</option>
-              <option value="active">正常</option>
-            </select>
+            <FormSelect
+              value={status}
+              options={[{value:'none',label:'未设置'},{value:'paused',label:'暂停'},{value:'active',label:'正常'}]}
+              onChange={val => setStatus(val as typeof status)}
+            />
           </div>
 
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
