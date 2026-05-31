@@ -1,9 +1,14 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { apiFetch } from '../../utils/api';
+import { toLocalDateTime } from '../../utils/datetime';
+import notification from '../../utils/notification';
 import { useEnvironment } from '../../contexts/EnvironmentContext';
 import { InlineText, InlineSelect } from '../../components/InlineEdit';
-import type { Scenario } from '../../types';
+import FormSelect from '../../components/FormSelect';
+import TagInput from '../../components/TagInput';
+import type { Scenario, ScenarioSetExecution, ScenarioSetExecutionItem } from '../../types';
+import ScenarioExecutionTimeline from '../../components/ScenarioExecutionTimeline';
 import './ScenarioSetDetail.css';
 
 interface SetDetail {
@@ -45,13 +50,29 @@ const STATUS_OPTIONS = [
   { value: 'draft', label: '草稿' },
 ];
 
+// 根据测试类型映射到对应的 API 路径
+const API_PATH_MAP: Record<string, { list: string; detail: string; create: string; delete: string }> = {
+  api: { list: '/scenario-sets', detail: '/scenario-sets', create: '/scenario-sets', delete: '/scenario-sets' },
+  web: { list: '/scenario-sets-web', detail: '/scenario-sets-web', create: '/scenario-sets-web', delete: '/scenario-sets-web' },
+  pc: { list: '/scenario-sets-pc', detail: '/scenario-sets-pc', create: '/scenario-sets-pc', delete: '/scenario-sets-pc' },
+  mobile: { list: '/scenario-sets-mobile', detail: '/scenario-sets-mobile', create: '/scenario-sets-mobile', delete: '/scenario-sets-mobile' },
+};
+
+// 根据测试类型映射场景 API 路径
+const SCENARIO_API_PATH_MAP: Record<string, { list: string }> = {
+  api: { list: '/scenarios' },
+  web: { list: '/scenarios-web' },
+  pc: { list: '/scenarios-pc' },
+  mobile: { list: '/scenarios-mobile' },
+};
+
 const TABS = [
   { key: 'detail', label: '场景集详情' },
   { key: 'scenarios', label: '场景列表' },
   { key: 'reports', label: '执行记录' },
 ];
 
-export default function ScenarioSetDetail() {
+export default function ScenarioSetDetail({ basePath = '/api-test', testType = 'api' }: { basePath?: string; testType?: string }) {
   const { id } = useParams();
   const navigate = useNavigate();
   const isNew = id === 'new';
@@ -78,9 +99,12 @@ export default function ScenarioSetDetail() {
   const [addModalScenarios, setAddModalScenarios] = useState<Scenario[]>([]);
   const [executing, setExecuting] = useState(false);
   const [reports, setReports] = useState<SavedReport[]>([]);
+  const [setExecutions, setSetExecutions] = useState<ScenarioSetExecution[]>([]);
   const [expandedReport, setExpandedReport] = useState<number | null>(null);
   const [selectedForRemoval, setSelectedForRemoval] = useState<Set<number>>(new Set());
+  const [expandedScenarioItem, setExpandedScenarioItem] = useState<number | null>(null);
   const [modalWidth, setModalWidth] = useState('80%');
+  const [expandedSetExec, setExpandedSetExec] = useState<number | null>(null);
   const { activeEnv } = useEnvironment();
   const originalRef = useRef({ name: '', description: '', tags: '', status: 'draft', selectedIds: [] as number[] });
   const dirtyRef = useRef(false);
@@ -112,7 +136,8 @@ export default function ScenarioSetDetail() {
 
   useEffect(() => {
     if (!isNew && id) {
-      apiFetch<SetDetail>(`/scenario-sets/${id}`).then(res => {
+      const apiPath = API_PATH_MAP[testType] || API_PATH_MAP.api;
+      apiFetch<SetDetail>(`${apiPath.detail}/${id}`).then(res => {
         if (res.code === 200 && res.data) {
           setSetData(res.data); setName(res.data.name); setDescription(res.data.description || '');
           setTags(res.data.tags || ''); setStatus(res.data.status || 'draft'); setSelectedIds(res.data.scenario_ids);
@@ -120,13 +145,30 @@ export default function ScenarioSetDetail() {
           dirtyRef.current = false;
         }
       }).finally(() => setLoading(false));
-      apiFetch<SavedReport[]>(`/scenario-sets/${id}/reports`).then(res => { if (res.code === 200) setReports(res.data || []); });
+           apiFetch<SavedReport[]>(`${apiPath.detail}/${id}/reports`).then(res => { if (res.code === 200) setReports(res.data || []); });
+    apiFetch<ScenarioSetExecution[]>(`${apiPath.detail}/${id}/executions`).then(res => {
+      if (res.code === 200 && res.data && res.data.length > 0) {
+        setSetExecutions(res.data);
+      }
+    });
     }
   }, [id]);
 
   useEffect(() => {
-    apiFetch<{ items: Scenario[] }>('/scenarios?page=1&pageSize=1000').then(res => { if (res.code === 200) setAllScenarios(res.data?.items || []); });
+    const scenarioApiPath = SCENARIO_API_PATH_MAP[testType] || SCENARIO_API_PATH_MAP.api;
+    apiFetch<{ items: Scenario[] }>(`${scenarioApiPath.list}?page=1&pageSize=1000`).then(res => { if (res.code === 200) setAllScenarios(res.data?.items || []); });
   }, []);
+
+  // Fetch full execution detail with steps when an execution row is expanded
+  useEffect(() => {
+    if (!expandedSetExec || !id) return;
+    const apiPath = API_PATH_MAP[testType] || API_PATH_MAP.api;
+    apiFetch<ScenarioSetExecution>(`${apiPath.detail}/${id}/executions/${expandedSetExec}`).then(res => {
+      if (res.code === 200 && res.data) {
+        setSetExecutions(prev => prev.map(exec => exec.id === expandedSetExec ? res.data! : exec));
+      }
+    });
+  }, [expandedSetExec, id]);
 
   function handleFieldChange(setter: React.Dispatch<React.SetStateAction<string>>, value: string) { setter(value); dirtyRef.current = true; }
   function handleStatusChange(value: string) { setStatus(value); dirtyRef.current = true; }
@@ -134,13 +176,16 @@ export default function ScenarioSetDetail() {
   async function doSave() {
     if (!name.trim()) return;
     setSaving(true);
+    const apiPath = API_PATH_MAP[testType] || API_PATH_MAP.api;
+    const routeBase = testType === 'api' ? '/api-test/scene-set' : testType === 'web' ? '/web-test/scene-set' : testType === 'pc' ? '/pc-test/scene-set' : '/mobile-test/scene-set';
     try {
       if (isNew) {
-        const res = await apiFetch<{ id: number }>('/scenario-sets', { method: 'POST', body: JSON.stringify({ name: name.trim(), description, tags, status, scenario_ids: selectedIds }) });
-        if (res.code === 201 && res.data) setTimeout(() => navigate(`/api-test/scene-set/${res.data!.id}`), 300);
+        const res = await apiFetch<{ id: number }>(apiPath.list, { method: 'POST', body: JSON.stringify({ name: name.trim(), description, tags, status, scenario_ids: selectedIds }) });
+        if (res.code === 201 && res.data) { notification.success('保存成功'); setTimeout(() => navigate(`${routeBase}/${res.data!.id}`), 300); }
       } else {
-        await apiFetch(`/scenario-sets/${id}`, { method: 'PUT', body: JSON.stringify({ name: name.trim(), description, tags, status, scenario_ids: selectedIds }) });
+        await apiFetch(`${apiPath.detail}/${id}`, { method: 'PUT', body: JSON.stringify({ name: name.trim(), description, tags, status, scenario_ids: selectedIds }) });
         dirtyRef.current = false;
+        notification.success('保存成功');
       }
     } finally { setSaving(false); }
   }
@@ -148,9 +193,21 @@ export default function ScenarioSetDetail() {
   async function doExecute() {
     if (!id || isNew || selectedIds.length === 0) return;
     setExecuting(true);
+    const apiPath = API_PATH_MAP[testType] || API_PATH_MAP.api;
     try {
-      const res = await apiFetch<BatchReport>(`/scenario-sets/${id}/execute`, { method: 'POST', body: JSON.stringify({ environmentId: activeEnv?.id }) });
-      if (res.code === 200) apiFetch<SavedReport[]>(`/scenario-sets/${id}/reports`).then(r => { if (r.code === 200) setReports(r.data || []); });
+      if (dirtyRef.current) await doSave();
+      const res = await apiFetch<ScenarioSetExecution>(`${apiPath.detail}/${id}/execute`, { method: 'POST', body: JSON.stringify({ environmentId: activeEnv?.id }) });
+      if (res.code === 200) {
+        setActiveTab('reports');
+        const [reportRes, execRes] = await Promise.all([
+          apiFetch<SavedReport[]>(`${apiPath.detail}/${id}/reports`),
+          apiFetch<ScenarioSetExecution[]>(`${apiPath.detail}/${id}/executions`),
+        ]);
+        if (reportRes.code === 200) setReports(reportRes.data || []);
+        if (execRes.code === 200 && execRes.data && execRes.data.length > 0) {
+          setSetExecutions(execRes.data);
+        }
+      }
     } finally { setExecuting(false); }
   }
 
@@ -164,7 +221,8 @@ export default function ScenarioSetDetail() {
   const fetchAddableScenarios = async (pageNum = 1, pageSz = addModalPageSize) => {
     try {
       setAddModalLoading(true);
-      const res = await apiFetch<{ items: Scenario[]; total: number }>(`/scenarios?page=${pageNum}&pageSize=${pageSz}`);
+      const scenarioApiPath = SCENARIO_API_PATH_MAP[testType] || SCENARIO_API_PATH_MAP.api;
+      const res = await apiFetch<{ items: Scenario[]; total: number }>(`${scenarioApiPath.list}?page=${pageNum}&pageSize=${pageSz}`);
       if (res.code === 200 && res.data) {
         let items = res.data.items.filter(s => !selectedIds.includes(s.id));
         if (addModalKeyword) { const kw = addModalKeyword.toLowerCase(); items = items.filter(s => s.name.toLowerCase().includes(kw)); }
@@ -192,32 +250,32 @@ export default function ScenarioSetDetail() {
 
   const selectedScenarios = allScenarios.filter(s => selectedIds.includes(s.id));
   const filteredSelected = selectedScenarios.filter(s => s.name.toLowerCase().includes(scenarioKeyword.toLowerCase()));
-  const tagList = tags ? tags.split(',').filter(Boolean).map(t => t.trim()) : [];
 
   // ─── Tab: Detail ───
   const renderDetailTab = () => (
     <div className="tab-content-wrapper">
       <div className="sset-info-section">
         <div className="sset-info-row">
-          <div className="sset-info-field"><label>集名称</label><InlineText value={name} onChange={v => handleFieldChange(setName, v)} placeholder="点击输入集名称" /></div>
-          <div className="sset-info-field sset-info-field-inline"><label>状态</label><InlineSelect value={status} options={STATUS_OPTIONS} onChange={handleStatusChange} renderDisplay={(v, label) => <span className={`sset-status-badge status-${v}`}>{label}</span>} /></div>
-        </div>
-        <div className="sset-info-row">
-          <div className="sset-info-field">
-            <label>标签</label>
-            <div className="sset-inline-tags">
-              <InlineText value={tags || ''} onChange={v => handleFieldChange(setTags, v)} placeholder="逗号分隔，如：回归,核心" />
-              {tagList.length > 0 && (<div className="sset-tags">{tagList.map((tag, i) => (<span key={i} className="sset-tag">{tag}</span>))}</div>)}
-            </div>
-          </div>
+          <div className="sset-info-field"><label>名称</label><InlineText value={name} onChange={v => handleFieldChange(setName, v)} placeholder="点击输入集名称" /></div>
         </div>
         <div className="sset-info-row">
           <div className="sset-info-field"><label>描述</label><InlineText value={description || ''} onChange={v => handleFieldChange(setDescription, v)} placeholder="点击输入描述" multiline /></div>
         </div>
+        <div className="sset-info-row">
+          <div className="sset-info-field">
+            <label>标签</label>
+            <TagInput
+              value={tags || ''}
+              onChange={v => handleFieldChange(setTags, v)}
+              placeholder="输入标签，回车确认"
+            />
+          </div>
+          <div className="sset-info-field sset-info-field-inline"><label>状态</label><InlineSelect value={status} options={STATUS_OPTIONS} onChange={handleStatusChange} renderDisplay={(v, label) => <span className={`sset-status-badge status-${v}`}>{label}</span>} /></div>
+        </div>
         {!isNew && (
           <div className="sset-info-row">
-            <div className="sset-info-field"><label>创建时间</label><span className="sset-field-value">{setData?.created_at?.replace('T', ' ').slice(0, 19) || '-'}</span></div>
-            <div className="sset-info-field"><label>更新时间</label><span className="sset-field-value">{setData?.updated_at?.replace('T', ' ').slice(0, 19) || '-'}</span></div>
+            <div className="sset-info-field"><label>创建时间</label><span className="sset-field-value">{toLocalDateTime(setData?.created_at)}</span></div>
+            <div className="sset-info-field"><label>更新时间</label><span className="sset-field-value">{toLocalDateTime(setData?.updated_at)}</span></div>
           </div>
         )}
       </div>
@@ -245,7 +303,7 @@ export default function ScenarioSetDetail() {
                 <td>{s.name}</td>
                 <td><span className={`sset-status-badge status-${s.status}`}>{s.status === 'active' ? '启用' : s.status === 'disabled' ? '禁用' : '草稿'}</span></td>
                 <td>
-                  <button className="sset-btn-text" onClick={() => navigate(`/api-test/scene-case/${s.id}`)}>查看详情</button>
+                  <button className="sset-btn-text" onClick={() => navigate(`${scenarioRouteBase}/${s.id}`)}>查看详情</button>
                   <button className="sset-btn-text sset-btn-text-danger" onClick={() => toggleScenario(s.id)}>移除</button>
                 </td>
               </tr>
@@ -257,49 +315,125 @@ export default function ScenarioSetDetail() {
   );
 
   // ─── Tab: Reports ───
-  const renderReportsTab = () => (
-    <div className="tab-content-wrapper">
-      {reports.length === 0 ? (<div className="sset-empty">暂无执行记录</div>) : (
-        <div className="sset-reports">
-          {reports.map((r, idx) => {
-            const total = r.passed + r.failed;
-            const rate = total > 0 ? Math.round((r.passed / total) * 100) : 0;
+  const renderReportsTab = () => {
+    const displayExecutions = [...setExecutions].sort((a, b) =>
+      (b.started_at || '').localeCompare(a.started_at || '')
+    );
+
+    const renderExecItem = (execItem: ScenarioSetExecution) => {
+      const isExpanded = expandedSetExec === execItem.id;
+      return (
+        <>
+          <tr key={execItem.id} className="sset-exec-row" onClick={() => setExpandedSetExec(isExpanded ? null : execItem.id)}>
+            <td>{toLocalDateTime(execItem.started_at)}</td>
+            <td>
+              <span className={`sset-exec-status sset-exec-${execItem.status}`}>{execItem.status}</span>
+            </td>
+            <td>{execItem.total_count}</td>
+            <td>
+              <span className="sset-exec-pass">{execItem.passed_count}</span>
+              <span className="sset-exec-sep">/</span>
+              <span className="sset-exec-fail">{execItem.failed_count}</span>
+           </td>
+            <td>{execItem.total_duration_ms != null ? `${execItem.total_duration_ms}ms` : '-'}</td>
+            <td>{execItem.executed_by || '-'}</td>
+            <td>{isExpanded ? '收起' : '展开'}</td>
+          </tr>
+          {isExpanded && execItem.items && execItem.items.map((item, i) => {
+            const itemExpanded = expandedScenarioItem === item.id;
             return (
-              <div key={r.id || idx} className="sset-report-row">
-                <div className="sset-report-summary" onClick={() => setExpandedReport(expandedReport === r.id ? null : r.id)}>
-                  <div className="sset-report-time">{r.executed_at.replace('T', ' ').slice(0, 19)}</div>
-                  <div className="sset-report-stats">
-                    <span className="sset-report-pass">{r.passed} 通过</span>
-                    <span className="sset-report-fail">{r.failed} 失败</span>
-                    <span className="sset-report-rate">{rate}%</span>
-                    <span className="sset-report-toggle">{expandedReport === r.id ? '收起' : '展开'}</span>
-                  </div>
-                </div>
-                {expandedReport === r.id && (
-                  <div className="sset-report-detail">
-                    {r.scenarios.map((sc, i) => (
-                      <div key={i} className={`sset-report-scenario sset-report-${sc.status}`}>
-                        <span className="sset-report-icon">{sc.status === 'success' ? '✓' : sc.status === 'skipped' ? '—' : '✗'}</span>
-                        <span>{sc.scenario_name}</span>
-                        {sc.duration_ms != null && <span className="sset-report-dur">{sc.duration_ms}ms</span>}
-                        {sc.node_summary && <span className="sset-report-node">{sc.node_summary.passed}/{sc.node_summary.total}</span>}
-                        {sc.error_message && <span className="sset-report-error">{sc.error_message}</span>}
-                      </div>
-                    ))}
-                  </div>
+              <>
+                <tr key={`row-${i}`} className="sset-exec-item-row" onClick={() => setExpandedScenarioItem(itemExpanded ? null : item.id)}>
+                  <td>{item.scenario_name}</td>
+                  <td><span className={`scenario-log-status scenario-log-${item.status}`}>{item.status}</span></td>
+                  <td></td>
+                  <td></td>
+                  <td>{item.duration_ms != null ? `${item.duration_ms}ms` : '-'}</td>
+                  <td></td>
+                  <td>{itemExpanded ? '收起' : '展开'}</td>
+                </tr>
+                {itemExpanded && (
+                  <tr className="sset-exec-item-detail-row"><td colSpan={7}>
+                    {item.scenario_execution?.steps && item.scenario_execution.steps.length > 0 ? (
+                      <ScenarioExecutionTimeline
+                        steps={item.scenario_execution.steps}
+                        apiLinks={item.scenario_execution.api_links || []}
+                        cacheKeyPrefix={`sset-${execItem.id}-item-${item.id}`}
+                      />
+                    ) : (
+                      <div className="sset-exec-no-steps">{item.scenario_execution_id ? '加载步骤中...' : '无执行步骤'}</div>
+                    )}
+                  </td></tr>
                 )}
-              </div>
+              </>
             );
           })}
-        </div>
-      )}
-    </div>
-  );
+        </>
+      );
+    };
+
+    return (
+      <div className="tab-content-wrapper">
+        {displayExecutions.length === 0 && reports.length === 0 ? (
+          <div className="sset-empty">暂无执行记录</div>
+        ) : (
+          <>
+            {displayExecutions.length > 0 && (
+              <table className="sset-exec-table">
+                <thead><tr><th>执行时间</th><th>状态</th><th>总数</th><th>结果</th><th>耗时</th><th>执行人</th><th>操作</th></tr></thead>
+                <tbody>
+                  {displayExecutions.map(exec => renderExecItem(exec))}
+                </tbody>
+              </table>
+            )}
+            {reports.length > 0 && (
+              <div className="sset-old-reports">
+                <div className="sset-old-reports-title">历史报告</div>
+                {reports.map((r, idx) => {
+                  const total = r.passed + r.failed;
+                  const rate = total > 0 ? Math.round((r.passed / total) * 100) : 0;
+                  return (
+                    <div key={r.id || idx} className="sset-report-row">
+                      <div className="sset-report-summary" onClick={() => setExpandedReport(expandedReport === r.id ? null : r.id)}>
+                        <div className="sset-report-time">{toLocalDateTime(r.executed_at)}</div>
+                        <div className="sset-report-stats">
+                          <span className="sset-report-pass">{r.passed} 通过</span>
+                          <span className="sset-report-fail">{r.failed} 失败</span>
+                          <span className="sset-report-rate">{rate}%</span>
+                          <span className="sset-report-toggle">{expandedReport === r.id ? '收起' : '展开'}</span>
+                        </div>
+                      </div>
+                      {expandedReport === r.id && (
+                        <div className="sset-report-detail">
+                          {r.scenarios.map((sc, i) => (
+                            <div key={i} className={`sset-report-scenario sset-report-${sc.status}`}>
+                              <span className="sset-report-icon">{sc.status === 'success' ? '✓' : sc.status === 'skipped' ? '—' : '✗'}</span>
+                              <span>{sc.scenario_name}</span>
+                              {sc.duration_ms != null && <span className="sset-report-dur">{sc.duration_ms}ms</span>}
+                              {sc.node_summary && <span className="sset-report-node">{sc.node_summary.passed}/{sc.node_summary.total}</span>}
+                              {sc.error_message && <span className="sset-report-error">{sc.error_message}</span>}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    );
+  };
+
+  const scenarioRouteBase = testType === 'api' ? '/api-test/scene-case' : testType === 'web' ? '/web-test/scene' : testType === 'pc' ? '/pc-test/scene' : '/mobile-test/scene-case';
+  const setRouteBase = testType === 'api' ? '/api-test/scene-set' : testType === 'web' ? '/web-test/scene-set' : testType === 'pc' ? '/pc-test/scene-set' : '/mobile-test/scene-set';
 
   return (
     <div className="sset-detail">
       <div className="sset-detail-header">
-        <button className="sset-back" onClick={() => navigate('/api-test/scene-set')}>← 返回列表</button>
+        <button className="sset-back" onClick={() => navigate(setRouteBase)}>← 返回列表</button>
         <span className="sset-detail-page-title">场景集详情</span>
       </div>
       <div className="sset-detail-content">
@@ -332,7 +466,7 @@ export default function ScenarioSetDetail() {
                 <div className="sset-modal-filter-item"><label>场景名称</label><input placeholder="搜索名称" value={addModalKeyword} onChange={e => setAddModalKeyword(e.target.value)} /></div>
                 <div className="sset-modal-filter-item"><label>描述</label><input placeholder="搜索描述" value={addModalDesc} onChange={e => setAddModalDesc(e.target.value)} /></div>
                 <div className="sset-modal-filter-item"><label>标签</label><input placeholder="搜索标签" value={addModalTags} onChange={e => setAddModalTags(e.target.value)} /></div>
-                <div className="sset-modal-filter-item"><label>状态</label><select value={addModalStatus} onChange={e => setAddModalStatus(e.target.value)}><option value="">全部状态</option><option value="active">启用</option><option value="disabled">禁用</option><option value="draft">草稿</option></select></div>
+                <div className="sset-modal-filter-item"><label>状态</label><FormSelect value={addModalStatus} options={[{value:"",label:"全部状态"},{value:"active",label:"启用"},{value:"disabled",label:"禁用"},{value:"draft",label:"草稿"}]} onChange={val => setAddModalStatus(val)} /></div>
               </div>
               <div className="sset-modal-filter-row">
                 <div className="sset-modal-filter-actions">
@@ -361,7 +495,7 @@ export default function ScenarioSetDetail() {
             <div className="sset-modal-pagination">
               <div className="sset-modal-pagination-left">
                 <span className="page-info">共 {addModalTotal} 条</span>
-                <select className="page-size-select" value={addModalPageSize} onChange={e => fetchAddableScenarios(1, Number(e.target.value))}><option value={10}>10条/页</option><option value={20}>20条/页</option><option value={50}>50条/页</option><option value={100}>100条/页</option></select>
+                <FormSelect value={String(addModalPageSize)} options={[{value:"10",label:"10条/页"},{value:"20",label:"20条/页"},{value:"50",label:"50条/页"},{value:"100",label:"100条/页"}]} onChange={val => fetchAddableScenarios(1, Number(val))} />
                 <button className="page-btn" disabled={addModalPage <= 1} onClick={() => fetchAddableScenarios(addModalPage - 1, addModalPageSize)}>上一页</button>
                 <span>{addModalPage} / {Math.ceil(addModalTotal / addModalPageSize) || 1}</span>
                 <button className="page-btn" disabled={addModalPage >= Math.ceil(addModalTotal / addModalPageSize)} onClick={() => fetchAddableScenarios(addModalPage + 1, addModalPageSize)}>下一页</button>
