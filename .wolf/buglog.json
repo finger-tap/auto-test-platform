@@ -4976,6 +4976,22 @@
       "related_bugs": [],
       "occurrences": 1,
       "last_seen": "2026-05-31T12:06:09.546Z"
+    },
+    {
+      "id": "bug-312",
+      "timestamp": "2026-05-31T12:09:36.517Z",
+      "error_message": "CSS fix: fontSize",
+      "file": "src/client/pages/scenario-set/ScenarioSetList.tsx",
+      "root_cause": "fontSize: 12, color: '#999' → 12, color: '#666'",
+      "fix": "Changed fontSize: 12, color: '#999' → 12, color: '#666'",
+      "tags": [
+        "auto-detected",
+        "style-fix",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-31T12:09:36.517Z"
     }
   ]
 }

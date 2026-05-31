@@ -15,12 +15,11 @@ interface SetItem {
   scenario_count: number;
   created_at: string;
   updated_at: string;
-  last_execution?: {
-    status: string;
-    passed_count: number;
-    failed_count: number;
-    total_duration_ms: number;
-    executed_at: string;
+  execution_summary?: {
+    total: number;
+    success: number;
+    failed: number;
+    last_executed_at: string;
   } | null;
 }
 
@@ -161,9 +160,9 @@ export default function ScenarioSetList({ basePath = '/api-test', testType = 'ap
                 <th className="sortable" onClick={() => toggleSort('name')}>场景集名称 {sortIcon('name')}</th>
                 <th>标签</th>
                 <th>状态</th>
-                <th>最近执行</th>
+                <th>执行统计</th>
+                <th>最近执行时间</th>
                 <th className="sortable" onClick={() => toggleSort('created_at')}>创建时间 {sortIcon('created_at')}</th>
-                <th className="sortable" onClick={() => toggleSort('updated_at')}>更新时间 {sortIcon('updated_at')}</th>
                 <th style={{ width: 80 }}></th>
               </tr>
             </thead>
@@ -189,29 +188,18 @@ export default function ScenarioSetList({ basePath = '/api-test', testType = 'ap
                       </span>
                     </td>
                     <td>
-                      {s.last_execution ? (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                          <span style={{
-                            display: 'inline-block',
-                            padding: '1px 8px',
-                            borderRadius: 10,
-                            fontSize: 12,
-                            fontWeight: 500,
-                            background: s.last_execution.status === 'success' ? '#f6ffed' : '#fff2f0',
-                            color: s.last_execution.status === 'success' ? '#52c41a' : '#ff4d4f',
-                          }}>
-                            {s.last_execution.status === 'success' ? '成功' : '失败'}
-                          </span>
-                          <span style={{ fontSize: 12, color: '#999' }}>
-                            {s.last_execution.passed_count}/{s.last_execution.failed_count} · {formatDateTime(s.last_execution.executed_at)}
-                          </span>
-                        </div>
+                      {s.execution_summary ? (
+                        <span style={{ fontSize: 13 }}>
+                          {s.execution_summary.total - s.execution_summary.success - s.execution_summary.failed}/{s.execution_summary.success}/{s.execution_summary.failed}
+                        </span>
                       ) : (
-                        <span style={{ color: '#999', fontSize: 13 }}>未执行</span>
+                        <span style={{ color: '#999', fontSize: 13 }}>—</span>
                       )}
                     </td>
+                    <td style={{ fontSize: 12, color: '#666' }}>
+                      {s.execution_summary ? formatDateTime(s.execution_summary.last_executed_at) : '—'}
+                    </td>
                     <td>{formatDateTime(s.created_at)}</td>
-                    <td>{formatDateTime(s.updated_at)}</td>
                     <td>
                       <div className="row-actions">
                         <button className="row-action-btn row-action-del" title="删除" onClick={(e) => { e.stopPropagation(); doDelete(s.id, s.name); }}>✕</button>

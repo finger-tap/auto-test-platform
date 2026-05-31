@@ -15,12 +15,11 @@ export interface ScenarioSetRow {
 
 export interface ScenarioSetItem extends ScenarioSetRow {
   scenario_count: number;
-  last_execution?: {
-    status: string;
-    passed_count: number;
-    failed_count: number;
-    total_duration_ms: number;
-    executed_at: string;
+  execution_summary?: {
+    total: number;
+    success: number;
+    failed: number;
+    last_executed_at: string;
   } | null;
 }
 
@@ -57,20 +56,23 @@ export function findSetsByUserIdPaginated(
     let cnt = 0;
     try { const ids = JSON.parse(r.scenario_ids || '[]'); cnt = Array.isArray(ids) ? ids.length : 0; } catch { cnt = 0; }
 
-    // Fetch latest execution for this set
-    const lastExec = db.prepare(
-      'SELECT status, passed_count, failed_count, total_duration_ms, finished_at FROM scenario_set_executions WHERE set_id = ? ORDER BY started_at DESC LIMIT 1'
-    ).get(r.id) as { status: string; passed_count: number; failed_count: number; total_duration_ms: number; finished_at: string } | undefined;
+    const summary = db.prepare(`
+      SELECT
+        COUNT(*) AS total,
+        SUM(CASE WHEN status = 'success' THEN 1 ELSE 0 END) AS success,
+        SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) AS failed,
+        MAX(finished_at) AS last_executed_at
+      FROM scenario_set_executions WHERE set_id = ?
+    `).get(r.id) as { total: number; success: number; failed: number; last_executed_at: string | null } | undefined;
 
     return {
       ...r,
       scenario_count: cnt,
-      last_execution: lastExec ? {
-        status: lastExec.status,
-        passed_count: lastExec.passed_count,
-        failed_count: lastExec.failed_count,
-        total_duration_ms: lastExec.total_duration_ms,
-        executed_at: lastExec.finished_at,
+      execution_summary: summary && summary.total > 0 ? {
+        total: summary.total,
+        success: summary.success,
+        failed: summary.failed,
+        last_executed_at: summary.last_executed_at || '',
       } : null,
     };
   });
