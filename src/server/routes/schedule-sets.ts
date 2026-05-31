@@ -10,6 +10,7 @@ import {
   computeNextRunFromCron,
 } from '../db/schedule-sets.js';
 import { findSetById } from '../db/scenario-sets.js';
+import { pauseSchedule, resumeSchedule, unscheduleCronJob, scheduleCronJob } from '../scheduler/scheduler.js';
 
 export const scheduleSetRoutes = Router();
 scheduleSetRoutes.use(authMiddleware);
@@ -58,6 +59,14 @@ scheduleSetRoutes.put('/set/:setId', (req: Request, res: Response) => {
     : null;
 
   const id = upsertScheduleSet(setId, cron_expr ?? null, newStatus, nextRunAt);
+
+  // Sync scheduler
+  if (newStatus === 'active' && cron_expr) {
+    scheduleCronJob(id, cron_expr);
+  } else {
+    unscheduleCronJob(id);
+  }
+
   const schedule = findScheduleSetById(id);
   res.json({ code: 200, message: 'ok', data: schedule });
 });
@@ -93,6 +102,13 @@ scheduleSetRoutes.put('/:id/configure', (req: Request, res: Response) => {
     next_run_at: nextRunAt,
   });
 
+  // Sync scheduler
+  if (newStatus === 'active' && newCron) {
+    scheduleCronJob(id, newCron);
+  } else {
+    unscheduleCronJob(id);
+  }
+
   const updated = findScheduleSetById(id);
   res.json({ code: 200, message: 'Updated', data: updated });
 });
@@ -105,7 +121,7 @@ scheduleSetRoutes.post('/:id/pause', (req: Request, res: Response) => {
   const set = findSetById(schedule.scenario_set_id);
   if (!set || set.user_id !== req.user!.userId) { res.status(403).json({ code: 403, message: 'Forbidden' }); return; }
 
-  updateScheduleSet(id, { status: 'paused', next_run_at: null });
+  pauseSchedule(id);
   res.json({ code: 200, message: 'Paused', data: findScheduleSetById(id) });
 });
 
@@ -117,8 +133,7 @@ scheduleSetRoutes.post('/:id/resume', (req: Request, res: Response) => {
   const set = findSetById(schedule.scenario_set_id);
   if (!set || set.user_id !== req.user!.userId) { res.status(403).json({ code: 403, message: 'Forbidden' }); return; }
 
-  const nextRunAt = schedule.cron_expr ? computeNextRunFromCron(schedule.cron_expr) : null;
-  updateScheduleSet(id, { status: 'active', next_run_at: nextRunAt });
+  resumeSchedule(id);
   res.json({ code: 200, message: 'Resumed', data: findScheduleSetById(id) });
 });
 
@@ -130,6 +145,7 @@ scheduleSetRoutes.post('/:id/remove', (req: Request, res: Response) => {
   const set = findSetById(schedule.scenario_set_id);
   if (!set || set.user_id !== req.user!.userId) { res.status(403).json({ code: 403, message: 'Forbidden' }); return; }
 
+  unscheduleCronJob(id);
   deleteScheduleSet(id);
   res.json({ code: 200, message: 'Removed' });
 });
