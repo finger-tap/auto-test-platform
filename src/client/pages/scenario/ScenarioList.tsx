@@ -1,7 +1,9 @@
-import { useState, useEffect, type MouseEvent } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { apiFetch } from '../../utils/api';
 import type { Scenario } from '../../types';
+import TagFilterSelect from '../../components/TagFilterSelect';
+import FormSelect from '../../components/FormSelect';
 import './ScenarioList.css';
 
 const STATUSES = [
@@ -11,7 +13,23 @@ const STATUSES = [
   { value: 'draft', label: '草稿' },
 ];
 
-export default function ScenarioList() {
+// 根据测试类型映射到对应的 API 路径
+const API_PATH_MAP: Record<string, { list: string; detail: string; create: string; delete: string }> = {
+  api: { list: '/scenarios', detail: '/scenarios', create: '/scenarios', delete: '/scenarios' },
+  web: { list: '/scenarios-web', detail: '/scenarios-web', create: '/scenarios-web', delete: '/scenarios-web' },
+  pc: { list: '/scenarios-pc', detail: '/scenarios-pc', create: '/scenarios-pc', delete: '/scenarios-pc' },
+  mobile: { list: '/scenarios-mobile', detail: '/scenarios-mobile', create: '/scenarios-mobile', delete: '/scenarios-mobile' },
+};
+
+// 根据测试类型映射路由路径
+const ROUTE_PATH_MAP: Record<string, { list: string; detail: string; create: string }> = {
+  api: { list: '/api-test/scene-case', detail: '/api-test/scene-case', create: '/api-test/scene-case/new' },
+  web: { list: '/web-test/scene', detail: '/web-test/scene', create: '/web-test/scene/new' },
+  pc: { list: '/pc-test/scene', detail: '/pc-test/scene', create: '/pc-test/scene/new' },
+  mobile: { list: '/mobile-test/scene-case', detail: '/mobile-test/scene-case', create: '/mobile-test/scene-case/new' },
+};
+
+export default function ScenarioList({ basePath = '/api-test', testType = 'api' }: { basePath?: string; testType?: string } = {}) {
   const navigate = useNavigate();
   const [scenarios, setScenarios] = useState<Scenario[]>([]);
   const [loading, setLoading] = useState(true);
@@ -22,21 +40,22 @@ export default function ScenarioList() {
   // Filter state
   const [fName, setFName] = useState('');
   const [fDesc, setFDesc] = useState('');
-  const [fTags, setFTags] = useState('');
+  const [filterTags, setFilterTags] = useState('');
   const [fStatus, setFStatus] = useState('');
   const [fDateFrom, setFDateFrom] = useState('');
   const [fDateTo, setFDateTo] = useState('');
   const [sortField, setSortField] = useState('updated_at');
   const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC'>('DESC');
 
-  // Floating action buttons
-  const [floatBtn, setFloatBtn] = useState<{ id: number; x: number; y: number } | null>(null);
+  const apiPaths = API_PATH_MAP[testType] || API_PATH_MAP.api;
+  const routePaths = ROUTE_PATH_MAP[testType] || ROUTE_PATH_MAP.api;
 
   const fetchScenarios = async (pageNum = 1, pageSz = pageSize) => {
     try {
       setLoading(true);
       const params = new URLSearchParams({ page: String(pageNum), pageSize: String(pageSz), sort: sortField, order: sortOrder });
-      const res = await apiFetch<{ items: Scenario[]; total: number; page: number; pageSize: number }>(`/scenarios?${params}`);
+      if (fName.trim()) params.set('name', fName.trim());
+      const res = await apiFetch<{ items: Scenario[]; total: number; page: number; pageSize: number }>(`${apiPaths.list}?${params}`);
       if (res.code === 200 && res.data) {
         setScenarios(res.data.items);
         setTotal(res.data.total);
@@ -48,35 +67,22 @@ export default function ScenarioList() {
     }
   };
 
-  useEffect(() => { fetchScenarios(); }, [sortField, sortOrder]);
-
-  // Close floating buttons on outside click
-  useEffect(() => {
-    const handler = () => setFloatBtn(null);
-    document.addEventListener('click', handler);
-    return () => document.removeEventListener('click', handler);
-  }, []);
+  useEffect(() => { fetchScenarios(); }, [sortField, sortOrder, testType, fName]);
 
   const handleCreate = () => {
-    navigate('/api-test/scene-case/new');
-  };
-
-  const handleRowClick = (e: MouseEvent, id: number) => {
-    e.stopPropagation();
-    setFloatBtn({ id, x: e.clientX, y: e.clientY });
+    navigate(routePaths.create);
   };
 
   const handleDelete = async (id: number) => {
     if (!confirm('确认删除此场景？')) return;
-    await apiFetch(`/scenarios/${id}`, { method: 'DELETE' });
-    setFloatBtn(null);
+    await apiFetch(`${apiPaths.delete}/${id}`, { method: 'DELETE' });
     fetchScenarios(page);
   };
 
   const handleReset = () => {
     setFName('');
     setFDesc('');
-    setFTags('');
+    setFilterTags('');
     setFStatus('');
     setFDateFrom('');
     setFDateTo('');
@@ -89,7 +95,10 @@ export default function ScenarioList() {
       if (!s.name.toLowerCase().includes(search)) return false;
     }
     if (fDesc && !(s.description || '').toLowerCase().includes(fDesc.toLowerCase())) return false;
-    if (fTags && !(s.tags || '').toLowerCase().includes(fTags.toLowerCase())) return false;
+    if (filterTags) {
+      const tags = (s.tags || '').split(',').map(t => t.trim()).filter(Boolean);
+      if (!tags.includes(filterTags)) return false;
+    }
     if (fDateFrom && s.created_at < fDateFrom) return false;
     if (fDateTo && s.created_at > fDateTo + 'T23:59:59') return false;
     return true;
@@ -118,35 +127,37 @@ export default function ScenarioList() {
         <div className="alist-filter-row">
           <div className="alist-filter-item">
             <label>场景名称</label>
-            <input placeholder="搜索名称" value={fName} onChange={(e) => setFName(e.target.value)} />
+            <input placeholder="搜索名称" value={fName} onChange={(e) => setFName(e.target.value)} onBlur={() => fetchScenarios(1)} />
           </div>
           <div className="alist-filter-item">
             <label>描述</label>
-            <input placeholder="搜索描述" value={fDesc} onChange={(e) => setFDesc(e.target.value)} />
+            <input placeholder="搜索描述" value={fDesc} onChange={(e) => setFDesc(e.target.value)} onBlur={() => fetchScenarios(1)} />
           </div>
           <div className="alist-filter-item">
             <label>标签</label>
-            <input placeholder="搜索标签" value={fTags} onChange={(e) => setFTags(e.target.value)} />
+            <TagFilterSelect value={filterTags} onChange={(v) => { setFilterTags(v); fetchScenarios(1); }} placeholder="按标签筛选" />
           </div>
           <div className="alist-filter-item">
             <label>状态</label>
-            <select value={fStatus} onChange={(e) => setFStatus(e.target.value)}>
-              {STATUSES.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
-            </select>
+            <FormSelect
+              value={fStatus}
+              options={STATUSES}
+              onChange={val => { setFStatus(val); fetchScenarios(1); }}
+            />
           </div>
         </div>
         <div className="alist-filter-row">
           <div className="alist-filter-item">
             <label>创建时间起</label>
-            <input type="date" value={fDateFrom} onChange={(e) => setFDateFrom(e.target.value)} />
+            <input type="date" value={fDateFrom} onChange={(e) => setFDateFrom(e.target.value)} onBlur={() => fetchScenarios(1)} />
           </div>
           <div className="alist-filter-item">
             <label>创建时间止</label>
-            <input type="date" value={fDateTo} onChange={(e) => setFDateTo(e.target.value)} />
+            <input type="date" value={fDateTo} onChange={(e) => setFDateTo(e.target.value)} onBlur={() => fetchScenarios(1)} />
           </div>
           <div className="alist-filter-actions">
-            <button className="alist-btn-query" onClick={handleReset}>重置</button>
-            <button className="alist-btn-add" onClick={handleCreate}>新增</button>
+            <button className="btn btn-default" onClick={() => { handleReset(); fetchScenarios(1); }}>重置</button>
+            <button className="btn btn-primary" onClick={handleCreate}>新增</button>
           </div>
         </div>
       </div>
@@ -167,11 +178,12 @@ export default function ScenarioList() {
                 <th>状态</th>
                 <th className="sortable" onClick={() => toggleSort('created_at')}>创建时间 {sortIcon('created_at')}</th>
                 <th className="sortable" onClick={() => toggleSort('updated_at')}>更新时间 {sortIcon('updated_at')}</th>
+                <th style={{ width: 80 }}></th>
               </tr>
             </thead>
             <tbody>
               {filtered.map((s) => (
-                <tr key={s.id} onClick={(e) => handleRowClick(e, s.id)} className={floatBtn?.id === s.id ? 'active-row' : ''}>
+                <tr key={s.id} onClick={() => navigate(`${basePath}/scene-case/${s.id}`)} style={{ cursor: 'pointer' }}>
                   <td>{s.name}</td>
                   <td className="td-desc">{s.description || '-'}</td>
                   <td>
@@ -182,6 +194,12 @@ export default function ScenarioList() {
                   <td><span className={`status-text status-${s.status}`}>{statusLabel(s.status)}</span></td>
                   <td>{s.created_at.replace('T', ' ').slice(0, 16)}</td>
                   <td>{s.updated_at.replace('T', ' ').slice(0, 16)}</td>
+                  <td>
+                    <div className="row-actions">
+                      <button className="row-action-btn" title="执行" onClick={(e) => { e.stopPropagation(); navigate(`${basePath}/scene-case/${s.id}?exec=1`); }}>▶</button>
+                      <button className="row-action-btn row-action-del" title="删除" onClick={(e) => { e.stopPropagation(); handleDelete(s.id); }}>✕</button>
+                    </div>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -192,34 +210,10 @@ export default function ScenarioList() {
       {/* Pagination */}
       <div className="alist-pagination">
         <span className="page-info">共 {total} 条，第 {page} / {Math.ceil(total / pageSize)} 页</span>
-        <button className="page-btn" disabled={page <= 1} onClick={() => fetchScenarios(page - 1)}>上一页</button>
-        <button className="page-btn" disabled={page >= Math.ceil(total / pageSize)} onClick={() => fetchScenarios(page + 1)}>下一页</button>
-        <select className="page-size-select" value={pageSize} onChange={e => fetchScenarios(1, Number(e.target.value))}>
-          <option value={10}>10条/页</option>
-          <option value={20}>20条/页</option>
-          <option value={50}>50条/页</option>
-          <option value={100}>100条/页</option>
-        </select>
+        <button className="btn btn-sm" disabled={page <= 1} onClick={() => fetchScenarios(page - 1)}>上一页</button>
+        <button className="btn btn-sm" disabled={page >= Math.ceil(total / pageSize)} onClick={() => fetchScenarios(page + 1)}>下一页</button>
+        <FormSelect value={String(pageSize)} options={[{value:"10",label:"10条/页"},{value:"20",label:"20条/页"},{value:"50",label:"50条/页"},{value:"100",label:"100条/页"}]} onChange={val => fetchScenarios(1, Number(val))} />
       </div>
-
-      {/* Floating Action Buttons */}
-      {floatBtn && (
-        <div
-          className="alist-float"
-          style={{ left: floatBtn.x, top: floatBtn.y }}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <button className="alist-float-btn alist-float-view" onClick={() => { setFloatBtn(null); navigate(`/api-test/scene-case/${floatBtn.id}`); }}>
-            查看
-          </button>
-          <button className="alist-float-btn alist-float-exec" onClick={() => { setFloatBtn(null); navigate(`/api-test/scene-case/${floatBtn.id}?exec=1`); }}>
-            执行
-          </button>
-          <button className="alist-float-btn alist-float-del" onClick={() => handleDelete(floatBtn.id)}>
-            删除
-          </button>
-        </div>
-      )}
 
     </div>
   );

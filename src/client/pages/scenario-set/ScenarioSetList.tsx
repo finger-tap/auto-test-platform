@@ -1,6 +1,8 @@
-import { useState, useEffect, type MouseEvent } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { apiFetch } from '../../utils/api';
+import TagFilterSelect from '../../components/TagFilterSelect';
+import FormSelect from '../../components/FormSelect';
 import './ScenarioSetList.css';
 
 interface SetItem {
@@ -20,21 +22,36 @@ const STATUS_MAP: Record<string, { label: string; color: string }> = {
   draft: { label: '草稿', color: '#faad14' },
 };
 
-export default function ScenarioSetList() {
+const API_PATH_MAP: Record<string, { list: string; delete: string }> = {
+  api: { list: '/scenario-sets', delete: '/scenario-sets' },
+  web: { list: '/scenario-sets-web', delete: '/scenario-sets-web' },
+  pc: { list: '/scenario-sets-pc', delete: '/scenario-sets-pc' },
+  mobile: { list: '/scenario-sets-mobile', delete: '/scenario-sets-mobile' },
+};
+
+const ROUTE_PATH_MAP: Record<string, { list: string; detail: string; create: string }> = {
+  api: { list: '/api-test/scene-set', detail: '/api-test/scene-set', create: '/api-test/scene-set/new' },
+  web: { list: '/web-test/scene-set', detail: '/web-test/scene-set', create: '/web-test/scene-set/new' },
+  pc: { list: '/pc-test/scene-set', detail: '/pc-test/scene-set', create: '/pc-test/scene-set/new' },
+  mobile: { list: '/mobile-test/scene-set', detail: '/mobile-test/scene-set', create: '/mobile-test/scene-set/new' },
+};
+
+export default function ScenarioSetList({ basePath = '/api-test', testType = 'api' }: { basePath?: string; testType?: string } = {}) {
   const navigate = useNavigate();
   const [sets, setSets] = useState<SetItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [total, setTotal] = useState(0);
-  const [floatBtn, setFloatBtn] = useState<{ id: number; x: number; y: number } | null>(null);
-
   // Filter states
   const [filterName, setFilterName] = useState('');
   const [filterTags, setFilterTags] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [sortField, setSortField] = useState('updated_at');
   const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC'>('DESC');
+
+  const apiPaths = API_PATH_MAP[testType] || API_PATH_MAP.api;
+  const routePaths = ROUTE_PATH_MAP[testType] || ROUTE_PATH_MAP.api;
 
   function load() {
     setLoading(true);
@@ -48,7 +65,7 @@ export default function ScenarioSetList() {
     if (filterTags) params.set('tags', filterTags);
     if (filterStatus) params.set('status', filterStatus);
 
-    apiFetch<{ items: SetItem[]; total: number }>(`/scenario-sets?${params}`).then(res => {
+    apiFetch<{ items: SetItem[]; total: number }>(`${apiPaths.list}?${params}`).then(res => {
       if (res.code === 200) {
         setSets(res.data?.items || []);
         setTotal(res.data?.total || 0);
@@ -58,26 +75,14 @@ export default function ScenarioSetList() {
 
   useEffect(() => { load(); }, [page, pageSize, filterName, filterTags, filterStatus, sortField, sortOrder]);
 
-  useEffect(() => {
-    const handler = () => setFloatBtn(null);
-    document.addEventListener('click', handler);
-    return () => document.removeEventListener('click', handler);
-  }, []);
-
   async function doDelete(id: number, name: string) {
     if (!confirm(`确认删除场景集「${name}」？`)) return;
-    setFloatBtn(null);
-    await apiFetch(`/scenario-sets/${id}`, { method: 'DELETE' });
+    await apiFetch(`${apiPaths.delete}/${id}`, { method: 'DELETE' });
     load();
   }
 
-  function handleRowClick(e: MouseEvent, id: number) {
-    e.stopPropagation();
-    setFloatBtn({ id, x: e.clientX, y: e.clientY });
-  }
-
   function handleCreate() {
-    navigate('/api-test/scene-set/new');
+    navigate(routePaths.create);
   }
 
   function handleReset() {
@@ -117,31 +122,20 @@ export default function ScenarioSetList() {
               placeholder="搜索名称"
               value={filterName}
               onChange={e => setFilterName(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && handleQuery()}
+              onBlur={() => handleQuery()}
             />
           </div>
           <div className="alist-filter-item">
             <label>标签</label>
-            <input
-              placeholder="标签"
-              value={filterTags}
-              onChange={e => setFilterTags(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && handleQuery()}
-            />
+            <TagFilterSelect value={filterTags} onChange={v => { setFilterTags(v); setPage(1); }} placeholder="按标签筛选" />
           </div>
           <div className="alist-filter-item">
             <label>状态</label>
-            <select value={filterStatus} onChange={e => { setFilterStatus(e.target.value); setPage(1); }}>
-              <option value="">全部</option>
-              <option value="active">启用</option>
-              <option value="disabled">禁用</option>
-              <option value="draft">草稿</option>
-            </select>
+            <FormSelect value={filterStatus} options={[{value:"",label:"全部"},{value:"active",label:"启用"},{value:"disabled",label:"禁用"},{value:"draft",label:"草稿"}]} onChange={val => { setFilterStatus(val); setPage(1); }} />
           </div>
           <div className="alist-filter-actions">
-            <button className="alist-btn-query" onClick={handleReset}>重置</button>
-            <button className="alist-btn-add" onClick={handleAdd}>查询</button>
-            <button className="alist-btn-add" onClick={handleCreate}>新增</button>
+            <button className="btn btn-default" onClick={() => { handleReset(); load(); }}>重置</button>
+            <button className="btn btn-primary" onClick={handleCreate}>新增</button>
           </div>
         </div>
       </div>
@@ -162,6 +156,7 @@ export default function ScenarioSetList() {
                 <th>包含场景数</th>
                 <th className="sortable" onClick={() => toggleSort('created_at')}>创建时间 {sortIcon('created_at')}</th>
                 <th className="sortable" onClick={() => toggleSort('updated_at')}>更新时间 {sortIcon('updated_at')}</th>
+                <th style={{ width: 80 }}></th>
               </tr>
             </thead>
             <tbody>
@@ -171,8 +166,8 @@ export default function ScenarioSetList() {
                 return (
                   <tr
                     key={s.id}
-                    onClick={e => handleRowClick(e, s.id)}
-                    className={floatBtn?.id === s.id ? 'active-row' : ''}
+                    onClick={() => navigate(`${basePath}/scene-set/${s.id}`)}
+                    style={{ cursor: 'pointer' }}
                   >
                     <td>{s.name}</td>
                     <td>
@@ -188,6 +183,11 @@ export default function ScenarioSetList() {
                     <td>{s.scenario_count} 个场景</td>
                     <td>{s.created_at.replace('T', ' ').slice(0, 16)}</td>
                     <td>{s.updated_at.replace('T', ' ').slice(0, 16)}</td>
+                    <td>
+                      <div className="row-actions">
+                        <button className="row-action-btn row-action-del" title="删除" onClick={(e) => { e.stopPropagation(); doDelete(s.id, s.name); }}>✕</button>
+                      </div>
+                    </td>
                   </tr>
                 );
               })}
@@ -199,30 +199,11 @@ export default function ScenarioSetList() {
       {/* Pagination */}
       <div className="alist-pagination">
         <span className="page-info">共 {total} 条，第 {page} / {Math.ceil(total / pageSize) || 1} 页</span>
-        <button className="page-btn" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>上一页</button>
-        <button className="page-btn" disabled={page >= Math.ceil(total / pageSize) || total === 0} onClick={() => setPage(p => p + 1)}>下一页</button>
-        <select className="page-size-select" value={pageSize} onChange={e => { setPageSize(Number(e.target.value)); setPage(1); }}>
-          <option value={10}>10条/页</option>
-          <option value={20}>20条/页</option>
-          <option value={50}>50条/页</option>
-          <option value={100}>100条/页</option>
-        </select>
+        <button className="btn btn-sm" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>上一页</button>
+        <button className="btn btn-sm" disabled={page >= Math.ceil(total / pageSize) || total === 0} onClick={() => setPage(p => p + 1)}>下一页</button>
+        <FormSelect value={String(pageSize)} options={[{value:"10",label:"10条/页"},{value:"20",label:"20条/页"},{value:"50",label:"50条/页"},{value:"100",label:"100条/页"}]} onChange={val => { setPageSize(Number(val)); setPage(1); }} />
       </div>
 
-      {/* Floating Action Buttons */}
-      {floatBtn && (
-        <div
-          className="alist-float"
-          style={{ left: floatBtn.x, top: floatBtn.y }}
-          onClick={e => e.stopPropagation()}>
-          <button className="alist-float-btn alist-float-view" onClick={() => { setFloatBtn(null); navigate(`/api-test/scene-set/${floatBtn.id}`); }}>
-            查看
-          </button>
-          <button className="alist-float-btn alist-float-del" onClick={() => doDelete(floatBtn.id, sets.find(s => s.id === floatBtn.id)?.name || '')}>
-            删除
-          </button>
-        </div>
-      )}
     </div>
   );
 }

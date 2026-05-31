@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { apiFetch } from '../../utils/api';
 import type { ApiItem } from '../../types';
 import VarHoverTip from '../../components/VarHoverTip';
+import TagFilterSelect from '../../components/TagFilterSelect';
+import FormSelect from '../../components/FormSelect';
 import OpenAPIImportModal from '../openapi/OpenAPIImportModal';
 import OpenAPIExportModal from '../openapi/OpenAPIExportModal';
 import './ApiList.css';
@@ -25,22 +27,19 @@ export default function ApiList() {
   // Filter state
   const [fName, setFName] = useState('');
   const [fDesc, setFDesc] = useState('');
-  const [fTags, setFTags] = useState('');
+  const [filterTags, setFilterTags] = useState('');
   const [fStatus, setFStatus] = useState('');
   const [fDateFrom, setFDateFrom] = useState('');
   const [fDateTo, setFDateTo] = useState('');
   const [sortField, setSortField] = useState('updated_at');
   const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC'>('DESC');
 
-  // Floating action buttons
-  const [floatBtn, setFloatBtn] = useState<{ id: number; x: number; y: number } | null>(null);
-
   const navigate = useNavigate();
 
   const fetchApis = async (pageNum = 1, pageSz = pageSize) => {
     try {
       setLoading(true);
-      const params = new URLSearchParams({ page: String(pageNum), pageSize: String(pageSz), sort: sortField, order: sortOrder });
+      const params = new URLSearchParams({ page: String(pageNum), pageSize: String(pageSz), sort: sortField, order: sortOrder, test_type: 'api' });
       const res = await apiFetch<{ items: ApiItem[]; total: number; page: number; pageSize: number }>(`/apis?${params}`);
       const r = res as { code: number; data?: { items: ApiItem[]; total: number; page: number; pageSize: number } };
       if (r.code === 200 && r.data) {
@@ -56,18 +55,6 @@ export default function ApiList() {
 
   useEffect(() => { fetchApis(); }, [sortField, sortOrder]);
 
-  // Close floating buttons on outside click
-  useEffect(() => {
-    const handler = () => setFloatBtn(null);
-    document.addEventListener('click', handler);
-    return () => document.removeEventListener('click', handler);
-  }, []);
-
-  const handleRowClick = (e: MouseEvent, id: number) => {
-    e.stopPropagation();
-    setFloatBtn({ id, x: e.clientX, y: e.clientY });
-  };
-
   const handleCreate = () => {
     navigate('/api-test/api-case/new');
   };
@@ -75,8 +62,18 @@ export default function ApiList() {
   const handleDelete = async (id: number) => {
     if (!confirm('确认删除此接口？')) return;
     await apiFetch(`/apis/${id}`, { method: 'DELETE' });
-    setFloatBtn(null);
     fetchApis(page);
+  };
+
+  const handleReset = () => {
+    setFName('');
+    setFDesc('');
+    setFilterTags('');
+    setFStatus('');
+    setFDateFrom('');
+    setFDateTo('');
+    setPage(1);
+    fetchApis(1);
   };
 
   const filtered = apis.filter((api) => {
@@ -85,8 +82,14 @@ export default function ApiList() {
       const s = fName.toLowerCase();
       if (!api.name.toLowerCase().includes(s) && !api.url.toLowerCase().includes(s)) return false;
     }
-    if (fDesc && !(api.description || '').toLowerCase().includes(fDesc.toLowerCase())) return false;
-    if (fTags && !(api.tags || '').toLowerCase().includes(fTags.toLowerCase())) return false;
+    if (fDesc) {
+      const search = fDesc.toLowerCase();
+      if (!(api.description || '').toLowerCase().includes(search)) return false;
+    }
+    if (filterTags) {
+      const tags = (api.tags || '').split(',').map(t => t.trim()).filter(Boolean);
+      if (!tags.some(t => t.toLowerCase().includes(filterTags.toLowerCase()))) return false;
+    }
     if (fDateFrom && api.created_at < fDateFrom) return false;
     if (fDateTo && api.created_at > fDateTo + 'T23:59:59') return false;
     return true;
@@ -126,35 +129,37 @@ export default function ApiList() {
         <div className="alist-filter-row">
           <div className="alist-filter-item">
             <label>接口名称</label>
-            <input placeholder="搜索名称或URL" value={fName} onChange={(e) => setFName(e.target.value)} />
+            <input placeholder="搜索名称或URL" value={fName} onChange={(e) => setFName(e.target.value)} onBlur={() => fetchApis(1)} />
           </div>
           <div className="alist-filter-item">
             <label>描述</label>
-            <input placeholder="搜索描述" value={fDesc} onChange={(e) => setFDesc(e.target.value)} />
+            <input placeholder="搜索描述" value={fDesc} onChange={(e) => setFDesc(e.target.value)} onBlur={() => fetchApis(1)} />
           </div>
           <div className="alist-filter-item">
             <label>标签</label>
-            <input placeholder="搜索标签" value={fTags} onChange={(e) => setFTags(e.target.value)} />
+            <TagFilterSelect value={filterTags} onChange={(v) => { setFilterTags(v); fetchApis(1); }} placeholder="按标签筛选" />
           </div>
           <div className="alist-filter-item">
             <label>状态</label>
-            <select value={fStatus} onChange={(e) => setFStatus(e.target.value)}>
-              {STATUSES.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
-            </select>
+            <FormSelect
+              value={fStatus}
+              options={STATUSES}
+              onChange={(val) => { setFStatus(val); fetchApis(1); }}
+            />
           </div>
         </div>
         <div className="alist-filter-row">
           <div className="alist-filter-item">
             <label>创建时间起</label>
-            <input type="date" value={fDateFrom} onChange={(e) => setFDateFrom(e.target.value)} />
+            <input type="date" value={fDateFrom} onChange={(e) => setFDateFrom(e.target.value)} onBlur={() => fetchApis(1)} />
           </div>
           <div className="alist-filter-item">
             <label>创建时间止</label>
-            <input type="date" value={fDateTo} onChange={(e) => setFDateTo(e.target.value)} />
+            <input type="date" value={fDateTo} onChange={(e) => setFDateTo(e.target.value)} onBlur={() => fetchApis(1)} />
           </div>
           <div className="alist-actions">
-            <button className="alist-btn-query">查询</button>
-            <button className="alist-btn-add" onClick={handleCreate}>新增</button>
+            <button className="btn btn-default" onClick={handleReset}>重置</button>
+            <button className="btn btn-primary" onClick={handleCreate}>新增</button>
             <OpenAPIImportModal onImported={() => fetchApis(page)} />
             <OpenAPIExportModal selectedIds={[...selectedIds]} onExported={() => setSelectedIds(new Set())} />
             {selectedIds.size > 0 && (
@@ -186,11 +191,12 @@ export default function ApiList() {
                 <th>状态</th>
                 <th className="sortable" onClick={() => toggleSort('created_at')}>创建时间 {sortIcon('created_at')}</th>
                 <th className="sortable" onClick={() => toggleSort('updated_at')}>更新时间 {sortIcon('updated_at')}</th>
+                <th style={{ width: 80 }}></th>
               </tr>
             </thead>
             <tbody>
               {filtered.map((api) => (
-                <tr key={api.id} onClick={(e) => { if ((e.target as HTMLElement).tagName !== 'INPUT') handleRowClick(e, api.id); }} className={floatBtn?.id === api.id ? 'active-row' : ''}>
+                <tr key={api.id} onClick={() => navigate(`/api-test/api-case/${api.id}`)} style={{ cursor: 'pointer' }}>
                   <td onClick={(e) => e.stopPropagation()}>
                     <input type="checkbox" checked={selectedIds.has(api.id)} onChange={() => toggleSelectOne(api.id)} />
                   </td>
@@ -199,12 +205,18 @@ export default function ApiList() {
                   <td className="td-url"><VarHoverTip text={api.url} /></td>
                   <td>
                     {api.tags ? api.tags.split(',').filter(Boolean).map((t) => (
-                      <span key={t} className="tag-badge">{t.trim()}</span>
+                      <span key={t} className="tag-badge" data-tag={t.trim()}>{t.trim()}</span>
                     )) : '-'}
                   </td>
                   <td><span className={`status-text status-${api.status}`}>{statusLabel(api.status)}</span></td>
                   <td>{api.created_at.replace('T', ' ').slice(0, 16)}</td>
                   <td>{api.updated_at.replace('T', ' ').slice(0, 16)}</td>
+                  <td>
+                    <div className="row-actions">
+                      <button className="row-action-btn" title="执行" onClick={(e) => { e.stopPropagation(); navigate(`/api-test/api-case/${api.id}?exec=1`); }}>▶</button>
+                      <button className="row-action-btn row-action-del" title="删除" onClick={(e) => { e.stopPropagation(); handleDelete(api.id); }}>✕</button>
+                    </div>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -215,34 +227,10 @@ export default function ApiList() {
       {/* Pagination */}
       <div className="alist-pagination">
         <span className="page-info">共 {total} 条，第 {page} / {Math.ceil(total / pageSize)} 页</span>
-        <button className="page-btn" disabled={page <= 1} onClick={() => fetchApis(page - 1)}>上一页</button>
-        <button className="page-btn" disabled={page >= Math.ceil(total / pageSize)} onClick={() => fetchApis(page + 1)}>下一页</button>
-        <select className="page-size-select" value={pageSize} onChange={e => fetchApis(1, Number(e.target.value))}>
-          <option value={10}>10条/页</option>
-          <option value={20}>20条/页</option>
-          <option value={50}>50条/页</option>
-          <option value={100}>100条/页</option>
-        </select>
+        <button className="btn btn-sm" disabled={page <= 1} onClick={() => fetchApis(page - 1)}>上一页</button>
+        <button className="btn btn-sm" disabled={page >= Math.ceil(total / pageSize)} onClick={() => fetchApis(page + 1)}>下一页</button>
+        <FormSelect value={String(pageSize)} options={[{value:"10",label:"10条/页"},{value:"20",label:"20条/页"},{value:"50",label:"50条/页"},{value:"100",label:"100条/页"}]} onChange={val => fetchApis(1, Number(val))} />
       </div>
-
-      {/* Floating Action Buttons */}
-      {floatBtn && (
-        <div
-          className="alist-float"
-          style={{ left: floatBtn.x, top: floatBtn.y }}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <button className="alist-float-btn alist-float-view" onClick={() => { setFloatBtn(null); navigate(`/api-test/api-case/${floatBtn.id}`); }}>
-            查看
-          </button>
-          <button className="alist-float-btn alist-float-exec" onClick={() => { setFloatBtn(null); navigate(`/api-test/api-case/${floatBtn.id}?exec=1`); }}>
-            执行
-          </button>
-          <button className="alist-float-btn alist-float-del" onClick={() => handleDelete(floatBtn.id)}>
-            删除
-          </button>
-        </div>
-      )}
 
     </div>
   );
