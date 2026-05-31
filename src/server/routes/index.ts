@@ -36,6 +36,7 @@ routes.use('/scenarios-web', scenarioRoutesWeb);
 routes.use('/scenarios-pc', scenarioRoutesPc);
 // 移动端测试场景（独立表）
 routes.use('/scenarios-mobile', scenarioRoutesMobile);
+routes.use('/schedule-sets', scheduleSetRoutes);
 routes.use('/environments', envRoutes);
 // 接口测试场景集（共用表，保持兼容性）
 routes.use('/scenario-sets', setRoutes);
