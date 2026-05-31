@@ -14,7 +14,6 @@ import {
   findScenarioSetExecutionWithItems,
   findScenarioExecutionWithSteps,
 } from '../db/scenarios.js';
-import { findReportsBySetId } from '../db/batch-reports.js';
 import { findUserById } from '../db/users.js';
 
 export const setRoutes = Router();
@@ -160,20 +159,6 @@ setRoutes.get('/:id/reports', (req: Request, res: Response) => {
   if (!set) return;
 
   const limit = Math.min(Number(req.query.limit) || 20, 100);
-  const reports = findReportsBySetId(id, limit);
-
-  const parsed = reports.map(r => {
-    try {
-      const reportObj = JSON.parse(r.report);
-      return {
-        id: r.id, passed: r.passed, failed: r.failed,
-        total_duration_ms: r.total_duration_ms, executed_by: r.executed_by, executed_at: r.executed_at,
-        ...reportObj,
-      };
-    } catch {
-      return { id: r.id, passed: r.passed, failed: r.failed, total_duration_ms: r.total_duration_ms, executed_by: r.executed_by, executed_at: r.executed_at };
-    }
-  });
-
-  res.json({ code: 200, message: 'ok', data: parsed });
+  const reports = findScenarioSetExecutionsBySetId(id, limit);
+  res.json({ code: 200, message: 'ok', data: reports });
 });

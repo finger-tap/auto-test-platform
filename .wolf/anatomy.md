@@ -1,6 +1,6 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-05-31T11:58:17.081Z
+> Auto-maintained by OpenWolf. Last scanned: 2026-05-31T12:06:09.531Z
 > Files: 181 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ../../.claude/plans/
@@ -63,7 +63,7 @@
 ## src/client/
 
 - `App.css` — Styles: 65 rules, 30 vars (~2702 tok)
-- `App.tsx` — App (~2944 tok)
+- `App.tsx` — App (~2789 tok)
 - `main.tsx` (~68 tok)
 - `vite-env.d.ts` — / <reference types="vite/client" /> (~11 tok)
 
@@ -78,7 +78,7 @@
 - `InlineEdit.css` — Styles: 19 rules (~676 tok)
 - `InlineEdit.tsx` — ── InlineText ── (~1060 tok)
 - `Layout.css` — Styles: 40 rules (~1497 tok)
-- `Layout.tsx` — SVG icons for nav items (~3186 tok)
+- `Layout.tsx` — SVG icons for nav items (~3383 tok)
 - `MessageModal.css` — Styles: 9 rules (~338 tok)
 - `MessageModal.tsx` — MessageModal (~204 tok)
 - `PrePostActionItem.tsx` — defaultAction (~3418 tok)
@@ -167,7 +167,7 @@
 - `ScenarioSetDetail.css` — Styles: 118 rules (~5922 tok)
 - `ScenarioSetDetail.tsx` — STATUS_OPTIONS (~8154 tok)
 - `ScenarioSetList.css` — Styles: 15 rules (~507 tok)
-- `ScenarioSetList.tsx` — STATUS_MAP — renders form, table (~2620 tok)
+- `ScenarioSetList.tsx` — STATUS_MAP — renders form, table (~2774 tok)
 
 ## src/client/pages/scenario/
 
@@ -264,12 +264,12 @@
 - `auth.ts` — API routes: POST, GET, PUT (8 endpoints) (~2147 tok)
 - `batch-reports.ts` — API routes: GET (2 endpoints) (~603 tok)
 - `environments.ts` — API routes: GET, POST, PUT, DELETE (7 endpoints) (~1200 tok)
-- `index.ts` — API routes: GET (1 endpoints) (~658 tok)
+- `index.ts` — API routes: GET (1 endpoints) (~628 tok)
 - `mobile-tests.ts` — API routes: GET, POST, PUT, DELETE (7 endpoints) (~1338 tok)
 - `mocks.ts` — API routes: GET, POST, PUT, DELETE (6 endpoints) (~1033 tok)
 - `pc-cases.ts` — API routes: GET, POST, PUT, DELETE (7 endpoints) (~1663 tok)
 - `scenario-sets-web.ts` — API routes: GET, POST, PUT, DELETE (5 endpoints) (~802 tok)
-- `scenario-sets.ts` — API routes: GET, POST, PUT, DELETE (9 endpoints) (~1908 tok)
+- `scenario-sets.ts` — API routes: GET, POST, PUT, DELETE (9 endpoints) (~1757 tok)
 - `scenarios-mobile.ts` — API routes: GET, POST, PUT, DELETE (8 endpoints) (~1337 tok)
 - `scenarios-pc.ts` — API routes: GET, POST, PUT, DELETE (8 endpoints) (~1324 tok)
 - `scenarios-web.ts` — API routes: GET, POST, PUT, DELETE (8 endpoints) (~1328 tok)

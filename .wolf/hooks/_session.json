@@ -28,7 +28,7 @@
       "first_read": "2026-05-31T10:37:14.302Z"
     },
     "/Users/dinghao/工作/auto-test-platform/src/client/App.tsx": {
-      "count": 2,
+      "count": 3,
       "tokens": 2944,
       "first_read": "2026-05-31T10:43:34.792Z"
     },
@@ -38,8 +38,8 @@
       "first_read": "2026-05-31T11:04:58.412Z"
     },
     "/Users/dinghao/工作/auto-test-platform/src/server/routes/index.ts": {
-      "count": 5,
-      "tokens": 644,
+      "count": 7,
+      "tokens": 642,
       "first_read": "2026-05-31T11:05:14.845Z"
     },
     "/Users/dinghao/工作/auto-test-platform/src/client/pages/schedule/ScheduleDetail.tsx": {
@@ -118,14 +118,24 @@
       "first_read": "2026-05-31T11:51:10.142Z"
     },
     "/Users/dinghao/工作/auto-test-platform/src/server/routes/scenario-sets.ts": {
-      "count": 1,
-      "tokens": 1908,
+      "count": 5,
+      "tokens": 1774,
       "first_read": "2026-05-31T11:55:02.107Z"
     },
     "/Users/dinghao/工作/auto-test-platform/src/server/db/scenario-sets.ts": {
       "count": 1,
       "tokens": 1326,
       "first_read": "2026-05-31T11:55:08.249Z"
+    },
+    "/Users/dinghao/工作/auto-test-platform/src/client/components/Layout.tsx": {
+      "count": 1,
+      "tokens": 3186,
+      "first_read": "2026-05-31T12:03:21.297Z"
+    },
+    "/Users/dinghao/工作/auto-test-platform/src/client/pages/ApiTestHome.tsx": {
+      "count": 1,
+      "tokens": 2255,
+      "first_read": "2026-05-31T12:04:46.357Z"
     }
   },
   "files_written": [
@@ -428,27 +438,89 @@
       "action": "edit",
       "tokens": 268,
       "at": "2026-05-31T11:58:17.095Z"
+    },
+    {
+      "file": "/Users/dinghao/工作/auto-test-platform/src/client/pages/scenario-set/ScenarioSetList.tsx",
+      "action": "edit",
+      "tokens": 343,
+      "at": "2026-05-31T12:00:47.299Z"
+    },
+    {
+      "file": "/Users/dinghao/工作/auto-test-platform/src/client/App.tsx",
+      "action": "edit",
+      "tokens": 17,
+      "at": "2026-05-31T12:01:23.211Z"
+    },
+    {
+      "file": "/Users/dinghao/工作/auto-test-platform/src/server/routes/index.ts",
+      "action": "edit",
+      "tokens": 12,
+      "at": "2026-05-31T12:02:30.393Z"
+    },
+    {
+      "file": "/Users/dinghao/工作/auto-test-platform/src/server/routes/index.ts",
+      "action": "edit",
+      "tokens": 28,
+      "at": "2026-05-31T12:02:51.485Z"
+    },
+    {
+      "file": "/Users/dinghao/工作/auto-test-platform/src/client/components/Layout.tsx",
+      "action": "edit",
+      "tokens": 30,
+      "at": "2026-05-31T12:03:43.019Z"
+    },
+    {
+      "file": "/Users/dinghao/工作/auto-test-platform/src/client/components/Layout.tsx",
+      "action": "edit",
+      "tokens": 31,
+      "at": "2026-05-31T12:03:53.206Z"
+    },
+    {
+      "file": "/Users/dinghao/工作/auto-test-platform/src/client/components/Layout.tsx",
+      "action": "edit",
+      "tokens": 30,
+      "at": "2026-05-31T12:04:11.759Z"
+    },
+    {
+      "file": "/Users/dinghao/工作/auto-test-platform/src/client/components/Layout.tsx",
+      "action": "edit",
+      "tokens": 30,
+      "at": "2026-05-31T12:04:38.088Z"
+    },
+    {
+      "file": "/Users/dinghao/工作/auto-test-platform/src/server/routes/scenario-sets.ts",
+      "action": "edit",
+      "tokens": 112,
+      "at": "2026-05-31T12:05:44.380Z"
+    },
+    {
+      "file": "/Users/dinghao/工作/auto-test-platform/src/server/routes/scenario-sets.ts",
+      "action": "edit",
+      "tokens": 22,
+      "at": "2026-05-31T12:06:09.543Z"
     }
   ],
   "edit_counts": {
     "src/server/routes/schedule-sets.ts": 6,
     "src/client/pages/schedule/ScheduleList.tsx": 14,
-    "src/client/App.tsx": 5,
-    "src/server/routes/index.ts": 2,
+    "src/client/App.tsx": 6,
+    "src/server/routes/index.ts": 4,
     "src/client/pages/scenario-set/ScenarioSetDetail.tsx": 2,
     "src/client/pages/mock/MockList.tsx": 2,
     "src/client/pages/scenario/ScenarioList.tsx": 2,
     "src/client/pages/api-test/ApiList.tsx": 2,
     "src/client/pages/environment/EnvironmentList.tsx": 2,
     "src/client/pages/mobile-test/MobileTestList.tsx": 2,
-    "src/client/pages/scenario-set/ScenarioSetList.tsx": 5,
+    "src/client/pages/scenario-set/ScenarioSetList.tsx": 6,
     "src/client/pages/pc-test/PcCaseList.tsx": 2,
     "src/client/pages/web-test/WebCaseList.tsx": 2,
-    "src/server/db/scenario-sets.ts": 2
+    "src/server/db/scenario-sets.ts": 2,
+    "src/client/components/Layout.tsx": 4,
+    "src/server/routes/scenario-sets.ts": 2
   },
-  "anatomy_hits": 16,
+  "anatomy_hits": 18,
   "anatomy_misses": 3,
-  "repeated_reads_warned": 25,
+  "repeated_reads_warned": 32,
   "cerebrum_warnings": 0,
-  "stop_count": 15
+  "stop_count": 16
 }

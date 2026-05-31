@@ -4894,8 +4894,88 @@
         "tsx"
       ],
       "related_bugs": [],
+      "occurrences": 2,
+      "last_seen": "2026-05-31T12:00:47.303Z"
+    },
+    {
+      "id": "bug-307",
+      "timestamp": "2026-05-31T12:01:23.215Z",
+      "error_message": "Incorrect value in code",
+      "file": "src/client/App.tsx",
+      "root_cause": "Had './pages/batch-report/BatchReportList'",
+      "fix": "Changed to './pages/schedule/ScheduleList'",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "tsx"
+      ],
+      "related_bugs": [],
       "occurrences": 1,
-      "last_seen": "2026-05-31T11:58:17.099Z"
+      "last_seen": "2026-05-31T12:01:23.215Z"
+    },
+    {
+      "id": "bug-308",
+      "timestamp": "2026-05-31T12:02:30.397Z",
+      "error_message": "Incorrect value in code",
+      "file": "src/server/routes/index.ts",
+      "root_cause": "Had './batch-reports.js'",
+      "fix": "Changed to './mocks.js'",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 2,
+      "last_seen": "2026-05-31T12:02:51.488Z"
+    },
+    {
+      "id": "bug-309",
+      "timestamp": "2026-05-31T12:03:43.023Z",
+      "error_message": "CSS fix: label",
+      "file": "src/client/components/Layout.tsx",
+      "root_cause": "label: '批量报告', path: '/api-test/batch-report', icon: 'report' → '定时任务', path: '/api-test/schedule', icon: 'clock'",
+      "fix": "Changed label: '批量报告', path: '/api-test/batch-report', icon: 'report' → '定时任务', path: '/api-test/schedule', icon: 'clock'",
+      "tags": [
+        "auto-detected",
+        "style-fix",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 4,
+      "last_seen": "2026-05-31T12:04:38.092Z"
+    },
+    {
+      "id": "bug-310",
+      "timestamp": "2026-05-31T12:05:44.383Z",
+      "error_message": "Significant refactor of ",
+      "file": "src/server/routes/scenario-sets.ts",
+      "root_cause": "13 lines replaced/restructured",
+      "fix": "Rewrote 24→10 lines (13 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-31T12:05:44.383Z"
+    },
+    {
+      "id": "bug-311",
+      "timestamp": "2026-05-31T12:06:09.546Z",
+      "error_message": "Incorrect value in code",
+      "file": "src/server/routes/scenario-sets.ts",
+      "root_cause": "Had '../db/batch-reports.js'",
+      "fix": "Changed to '../db/users.js'",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-31T12:06:09.546Z"
     }
   ]
 }

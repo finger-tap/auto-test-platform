@@ -42,7 +42,6 @@ const MENUS_BY_TYPE: Record<string, NavSection[]> = {
     ]},
     { section: '执行管理', items: [
       { label: '定时任务', path: '/api-test/schedule', icon: 'clock' },
-      { label: '批量报告', path: '/api-test/batch-report', icon: 'report' },
     ]},
     { section: '辅助功能', items: [
       { label: 'Mock 服务', path: '/api-test/mock', icon: 'chat' },
@@ -59,7 +58,6 @@ const MENUS_BY_TYPE: Record<string, NavSection[]> = {
     ]},
     { section: '执行管理', items: [
       { label: '定时任务', path: '/mobile-test/schedule', icon: 'clock' },
-      { label: '批量报告', path: '/mobile-test/batch-report', icon: 'report' },
     ]},
     { section: '辅助功能', items: [
       { label: 'Mock 服务', path: '/mobile-test/mock', icon: 'chat' },
@@ -76,7 +74,6 @@ const MENUS_BY_TYPE: Record<string, NavSection[]> = {
     ]},
     { section: '执行管理', items: [
       { label: '定时任务', path: '/web-test/schedule', icon: 'clock' },
-      { label: '批量报告', path: '/web-test/batch-report', icon: 'report' },
     ]},
     { section: '辅助功能', items: [
       { label: '环境管理', path: '/web-test/environment', icon: 'env' },
@@ -92,7 +89,6 @@ const MENUS_BY_TYPE: Record<string, NavSection[]> = {
     ]},
     { section: '执行管理', items: [
       { label: '定时任务', path: '/pc-test/schedule', icon: 'clock' },
-      { label: '批量报告', path: '/pc-test/batch-report', icon: 'report' },
     ]},
     { section: '辅助功能', items: [
       { label: '环境管理', path: '/pc-test/environment', icon: 'env' },

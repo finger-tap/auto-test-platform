@@ -190,14 +190,25 @@ export default function ScenarioSetList({ basePath = '/api-test', testType = 'ap
                     </td>
                     <td>
                       {s.last_execution ? (
-                        <span style={{ fontSize: 12 }}>
-                          <span style={{ color: s.last_execution.status === 'success' ? '#52c41a' : s.last_execution.status === 'failed' ? '#ff4d4f' : '#999' }}>
-                            {s.last_execution.passed_count}/{s.last_execution.failed_count}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                          <span style={{
+                            display: 'inline-block',
+                            padding: '1px 8px',
+                            borderRadius: 10,
+                            fontSize: 12,
+                            fontWeight: 500,
+                            background: s.last_execution.status === 'success' ? '#f6ffed' : '#fff2f0',
+                            color: s.last_execution.status === 'success' ? '#52c41a' : '#ff4d4f',
+                          }}>
+                            {s.last_execution.status === 'success' ? '成功' : '失败'}
                           </span>
-                          {' '}
-                          <span style={{ color: '#999' }}>{formatDateTime(s.last_execution.executed_at)}</span>
-                        </span>
-                      ) : <span style={{ color: '#999' }}>—</span>}
+                          <span style={{ fontSize: 12, color: '#999' }}>
+                            {s.last_execution.passed_count}/{s.last_execution.failed_count} · {formatDateTime(s.last_execution.executed_at)}
+                          </span>
+                        </div>
+                      ) : (
+                        <span style={{ color: '#999', fontSize: 13 }}>未执行</span>
+                      )}
                     </td>
                     <td>{formatDateTime(s.created_at)}</td>
                     <td>{formatDateTime(s.updated_at)}</td>

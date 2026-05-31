@@ -10,7 +10,6 @@ import { setRoutes } from './scenario-sets.js';
 import { scenarioSetRoutes as scenarioSetRoutesWeb } from './scenario-sets-web.js';
 import { scenarioSetRoutes as scenarioSetRoutesPc } from './scenario-sets-pc.js';
 import { scenarioSetRoutes as scenarioSetRoutesMobile } from './scenario-sets-mobile.js';
-import { batchReportRoutes } from './batch-reports.js';
 import { mockRoutes } from './mocks.js';
 import { openapiRoutes } from '../openapi/routes.js';
 import { tagRoutes } from '../db/tags.js';
@@ -46,7 +45,6 @@ routes.use('/scenario-sets-web', scenarioSetRoutesWeb);
 routes.use('/scenario-sets-pc', scenarioSetRoutesPc);
 // 移动端测试场景集（独立表）
 routes.use('/scenario-sets-mobile', scenarioSetRoutesMobile);
-routes.use('/batch-reports', batchReportRoutes);
 routes.use('/mocks', mockRoutes);
 routes.use('/openapi', openapiRoutes);
 routes.use('/tags', tagRoutes);
