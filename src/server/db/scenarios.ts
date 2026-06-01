@@ -10,7 +10,6 @@ export interface ScenarioRow {
   status: string;
   tags: string | null;
   parameters: string | null;
-  test_type: string;
   created_at: string;
   updated_at: string;
 }
@@ -61,7 +60,6 @@ export interface CreateScenarioInput {
   status?: string;
   tags?: string;
   parameters?: string;
-  test_type?: string;
 }
 
 export interface UpdateScenarioInput {
@@ -102,14 +100,13 @@ export interface CreateScenarioLogInput {
 
 // ── Scenario CRUD ──
 
-export function findScenariosByUserIdPaginated(userId: number, page: number, pageSize: number, sort = 'updated_at', order = 'DESC', testType?: string, name?: string): { items: ScenarioRow[]; total: number } {
+export function findScenariosByUserIdPaginated(userId: number, page: number, pageSize: number, sort = 'updated_at', order = 'DESC', name?: string): { items: ScenarioRow[]; total: number } {
   const offset = (page - 1) * pageSize;
   const validSorts: Record<string, string> = { updated_at: 'updated_at', created_at: 'created_at', name: 'name' };
   const sortCol = validSorts[sort] || 'updated_at';
   const sortDir = order === 'ASC' ? 'ASC' : 'DESC';
   const conditions: string[] = ['user_id = ?'];
   const params: (string | number)[] = [userId];
-  if (testType) { conditions.push('test_type = ?'); params.push(testType); }
   if (name && name.trim()) {
     conditions.push('name LIKE ?');
     params.push(`%${name.trim()}%`);
@@ -120,10 +117,7 @@ export function findScenariosByUserIdPaginated(userId: number, page: number, pag
   return { items, total: count };
 }
 
-export function findScenariosByUserId(userId: number, testType?: string): ScenarioRow[] {
-  if (testType) {
-    return db.prepare('SELECT * FROM scenarios WHERE user_id = ? AND test_type = ? ORDER BY updated_at DESC').all(userId, testType) as ScenarioRow[];
-  }
+export function findScenariosByUserId(userId: number): ScenarioRow[] {
   return db.prepare('SELECT * FROM scenarios WHERE user_id = ? ORDER BY updated_at DESC').all(userId) as ScenarioRow[];
 }
 
@@ -133,9 +127,9 @@ export function findScenarioById(id: number): ScenarioRow | undefined {
 
 export function createScenario(userId: number, data: CreateScenarioInput): number {
   const result = db.prepare(
-    `INSERT INTO scenarios (user_id, name, description, status, tags, parameters, test_type)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`
-  ).run(userId, data.name, data.description || null, data.status || 'active', data.tags || '', data.parameters || '', data.test_type || 'api');
+    `INSERT INTO scenarios (user_id, name, description, status, tags, parameters)
+     VALUES (?, ?, ?, ?, ?, ?)`
+  ).run(userId, data.name, data.description || null, data.status || 'active', data.tags || '', data.parameters || '');
   return result.lastInsertRowid as number;
 }
 

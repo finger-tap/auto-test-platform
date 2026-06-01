@@ -7,12 +7,11 @@ import {
   updateMock,
   deleteMock,
   resetMockHitCount,
-} from '../db/mocks.js';
+} from '../db/mocks-mobile.js';
 
 export const mockRoutes = Router();
 mockRoutes.use(authMiddleware);
 
-// Helper
 function checkOwnership(req: Request, res: Response, mockId: number) {
   const mock = findMockById(mockId);
   if (!mock) { res.status(404).json({ code: 404, message: 'Mock not found' }); return null; }
@@ -20,12 +19,11 @@ function checkOwnership(req: Request, res: Response, mockId: number) {
   return mock;
 }
 
-// GET /api/mocks
+// GET /api/mocks-mobile
 mockRoutes.get('/', (req: Request, res: Response) => {
   const page = Math.max(1, Number(req.query.page) || 1);
   const pageSize = Math.min(100, Math.max(1, Number(req.query.pageSize) || 10));
-  const testType = req.query.test_type as string | undefined;
-  const result = findMocksByUserIdPaginated(req.user!.userId, page, pageSize, testType);
+  const result = findMocksByUserIdPaginated(req.user!.userId, page, pageSize);
   res.json({
     code: 200, message: 'ok',
     data: {
@@ -38,9 +36,9 @@ mockRoutes.get('/', (req: Request, res: Response) => {
   });
 });
 
-// POST /api/mocks
+// POST /api/mocks-mobile
 mockRoutes.post('/', (req: Request, res: Response) => {
-  const { name, method, path_pattern, description, tags, status, response_status, response_headers, response_body, response_delay_ms, conditions, match_mode, enabled, test_type } = req.body;
+  const { name, method, path_pattern, description, tags, status, response_status, response_headers, response_body, response_delay_ms, conditions, match_mode, enabled } = req.body;
   if (!name || !path_pattern) {
     res.status(400).json({ code: 400, message: 'Name and path_pattern are required' });
     return;
@@ -50,16 +48,14 @@ mockRoutes.post('/', (req: Request, res: Response) => {
     name, method, path_pattern, description, tags, status,
     response_status, response_headers, response_body,
     response_delay_ms, conditions, match_mode, enabled,
-    test_type: test_type || 'api',
   });
   res.status(201).json({ code: 201, message: 'Created', data: { id } });
 });
 
-// GET /api/mocks/:id
+// GET /api/mocks-mobile/:id
 mockRoutes.get('/:id', (req: Request, res: Response) => {
   const id = Number(req.params.id);
-  const testType = req.query.test_type as string | undefined;
-  const mock = findMockById(id, testType);
+  const mock = findMockById(id);
   if (!mock || mock.user_id !== req.user!.userId) {
     res.status(404).json({ code: 404, message: 'Mock not found' });
     return;
@@ -67,24 +63,22 @@ mockRoutes.get('/:id', (req: Request, res: Response) => {
   res.json({ code: 200, message: 'ok', data: mock });
 });
 
-// PUT /api/mocks/:id
+// PUT /api/mocks-mobile/:id
 mockRoutes.put('/:id', (req: Request, res: Response) => {
   const id = Number(req.params.id);
   const mock = checkOwnership(req, res, id);
   if (!mock) return;
 
-  const { name, method, path_pattern, description, tags, status, response_status, response_headers, response_body, response_delay_ms, conditions, match_mode, enabled, test_type } = req.body;
+  const { name, method, path_pattern, description, tags, status, response_status, response_headers, response_body, response_delay_ms, conditions, match_mode, enabled } = req.body;
   updateMock(id, req.user!.userId, {
     name, method, path_pattern, description, tags, status,
     response_status, response_headers, response_body,
-    response_delay_ms, conditions, match_mode,
-    enabled,
-    test_type,
+    response_delay_ms, conditions, match_mode, enabled,
   });
   res.json({ code: 200, message: 'Updated' });
 });
 
-// DELETE /api/mocks/:id
+// DELETE /api/mocks-mobile/:id
 mockRoutes.delete('/:id', (req: Request, res: Response) => {
   const id = Number(req.params.id);
   const mock = checkOwnership(req, res, id);
@@ -93,7 +87,7 @@ mockRoutes.delete('/:id', (req: Request, res: Response) => {
   res.json({ code: 200, message: 'Deleted' });
 });
 
-// POST /api/mocks/:id/reset
+// POST /api/mocks-mobile/:id/reset
 mockRoutes.post('/:id/reset', (req: Request, res: Response) => {
   const id = Number(req.params.id);
   const mock = checkOwnership(req, res, id);

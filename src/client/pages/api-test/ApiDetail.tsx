@@ -175,7 +175,6 @@ export default function ApiDetail() {
     if (realIdRef.current) return realIdRef.current;
     try {
       const payload = { ...form,
-        test_type: 'api',
         assertions: JSON.stringify(mainRules),
         pre_assertions: JSON.stringify([...preExtractionRules, ...preAssertionRules]),
         post_assertions: JSON.stringify([...postExtractionRules, ...postAssertionRules]),
@@ -1119,7 +1118,7 @@ export default function ApiDetail() {
           {activeTab !== 'logs' && (
             <div className="detail-action-bar">
               <button className={`scenario-btn ${dirtyRef.current ? 'dirty' : ''}`} onClick={handleSave}>保存</button>
-              <button className={`scenario-btn scenario-btn-primary ${!realIdRef.current ? 'scenario-btn-disabled' : ''}`} onClick={handleExecute} disabled={executing}>{executing ? <><span className="ad-btn-loading">⟳</span> 执行中</> : '执行'}</button>
+              <button className={`sset-btn sset-btn-primary ${!realIdRef.current ? 'scenario-btn-disabled' : ''}`} onClick={handleExecute} disabled={executing}>{executing ? <><span className="ad-btn-loading">⟳</span> 执行中</> : '执行'}</button>
             </div>
           )}
         </div>

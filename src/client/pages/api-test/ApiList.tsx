@@ -40,7 +40,7 @@ export default function ApiList() {
   const fetchApis = async (pageNum = 1, pageSz = pageSize) => {
     try {
       setLoading(true);
-      const params = new URLSearchParams({ page: String(pageNum), pageSize: String(pageSz), sort: sortField, order: sortOrder, test_type: 'api' });
+      const params = new URLSearchParams({ page: String(pageNum), pageSize: String(pageSz), sort: sortField, order: sortOrder });
       const res = await apiFetch<{ items: ApiItem[]; total: number; page: number; pageSize: number }>(`/apis?${params}`);
       const r = res as { code: number; data?: { items: ApiItem[]; total: number; page: number; pageSize: number } };
       if (r.code === 200 && r.data) {

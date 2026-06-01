@@ -83,7 +83,6 @@ export interface CreateApiInput {
   pre_actions?: string;
   post_actions?: string;
   parameters?: string;
-  test_type?: string;
 }
 
 export interface UpdateApiInput {
@@ -114,17 +113,13 @@ export interface UpdateApiInput {
   parameters?: string;
 }
 
-export function findApisByUserIdPaginated(userId: number, page: number, pageSize: number, sort = 'updated_at', order = 'DESC', testType?: string): { items: ApiRow[]; total: number } {
+export function findApisByUserIdPaginated(userId: number, page: number, pageSize: number, sort = 'updated_at', order = 'DESC'): { items: ApiRow[]; total: number } {
   const offset = (page - 1) * pageSize;
   const validSorts: Record<string, string> = { updated_at: 'updated_at', created_at: 'created_at', name: 'name' };
   const sortCol = validSorts[sort] || 'updated_at';
   const sortDir = order === 'ASC' ? 'ASC' : 'DESC';
-  const conditions = ['user_id = ?'];
-  const params: unknown[] = [userId];
-  if (testType) { conditions.push('test_type = ?'); params.push(testType); }
-  const where = conditions.join(' AND ');
-  const items = db.prepare(`SELECT * FROM apis WHERE ${where} ORDER BY ${sortCol} ${sortDir} LIMIT ? OFFSET ?`).all(...params, pageSize, offset) as ApiRow[];
-  const { count } = db.prepare(`SELECT COUNT(*) AS count FROM apis WHERE ${where}`).get(...params) as { count: number };
+  const items = db.prepare(`SELECT * FROM apis WHERE user_id = ? ORDER BY ${sortCol} ${sortDir} LIMIT ? OFFSET ?`).all(userId, pageSize, offset) as ApiRow[];
+  const { count } = db.prepare(`SELECT COUNT(*) AS count FROM apis WHERE user_id = ?`).get(userId) as { count: number };
   return { items, total: count };
 }
 
@@ -138,9 +133,9 @@ export function findApiById(id: number): ApiRow | undefined {
 
 export function createApi(userId: number, data: CreateApiInput): number {
   const result = db.prepare(
-    `INSERT INTO apis (user_id, name, method, url, protocol, headers, body, description, tags, status, content_type, assertions, pre_script, post_script, pre_db_name, pre_db_query, post_db_name, post_db_query, pre_assertions, post_assertions, final_assertions, ws_send, ws_expect, parameters, test_type, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now', '+8 hours'), datetime('now', '+8 hours'))`
-  ).run(userId, data.name, data.method, data.url, data.protocol || 'https', data.headers || null, data.body || null, data.description || null, data.tags || '', data.status || 'active', data.content_type || 'json', data.assertions || null, data.pre_script || null, data.post_script || null, data.pre_db_name || null, data.pre_db_query || null, data.post_db_name || null, data.post_db_query || null, data.pre_assertions || null, data.post_assertions || null, data.final_assertions || null, data.ws_send || null, data.ws_expect || null, data.parameters || null, data.test_type || 'api');
+    `INSERT INTO apis (user_id, name, method, url, protocol, headers, body, description, tags, status, content_type, assertions, pre_script, post_script, pre_db_name, pre_db_query, post_db_name, post_db_query, pre_assertions, post_assertions, final_assertions, ws_send, ws_expect, parameters, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now', '+8 hours'), datetime('now', '+8 hours'))`
+  ).run(userId, data.name, data.method, data.url, data.protocol || 'https', data.headers || null, data.body || null, data.description || null, data.tags || '', data.status || 'active', data.content_type || 'json', data.assertions || null, data.pre_script || null, data.post_script || null, data.pre_db_name || null, data.pre_db_query || null, data.post_db_name || null, data.post_db_query || null, data.pre_assertions || null, data.post_assertions || null, data.final_assertions || null, data.ws_send || null, data.ws_expect || null, data.parameters || null);
   return result.lastInsertRowid as number;
 }
 

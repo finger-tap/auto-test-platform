@@ -48,7 +48,6 @@ export default function WebCaseList() {
   useEffect(() => {
     setLoading(true);
     const params = new URLSearchParams({
-      test_type: 'web',
       page: String(page),
       pageSize: '20',
     });

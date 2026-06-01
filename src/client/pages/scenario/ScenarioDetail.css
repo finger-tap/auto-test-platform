@@ -141,41 +141,7 @@
 
 .scenario-header-actions { display: flex; gap: 0.5rem; }
 
-/* Buttons */
-.scenario-btn {
-  padding: 0.375rem 1rem;
-  border-radius: 0.375rem;
-  font-size: 0.8125rem;
-  cursor: pointer;
-  border: 1px solid var(--border);
-  background: var(--surface);
-  color: var(--fg);
-  transition: all 0.2s;
-  font-weight: 500;
-}
-
-.scenario-btn:hover {
-  border-color: var(--primary);
-  color: var(--primary);
-  background: var(--accent-subtle);
-}
-
-.scenario-btn.dirty {
-  border-color: var(--primary);
-  color: var(--primary);
-  animation: dirty-pulse 1.5s ease-in-out infinite;
-}
-
-@keyframes dirty-pulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.3); }
-  50% { box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.15); }
-}
-
-.scenario-btn:active { transform: scale(0.98); }
-
-.scenario-btn-primary { background: var(--primary); color: #fff; border-color: var(--primary); }
-.scenario-btn-primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); color: #fff; }
-.scenario-btn-primary:disabled { background: var(--border); border-color: var(--border); cursor: not-allowed; color: #fff; }
+/* Buttons —— .scenario-btn / .scenario-btn:hover / .scenario-btn.dirty / .scenario-btn:active 统一定义在 App.css */
 
 /* Status Badge */
 .scenario-status {
@@ -617,13 +583,6 @@
 
 .scenario-exec-success { border-color: var(--success-subtle); }
 .scenario-exec-failed, .scenario-exec-error { border-color: var(--danger-subtle); }
-
-/* Buttons disabled & loading */
-.scenario-btn-primary.scenario-btn-disabled {
-  background: var(--border) !important;
-  border-color: var(--border) !important;
-  cursor: not-allowed !important;
-}
 
 .ad-btn-loading {
   display: inline-block;

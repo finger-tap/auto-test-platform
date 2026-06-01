@@ -57,7 +57,6 @@ export default function MobileTestList() {
   useEffect(() => {
     setLoading(true);
     const params = new URLSearchParams({
-      test_type: 'mobile',
       page: String(page),
       pageSize: '20',
     });

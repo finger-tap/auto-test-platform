@@ -7,7 +7,7 @@ import type { Environment, EnvVariable } from '../../types';
 
 import './EnvironmentList.css';
 
-export default function EnvironmentList({ basePath = '/api-test', testType = 'api' }: { basePath?: string; testType?: string } = {}) {
+export default function EnvironmentList({ basePath = '/api-test' }: { basePath?: string } = {}) {
   const [envs, setEnvs] = useState<Environment[]>([]);
   const [loading, setLoading] = useState(true);
   const [fName, setFName] = useState('');
@@ -33,7 +33,7 @@ export default function EnvironmentList({ basePath = '/api-test', testType = 'ap
 
   function load() {
     setLoading(true);
-    // 不带 test_type 过滤器，把所有环境都拉回来，右侧切换器也会同步更新
+    // 环境是 4 种测试类型共享的基础设施，不按 test_type 过滤
     apiFetch<Environment[]>('/environments').then(res => {
       if (res.code === 200) setEnvs(res.data || []);
     }).finally(() => setLoading(false));
@@ -79,10 +79,9 @@ export default function EnvironmentList({ basePath = '/api-test', testType = 'ap
     }
   }
 
-  // 本地按 testType 过滤（API 类型显示所有，其他类型严格过滤）
+  // 本地按名称过滤
   const filtered = envs.filter(env => {
     if (fName && !env.name.toLowerCase().includes(fName.toLowerCase())) return false;
-    if (testType !== 'api' && env.test_type && env.test_type !== testType) return false;
     return true;
   });
 

@@ -154,7 +154,6 @@ export default function MobileTestDetail() {
         platform,
         status,
         tags,
-        test_type: 'mobile',
         device_name: deviceName,
         platform_version: platformVersion,
         appium_url: appiumUrl,
@@ -242,10 +241,10 @@ export default function MobileTestDetail() {
           placeholder="输入测试用例名称"
         />
         <div className="mtd-actions">
-          <button className="mtd-btn mtd-btn-save" onClick={handleSave} disabled={saving}>
+          <button className="scenario-btn" onClick={handleSave} disabled={saving}>
             {saving ? '保存中...' : '保存'}
           </button>
-          <button className="mtd-btn mtd-btn-exec" onClick={handleExecute} disabled={executing || isNew}>
+          <button className="sset-btn sset-btn-primary" onClick={handleExecute} disabled={executing || isNew}>
             {executing ? '执行中...' : '执行'}
           </button>
           {!isNew && (

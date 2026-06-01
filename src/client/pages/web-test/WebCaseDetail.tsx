@@ -235,7 +235,6 @@ export default function WebCaseDetail() {
       description: form.description,
       tags: form.tags,
       status: form.status,
-      test_type: 'web',
       steps: JSON.stringify(steps),
       check_points: JSON.stringify(checkpoints),
       data_drive: JSON.stringify({ headers: dataHeaders, rows: dataRows, enabled: dataEnabled }),
@@ -708,8 +707,8 @@ export default function WebCaseDetail() {
           </div>
           {activeTab !== 'logs' && (
             <div className="detail-action-bar">
-              <button className={`wcase-btn ${dirtyRef.current ? 'dirty' : ''}`} onClick={handleSave} disabled={saving}>{saving ? '保存中...' : '保存'}</button>
-              <button className="wcase-btn primary" onClick={handleExecute} disabled={executing || isNew}>
+              <button className={`scenario-btn ${dirtyRef.current ? 'dirty' : ''}`} onClick={handleSave} disabled={saving}>{saving ? '保存中...' : '保存'}</button>
+              <button className="sset-btn sset-btn-primary" onClick={handleExecute} disabled={executing || isNew}>
                 {executing ? '执行中...' : '执行'}
               </button>
             </div>

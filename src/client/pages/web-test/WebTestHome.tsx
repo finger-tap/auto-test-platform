@@ -38,10 +38,10 @@ export default function WebTestHome() {
 
   useEffect(() => {
     Promise.all([
-      apiFetch<{ total: number }>('/web-cases?test_type=web&page=1&pageSize=1').catch(() => ({ data: { total: 0 } })),
-      apiFetch<{ total: number }>('/scenarios?test_type=web&page=1&pageSize=1').catch(() => ({ data: { total: 0 } })),
-      apiFetch<{ total: number }>('/scenario-sets?test_type=web&page=1&pageSize=1').catch(() => ({ data: { total: 0 } })),
-      apiFetch<{ items: BatchReportItem[] }>('/batch-reports?test_type=web&page=1&pageSize=5').catch(() => ({ data: { items: [] } })),
+      apiFetch<{ total: number }>('/web-cases?page=1&pageSize=1').catch(() => ({ data: { total: 0 } })),
+      apiFetch<{ total: number }>('/scenarios-web?page=1&pageSize=1').catch(() => ({ data: { total: 0 } })),
+      apiFetch<{ total: number }>('/scenario-sets-web?page=1&pageSize=1').catch(() => ({ data: { total: 0 } })),
+      apiFetch<{ items: BatchReportItem[] }>('/batch-reports-web?page=1&pageSize=5').catch(() => ({ data: { items: [] } })),
     ]).then(([casesRes, scenesRes, setsRes, reportsRes]) => {
       setStats({
         caseCount: casesRes.data?.total || 0,

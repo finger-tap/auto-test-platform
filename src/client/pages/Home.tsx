@@ -1,5 +1,5 @@
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useEnvironment } from '../contexts/EnvironmentContext';
 import { apiFetch } from '../utils/api';
@@ -24,6 +24,13 @@ interface Activity {
   color: string;
   text: string;
   time: string;
+}
+
+interface PaginatedResponse {
+  items: any[];
+  total: number;
+  page: number;
+  pageSize: number;
 }
 
 const testTypes = [
@@ -73,7 +80,7 @@ const shortcuts = [
   { label: '新建用例', path: '/api-test/api-case/new' },
   { label: '新建场景', path: '/api-test/scene' },
   { label: '定时任务', path: '/api-test/schedule' },
-  { label: '查看报告', path: '/api-test/batch-report' },
+  { label: '场景集', path: '/api-test/scenario-set' },
   { label: 'Mock 服务', path: '/api-test/mock' },
   { label: '环境管理', path: '/api-test/environment' },
 ];
@@ -99,21 +106,22 @@ export default function Home() {
   // Load real stats from API
   useEffect(() => {
     Promise.all([
-      apiFetch<{ total: number }>('/apis?page=1&pageSize=1'),
-      apiFetch<{ total: number }>('/scenarios?page=1&pageSize=1'),
-      apiFetch<{ total: number }>('/scenario-sets?page=1&pageSize=1'),
-      apiFetch<{ total: number }>('/web-cases?page=1&pageSize=1'),
-      apiFetch<{ total: number }>('/scenarios-web?page=1&pageSize=1'),
-      apiFetch<{ total: number }>('/scenario-sets-web?page=1&pageSize=1'),
-      apiFetch<{ total: number }>('/mobile-tests?page=1&pageSize=1'),
-      apiFetch<{ total: number }>('/pc-cases?page=1&pageSize=1'),
+      apiFetch<PaginatedResponse>('/apis?page=1&pageSize=1'),
+      apiFetch<PaginatedResponse>('/scenarios?page=1&pageSize=1'),
+      apiFetch<PaginatedResponse>('/scenario-sets?page=1&pageSize=1'),
+      apiFetch<PaginatedResponse>('/web-cases?page=1&pageSize=1'),
+      apiFetch<PaginatedResponse>('/scenarios-web?page=1&pageSize=1'),
+      apiFetch<PaginatedResponse>('/scenario-sets-web?page=1&pageSize=1'),
+      apiFetch<PaginatedResponse>('/mobile-tests?page=1&pageSize=1'),
+      apiFetch<PaginatedResponse>('/pc-cases?page=1&pageSize=1'),
     ]).then(([apiCasesRes, apiScenesRes, apiSetsRes, webCasesRes, webScenesRes, webSetsRes, mobileCasesRes, pcCasesRes]) => {
+      console.log('API stats response:', apiCasesRes, apiScenesRes, apiSetsRes);
       setStats({
         'api-test': {
           cases: apiCasesRes.data?.total || 0,
           scenarios: apiScenesRes.data?.total || 0,
           sets: apiSetsRes.data?.total || 0,
-          rate: 0, // TODO: calculate from batch reports
+          rate: 0,
         },
         'web-test': {
           cases: webCasesRes.data?.total || 0,

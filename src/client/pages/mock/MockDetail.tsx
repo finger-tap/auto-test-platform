@@ -90,6 +90,7 @@ export default function MockDetail({ testType = 'api' }: { testType?: string }) 
   const { id } = useParams();
   const navigate = useNavigate();
   const isNew = id === 'new';
+  const mocksPath = `/mocks-${testType}`;
 
   const [loading, setLoading] = useState(!isNew);
   const [conditions, setConditions] = useState<MockCondition[]>([]);
@@ -123,7 +124,7 @@ export default function MockDetail({ testType = 'api' }: { testType?: string }) 
   // 加载详情
   useEffect(() => {
     if (!isNew && id) {
-      apiFetch<MockDetailData>(`/mocks/${id}?test_type=${testType}`).then(res => {
+      apiFetch<MockDetailData>(`${mocksPath}/${id}`).then(res => {
         if (res.code === 200 && res.data) {
           const d = res.data;
           setName(d.name);
@@ -193,13 +194,12 @@ export default function MockDetail({ testType = 'api' }: { testType?: string }) 
       response_body: responseBody,
       conditions: JSON.stringify(validConditions),
       enabled: status === 'active' ? 1 : 0,
-      test_type: testType,
     };
 
     setSaving(true);
     try {
       if (isNew) {
-        const res = await apiFetch<{ id: number }>('/mocks', {
+        const res = await apiFetch<{ id: number }>(mocksPath, {
           method: 'POST',
           body: JSON.stringify(payload),
         });
@@ -210,7 +210,7 @@ export default function MockDetail({ testType = 'api' }: { testType?: string }) 
         }
         notification.error(res.message || '创建失败');
       } else {
-        const res = await apiFetch(`/mocks/${id}`, { method: 'PUT', body: JSON.stringify(payload) });
+        const res = await apiFetch(`${mocksPath}/${id}`, { method: 'PUT', body: JSON.stringify(payload) });
         if (res.code === 200) {
           setDirty(false);
           notification.success('保存成功');

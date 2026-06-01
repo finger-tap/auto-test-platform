@@ -260,56 +260,6 @@
   border-top: 1px solid var(--border);
 }
 
-.envdt-btn-cancel {
-  height: 34px;
-  padding: 0 16px;
-  border-radius: var(--radius-sm);
-  font-size: 13px;
-  cursor: pointer;
-  border: 1px solid var(--border);
-  background: var(--surface);
-  color: var(--fg-secondary);
-  transition: all 0.15s;
-}
-
-.envdt-btn-cancel:hover {
-  background: var(--surface-raised);
-  color: var(--fg);
-}
-
-.envdt-btn-save {
-  height: 34px;
-  padding: 0 16px;
-  border-radius: var(--radius-sm);
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-  border: 1px solid var(--accent);
-  background: var(--accent);
-  color: #fff;
-  transition: all 0.15s;
-}
-
-.envdt-btn-save:hover {
-  background: var(--accent-hover);
-}
-
-.envdt-btn-save.dirty {
-  animation: env-dirty-pulse 1.5s ease-in-out infinite;
-}
-
-@keyframes env-dirty-pulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.3); }
-  50% { box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.15); }
-}
-
-.envdt-btn-save:disabled {
-  background: var(--border);
-  border-color: var(--border);
-  color: var(--fg-tertiary);
-  cursor: not-allowed;
-}
-
 /* Database test button */
 .envdt-test-btn {
   height: 34px;

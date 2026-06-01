@@ -633,7 +633,7 @@ export default function PcCaseDetail() {
           {activeTab !== 'logs' && (
             <div className="detail-action-bar">
               <button className="scenario-btn" onClick={handleSave}>保存</button>
-              <button className="scenario-btn scenario-btn-primary" onClick={handleExecute} disabled={executing || isNew}>
+              <button className="sset-btn sset-btn-primary" onClick={handleExecute} disabled={executing || isNew}>
                 {executing ? '执行中...' : '执行'}
               </button>
             </div>

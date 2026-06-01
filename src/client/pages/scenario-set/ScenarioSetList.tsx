@@ -191,8 +191,8 @@ export default function ScenarioSetList({ basePath = '/api-test', testType = 'ap
                       {s.execution_summary ? (
                         <span style={{ fontSize: 13 }}>
                           <span style={{ color: '#999' }}>{s.execution_summary.total - s.execution_summary.passed - s.execution_summary.failed}</span>
-                          <span style={{ color: '#52c41a' }}>{s.execution_summary.passed > 0 ? `/${s.execution_summary.passed}` : ''}</span>
-                          <span style={{ color: '#ff4d4f' }}>{s.execution_summary.failed > 0 ? `/${s.execution_summary.failed}` : ''}</span>
+                          <span style={{ color: '#52c41a' }}>/{s.execution_summary.passed}</span>
+                          <span style={{ color: '#ff4d4f' }}>/{s.execution_summary.failed}</span>
                         </span>
                       ) : (
                         <span style={{ color: '#999', fontSize: 13 }}>—</span>

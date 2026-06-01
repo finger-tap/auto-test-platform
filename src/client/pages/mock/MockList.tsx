@@ -23,6 +23,7 @@ interface MockEndpoint {
 
 export default function MockList({ basePath = '/api-test', testType = 'api' }: { basePath?: string; testType?: string } = {}) {
   const navigate = useNavigate();
+  const mocksPath = `/mocks-${testType}`;
   const [mocks, setMocks] = useState<MockEndpoint[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
@@ -39,7 +40,7 @@ export default function MockList({ basePath = '/api-test', testType = 'api' }: {
     setLoading(true);
     try {
       const res = await apiFetch<{ items: MockEndpoint[]; total: number; totalPages: number }>(
-        `/mocks?page=${pageNum}&pageSize=${pageSz}&test_type=${testType}`
+        `${mocksPath}?page=${pageNum}&pageSize=${pageSz}`
       );
       if (res.code === 200 && res.data) {
         setMocks(res.data.items);
@@ -56,14 +57,14 @@ export default function MockList({ basePath = '/api-test', testType = 'api' }: {
 
   async function doDelete(id: number, name: string) {
     if (!confirm(`确认删除 Mock「${name}」？`)) return;
-    await apiFetch(`/mocks/${id}?test_type=${testType}`, { method: 'DELETE' });
+    await apiFetch(`${mocksPath}/${id}`, { method: 'DELETE' });
     fetchMocks(page, pageSize);
   }
 
   function toggleEnabled(mock: MockEndpoint) {
     const newEnabled = mock.enabled ? 0 : 1;
     const newStatus = mock.status === 'active' ? 'disabled' : 'active';
-    apiFetch(`/mocks/${mock.id}`, {
+    apiFetch(`${mocksPath}/${mock.id}`, {
       method: 'PUT',
       body: JSON.stringify({ enabled: newEnabled, status: newStatus }),
     }).then(() => fetchMocks(page, pageSize));

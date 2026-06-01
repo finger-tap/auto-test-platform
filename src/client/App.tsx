@@ -65,9 +65,9 @@ function App() {
                 <Route path="/api-test/schedule" element={<ScheduleList basePath="/api-test" />} />
                 <Route path="/api-test/mock" element={<MockList basePath="/api-test" testType="api" />} />
                 <Route path="/api-test/mock/:id" element={<MockDetail testType="api" />} />
-                <Route path="/api-test/environment" element={<EnvironmentList basePath="/api-test" testType="api" />} />
-                <Route path="/api-test/environment/new" element={<EnvironmentDetail testType="api" />} />
-                <Route path="/api-test/environment/:id" element={<EnvironmentDetail testType="api" />} />
+                <Route path="/api-test/environment" element={<EnvironmentList basePath="/api-test" />} />
+                <Route path="/api-test/environment/new" element={<EnvironmentDetail basePath="/api-test" />} />
+                <Route path="/api-test/environment/:id" element={<EnvironmentDetail basePath="/api-test" />} />
                 <Route path="/api-test/system-config" element={<SystemConfig />} />
                 
                 {/* === Web测试 /web-test === */}
@@ -80,9 +80,9 @@ function App() {
                 <Route path="/web-test/scene-set" element={<ScenarioSetList basePath="/web-test" testType="web" />} />
                 <Route path="/web-test/scene-set/:id" element={<ScenarioSetDetail basePath="/web-test" testType="web" />} />
                 <Route path="/web-test/schedule" element={<ScheduleList basePath="/web-test" />} />
-                <Route path="/web-test/environment" element={<EnvironmentList basePath="/web-test" testType="web" />} />
-                <Route path="/web-test/environment/new" element={<EnvironmentDetail testType="web" />} />
-                <Route path="/web-test/environment/:id" element={<EnvironmentDetail testType="web" />} />
+                <Route path="/web-test/environment" element={<EnvironmentList basePath="/web-test" />} />
+                <Route path="/web-test/environment/new" element={<EnvironmentDetail basePath="/web-test" />} />
+                <Route path="/web-test/environment/:id" element={<EnvironmentDetail basePath="/web-test" />} />
                 <Route path="/web-test/system-config" element={<SystemConfig />} />
                 
                 {/* === 移动端测试 /mobile-test === */}
@@ -97,9 +97,9 @@ function App() {
                 <Route path="/mobile-test/schedule" element={<ScheduleList basePath="/mobile-test" />} />
                 <Route path="/mobile-test/mock" element={<MockList basePath="/mobile-test" testType="mobile" />} />
                 <Route path="/mobile-test/mock/:id" element={<MockDetail testType="mobile" />} />
-                <Route path="/mobile-test/environment" element={<EnvironmentList basePath="/mobile-test" testType="mobile" />} />
-                <Route path="/mobile-test/environment/new" element={<EnvironmentDetail testType="mobile" />} />
-                <Route path="/mobile-test/environment/:id" element={<EnvironmentDetail testType="mobile" />} />
+                <Route path="/mobile-test/environment" element={<EnvironmentList basePath="/mobile-test" />} />
+                <Route path="/mobile-test/environment/new" element={<EnvironmentDetail basePath="/mobile-test" />} />
+                <Route path="/mobile-test/environment/:id" element={<EnvironmentDetail basePath="/mobile-test" />} />
                 <Route path="/mobile-test/system-config" element={<SystemConfig />} />
                 
                 {/* === PC测试 /pc-test === */}
@@ -112,9 +112,9 @@ function App() {
                 <Route path="/pc-test/scene-set" element={<ScenarioSetList basePath="/pc-test" testType="pc" />} />
                 <Route path="/pc-test/scene-set/:id" element={<ScenarioSetDetail basePath="/pc-test" testType="pc" />} />
                 <Route path="/pc-test/schedule" element={<ScheduleList basePath="/pc-test" />} />
-                <Route path="/pc-test/environment" element={<EnvironmentList basePath="/pc-test" testType="pc" />} />
-                <Route path="/pc-test/environment/new" element={<EnvironmentDetail testType="pc" />} />
-                <Route path="/pc-test/environment/:id" element={<EnvironmentDetail testType="pc" />} />
+                <Route path="/pc-test/environment" element={<EnvironmentList basePath="/pc-test" />} />
+                <Route path="/pc-test/environment/new" element={<EnvironmentDetail basePath="/pc-test" />} />
+                <Route path="/pc-test/environment/:id" element={<EnvironmentDetail basePath="/pc-test" />} />
                 <Route path="/pc-test/system-config" element={<SystemConfig />} />
               </Route>
             </Route>

@@ -1,13 +1,13 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { apiFetch } from '../../utils/api';
+import { apiFetch, apiFetchBlob } from '../../utils/api';
 import { toLocalDateTime, formatDateTime } from '../../utils/datetime';
 import notification from '../../utils/notification';
 import { useEnvironment } from '../../contexts/EnvironmentContext';
 import { InlineText, InlineSelect } from '../../components/InlineEdit';
 import FormSelect from '../../components/FormSelect';
 import TagInput from '../../components/TagInput';
-import type { Scenario, ScenarioSetExecution, ScenarioSetExecutionItem } from '../../types';
+import type { Scenario, ScenarioSetExecution } from '../../types';
 import ScenarioExecutionTimeline from '../../components/ScenarioExecutionTimeline';
 import './ScenarioSetDetail.css';
 
@@ -22,27 +22,6 @@ interface SetDetail {
   created_at: string;
   updated_at: string;
 }
-
-interface BatchReport {
-  set_id: number;
-  set_name: string;
-  total: number;
-  passed: number;
-  failed: number;
-  total_duration_ms: number;
-  scenarios: Array<{
-    scenario_id: number;
-    scenario_name: string;
-    status: string;
-    duration_ms: number | null;
-    error_message?: string | null;
-    node_summary?: { passed: number; failed: number; total: number };
-  }>;
-  executed_at: string;
-  executed_by: string;
-}
-
-interface SavedReport extends BatchReport { id: number; }
 
 const STATUS_OPTIONS = [
   { value: 'active', label: '启用' },
@@ -98,9 +77,7 @@ export default function ScenarioSetDetail({ basePath = '/api-test', testType = '
   const [showAddScenarioModal, setShowAddScenarioModal] = useState(false);
   const [addModalScenarios, setAddModalScenarios] = useState<Scenario[]>([]);
   const [executing, setExecuting] = useState(false);
-  const [reports, setReports] = useState<SavedReport[]>([]);
   const [setExecutions, setSetExecutions] = useState<ScenarioSetExecution[]>([]);
-  const [expandedReport, setExpandedReport] = useState<number | null>(null);
   const [selectedForRemoval, setSelectedForRemoval] = useState<Set<number>>(new Set());
   const [expandedScenarioItem, setExpandedScenarioItem] = useState<number | null>(null);
   const [modalWidth, setModalWidth] = useState('80%');
@@ -145,7 +122,6 @@ export default function ScenarioSetDetail({ basePath = '/api-test', testType = '
           dirtyRef.current = false;
         }
       }).finally(() => setLoading(false));
-           apiFetch<SavedReport[]>(`${apiPath.detail}/${id}/reports`).then(res => { if (res.code === 200) setReports(res.data || []); });
     apiFetch<ScenarioSetExecution[]>(`${apiPath.detail}/${id}/executions`).then(res => {
       if (res.code === 200 && res.data && res.data.length > 0) {
         setSetExecutions(res.data);
@@ -190,20 +166,18 @@ export default function ScenarioSetDetail({ basePath = '/api-test', testType = '
     } finally { setSaving(false); }
   }
 
-  async function doExecute() {
+  async function doExecute(scenarioIdsToRun?: number[]) {
     if (!id || isNew || selectedIds.length === 0) return;
     setExecuting(true);
     const apiPath = API_PATH_MAP[testType] || API_PATH_MAP.api;
     try {
       if (dirtyRef.current) await doSave();
-      const res = await apiFetch<ScenarioSetExecution>(`${apiPath.detail}/${id}/execute`, { method: 'POST', body: JSON.stringify({ environmentId: activeEnv?.id }) });
+      const body: Record<string, unknown> = { environmentId: activeEnv?.id };
+      if (scenarioIdsToRun && scenarioIdsToRun.length > 0) body.scenario_ids = scenarioIdsToRun;
+      const res = await apiFetch<ScenarioSetExecution>(`${apiPath.detail}/${id}/execute`, { method: 'POST', body: JSON.stringify(body) });
       if (res.code === 200) {
         setActiveTab('reports');
-        const [reportRes, execRes] = await Promise.all([
-          apiFetch<SavedReport[]>(`${apiPath.detail}/${id}/reports`),
-          apiFetch<ScenarioSetExecution[]>(`${apiPath.detail}/${id}/executions`),
-        ]);
-        if (reportRes.code === 200) setReports(reportRes.data || []);
+        const execRes = await apiFetch<ScenarioSetExecution[]>(`${apiPath.detail}/${id}/executions`);
         if (execRes.code === 200 && execRes.data && execRes.data.length > 0) {
           setSetExecutions(execRes.data);
         }
@@ -372,56 +346,31 @@ export default function ScenarioSetDetail({ basePath = '/api-test', testType = '
       );
     };
 
+    async function doExportReport() {
+      if (!id) return;
+      const apiPath = API_PATH_MAP[testType] || API_PATH_MAP.api;
+      const res = await apiFetchBlob(`${apiPath.detail}/${id}/export-report`);
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      window.open(url, '_blank');
+    }
+
     return (
       <div className="tab-content-wrapper">
-        {displayExecutions.length === 0 && reports.length === 0 ? (
+        {displayExecutions.length > 0 && (
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
+            <button className="sset-btn sset-btn-primary" onClick={doExportReport}>导出报告</button>
+          </div>
+        )}
+        {displayExecutions.length === 0 ? (
           <div className="sset-empty">暂无执行记录</div>
         ) : (
-          <>
-            {displayExecutions.length > 0 && (
-              <table className="sset-exec-table">
-                <thead><tr><th>执行时间</th><th>状态</th><th>总数</th><th>结果</th><th>耗时</th><th>执行人</th><th>操作</th></tr></thead>
-                <tbody>
-                  {displayExecutions.map(exec => renderExecItem(exec))}
-                </tbody>
-              </table>
-            )}
-            {reports.length > 0 && (
-              <div className="sset-old-reports">
-                <div className="sset-old-reports-title">历史报告</div>
-                {reports.map((r, idx) => {
-                  const total = r.passed + r.failed;
-                  const rate = total > 0 ? Math.round((r.passed / total) * 100) : 0;
-                  return (
-                    <div key={r.id || idx} className="sset-report-row">
-                      <div className="sset-report-summary" onClick={() => setExpandedReport(expandedReport === r.id ? null : r.id)}>
-                        <div className="sset-report-time">{toLocalDateTime(r.executed_at)}</div>
-                        <div className="sset-report-stats">
-                          <span className="sset-report-pass">{r.passed} 通过</span>
-                          <span className="sset-report-fail">{r.failed} 失败</span>
-                          <span className="sset-report-rate">{rate}%</span>
-                          <span className="sset-report-toggle">{expandedReport === r.id ? '收起' : '展开'}</span>
-                        </div>
-                      </div>
-                      {expandedReport === r.id && (
-                        <div className="sset-report-detail">
-                          {r.scenarios.map((sc, i) => (
-                            <div key={i} className={`sset-report-scenario sset-report-${sc.status}`}>
-                              <span className="sset-report-icon">{sc.status === 'success' ? '✓' : sc.status === 'skipped' ? '—' : '✗'}</span>
-                              <span>{sc.scenario_name}</span>
-                              {sc.duration_ms != null && <span className="sset-report-dur">{sc.duration_ms}ms</span>}
-                              {sc.node_summary && <span className="sset-report-node">{sc.node_summary.passed}/{sc.node_summary.total}</span>}
-                              {sc.error_message && <span className="sset-report-error">{sc.error_message}</span>}
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </>
+          <table className="sset-exec-table">
+            <thead><tr><th>执行时间</th><th>状态</th><th>总数</th><th>结果</th><th>耗时</th><th>执行人</th><th>操作</th></tr></thead>
+            <tbody>
+              {displayExecutions.map(exec => renderExecItem(exec))}
+            </tbody>
+          </table>
         )}
       </div>
     );
@@ -446,8 +395,13 @@ export default function ScenarioSetDetail({ basePath = '/api-test', testType = '
           </div>
           {activeTab !== 'reports' && (
             <div className="detail-action-bar">
-              <button className={`sset-btn ${dirtyRef.current ? 'dirty' : ''}`} onClick={doSave} disabled={saving}>{saving ? '保存中...' : '保存'}</button>
-              {!isNew && (<button className="sset-btn sset-btn-primary" onClick={doExecute} disabled={executing || selectedIds.length === 0}>{executing ? '⟳ 执行中...' : '执行'}</button>)}
+              <button className={`scenario-btn ${dirtyRef.current ? 'dirty' : ''}`} onClick={doSave} disabled={saving}>{saving ? '保存中...' : '保存'}</button>
+              {!isNew && (() => {
+                const hasSelection = activeTab === 'scenarios' && selectedForRemoval.size > 0;
+                const execIds = hasSelection ? Array.from(selectedForRemoval) : undefined;
+                const label = hasSelection ? `执行选中（${selectedForRemoval.size}）` : '执行全部场景';
+                return <button className="sset-btn sset-btn-primary" onClick={() => { doExecute(execIds); if (hasSelection) setSelectedForRemoval(new Set()); }} disabled={executing || selectedIds.length === 0}>{executing ? '⟳ 执行中...' : label}</button>;
+              })()}
             </div>
           )}
         </div>

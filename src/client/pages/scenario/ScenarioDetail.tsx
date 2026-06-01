@@ -889,7 +889,7 @@ export default function ScenarioDetail({ basePath = '/api-test', testType = 'api
           {activeTab !== 'logs' && (
             <div className="detail-action-bar">
               <button className={`scenario-btn ${dirtyRef.current ? 'dirty' : ''}`} onClick={handleSave} disabled={saving}>{saving ? '保存中...' : '保存'}</button>
-              <button className={`scenario-btn scenario-btn-primary ${!realIdRef.current ? 'scenario-btn-disabled' : ''}`} onClick={handleExecute} disabled={executing}>{executing ? <><span className="ad-btn-loading">⟳</span> 执行中</> : '执行'}</button>
+              <button className={`sset-btn sset-btn-primary ${!realIdRef.current ? 'scenario-btn-disabled' : ''}`} onClick={handleExecute} disabled={executing}>{executing ? <><span className="ad-btn-loading">⟳</span> 执行中</> : '执行'}</button>
             </div>
           )}
         </div>

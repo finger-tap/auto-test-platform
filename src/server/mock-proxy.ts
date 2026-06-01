@@ -5,12 +5,28 @@
  */
 import type { Request, Response, NextFunction } from 'express';
 import db from './db/index.js';
-import { incrementMockHit } from './db/mocks.js';
+import { incrementMockHit as incrementMockHitApi } from './db/mocks-api.js';
+import { incrementMockHit as incrementMockHitWeb } from './db/mocks-web.js';
+import { incrementMockHit as incrementMockHitPc } from './db/mocks-pc.js';
+import { incrementMockHit as incrementMockHitMobile } from './db/mocks-mobile.js';
 
 interface MockConditions {
   param: string;
   operator: string;
   value: string;
+}
+
+interface MockRecord {
+  id: number;
+  user_id: number;
+  method: string;
+  path_pattern: string;
+  response_status: number;
+  response_headers: string;
+  response_body: string;
+  response_delay_ms: number;
+  conditions: string;
+  match_mode: string;
 }
 
 function matchPath(pattern: string, urlPath: string): boolean {
@@ -58,19 +74,28 @@ function matchConditions(conditions: MockConditions[], req: Request): boolean {
   return true;
 }
 
+type MockSource = 'api' | 'web' | 'pc' | 'mobile';
+
+const MOCK_TABLES: Array<{ name: string; source: MockSource; increment: (id: number) => void }> = [
+  { name: 'mock_endpoints_api', source: 'api', increment: incrementMockHitApi },
+  { name: 'mock_endpoints_web', source: 'web', increment: incrementMockHitWeb },
+  { name: 'mock_endpoints_pc', source: 'pc', increment: incrementMockHitPc },
+  { name: 'mock_endpoints_mobile', source: 'mobile', increment: incrementMockHitMobile },
+];
+
 export function checkMock(req: Request, res: Response, next: NextFunction) {
   const urlPath = req.path;
   const reqMethod = req.method.toUpperCase();
 
-  const mocks = db.prepare(
-    'SELECT * FROM mock_endpoints WHERE enabled = 1 ORDER BY updated_at DESC'
-  ).all() as Array<{
-    id: number; user_id: number; method: string; path_pattern: string;
-    response_status: number; response_headers: string; response_body: string;
-    response_delay_ms: number; conditions: string; match_mode: string;
-  }>;
+  const mocksWithSource: Array<MockRecord & { _source: MockSource }> = [];
+  for (const t of MOCK_TABLES) {
+    const rows = db
+      .prepare(`SELECT * FROM ${t.name} WHERE enabled = 1 ORDER BY updated_at DESC`)
+      .all() as MockRecord[];
+    for (const r of rows) mocksWithSource.push({ ...r, _source: t.source });
+  }
 
-  for (const mock of mocks) {
+  for (const mock of mocksWithSource) {
     if (!matchMethod(mock.method, reqMethod)) continue;
     if (!matchPath(mock.path_pattern, urlPath)) continue;
 
@@ -88,8 +113,9 @@ export function checkMock(req: Request, res: Response, next: NextFunction) {
       return res.status(204).end();
     }
 
+    const sourceTable = MOCK_TABLES.find(t => t.source === mock._source)!;
     const sendResponse = () => {
-      incrementMockHit(mock.id);
+      sourceTable.increment(mock.id);
       let body = mock.response_body || '{}';
       try { JSON.parse(body); } catch { body = JSON.stringify(body); }
       res.status(mock.response_status).send(body);

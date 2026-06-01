@@ -45,10 +45,10 @@ export default function MobileTestHome() {
 
   useEffect(() => {
     Promise.all([
-      apiFetch<{ total: number }>('/mobile-tests?test_type=mobile&page=1&pageSize=1'),
-      apiFetch<{ total: number }>('/scenarios?test_type=mobile&page=1&pageSize=1'),
-      apiFetch<{ total: number }>('/scenario-sets?test_type=mobile&page=1&pageSize=1'),
-      apiFetch<{ items: BatchReportItem[] }>('/batch-reports?test_type=mobile&page=1&pageSize=5'),
+      apiFetch<{ total: number }>('/mobile-tests?page=1&pageSize=1'),
+      apiFetch<{ total: number }>('/scenarios-mobile?page=1&pageSize=1'),
+      apiFetch<{ total: number }>('/scenario-sets-mobile?page=1&pageSize=1'),
+      apiFetch<{ items: BatchReportItem[] }>('/batch-reports-mobile?page=1&pageSize=5'),
     ]).then(([casesRes, scenariosRes, setsRes, reportsRes]) => {
       setStats({
         caseCount: casesRes.data?.total || 0,

@@ -17,8 +17,7 @@ interface DbEntry {
   database: string;
 }
 
-export default function EnvironmentDetail({ testType = 'api' }: { testType?: string }) {
-  const basePath = testType === 'web' ? '/web-test' : testType === 'mobile' ? '/mobile-test' : testType === 'pc' ? '/pc-test' : '/api-test';
+export default function EnvironmentDetail({ basePath = '/api-test' }: { basePath?: string } = {}) {
   const { id } = useParams();
   const navigate = useNavigate();
   const isNew = !id || id === 'new';
@@ -42,7 +41,7 @@ export default function EnvironmentDetail({ testType = 'api' }: { testType?: str
 
   useEffect(() => {
     if (!isNew) {
-      apiFetch<Environment>(`/environments/${id}?test_type=${testType}`).then(res => {
+      apiFetch<Environment>(`/environments/${id}`).then(res => {
         if (res.code === 200 && res.data) {
           const e = res.data;
           setName(e.name || '');
@@ -166,7 +165,6 @@ export default function EnvironmentDetail({ testType = 'api' }: { testType?: str
         timeout: reqTimeout,
         is_default: isDefault,
         databases: cleanDbs,
-        test_type: testType,
       };
       let res;
       if (isNew) {
@@ -357,8 +355,8 @@ export default function EnvironmentDetail({ testType = 'api' }: { testType?: str
 
       {/* Footer */}
       <div className="envdt-foot">
-        <button className="envdt-btn-cancel" onClick={() => navigate(`${basePath}/environment`)}>取消</button>
-        <button className={`envdt-btn-save${dirty ? ' dirty' : ''}`} onClick={doSave} disabled={saving}>
+        <button className="scenario-btn" onClick={() => navigate(`${basePath}/environment`)}>取消</button>
+        <button className={`scenario-btn ${dirty ? 'dirty' : ''}`} onClick={doSave} disabled={saving}>
           {saving ? '保存中...' : '保存'}
         </button>
       </div>

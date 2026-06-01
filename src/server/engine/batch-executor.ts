@@ -17,14 +17,21 @@ import { executeScenario } from './executor.js';
 export async function runBatch(
   setId: number,
   executedBy: string,
-  environmentId?: number
+  environmentId?: number,
+  filterScenarioIds?: number[]
 ): Promise<ScenarioSetExecutionRow & { items: ScenarioSetExecutionItemRow[] }> {
   const set = findSetById(setId);
   if (!set) throw new Error('Scenario set not found');
 
-  let scenarioIds: number[] = [];
-  try { scenarioIds = JSON.parse(set.scenario_ids || '[]'); } catch { scenarioIds = []; }
-  if (scenarioIds.length === 0) throw new Error('No scenarios in this set');
+  let allIds: number[] = [];
+  try { allIds = JSON.parse(set.scenario_ids || '[]'); } catch { allIds = []; }
+  if (allIds.length === 0) throw new Error('No scenarios in this set');
+
+  // If filter provided, only run those scenarios (must be in the set)
+  const scenarioIds = filterScenarioIds
+    ? filterScenarioIds.filter(id => allIds.includes(id))
+    : allIds;
+  if (scenarioIds.length === 0) throw new Error('No scenarios selected');
 
   const startedAt = new Date().toISOString();
 
@@ -111,7 +118,7 @@ export async function runBatch(
   }
 
   const finishedAt = new Date().toISOString();
-  const overallStatus = failed === 0 ? 'success' : failed < scenarioIds.length ? 'partial' : 'failed';
+  const overallStatus = failed === 0 ? 'success' : 'failed';
 
   updateScenarioSetExecution(setExecutionId, {
     status: overallStatus,

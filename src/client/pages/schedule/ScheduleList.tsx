@@ -166,10 +166,9 @@ function InlineScheduleConfig({ item, onClose, onUpdated }: {
           </div>
 
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-            <button onClick={onClose} style={{ padding: '8px 20px', border: '1px solid #d9d9d9', borderRadius: 6, background: '#fff', cursor: 'pointer', fontSize: 14 }}>取消</button>
-            <button onClick={() => doSave(true)} disabled={saving}
-              style={{ padding: '8px 20px', border: 'none', borderRadius: 6, background: '#1677ff', color: '#fff', cursor: 'pointer', fontSize: 14, opacity: saving ? 0.6 : 1 }}>
-              保存并启用
+            <button className="scenario-btn" onClick={onClose}>取消</button>
+            <button className="scenario-btn" onClick={() => doSave(true)} disabled={saving}>
+              {saving ? '保存中...' : '保存并启用'}
             </button>
           </div>
         </div>

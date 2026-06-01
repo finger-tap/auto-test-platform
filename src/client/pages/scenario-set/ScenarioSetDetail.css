@@ -106,46 +106,7 @@
 
 .sset-header-actions { display: flex; gap: 0.5rem; }
 
-/* Buttons */
-.sset-btn {
-  padding: 0.375rem 1rem;
-  border: 1px solid var(--border);
-  border-radius: 0.375rem;
-  background: var(--surface);
-  color: var(--fg);
-  font-size: 0.875rem;
-  cursor: pointer;
-  transition: all 0.15s;
-}
-
-.sset-btn:hover {
-  border-color: var(--primary);
-  color: var(--primary);
-}
-
-.sset-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.sset-btn-primary {
-  background: var(--primary);
-  color: #fff;
-  border-color: var(--primary);
-}
-
-.sset-btn-primary:hover { background: var(--accent-hover); }
-
-.sset-btn.dirty {
-  border-color: var(--primary);
-  color: var(--primary);
-  animation: sset-dirty-pulse 1.5s ease-in-out infinite;
-}
-
-@keyframes sset-dirty-pulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.4); }
-  50% { box-shadow: 0 0 0 6px rgba(99, 102, 241, 0); }
-}
+/* Buttons —— .sset-btn / .sset-btn-primary / .scenario-btn / .scenario-btn.dirty 统一定义在 App.css */
 
 .sset-btn-add {
   padding: 0.375rem 0.875rem;

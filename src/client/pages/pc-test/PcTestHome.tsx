@@ -46,9 +46,9 @@ export default function PcTestHome() {
   useEffect(() => {
     Promise.all([
       apiFetch<{ total: number }>('/pc-cases?page=1&pageSize=1'),
-      apiFetch<{ total: number }>('/scenarios?test_type=pc&page=1&pageSize=1'),
-      apiFetch<{ total: number }>('/scenario-sets?test_type=pc&page=1&pageSize=1'),
-      apiFetch<{ items: BatchReportItem[] }>('/batch-reports?test_type=pc&page=1&pageSize=5'),
+      apiFetch<{ total: number }>('/scenarios-pc?page=1&pageSize=1'),
+      apiFetch<{ total: number }>('/scenario-sets-pc?page=1&pageSize=1'),
+      apiFetch<{ items: BatchReportItem[] }>('/batch-reports-pc?page=1&pageSize=5'),
     ]).then(([casesRes, scenariosRes, setsRes, reportsRes]) => {
       setStats({
         caseCount: casesRes.data?.total || 0,

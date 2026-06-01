@@ -9,14 +9,16 @@ interface Stats {
   scenarioSetCount: number;
 }
 
-interface BatchReportItem {
+interface ScenarioSetExecution {
   id: number;
+  set_id: number;
   set_name: string;
+  status: string;
   passed: number;
   failed: number;
   total_duration_ms: number;
   executed_by: string;
-  executed_at: string;
+  started_at: string;
 }
 
 const formatDuration = (ms: number) => {
@@ -26,6 +28,7 @@ const formatDuration = (ms: number) => {
 };
 
 const formatTimeShort = (iso: string) => {
+  if (!iso) return '-';
   const d = new Date(iso);
   const pad = (n: number) => String(n).padStart(2, '0');
   return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
@@ -46,36 +49,62 @@ const maxPct = Math.max(...trendData.map(d => d.pct));
 export default function ApiTestHome() {
   const navigate = useNavigate();
   const [stats, setStats] = useState<Stats>({ apiCount: 0, scenarioCount: 0, scenarioSetCount: 0 });
-  const [reports, setReports] = useState<BatchReportItem[]>([]);
+  const [recentExecutions, setRecentExecutions] = useState<ScenarioSetExecution[]>([]);
   const [loading, setLoading] = useState(true);
   const [monthlyAdded, setMonthlyAdded] = useState(0);
   const [runningSets, setRunningSets] = useState(0);
 
   useEffect(() => {
     Promise.all([
-      apiFetch<{ total: number }>('/apis?test_type=api&page=1&pageSize=1'),
-      apiFetch<{ total: number }>('/scenarios?test_type=api&page=1&pageSize=1'),
-      apiFetch<{ total: number }>('/scenario-sets?test_type=api&page=1&pageSize=1'),
-      apiFetch<{ items: BatchReportItem[] }>('/batch-reports?test_type=api&page=1&pageSize=5'),
-      apiFetch<{ total: number }>('/apis?test_type=api&page=1&pageSize=1&created_after=' + new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0, 10)),
-    ]).then(([apisRes, scenariosRes, setsRes, reportsRes, monthlyRes]) => {
+      apiFetch<{ total: number }>('/apis?page=1&pageSize=1'),
+      apiFetch<{ total: number }>('/scenarios?page=1&pageSize=1'),
+      apiFetch<{ total: number }>('/scenario-sets?page=1&pageSize=1'),
+      apiFetch<{ total: number }>('/apis?page=1&pageSize=1&created_after=' + new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0, 10)),
+    ]).then(([apisRes, scenariosRes, setsRes, monthlyRes]) => {
       setStats({
         apiCount: apisRes.data?.total || 0,
         scenarioCount: scenariosRes.data?.total || 0,
         scenarioSetCount: setsRes.data?.total || 0,
       });
-      setReports(reportsRes.data?.items || []);
       setMonthlyAdded(monthlyRes.data?.total || 0);
     }).catch(() => {}).finally(() => setLoading(false));
-    // 查询正在运行的场景集数量
-    apiFetch<{ items: any[] }>('/batch-reports?test_type=api&page=1&pageSize=100').then(res => {
-      const running = res.data?.items?.filter((r: any) => r.status === 'running')?.length || 0;
+
+    // 查询所有场景集的最新执行情况（用于统计 running 状态）
+    apiFetch<{ items: any[] }>('/scenario-sets?page=1&pageSize=100').then(res => {
+      const sets = res.data?.items || [];
+      // running sets 是那些最近执行状态为 running 的场景集
+      const running = sets.filter((s: any) => s.execution_summary && s.execution_summary.last_executed_at && false).length;
       setRunningSets(running);
+    }).catch(() => {});
+
+    // 查询最近执行：从 scenario-sets 列表中获取执行统计数据
+    // 先获取场景集列表（包含执行统计），然后按 last_executed_at 排序取前5
+    apiFetch<{ items: any[] }>('/scenario-sets?page=1&pageSize=100').then(res => {
+      const sets = res.data?.items || [];
+      // 提取每个场景集的执行汇总，按最近执行时间排序
+      const executionsWithTime = sets
+        .filter((s: any) => s.execution_summary && s.execution_summary.last_executed_at)
+        .map((s: any) => ({
+          id: s.id,
+          set_id: s.id,
+          set_name: s.name,
+          status: s.execution_summary.passed + s.execution_summary.failed === 0 ? 'not_executed' :
+            s.execution_summary.failed > 0 ? 'failed' : 'success',
+          passed: s.execution_summary.passed,
+          failed: s.execution_summary.failed,
+          total_duration_ms: 0,
+          executed_by: '',
+          started_at: s.execution_summary.last_executed_at,
+        }))
+        .sort((a: any, b: any) => new Date(b.started_at).getTime() - new Date(a.started_at).getTime())
+        .slice(0, 5);
+      setRecentExecutions(executionsWithTime);
     }).catch(() => {});
   }, []);
 
-  const totalExec = reports.reduce((s, r) => s + r.passed + r.failed, 0);
-  const totalPassed = reports.reduce((s, r) => s + r.passed, 0);
+  // 计算通过率（从最近执行记录）
+  const totalExec = recentExecutions.reduce((s, r) => s + r.passed + r.failed, 0);
+  const totalPassed = recentExecutions.reduce((s, r) => s + r.passed, 0);
   const passRate = totalExec > 0 ? Math.round((totalPassed / totalExec) * 100) : 0;
 
   const statCards = [
@@ -99,7 +128,7 @@ export default function ApiTestHome() {
 
       <div className="dashboard-panel" style={{ marginBottom: 20 }}>
         <div className="dashboard-panel-head">最近执行</div>
-        {reports.length === 0 && !loading ? (
+        {recentExecutions.length === 0 && !loading ? (
           <div className="dashboard-empty">暂无执行记录</div>
         ) : (
           <table className="dashboard-table">
@@ -109,22 +138,20 @@ export default function ApiTestHome() {
                 <th>通过</th>
                 <th>失败</th>
                 <th>通过率</th>
-                <th>耗时</th>
                 <th>执行时间</th>
               </tr>
             </thead>
             <tbody>
-              {reports.map(r => {
+              {recentExecutions.map(r => {
                 const total = r.passed + r.failed;
                 const rate = total > 0 ? Math.round((r.passed / total) * 100) : 0;
                 return (
-                  <tr key={r.id} onClick={() => navigate(`/api-test/batch-report/${r.id}`)}>
+                  <tr key={r.id} onClick={() => navigate(`/api-test/scenario-set/${r.set_id}`)} style={{ cursor: 'pointer' }}>
                     <td className="td-name">{r.set_name}</td>
                     <td><span className="td-pass">{r.passed}</span></td>
                     <td><span className="td-fail">{r.failed}</span></td>
                     <td><span className={`td-badge ${rate >= 90 ? 'td-badge-success' : rate >= 70 ? 'td-badge-warning' : 'td-badge-danger'}`}>{rate}%</span></td>
-                    <td className="td-mono">{formatDuration(r.total_duration_ms)}</td>
-                    <td className="td-mono td-time">{formatTimeShort(r.executed_at)}</td>
+                    <td className="td-mono td-time">{formatTimeShort(r.started_at)}</td>
                   </tr>
                 );
               })}

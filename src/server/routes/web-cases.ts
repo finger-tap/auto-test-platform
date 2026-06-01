@@ -21,8 +21,6 @@ webCaseRoutes.get('/', (req: Request, res: Response) => {
   const pageSize = Math.min(100, Math.max(1, Number(req.query.pageSize) || 10));
   const sortField = (req.query.sortField as string) || 'updated_at';
   const sortOrder = (req.query.sortOrder as string) || 'DESC';
-  const testType = (req.query.test_type as string) || 'web';
-
   const filters = {
     name: req.query.name as string | undefined,
     status: req.query.status as string | undefined,
@@ -31,7 +29,6 @@ webCaseRoutes.get('/', (req: Request, res: Response) => {
 
   const result = listWebCases(
     req.user!.userId,
-    testType,
     page,
     pageSize,
     sortField,
@@ -57,7 +54,6 @@ webCaseRoutes.post('/', (req: Request, res: Response) => {
     timeout,
     headless_mode,
     base_url,
-    test_type,
   } = req.body;
 
   if (!name || typeof name !== 'string' || !name.trim()) {
@@ -85,19 +81,18 @@ webCaseRoutes.post('/', (req: Request, res: Response) => {
     timeout,
     headless_mode,
     base_url,
-    test_type: test_type || 'web',
   });
   res.status(201).json({ code: 201, message: 'Created', data: { id } });
 });
 
 // Helper: check ownership
-function checkOwnership(req: Request, res: Response, testType?: string) {
+function checkOwnership(req: Request, res: Response) {
   const id = Number(req.params.id);
   if (!id) {
     res.status(400).json({ code: 400, message: 'Invalid id' });
     return null;
   }
-  const webCase = getWebCase(id, testType);
+  const webCase = getWebCase(id);
   if (!webCase) {
     res.status(404).json({ code: 404, message: 'Web case not found' });
     return null;
@@ -111,16 +106,14 @@ function checkOwnership(req: Request, res: Response, testType?: string) {
 
 // GET /api/web-cases/:id
 webCaseRoutes.get('/:id', (req: Request, res: Response) => {
-  const testType = (req.query.test_type as string) || 'web';
-  const webCase = checkOwnership(req, res, testType);
+  const webCase = checkOwnership(req, res);
   if (!webCase) return;
   res.json({ code: 200, message: 'ok', data: webCase });
 });
 
 // PUT /api/web-cases/:id
 webCaseRoutes.put('/:id', (req: Request, res: Response) => {
-  const testType = (req.body.test_type as string) || 'web';
-  const webCase = checkOwnership(req, res, testType);
+  const webCase = checkOwnership(req, res);
   if (!webCase) return;
 
   const {
@@ -137,7 +130,6 @@ webCaseRoutes.put('/:id', (req: Request, res: Response) => {
     timeout,
     headless_mode,
     base_url,
-    test_type,
   } = req.body;
 
   // Serialize JSON fields to strings
@@ -160,7 +152,6 @@ webCaseRoutes.put('/:id', (req: Request, res: Response) => {
     timeout,
     headless_mode,
     base_url,
-    test_type,
   });
   res.json({ code: 200, message: 'Updated' });
 });

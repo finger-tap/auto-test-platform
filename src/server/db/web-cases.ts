@@ -16,7 +16,6 @@ export interface WebCaseRow {
   timeout: number | null;
   headless_mode: number | null;
   base_url: string | null;
-  test_type: string;
   created_at: string;
   updated_at: string;
   created_by: string | null;
@@ -37,7 +36,6 @@ export interface CreateWebCaseInput {
   timeout?: number;
   headless_mode?: number;
   base_url?: string;
-  test_type?: string;
 }
 
 export interface UpdateWebCaseInput {
@@ -54,7 +52,6 @@ export interface UpdateWebCaseInput {
   timeout?: number;
   headless_mode?: number;
   base_url?: string;
-  test_type?: string;
 }
 
 interface ListFilter {
@@ -65,7 +62,6 @@ interface ListFilter {
 
 export function listWebCases(
   userId: number,
-  testType: string,
   page: number,
   pageSize: number,
   sortField: string,
@@ -81,8 +77,8 @@ export function listWebCases(
   const sortCol = validSorts[sortField] || 'updated_at';
   const sortDir = sortOrder === 'ASC' ? 'ASC' : 'DESC';
 
-  const conditions: string[] = ['user_id = ?', "test_type = ?"];
-  const values: unknown[] = [userId, testType];
+  const conditions: string[] = ['user_id = ?'];
+  const values: unknown[] = [userId];
 
   if (filters.name) {
     conditions.push('name LIKE ?');
@@ -107,18 +103,14 @@ export function listWebCases(
   return { items, total: count, page, pageSize };
 }
 
-export function getWebCase(id: number, testType?: string): WebCaseRow | undefined {
-  if (testType) {
-    return db.prepare('SELECT * FROM web_test_cases WHERE id = ? AND test_type = ?').get(id, testType) as WebCaseRow | undefined;
-  }
+export function getWebCase(id: number): WebCaseRow | undefined {
   return db.prepare('SELECT * FROM web_test_cases WHERE id = ?').get(id) as WebCaseRow | undefined;
 }
 
 export function createWebCase(userId: number, data: CreateWebCaseInput): number {
-  const testType = data.test_type || 'web';
   const result = db.prepare(
-    `INSERT INTO web_test_cases (user_id, name, description, tags, status, steps, check_points, data_drive, preconditions, browser, window_size, timeout, headless_mode, base_url, test_type, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now', '+8 hours'), datetime('now', '+8 hours'))`
+    `INSERT INTO web_test_cases (user_id, name, description, tags, status, steps, check_points, data_drive, preconditions, browser, window_size, timeout, headless_mode, base_url, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now', '+8 hours'), datetime('now', '+8 hours'))`
   ).run(
     userId,
     data.name,
@@ -133,8 +125,7 @@ export function createWebCase(userId: number, data: CreateWebCaseInput): number 
     data.window_size || '1920x1080',
     data.timeout || 30000,
     data.headless_mode || 0,
-    data.base_url || null,
-    testType
+    data.base_url || null
   );
   return result.lastInsertRowid as number;
 }

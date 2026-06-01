@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { authMiddleware } from '../auth/middleware.js';
-import { findApisByUserIdPaginated, findApisByUserId, findApiById, createApi, updateApi, deleteApi, findApiExecutionsByApiId, findApiExecutionWithSteps, type ApiRow, type ApiExecutionRow } from '../db/apis.js';
+import { findApisByUserIdPaginated, findApisByUserId, findApiById, createApi, updateApi, deleteApi, findApiExecutionsByApiId, findApiExecutionWithSteps, createApiExecution, type ApiRow, type ApiExecutionRow } from '../db/apis.js';
 import type { AssertionRule } from '../db/apis.js';
 import { executeApi, evaluateAssertions } from '../engine/api-executor.js';
 import { evalBuiltin } from '../engine/builtins.js';
@@ -190,14 +190,13 @@ apiRoutes.get('/', (req: Request, res: Response) => {
   const pageSize = Math.min(100, Math.max(1, Number(req.query.pageSize) || 10));
   const sort = (req.query.sort as string) || 'updated_at';
   const order = (req.query.order as string) || 'DESC';
-  const testType = (req.query.test_type as string) || 'api';
-  const { items, total } = findApisByUserIdPaginated(req.user!.userId, page, pageSize, sort, order, testType);
+  const { items, total } = findApisByUserIdPaginated(req.user!.userId, page, pageSize, sort, order);
   res.json({ code: 200, message: 'ok', data: { items, total, page, pageSize } });
 });
 
 // POST /api/apis
 apiRoutes.post('/', (req: Request, res: Response) => {
-  const { name, method, url, protocol, headers, body, description, tags, status, content_type, assertions, pre_script, post_script, pre_db_name, pre_db_query, post_db_name, post_db_query, pre_assertions, post_assertions, final_assertions, ws_send, ws_expect, pre_actions, post_actions, parameters, test_type } = req.body;
+  const { name, method, url, protocol, headers, body, description, tags, status, content_type, assertions, pre_script, post_script, pre_db_name, pre_db_query, post_db_name, post_db_query, pre_assertions, post_assertions, final_assertions, ws_send, ws_expect, pre_actions, post_actions, parameters } = req.body;
 
   if (!name || typeof name !== 'string' || !name.trim()) {
     res.status(400).json({ code: 400, message: 'Name is required' });
@@ -212,7 +211,7 @@ apiRoutes.post('/', (req: Request, res: Response) => {
     return;
   }
 
-  const id = createApi(req.user!.userId, { name: name.trim(), method, url: url.trim(), protocol, headers, body, description, tags, status, content_type, assertions, pre_script, post_script, pre_db_name, pre_db_query, post_db_name, post_db_query, pre_assertions, post_assertions, final_assertions, ws_send, ws_expect, pre_actions, post_actions, test_type: test_type || 'api' });
+  const id = createApi(req.user!.userId, { name: name.trim(), method, url: url.trim(), protocol, headers, body, description, tags, status, content_type, assertions, pre_script, post_script, pre_db_name, pre_db_query, post_db_name, post_db_query, pre_assertions, post_assertions, final_assertions, ws_send, ws_expect, pre_actions, post_actions });
   res.status(201).json({ code: 201, message: 'Created', data: { id } });
 });
 

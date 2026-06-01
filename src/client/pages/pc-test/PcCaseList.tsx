@@ -48,7 +48,6 @@ export default function PcCaseList() {
   useEffect(() => {
     setLoading(true);
     const params = new URLSearchParams({
-      test_type: 'pc',
       page: String(page),
       pageSize: '20',
     });

@@ -17,7 +17,6 @@ export interface MobileTestCaseRow {
   assertions: string | null;
   tags: string | null;
   status: string;
-  test_type: string;
   created_at: string;
   updated_at: string;
 }
@@ -49,7 +48,6 @@ export interface CreateMobileTestInput {
   assertions?: string;
   tags?: string;
   status?: string;
-  test_type?: string;
 }
 
 export interface UpdateMobileTestInput {
@@ -70,22 +68,18 @@ export interface UpdateMobileTestInput {
 }
 
 export function findMobileTestsByUserIdPaginated(
-  userId: number, page: number, pageSize: number, sort = 'updated_at', order = 'DESC', testType?: string
+  userId: number, page: number, pageSize: number, sort = 'updated_at', order = 'DESC'
 ): { items: MobileTestCaseRow[]; total: number } {
   const offset = (page - 1) * pageSize;
   const validSorts: Record<string, string> = { updated_at: 'updated_at', created_at: 'created_at', name: 'name' };
   const sortCol = validSorts[sort] || 'updated_at';
   const sortDir = order === 'ASC' ? 'ASC' : 'DESC';
-  const conditions = ['user_id = ?'];
-  const params: unknown[] = [userId];
-  if (testType) { conditions.push('test_type = ?'); params.push(testType); }
-  const where = conditions.join(' AND ');
   const items = db.prepare(
-    `SELECT * FROM mobile_test_cases WHERE ${where} ORDER BY ${sortCol} ${sortDir} LIMIT ? OFFSET ?`
-  ).all(...params, pageSize, offset) as MobileTestCaseRow[];
+    `SELECT * FROM mobile_test_cases WHERE user_id = ? ORDER BY ${sortCol} ${sortDir} LIMIT ? OFFSET ?`
+  ).all(userId, pageSize, offset) as MobileTestCaseRow[];
   const { count } = db.prepare(
-    `SELECT COUNT(*) AS count FROM mobile_test_cases WHERE ${where}`
-  ).get(...params) as { count: number };
+    `SELECT COUNT(*) AS count FROM mobile_test_cases WHERE user_id = ?`
+  ).get(userId) as { count: number };
   return { items, total: count };
 }
 
@@ -95,16 +89,15 @@ export function findMobileTestById(id: number): MobileTestCaseRow | undefined {
 
 export function createMobileTest(userId: number, data: CreateMobileTestInput): number {
   const result = db.prepare(
-    `INSERT INTO mobile_test_cases (user_id, name, description, platform, device_name, platform_version, app_package, app_activity, bundle_id, appium_url, capabilities, test_script, assertions, tags, status, test_type, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now', '+8 hours'), datetime('now', '+8 hours'))`
+    `INSERT INTO mobile_test_cases (user_id, name, description, platform, device_name, platform_version, app_package, app_activity, bundle_id, appium_url, capabilities, test_script, assertions, tags, status, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now', '+8 hours'), datetime('now', '+8 hours'))`
   ).run(
     userId, data.name, data.description || null, data.platform || 'android',
     data.device_name || null, data.platform_version || null,
     data.app_package || null, data.app_activity || null, data.bundle_id || null,
     data.appium_url || 'http://localhost:4723', data.capabilities || null,
     data.test_script || null, data.assertions || null,
-    data.tags || '', data.status || 'active',
-    data.test_type || 'mobile'
+    data.tags || '', data.status || 'active'
   );
   return result.lastInsertRowid as number;
 }

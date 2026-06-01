@@ -21,14 +21,13 @@ mobileTestRoutes.get('/', (req: Request, res: Response) => {
   const pageSize = Math.min(100, Math.max(1, Number(req.query.pageSize) || 10));
   const sort = (req.query.sort as string) || 'updated_at';
   const order = (req.query.order as string) || 'DESC';
-  const testType = (req.query.test_type as string) || 'mobile';
-  const { items, total } = findMobileTestsByUserIdPaginated(req.user!.userId, page, pageSize, sort, order, testType);
+  const { items, total } = findMobileTestsByUserIdPaginated(req.user!.userId, page, pageSize, sort, order);
   res.json({ code: 200, message: 'ok', data: { items, total, page, pageSize } });
 });
 
 // POST /api/mobile-tests
 mobileTestRoutes.post('/', (req: Request, res: Response) => {
-  const { name, description, platform, device_name, platform_version, app_package, app_activity, bundle_id, appium_url, capabilities, test_script, assertions, tags, status, test_type } = req.body;
+  const { name, description, platform, device_name, platform_version, app_package, app_activity, bundle_id, appium_url, capabilities, test_script, assertions, tags, status } = req.body;
 
   if (!name || typeof name !== 'string' || !name.trim()) {
     res.status(400).json({ code: 400, message: 'Name is required' });
@@ -39,7 +38,6 @@ mobileTestRoutes.post('/', (req: Request, res: Response) => {
     name: name.trim(), description, platform, device_name, platform_version,
     app_package, app_activity, bundle_id, appium_url, capabilities,
     test_script, assertions, tags, status,
-    test_type: test_type || 'mobile',
   });
   res.status(201).json({ code: 201, message: 'Created', data: { id } });
 });

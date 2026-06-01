@@ -44,22 +44,21 @@ scenarioRoutes.get('/', (req: Request, res: Response) => {
   const pageSize = Math.min(100, Math.max(1, Number(req.query.pageSize) || 10));
   const sort = (req.query.sort as string) || 'updated_at';
   const order = (req.query.order as string) || 'DESC';
-  const testType = req.query.test_type as string | undefined;
   const name = req.query.name as string | undefined;
-  const { items, total } = findScenariosByUserIdPaginated(req.user!.userId, page, pageSize, sort, order, testType, name);
+  const { items, total } = findScenariosByUserIdPaginated(req.user!.userId, page, pageSize, sort, order, name);
   res.json({ code: 200, message: 'ok', data: { items, total, page, pageSize } });
 });
 
 // POST /api/scenarios
 scenarioRoutes.post('/', (req: Request, res: Response) => {
-  const { name, description, status, tags, parameters, test_type } = req.body;
+  const { name, description, status, tags, parameters } = req.body;
 
   if (!name || typeof name !== 'string' || !name.trim()) {
     res.status(400).json({ code: 400, message: 'Name is required' });
     return;
   }
 
-  const id = createScenario(req.user!.userId, { name: name.trim(), description, status, tags, parameters, test_type });
+  const id = createScenario(req.user!.userId, { name: name.trim(), description, status, tags, parameters });
 
   // Create default start and end nodes
   upsertNodes(id, [
@@ -72,13 +71,8 @@ scenarioRoutes.post('/', (req: Request, res: Response) => {
 
 // GET /api/scenarios/:id
 scenarioRoutes.get('/:id', (req: Request, res: Response) => {
-  const testType = req.query.test_type as string | undefined;
   const scenario = checkOwnership(req, res);
   if (!scenario) return;
-  if (testType && scenario.test_type !== testType) {
-    res.status(404).json({ code: 404, message: 'Scenario not found' });
-    return;
-  }
 
   const nodes = findNodesByScenarioId(scenario.id);
   const edges = findEdgesByScenarioId(scenario.id);

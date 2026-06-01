@@ -10,8 +10,60 @@
  * - Hit tracking: count and last_hit timestamp
  */
 
-import { findMocksByUserId, findMockById, incrementMockHit } from '../db/mocks.js';
-import type { MockEndpointRow } from '../db/mocks.js';
+import db from '../db/index.js';
+import { incrementMockHit as incrementMockHitApi } from '../db/mocks-api.js';
+import { incrementMockHit as incrementMockHitWeb } from '../db/mocks-web.js';
+import { incrementMockHit as incrementMockHitPc } from '../db/mocks-pc.js';
+import { incrementMockHit as incrementMockHitMobile } from '../db/mocks-mobile.js';
+
+export interface MockEndpointRow {
+  id: number;
+  user_id: number;
+  name: string;
+  method: string;
+  path_pattern: string;
+  description: string | null;
+  tags: string | null;
+  status: string | null;
+  response_status: number;
+  response_headers: string;
+  response_body: string;
+  response_delay_ms: number;
+  conditions: string;
+  match_mode: 'exact' | 'contains' | 'regex' | 'wildcard';
+  enabled: number;
+  hit_count: number;
+  last_hit_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+type MockSource = 'api' | 'web' | 'pc' | 'mobile';
+
+const MOCK_INCREMENTERS: Record<MockSource, (id: number) => void> = {
+  api: incrementMockHitApi,
+  web: incrementMockHitWeb,
+  pc: incrementMockHitPc,
+  mobile: incrementMockHitMobile,
+};
+
+const MOCK_TABLES: Array<{ name: string; source: MockSource }> = [
+  { name: 'mock_endpoints_api', source: 'api' },
+  { name: 'mock_endpoints_web', source: 'web' },
+  { name: 'mock_endpoints_pc', source: 'pc' },
+  { name: 'mock_endpoints_mobile', source: 'mobile' },
+];
+
+function findMocksByUserId(userId: number): Array<MockEndpointRow & { _source: MockSource }> {
+  const out: Array<MockEndpointRow & { _source: MockSource }> = [];
+  for (const t of MOCK_TABLES) {
+    const rows = db
+      .prepare(`SELECT * FROM ${t.name} WHERE user_id = ? ORDER BY updated_at DESC`)
+      .all(userId) as MockEndpointRow[];
+    for (const r of rows) out.push({ ...r, _source: t.source });
+  }
+  return out;
+}
 
 export interface MockMatchResult {
   matched: boolean;
@@ -149,9 +201,10 @@ function matchCondition(req: { query: Record<string, string>; headers: Record<st
 /**
  * Execute a mock and return the response.
  */
-export function executeMock(mock: MockEndpointRow): MockResponse {
-  // Increment hit counter
-  incrementMockHit(mock.id);
+export function executeMock(mock: MockEndpointRow & { _source?: MockSource }): MockResponse {
+  // Increment hit counter on the correct per-type table
+  const source: MockSource = (mock._source as MockSource) || 'api';
+  MOCK_INCREMENTERS[source](mock.id);
 
   // Parse response config
   let headers: Record<string, string> = {};

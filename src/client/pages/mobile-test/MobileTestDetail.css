@@ -70,26 +70,6 @@
   transition: all 0.2s;
 }
 
-.mtd-btn-save {
-  background: var(--success);
-  color: #fff;
-}
-
-.mtd-btn-save:hover {
-  background: var(--success);
-}
-
-.mtd-btn-exec {
-  background: var(--surface);
-  border: 1px solid var(--success);
-  color: var(--success);
-}
-
-.mtd-btn-exec:hover {
-  background: var(--success);
-  color: #fff;
-}
-
 .mtd-btn-del {
   background: var(--surface);
   border: 1px solid var(--danger);

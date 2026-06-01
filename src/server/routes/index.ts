@@ -10,7 +10,14 @@ import { setRoutes } from './scenario-sets.js';
 import { scenarioSetRoutes as scenarioSetRoutesWeb } from './scenario-sets-web.js';
 import { scenarioSetRoutes as scenarioSetRoutesPc } from './scenario-sets-pc.js';
 import { scenarioSetRoutes as scenarioSetRoutesMobile } from './scenario-sets-mobile.js';
-import { mockRoutes } from './mocks.js';
+import { mockRoutes as mockRoutesApi } from './mocks-api.js';
+import { mockRoutes as mockRoutesWeb } from './mocks-web.js';
+import { mockRoutes as mockRoutesPc } from './mocks-pc.js';
+import { mockRoutes as mockRoutesMobile } from './mocks-mobile.js';
+import { batchReportRoutes as batchReportRoutesApi } from './batch-reports-api.js';
+import { batchReportRoutes as batchReportRoutesWeb } from './batch-reports-web.js';
+import { batchReportRoutes as batchReportRoutesPc } from './batch-reports-pc.js';
+import { batchReportRoutes as batchReportRoutesMobile } from './batch-reports-mobile.js';
 import { openapiRoutes } from '../openapi/routes.js';
 import { tagRoutes } from '../db/tags.js';
 import { mobileTestRoutes } from './mobile-tests.js';
@@ -45,7 +52,22 @@ routes.use('/scenario-sets-web', scenarioSetRoutesWeb);
 routes.use('/scenario-sets-pc', scenarioSetRoutesPc);
 // 移动端测试场景集（独立表）
 routes.use('/scenario-sets-mobile', scenarioSetRoutesMobile);
-routes.use('/mocks', mockRoutes);
+// 接口测试 Mock（独立表）
+routes.use('/mocks-api', mockRoutesApi);
+// Web测试 Mock（独立表）
+routes.use('/mocks-web', mockRoutesWeb);
+// PC测试 Mock（独立表）
+routes.use('/mocks-pc', mockRoutesPc);
+// 移动端测试 Mock（独立表）
+routes.use('/mocks-mobile', mockRoutesMobile);
+// 接口测试批量报告（独立表）
+routes.use('/batch-reports-api', batchReportRoutesApi);
+// Web测试批量报告（独立表）
+routes.use('/batch-reports-web', batchReportRoutesWeb);
+// PC测试批量报告（独立表）
+routes.use('/batch-reports-pc', batchReportRoutesPc);
+// 移动端测试批量报告（独立表）
+routes.use('/batch-reports-mobile', batchReportRoutesMobile);
 routes.use('/openapi', openapiRoutes);
 routes.use('/tags', tagRoutes);
 routes.use('/mobile-tests', mobileTestRoutes);

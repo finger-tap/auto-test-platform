@@ -15,7 +15,6 @@ export interface Environment {
   timeout: number;
   sort_order: number;
   is_default: number;
-  test_type?: string; // 'api' | 'web' | 'pc' | 'mobile'
   created_at: string;
   updated_at: string;
   // Multiple databases

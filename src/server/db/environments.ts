@@ -43,22 +43,16 @@ export interface DbConfig {
   database: string;
 }
 
-export function findEnvsByUserId(userId: number, testType?: string): Environment[] {
-  const conditions: string[] = ['user_id = ?'];
-  const params: (string | number)[] = [userId];
-  if (testType) { conditions.push('(test_type = ? OR test_type IS NULL)'); params.push(testType); }
+export function findEnvsByUserId(userId: number): Environment[] {
   return db.prepare(`
     SELECT * FROM environments
-    WHERE ${conditions.join(' AND ')}
+    WHERE user_id = ?
     ORDER BY sort_order ASC, id ASC
-  `).all(...params) as Environment[];
+  `).all(userId) as Environment[];
 }
 
-export function findEnvById(id: number, userId: number, testType?: string): Environment | null {
-  const conditions: string[] = ['id = ?', 'user_id = ?'];
-  const params: (string | number)[] = [id, userId];
-  if (testType) { conditions.push('(test_type = ? OR test_type IS NULL)'); params.push(testType); }
-  return db.prepare(`SELECT * FROM environments WHERE ${conditions.join(' AND ')}`).get(...params) as Environment | null;
+export function findEnvById(id: number, userId: number): Environment | null {
+  return db.prepare('SELECT * FROM environments WHERE id = ? AND user_id = ?').get(id, userId) as Environment | null;
 }
 
 export function findDefaultEnv(userId: number): Environment | null {
@@ -68,12 +62,11 @@ export function findDefaultEnv(userId: number): Environment | null {
 export function createEnv(userId: number, name: string, vars: EnvVariable[] = [], opts?: {
   ssl_cert?: string; ssl_key?: string; timeout?: number; is_default?: boolean;
   databases?: DatabaseEntry[];
-  test_type?: string;
 }): number {
   const now = new Date().toISOString();
   const result = db.prepare(`
-    INSERT INTO environments (user_id, name, variables, ssl_cert, ssl_key, timeout, is_default, databases, test_type, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO environments (user_id, name, variables, ssl_cert, ssl_key, timeout, is_default, databases, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     userId, name,
     JSON.stringify(vars),
@@ -82,7 +75,6 @@ export function createEnv(userId: number, name: string, vars: EnvVariable[] = []
     opts?.timeout ?? 30000,
     opts?.is_default ? 1 : 0,
     JSON.stringify(opts?.databases ?? []),
-    opts?.test_type ?? 'api',
     now, now
   );
   return result.lastInsertRowid as number;
