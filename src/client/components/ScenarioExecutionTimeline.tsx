@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import type { ScenarioExecutionStep, ScenarioApiExecutionLink } from '../../types';
+import type { ScenarioExecutionStep, ScenarioApiExecutionLink } from '../types';
 
 const LOG_TYPE_LABELS: Record<string, string> = {
   scenario_start: '场景开始',
@@ -118,7 +118,7 @@ export default function ScenarioExecutionTimeline({ steps, apiLinks, cacheKeyPre
                       {logData.status_code != null && (
                         <div className="step-section">
                           <div className="step-section-label">状态码</div>
-                          <span>{logData.status_code}</span>
+                          <span>{String(logData.status_code)}</span>
                         </div>
                       )}
                       {logData.extract_values && typeof logData.extract_values === 'object' && Object.keys(logData.extract_values).length > 0 && (

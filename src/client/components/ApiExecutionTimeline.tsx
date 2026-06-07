@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import CodeMirror from '@uiw/react-codemirror';
 import { json } from '@codemirror/lang-json';
-import type { ApiExecutionStep, ApiExecution, AssertionResult } from '../../types';
+import type { ApiExecutionStep, ApiExecution, AssertionResult } from '../types';
 
 const LOG_TYPE_LABELS: Record<string, string> = {
   start: '开始',
@@ -97,6 +97,7 @@ export default function ApiExecutionTimeline({ execution, steps, assertionResult
           const isExpanded = expandedStep === step.id;
           const duration = stepDuration(idx);
           const logData = tryParseJson(step.log_data);
+          const ld: Record<string, unknown> = logData ?? {};
 
           return (
             <div key={step.id} className={`api-exec-step ${LOG_TYPE_CLASS[step.log_type] || ''}`}>
@@ -120,7 +121,7 @@ export default function ApiExecutionTimeline({ execution, steps, assertionResult
                 {isExpanded && logData && (
                   <div className="step-detail">
                     {/* Assertions in this step */}
-                    {logData.assertions && Array.isArray(logData.assertions as unknown[]) && (
+                    {Boolean(logData.assertions) && Array.isArray(logData.assertions as unknown[]) && (
                       <div className="step-section">
                         <div className="step-section-label">断言结果</div>
                         <div className="ad-assertion-results">
@@ -149,7 +150,7 @@ export default function ApiExecutionTimeline({ execution, steps, assertionResult
                     )}
 
                     {/* Request/Response data */}
-                    {logData.request_headers && (
+                    {Boolean(logData.request_headers) && (
                       <div className="step-section">
                         <div className="step-section-label">请求头</div>
                         <CodeMirror
@@ -161,7 +162,7 @@ export default function ApiExecutionTimeline({ execution, steps, assertionResult
                         />
                       </div>
                     )}
-                    {logData.request_body && (
+                    {Boolean(logData.request_body) && (
                       <div className="step-section">
                         <div className="step-section-label">请求体</div>
                         <CodeMirror
@@ -173,7 +174,7 @@ export default function ApiExecutionTimeline({ execution, steps, assertionResult
                         />
                       </div>
                     )}
-                    {logData.status_code && (
+                    {Boolean(logData.status_code) && (
                       <div className="step-section">
                         <div className="step-section-label">响应状态</div>
                         <CodeMirror
@@ -185,37 +186,38 @@ export default function ApiExecutionTimeline({ execution, steps, assertionResult
                         />
                       </div>
                     )}
-                    {logData.response_body && (
+                    {/* 响应体 */}
+                    {ld.response_body ? (
                       <div className="step-section">
                         <div className="step-section-label">响应体</div>
                         <CodeMirror
-                          value={tryFormatJson(String(logData.response_body))}
+                          value={tryFormatJson(String(ld.response_body))}
                           height="auto" maxHeight="200px"
                           extensions={[json()]}
                           editable={false}
                           basicSetup={{ lineNumbers: false, foldGutter: false }}
                         />
                       </div>
-                    )}
-                    {logData.script && (
+                    ) : null}
+                    {ld.script ? (
                       <div className="step-section">
                         <div className="step-section-label">脚本内容</div>
                         <CodeMirror
-                          value={String(logData.script)}
+                          value={String(ld.script)}
                           height="auto" maxHeight="150px"
                           extensions={[json()]}
                           editable={false}
                           basicSetup={{ lineNumbers: false, foldGutter: false }}
                         />
                       </div>
-                    )}
-                    {logData.error && (
+                    ) : null}
+                    {logData.error != null && Boolean(logData.error) && (
                       <div className="step-section">
                         <div className="step-section-label" style={{ color: '#e53e3e' }}>错误</div>
                         <div className="step-error-msg">{String(logData.error)}</div>
                       </div>
                     )}
-                    {logData.assertion_results && Array.isArray(logData.assertion_results) && logData.assertion_results.length > 0 && (
+                    {Boolean(logData.assertion_results) && Array.isArray(logData.assertion_results) && logData.assertion_results.length > 0 && (
                       <div className="step-section">
                         <div className="step-section-label">动作规则 ({logData.assertion_results.length})</div>
                         <div className="ad-assertion-results">

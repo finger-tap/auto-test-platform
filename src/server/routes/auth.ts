@@ -3,6 +3,8 @@ import bcrypt from 'bcryptjs';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
+import crypto from 'crypto';
+import rateLimit from 'express-rate-limit';
 import { fileURLToPath } from 'url';
 import { findUserByAccount, findUserById, createUser, updatePassword, updateUserProfile } from '../db/users.js';
 import { signToken } from '../auth/jwt.js';
@@ -14,15 +16,94 @@ const avatarDir = path.resolve(__dirname, '../../../data/avatars');
 
 export const authRoutes = Router();
 
-// Multer config for avatar uploads
+// Per-IP rate limit for sensitive auth endpoints to prevent credential stuffing
+// and account-enumeration abuse. 5 req / minute / IP is enough for legitimate use.
+const authLimiter = rateLimit({
+  windowMs: 60_000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { code: 429, message: 'Too many requests, please try again later.' },
+});
+
+// Allowed image formats with their magic-byte signatures and canonical extensions.
+// SVG is intentionally excluded — it can carry <script> and bypass <img> sandboxing.
+const ALLOWED_IMAGE_TYPES: Array<{
+  ext: string;
+  mime: string;
+  match: (head: Buffer) => boolean;
+}> = [
+  { ext: '.jpg', mime: 'image/jpeg', match: (b) => b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff },
+  { ext: '.png', mime: 'image/png', match: (b) => b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47 },
+  {
+    ext: '.gif',
+    mime: 'image/gif',
+    match: (b) => b[0] === 0x47 && b[1] === 0x49 && b[2] === 0x46 && b[3] === 0x38,
+  },
+  {
+    ext: '.webp',
+    mime: 'image/webp',
+    // RIFF....WEBP — 12 bytes total
+    match: (b) =>
+      b[0] === 0x52 && b[1] === 0x49 && b[2] === 0x46 && b[3] === 0x46 &&
+      b[8] === 0x57 && b[9] === 0x45 && b[10] === 0x42 && b[11] === 0x50,
+  },
+];
+
+function detectImageType(filePath: string): { ext: string; mime: string } | null {
+  let head: Buffer;
+  try {
+    const fd = fs.openSync(filePath, 'r');
+    try {
+      const buf = Buffer.alloc(12);
+      fs.readSync(fd, buf, 0, 12, 0);
+      head = buf;
+    } finally {
+      fs.closeSync(fd);
+    }
+  } catch {
+    return null;
+  }
+  for (const t of ALLOWED_IMAGE_TYPES) {
+    if (t.match(head)) return { ext: t.ext, mime: t.mime };
+  }
+  return null;
+}
+
+// Multer config: no mimetype whitelist here (mimetype is client-controlled).
+// We validate by reading magic bytes after upload.
 const upload = multer({
   dest: avatarDir,
   limits: { fileSize: 2 * 1024 * 1024 }, // 2MB
-  fileFilter: (_req, file, cb) => {
-    if (/image\/(jpeg|png|gif|webp)/.test(file.mimetype)) cb(null, true);
-    else cb(new Error('Only image files are allowed'));
-  },
 });
+
+/**
+ * Validate uploaded file by magic bytes, rename to a UUID-based filename
+ * with a canonical extension, and delete the temp multer file.
+ * Returns null and sends a 400 response on failure.
+ */
+function acceptAvatarUpload(req: Request, res: Response): { ext: string; newPath: string } | null {
+  if (!req.file) {
+    res.status(400).json({ code: 400, message: 'No file uploaded' });
+    return null;
+  }
+  const detected = detectImageType(req.file.path);
+  if (!detected) {
+    fs.unlink(req.file.path, () => {});
+    res.status(400).json({ code: 400, message: 'Invalid image format (only JPEG, PNG, GIF, WebP allowed)' });
+    return null;
+  }
+  const newName = `${crypto.randomUUID()}${detected.ext}`;
+  const newPath = path.join(avatarDir, newName);
+  try {
+    fs.renameSync(req.file.path, newPath);
+  } catch (err) {
+    fs.unlink(req.file.path, () => {});
+    res.status(500).json({ code: 500, message: 'Failed to save avatar' });
+    return null;
+  }
+  return { ext: detected.ext, newPath };
+}
 
 function userResponse(user: { id: number; account: string; account_type: string; nickname: string | null; avatar: string | null; email: string | null; phone: string | null }) {
   return {
@@ -37,14 +118,16 @@ function userResponse(user: { id: number; account: string; account_type: string;
 }
 
 // POST /api/auth/register
-authRoutes.post('/register', upload.single('avatar'), async (req: Request, res: Response) => {
+authRoutes.post('/register', authLimiter, upload.single('avatar'), async (req: Request, res: Response) => {
   const { account, password, nickname } = req.body;
 
   if (!account || typeof account !== 'string' || !account.trim()) {
+    if (req.file) fs.unlink(req.file.path, () => {});
     res.status(400).json({ code: 400, message: 'Account is required' });
     return;
   }
   if (!password || typeof password !== 'string' || password.length < 6) {
+    if (req.file) fs.unlink(req.file.path, () => {});
     res.status(400).json({ code: 400, message: 'Password must be at least 6 characters' });
     return;
   }
@@ -61,11 +144,9 @@ authRoutes.post('/register', upload.single('avatar'), async (req: Request, res: 
 
   let avatarPath: string | undefined;
   if (req.file) {
-    const ext = path.extname(req.file.originalname) || '.png';
-    const newName = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}${ext}`;
-    const newPath = path.join(avatarDir, newName);
-    fs.renameSync(req.file.path, newPath);
-    avatarPath = `/avatars/${newName}`;
+    const accepted = acceptAvatarUpload(req, res);
+    if (!accepted) return; // response already sent
+    avatarPath = `/avatars/${path.basename(accepted.newPath)}`;
   }
 
   const hash = await bcrypt.hash(password, 10);
@@ -75,7 +156,7 @@ authRoutes.post('/register', upload.single('avatar'), async (req: Request, res: 
 });
 
 // POST /api/auth/login
-authRoutes.post('/login', async (req: Request, res: Response) => {
+authRoutes.post('/login', authLimiter, async (req: Request, res: Response) => {
   const { account, password } = req.body;
 
   if (!account || !password) {
@@ -125,21 +206,34 @@ authRoutes.post('/guest', async (_req: Request, res: Response) => {
 });
 
 // POST /api/auth/reset-password
-authRoutes.post('/reset-password', async (req: Request, res: Response) => {
-  const { account, newPassword } = req.body;
+// Security: requires authentication. The target account is derived from
+// the JWT (req.user), never from the request body. Caller must supply
+// the current password to confirm ownership.
+authRoutes.post('/reset-password', authLimiter, authMiddleware, async (req: Request, res: Response) => {
+  const { oldPassword, newPassword } = req.body;
 
-  if (!account || typeof account !== 'string' || !account.trim()) {
-    res.status(400).json({ code: 400, message: 'Account is required' });
+  if (!oldPassword || typeof oldPassword !== 'string') {
+    res.status(400).json({ code: 400, message: 'Current password is required' });
     return;
   }
   if (!newPassword || typeof newPassword !== 'string' || newPassword.length < 6) {
     res.status(400).json({ code: 400, message: 'New password must be at least 6 characters' });
     return;
   }
+  if (oldPassword === newPassword) {
+    res.status(400).json({ code: 400, message: 'New password must differ from current password' });
+    return;
+  }
 
-  const user = findUserByAccount(account.trim());
+  const user = findUserById(req.user!.userId);
   if (!user) {
-    res.status(404).json({ code: 404, message: 'Account not found' });
+    res.status(404).json({ code: 404, message: 'User not found' });
+    return;
+  }
+
+  const valid = await bcrypt.compare(oldPassword, user.password_hash);
+  if (!valid) {
+    res.status(401).json({ code: 401, message: 'Current password is incorrect' });
     return;
   }
 
@@ -203,17 +297,10 @@ authRoutes.put('/profile', authMiddleware, (req: Request, res: Response) => {
 });
 
 // POST /api/auth/avatar — upload/update avatar
-authRoutes.post('/avatar', authMiddleware, upload.single('avatar'), (req: Request, res: Response) => {
-  if (!req.file) {
-    res.status(400).json({ code: 400, message: 'No file uploaded' });
-    return;
-  }
-
-  const ext = path.extname(req.file.originalname) || '.png';
-  const newName = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}${ext}`;
-  const newPath = path.join(avatarDir, newName);
-  fs.renameSync(req.file.path, newPath);
-  const avatarUrl = `/avatars/${newName}`;
+authRoutes.post('/avatar', authLimiter, authMiddleware, upload.single('avatar'), (req: Request, res: Response) => {
+  const accepted = acceptAvatarUpload(req, res);
+  if (!accepted) return;
+  const avatarUrl = `/avatars/${path.basename(accepted.newPath)}`;
 
   // Delete old avatar
   const user = findUserById(req.user!.userId);

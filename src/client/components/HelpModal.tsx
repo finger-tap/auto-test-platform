@@ -156,7 +156,7 @@ export default function HelpModal({ onClose }: { onClose: () => void }) {
               ))
             )
           ) : (
-            displayFuncs.map(f => (
+            (displayFuncs ?? []).map(f => (
               <div key={f.name} className="help-func-item">
                 <div className="help-func-name">{f.name}</div>
                 <div className="help-func-desc">{f.desc}</div>

@@ -1,9 +1,17 @@
-import db from './index.js';
+/**
+ * schedule_sets_api — 调度 API 场景集
+ * 表名 schedule_sets_api(db/index.ts 创建,FK 指向 scenario_sets(id))
+ * 列名 scenario_set_id(沿用老 schedule-sets.ts 命名),
+ * 语义上指向 scenario_sets.id(api 没有 case_sets 表,沿用 scenario_sets 存储集合数据)。
+ * web/pc/mobile 三张 schedule_sets_* 表用 case_set_id(指向各自 case_sets_*),与本表区分。
+ */
 
-// ── ScheduleSet Row ────────────────────────────────────────
+import db from './index.js';
 
 export interface ScheduleSetRow {
   id: number;
+  // API 端的"集"是 scenario_sets(id),沿用老 schedule-sets.ts 的 scenario_set_id 列名
+  // 与 web/pc/mobile 三张 schedule_sets_* 表使用的 case_set_id 区分开
   scenario_set_id: number;
   cron_expr: string | null;
   status: 'none' | 'paused' | 'active';
@@ -20,36 +28,6 @@ export interface ScheduleSetItem extends ScheduleSetRow {
   scenario_set_description: string | null;
   scenario_count: number;
   creator_name: string;
-}
-
-// ── Ensure table exists ──────────────────────────────────────
-
-const cols = db.prepare("PRAGMA table_info(schedule_sets)").all() as { name: string }[];
-if (cols.length === 0) {
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS schedule_sets (
-      id            INTEGER PRIMARY KEY AUTOINCREMENT,
-      scenario_set_id INTEGER NOT NULL,
-      cron_expr     TEXT,
-      status        TEXT NOT NULL DEFAULT 'none',
-      next_run_at   TEXT,
-      last_run_at   TEXT,
-      last_run_status TEXT,
-      created_at    TEXT NOT NULL DEFAULT (datetime('now', '+8 hours')),
-      updated_at    TEXT NOT NULL DEFAULT (datetime('now', '+8 hours')),
-      FOREIGN KEY (scenario_set_id) REFERENCES scenario_sets(id) ON DELETE CASCADE
-    );
-    CREATE INDEX idx_schedule_sets_ssid ON schedule_sets(scenario_set_id);
-    CREATE INDEX idx_schedule_sets_status ON schedule_sets(status, next_run_at);
-  `);
-} else {
-  const colNames = cols.map(c => c.name);
-  if (!colNames.includes('last_run_at')) {
-    db.exec("ALTER TABLE schedule_sets ADD COLUMN last_run_at TEXT");
-  }
-  if (!colNames.includes('last_run_status')) {
-    db.exec("ALTER TABLE schedule_sets ADD COLUMN last_run_status TEXT");
-  }
 }
 
 // ── Helpers ────────────────────────────────────────────────
@@ -124,7 +102,7 @@ export function findScheduleSetsByUserIdPaginated(
       COALESCE(u.nickname, u.account) AS creator_name
     FROM scenario_sets rs
     JOIN users u ON u.id = rs.user_id
-    LEFT JOIN schedule_sets ss ON ss.scenario_set_id = rs.id
+    LEFT JOIN schedule_sets_api ss ON ss.scenario_set_id = rs.id
     WHERE rs.user_id = ?
     ORDER BY rs.updated_at DESC
     LIMIT ? OFFSET ?
@@ -161,11 +139,11 @@ export function findScheduleSetsByUserIdPaginated(
 }
 
 export function findScheduleSetById(id: number): ScheduleSetRow | undefined {
-  return db.prepare('SELECT * FROM schedule_sets WHERE id = ?').get(id) as ScheduleSetRow | undefined;
+  return db.prepare('SELECT * FROM schedule_sets_api WHERE id = ?').get(id) as ScheduleSetRow | undefined;
 }
 
 export function findScheduleSetByScenarioSetId(scenarioSetId: number): ScheduleSetRow | undefined {
-  return db.prepare('SELECT * FROM schedule_sets WHERE scenario_set_id = ?').get(scenarioSetId) as ScheduleSetRow | undefined;
+  return db.prepare('SELECT * FROM schedule_sets_api WHERE scenario_set_id = ?').get(scenarioSetId) as ScheduleSetRow | undefined;
 }
 
 export function createScheduleSet(data: {
@@ -175,7 +153,7 @@ export function createScheduleSet(data: {
   next_run_at?: string | null;
 }): number {
   const result = db.prepare(
-    `INSERT INTO schedule_sets (scenario_set_id, cron_expr, status, next_run_at)
+    `INSERT INTO schedule_sets_api (scenario_set_id, cron_expr, status, next_run_at)
      VALUES (?, ?, ?, ?)`
   ).run(
     data.scenario_set_id,
@@ -211,7 +189,7 @@ export function updateScheduleSet(
   fields.push("updated_at = datetime('now', '+8 hours')");
   values.push(id);
 
-  const result = db.prepare(`UPDATE schedule_sets SET ${fields.join(', ')} WHERE id = ?`).run(...values);
+  const result = db.prepare(`UPDATE schedule_sets_api SET ${fields.join(', ')} WHERE id = ?`).run(...values);
   return result.changes > 0;
 }
 
@@ -230,13 +208,13 @@ export function upsertScheduleSet(
 }
 
 export function deleteScheduleSet(id: number): boolean {
-  const result = db.prepare('DELETE FROM schedule_sets WHERE id = ?').run(id);
+  const result = db.prepare('DELETE FROM schedule_sets_api WHERE id = ?').run(id);
   return result.changes > 0;
 }
 
 export function findActiveScheduleSets(): ScheduleSetRow[] {
   return db.prepare(`
-    SELECT * FROM schedule_sets
+    SELECT * FROM schedule_sets_api
     WHERE status = 'active' AND next_run_at IS NOT NULL
   `).all() as ScheduleSetRow[];
 }

@@ -430,7 +430,14 @@ export async function executeScenario(
             const allAssertionResults: Record<string, unknown>[] = [];
             for (const apiResult of apiResults) {
               if (apiResult.assertion_results) {
-                allAssertionResults.push(...apiResult.assertion_results.map((r: { rule: AssertionRule; passed: boolean; actual: string }) => ({
+                // assertion_results is a phase-keyed object: { pre, main, post, final }
+                const flat = [
+                  ...apiResult.assertion_results.pre,
+                  ...apiResult.assertion_results.main,
+                  ...apiResult.assertion_results.post,
+                  ...apiResult.assertion_results.final,
+                ];
+                allAssertionResults.push(...flat.map((r: { rule: AssertionRule; passed: boolean; actual: string }) => ({
                   param_row_index: apiResult.param_row_index,
                   passed: r.passed,
                   actual: r.actual,

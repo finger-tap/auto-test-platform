@@ -45,6 +45,13 @@ export default function WebCaseList() {
   const [fStatus, setFStatus] = useState('');
   const [fTag, setFTag] = useState('');
 
+  const handleReset = () => {
+    setFName('');
+    setFStatus('');
+    setFTag('');
+    setPage(1);
+  };
+
   useEffect(() => {
     setLoading(true);
     const params = new URLSearchParams({

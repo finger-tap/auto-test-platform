@@ -110,11 +110,12 @@ export default function Home() {
       apiFetch<PaginatedResponse>('/scenarios?page=1&pageSize=1'),
       apiFetch<PaginatedResponse>('/scenario-sets?page=1&pageSize=1'),
       apiFetch<PaginatedResponse>('/web-cases?page=1&pageSize=1'),
-      apiFetch<PaginatedResponse>('/scenarios-web?page=1&pageSize=1'),
-      apiFetch<PaginatedResponse>('/scenario-sets-web?page=1&pageSize=1'),
+      apiFetch<PaginatedResponse>('/case-sets-web?page=1&pageSize=1'),
+      apiFetch<PaginatedResponse>('/case-sets-mobile?page=1&pageSize=1'),
       apiFetch<PaginatedResponse>('/mobile-tests?page=1&pageSize=1'),
       apiFetch<PaginatedResponse>('/pc-cases?page=1&pageSize=1'),
-    ]).then(([apiCasesRes, apiScenesRes, apiSetsRes, webCasesRes, webScenesRes, webSetsRes, mobileCasesRes, pcCasesRes]) => {
+      apiFetch<PaginatedResponse>('/case-sets-pc?page=1&pageSize=1'),
+    ]).then(([apiCasesRes, apiScenesRes, apiSetsRes, webCasesRes, webSetsRes, mobileSetsRes, mobileCasesRes, pcCasesRes, pcSetsRes]) => {
       console.log('API stats response:', apiCasesRes, apiScenesRes, apiSetsRes);
       setStats({
         'api-test': {
@@ -125,20 +126,20 @@ export default function Home() {
         },
         'web-test': {
           cases: webCasesRes.data?.total || 0,
-          scenarios: webScenesRes.data?.total || 0,
+          scenarios: 0,
           sets: webSetsRes.data?.total || 0,
           rate: 0,
         },
         'mobile-test': {
           cases: mobileCasesRes.data?.total || 0,
           scenarios: 0,
-          sets: 0,
+          sets: mobileSetsRes.data?.total || 0,
           rate: 0,
         },
         'pc-test': {
           cases: pcCasesRes.data?.total || 0,
           scenarios: 0,
-          sets: 0,
+          sets: pcSetsRes.data?.total || 0,
           rate: 0,
         },
       });
@@ -202,7 +203,11 @@ export default function Home() {
         <div className="home-subtitle">平台概览 — {dateStr}</div>
 
         <div className="kanban-grid">
-          {updateStats(testTypes).map(t => (
+          {updateStats(testTypes).map(t => {
+            const isApi = t.key === 'api-test';
+            const setsLabel = isApi ? '场景集' : '用例集';
+            const scenariosLabel = isApi ? '场景' : '用例集';
+            return (
             <div key={t.key} className="kanban-card" onClick={() => navigate(t.path)}>
               <div className="kanban-enter">
                 <button className="kanban-enter-btn" onClick={(e) => { e.stopPropagation(); navigate(t.path); }}>进入系统 →</button>
@@ -214,8 +219,8 @@ export default function Home() {
               <div className="kanban-desc">{t.desc}</div>
               <div className="kanban-stats">
                 <div><div className="kanban-stat-val">{loading ? '-' : t.stats.cases}</div><div className="kanban-stat-label">用例总数</div></div>
-                <div><div className="kanban-stat-val">{loading ? '-' : t.stats.scenarios}</div><div className="kanban-stat-label">场景</div></div>
-                <div><div className="kanban-stat-val">{loading ? '-' : t.stats.sets}</div><div className="kanban-stat-label">场景集</div></div>
+                {isApi && (<div><div className="kanban-stat-val">{loading ? '-' : t.stats.scenarios}</div><div className="kanban-stat-label">{scenariosLabel}</div></div>)}
+                <div><div className="kanban-stat-val">{loading ? '-' : t.stats.sets}</div><div className="kanban-stat-label">{setsLabel}</div></div>
               </div>
               <div className="kanban-rate">
                 <div className="kanban-rate-bar">
@@ -224,7 +229,8 @@ export default function Home() {
                 <div className="kanban-rate-val" style={{ color: t.stats.rate >= 90 ? 'var(--success)' : 'var(--success)' }}>{t.stats.rate}%</div>
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
 
         <div className="home-bottom">

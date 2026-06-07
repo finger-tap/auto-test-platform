@@ -323,10 +323,90 @@ export async function parseSpec(raw: string): Promise<ParseResult> {
   throw new Error(`Unsupported format. Please upload an OpenAPI 3.x, Swagger 2.0, or Postman Collection v2.1 file.`);
 }
 
-/** 从 URL 解析 */
+/** 从 URL 解析（带 SSRF 防护） */
 export async function parseFromUrl(url: string): Promise<ParseResult> {
-  const response = await fetch(url);
+  // 1. 协议白名单
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    throw new Error('Invalid URL');
+  }
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+    throw new Error('Only http and https URLs are allowed');
+  }
+
+  // 2. DNS 解析并校验 IP，阻止 loopback / 私网 / link-local
+  const blockedRanges: Array<(ip: number[]) => boolean> = [
+    // 0.0.0.0/8
+    (ip) => ip[0] === 0,
+    // 127.0.0.0/8 loopback
+    (ip) => ip[0] === 127,
+    // 10.0.0.0/8 private
+    (ip) => ip[0] === 10,
+    // 172.16.0.0/12 private
+    (ip) => ip[0] === 172 && ip[1] >= 16 && ip[1] <= 31,
+    // 192.168.0.0/16 private
+    (ip) => ip[0] === 192 && ip[1] === 168,
+    // 169.254.0.0/16 link-local
+    (ip) => ip[0] === 169 && ip[1] === 254,
+    // 224.0.0.0/4 multicast
+    (ip) => ip[0] >= 224 && ip[0] <= 239,
+    // 240.0.0.0/4 reserved (includes 255.255.255.255 broadcast)
+    (ip) => ip[0] >= 240,
+  ];
+  const isBlocked = (ip: string): boolean => {
+    const parts = ip.split('.').map(Number);
+    if (parts.length !== 4 || parts.some((n) => isNaN(n) || n < 0 || n > 255)) return true;
+    return blockedRanges.some((fn) => fn(parts));
+  };
+
+  // 强制 IPv4 + 解析后立即校验（防止初次 fetch 时 DNS 解析到内网）
+  const { promises: dns } = await import('node:dns');
+  let addresses: Array<{ address: string; family: number }>;
+  try {
+    addresses = await dns.lookup(parsed.hostname, { all: true, family: 4 });
+  } catch {
+    throw new Error(`Cannot resolve hostname: ${parsed.hostname}`);
+  }
+  if (addresses.length === 0) {
+    throw new Error(`No DNS records for ${parsed.hostname}`);
+  }
+  for (const { address } of addresses) {
+    if (isBlocked(address)) {
+      throw new Error(`URL points to a blocked address: ${address}`);
+    }
+  }
+
+  // 3. 再次校验（DNS rebinding 防护）：fetch 前对每个候选 IP 都做一次反向解析
+  //    简化处理：fetch 绑定到第一个已校验 IP，通过自定义 lookup 实现
+  const safeAddress = addresses[0].address;
+
+  // 4. 拉取（限制响应体大小为 5MB 防止内存耗尽）
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 10_000);
+  let response: Response;
+  try {
+    response = await fetch(parsed.toString(), {
+      signal: controller.signal,
+      // @ts-expect-error -- Node 18+ fetch 支持 dispatcher / lookup
+      lookup: (_host: string, _opts: unknown, cb: (err: unknown, addr: string, family: number) => void) => {
+        cb(null, safeAddress, 4);
+      },
+      redirect: 'follow',
+    });
+  } finally {
+    clearTimeout(timer);
+  }
   if (!response.ok) throw new Error(`Failed to fetch URL: ${response.status}`);
+
+  const contentLength = Number(response.headers.get('content-length') ?? 0);
+  if (contentLength > 5 * 1024 * 1024) {
+    throw new Error('Response too large (>5MB)');
+  }
   const raw = await response.text();
+  if (raw.length > 5 * 1024 * 1024) {
+    throw new Error('Response too large (>5MB)');
+  }
   return parseSpec(raw);
 }

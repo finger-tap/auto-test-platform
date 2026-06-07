@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef, type ReactNode } from 'react';
+import ReactDOM from 'react-dom/client';
+import { type ReactNode } from 'react';
 import './ConfirmDialog.css';
 
 interface ConfirmDialogProps {
@@ -48,6 +49,3 @@ export function confirm(message: string): Promise<boolean> {
     ReactDOM.createRoot(container).render(el);
   });
 }
-
-// 需要在文件顶部 import ReactDOM from 'react-dom'
-import ReactDOM from 'react-dom';

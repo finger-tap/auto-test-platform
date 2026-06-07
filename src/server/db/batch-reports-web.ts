@@ -27,7 +27,7 @@ export function findBatchReportsByUserIdPaginated(
     .prepare(
       `SELECT br.*, ss.name AS set_name
        FROM ${TABLE} br
-       JOIN scenario_sets_web ss ON ss.id = br.set_id
+       JOIN case_sets_web ss ON ss.id = br.set_id
        WHERE ss.user_id = ?
        ORDER BY br.executed_at DESC
        LIMIT ? OFFSET ?`,
@@ -37,7 +37,7 @@ export function findBatchReportsByUserIdPaginated(
     .prepare(
       `SELECT COUNT(*) AS count
        FROM ${TABLE} br
-       JOIN scenario_sets_web ss ON ss.id = br.set_id
+       JOIN case_sets_web ss ON ss.id = br.set_id
        WHERE ss.user_id = ?`,
     )
     .get(userId) as { count: number };
@@ -49,7 +49,7 @@ export function findBatchReportById(id: number): BatchReportItem | undefined {
     .prepare(
       `SELECT br.*, ss.name AS set_name
        FROM ${TABLE} br
-       JOIN scenario_sets_web ss ON ss.id = br.set_id
+       JOIN case_sets_web ss ON ss.id = br.set_id
        WHERE br.id = ?`,
     )
     .get(id) as BatchReportItem | undefined;

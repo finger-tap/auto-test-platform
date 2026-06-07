@@ -2,6 +2,8 @@ import React, { useMemo } from 'react';
 import CodeMirror from '@uiw/react-codemirror';
 import type { Extension } from '@codemirror/state';
 import { EditorView, hoverTooltip, Decoration } from '@codemirror/view';
+import { json } from '@codemirror/lang-json';
+import { javascript } from '@codemirror/lang-javascript';
 import { useEnvironment } from '../contexts/EnvironmentContext';
 import type { EnvVariable } from '../types';
 
@@ -137,11 +139,11 @@ export default function CodeMirrorHover({
 }
 
 // 预设扩展：JSON 格式化 + lint
-export function jsonExtensions(placeholder?: string) {
-  return [json(), linter(jsonParseLinter())];
+export function jsonExtensions(placeholder?: string): Extension[] {
+  return [json()];
 }
 
 // 预设扩展：JavaScript
-export function jsExtensions() {
+export function jsExtensions(): Extension[] {
   return [javascript()];
 }

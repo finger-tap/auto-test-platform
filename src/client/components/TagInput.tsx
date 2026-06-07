@@ -34,7 +34,7 @@ export default function TagInput({ value, onChange, onDirty, placeholder = '点�
 
   // 加载所有标签
   useEffect(() => {
-    apiFetch<{ data: TagInfo[] }>('/tags').then((res) => {
+    apiFetch<TagInfo[]>('/tags').then((res) => {
       if (res.code === 200 && res.data) setAllTags(res.data);
     }).catch(() => { /* ignore */ });
   }, []);

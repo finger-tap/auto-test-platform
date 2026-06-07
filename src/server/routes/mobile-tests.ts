@@ -8,9 +8,14 @@ import {
   deleteMobileTest,
   createMobileTestLog,
   findLogsByMobileTestCaseId,
+  createMobileCaseExecution,
+  finishMobileCaseExecution,
+  findMobileCaseExecutionsByCaseId,
 } from '../db/mobile-tests.js';
 import { findUserById } from '../db/users.js';
 import { executeMobileTest } from '../engine/mobile-executor.js';
+import { getDevice } from '../db/devices.js';
+import { relativeReportUrl } from '../engine/report-paths.js';
 
 export const mobileTestRoutes = Router();
 mobileTestRoutes.use(authMiddleware);
@@ -27,7 +32,12 @@ mobileTestRoutes.get('/', (req: Request, res: Response) => {
 
 // POST /api/mobile-tests
 mobileTestRoutes.post('/', (req: Request, res: Response) => {
-  const { name, description, platform, device_name, platform_version, app_package, app_activity, bundle_id, appium_url, capabilities, test_script, assertions, tags, status } = req.body;
+  const {
+    name, description, platform, device_name, platform_version,
+    app_package, app_activity, bundle_id, appium_url, capabilities,
+    test_script, assertions, preconditions, tags, status,
+    case_content, case_content_type,
+  } = req.body;
 
   if (!name || typeof name !== 'string' || !name.trim()) {
     res.status(400).json({ code: 400, message: 'Name is required' });
@@ -37,7 +47,9 @@ mobileTestRoutes.post('/', (req: Request, res: Response) => {
   const id = createMobileTest(req.user!.userId, {
     name: name.trim(), description, platform, device_name, platform_version,
     app_package, app_activity, bundle_id, appium_url, capabilities,
-    test_script, assertions, tags, status,
+    test_script, assertions, preconditions, tags, status,
+    case_content: typeof case_content === 'string' ? case_content : null,
+    case_content_type: case_content_type === 'yaml' ? 'yaml' : 'text',
   });
   res.status(201).json({ code: 201, message: 'Created', data: { id } });
 });
@@ -73,11 +85,18 @@ mobileTestRoutes.put('/:id', (req: Request, res: Response) => {
   const testCase = checkOwnership(req, res);
   if (!testCase) return;
 
-  const { name, description, platform, device_name, platform_version, app_package, app_activity, bundle_id, appium_url, capabilities, test_script, assertions, tags, status } = req.body;
+  const {
+    name, description, platform, device_name, platform_version,
+    app_package, app_activity, bundle_id, appium_url, capabilities,
+    test_script, assertions, preconditions, tags, status,
+    case_content, case_content_type,
+  } = req.body;
   updateMobileTest(testCase.id, {
     name, description, platform, device_name, platform_version,
     app_package, app_activity, bundle_id, appium_url, capabilities,
-    test_script, assertions, tags, status,
+    test_script, assertions, preconditions, tags, status,
+    case_content: typeof case_content === 'string' ? case_content : (case_content === null ? null : undefined),
+    case_content_type: case_content_type === 'yaml' || case_content_type === 'text' ? case_content_type : undefined,
   });
   res.json({ code: 200, message: 'Updated' });
 });
@@ -97,9 +116,30 @@ mobileTestRoutes.post('/:id/execute', async (req: Request, res: Response) => {
 
   const executor = findUserById(req.user!.userId);
   const executedBy = executor?.nickname || executor?.account || 'unknown';
+  const deviceId = Number(req.query.deviceId) || undefined;
+  const device = deviceId ? getDevice(deviceId) : null;
 
-  const result = await executeMobileTest(testCase, { executedBy });
+  // Phase 4: write a normalized mobile_case_executions row first.
+  const startedAt = new Date().toISOString();
+  const execId = createMobileCaseExecution(testCase.id, req.user!.userId, {
+    started_at: startedAt,
+    executed_by: executedBy,
+    device_id: device?.test_type === 'mobile' ? device.id : null,
+  });
 
+  const result = await executeMobileTest(testCase, { executedBy, deviceId, userId: req.user!.userId });
+
+  const finishedAt = new Date().toISOString();
+  finishMobileCaseExecution(execId, {
+    status: result.status,
+    finished_at: finishedAt,
+    duration_ms: result.duration_ms,
+    report_path: result.report_path || null,
+    report_type: result.report_path ? 'midscene-html' : null,
+    error_message: result.error_message || null,
+  });
+
+  // Backward-compat: also keep mobile_test_logs writable (UI shows legacy logs).
   const logId = createMobileTestLog(testCase.id, {
     status: result.status,
     duration_ms: result.duration_ms,
@@ -111,7 +151,33 @@ mobileTestRoutes.post('/:id/execute', async (req: Request, res: Response) => {
 
   res.json({
     code: 200, message: 'ok',
-    data: { id: logId, ...result, executed_by: executedBy },
+    data: {
+      id: logId,
+      execution_id: execId,
+      report_path: result.report_path || null,
+      report_url: result.report_path
+        ? relativeReportUrl('mobile', testCase.id, execId)
+        : null,
+      ...result,
+      executed_by: executedBy,
+    },
+  });
+});
+
+// GET /api/mobile-tests/:id/executions (Phase 4 — normalized execution history)
+mobileTestRoutes.get('/:id/executions', (req: Request, res: Response) => {
+  const testCase = checkOwnership(req, res);
+  if (!testCase) return;
+  const limit = Math.min(Number(req.query.limit) || 20, 100);
+  const items = findMobileCaseExecutionsByCaseId(testCase.id, limit);
+  res.json({
+    code: 200, message: 'ok',
+    data: items.map((e) => ({
+      ...e,
+      report_url: e.report_path
+        ? relativeReportUrl('mobile', testCase.id, e.id)
+        : null,
+    })),
   });
 });
 

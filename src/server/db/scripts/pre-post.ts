@@ -1,10 +1,16 @@
 /**
  * Pre/post script execution engine.
- * Scripts run in an isolated VM-like context with built-in functions available.
+ * Scripts run in an isolated Node.js vm context with built-in functions available.
  * Database queries are supported via the `db` object injected from the environment.
  * Supports multiple named databases per environment.
+ *
+ * Security: the vm context is created with `codeGeneration: { strings: false }`
+ * which blocks `eval()` / `new Function()` / `Function.prototype.constructor`
+ * from generating code from strings inside the sandbox, closing the classic
+ * `({}).constructor.constructor('return process')()` escape route.
  */
 
+import * as vm from 'node:vm';
 import { evalBuiltin, BUILTINS } from '../../engine/builtins.js';
 import type { DbConfig } from '../environments.js';
 
@@ -33,6 +39,9 @@ export interface ScriptResult {
   // Set new/modified variables for downstream nodes
   vars?: Record<string, string>;
 }
+
+const SCRIPT_TIMEOUT_MS = 5000;
+const CONDITION_TIMEOUT_MS = 1000;
 
 // Execute a JavaScript snippet in the sandbox
 export async function executeScript(script: string, ctx: ScriptContext): Promise<ScriptResult> {
@@ -69,7 +78,9 @@ export async function executeScript(script: string, ctx: ScriptContext): Promise
       }
     }
 
-    // Build the sandbox object passed into the script
+    // Build the sandbox object. Property reads inside the script resolve
+    // against this object as the script's global scope. Mutations to vars
+    // happen via setVar() (which closes over the host-side scriptVars).
     const sandbox = {
       // ── Variables ──
       // Spread env vars (read-only, not modified by script)
@@ -124,20 +135,41 @@ export async function executeScript(script: string, ctx: ScriptContext): Promise
       print: (...args: unknown[]) => args.join(' '),
     };
 
-    const keys = Object.keys(sandbox);
-    const vals = Object.values(sandbox);
+    // Hardening: prevent the script from generating new code via strings
+    // (eval, new Function, Function.prototype.constructor). This blocks
+    // the classic constructor-chain escape to the host realm.
+    vm.createContext(sandbox, {
+      name: 'pre-post-script',
+      codeGeneration: { strings: false, wasm: false },
+    });
 
-    // Build a function that has sandbox variables as local scope
-    const fn = new Function(...keys, `"use strict";\nreturn (async () => { ${script} })();`);
+    // Wrap the user script in an async IIFE so `await` works at top level.
+    // The IIFE captures any `return` inside the script as a function return.
+    const wrapped = `"use strict";\n(async () => { ${script} })();`;
+    const compiled = new vm.Script(wrapped, { filename: 'pre-post-script.js' });
 
-    // Capture console.log
+    // Capture console.log output emitted via the script's `console.log`
     const logs: unknown[] = [];
     const origLog = console.log;
     console.log = (...args: unknown[]) => logs.push(args.join(' '));
 
     let result: unknown;
     try {
-      result = await fn(...vals);
+      const promise = compiled.runInContext(sandbox, {
+        timeout: SCRIPT_TIMEOUT_MS,
+        displayErrors: true,
+      }) as Promise<unknown>;
+      // Race against a wall-clock timeout in case the script awaits
+      // an unresolvable promise (vm.Script's timeout is sync-only).
+      result = await Promise.race([
+        promise,
+        new Promise<never>((_, reject) =>
+          setTimeout(
+            () => reject(new Error(`Script execution exceeded ${SCRIPT_TIMEOUT_MS}ms timeout`)),
+            SCRIPT_TIMEOUT_MS
+          )
+        ),
+      ]);
     } finally {
       console.log = origLog;
     }
@@ -160,10 +192,15 @@ export async function executeScript(script: string, ctx: ScriptContext): Promise
 export function evalCondition(expr: string, ctx: ScriptContext): boolean {
   try {
     const sandbox = { ...ctx.vars, ...ctx.env };
-    const keys = Object.keys(sandbox);
-    const vals = Object.values(sandbox);
-    const fn = new Function(...keys, `"use strict";\nreturn ${expr};`);
-    const result = fn(...vals);
+    vm.createContext(sandbox, {
+      name: 'pre-post-condition',
+      codeGeneration: { strings: false, wasm: false },
+    });
+    const wrapped = `"use strict";\n(${expr});`;
+    const result = new vm.Script(wrapped, { filename: 'pre-post-condition.js' }).runInContext(
+      sandbox,
+      { timeout: CONDITION_TIMEOUT_MS, displayErrors: true }
+    );
     return Boolean(result);
   } catch {
     return false;

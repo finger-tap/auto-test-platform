@@ -25,7 +25,7 @@ export default function TagFilterSelect({
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    apiFetch<{ data: TagInfo[] }>('/tags').then(res => {
+    apiFetch<TagInfo[]>('/tags').then(res => {
       if (res.code === 200 && res.data) setTags(res.data);
     });
   }, []);

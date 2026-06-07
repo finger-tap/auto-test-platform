@@ -1,0 +1,82 @@
+.mrv-wrap {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 480px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--surface);
+}
+
+.mrv-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-alt, #f7f8fa);
+}
+
+.mrv-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--fg);
+}
+
+.mrv-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.mrv-btn {
+  padding: 4px 12px;
+  font-size: 12px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--surface);
+  color: var(--fg);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.mrv-btn:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.mrv-frame {
+  flex: 1;
+  width: 100%;
+  border: 0;
+  background: #fff;
+}
+
+.mrv-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 64px 16px;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  background: var(--surface-alt, #fafbfc);
+  min-height: 320px;
+  gap: 8px;
+}
+
+.mrv-empty-icon {
+  font-size: 36px;
+  opacity: 0.5;
+}
+
+.mrv-empty-text {
+  font-size: 14px;
+  color: var(--fg);
+  font-weight: 500;
+}
+
+.mrv-empty-hint {
+  font-size: 12px;
+  color: var(--fg-muted, #6b7280);
+}

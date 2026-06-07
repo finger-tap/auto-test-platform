@@ -7,8 +7,15 @@
   "scripts": {
     "dev": "node scripts/dev.mjs",
     "dev:server": "tsx watch src/server/index.ts",
+    "agent": "tsx src/agent/index.ts",
+    "dev:agent": "tsx watch src/agent/index.ts",
     "build": "vite build && tsc -p tsconfig.server.json",
-    "start": "node dist/server/index.js"
+    "build:agent": "tsc -p tsconfig.agent.json",
+    "start": "node dist/server/index.js",
+    "start:agent": "node dist/agent/index.js",
+    "test": "tsx src/server/engine/_phase2_smoke.ts",
+    "setup:drivers": "node scripts/install-playwright-drivers.mjs",
+    "postinstall": "node scripts/install-playwright-drivers.mjs"
   },
   "engines": {
     "node": ">=18.0.0"
@@ -30,6 +37,7 @@
     "better-sqlite3": "^12.10.0",
     "cors": "^2.8.5",
     "express": "^4.18.2",
+    "express-rate-limit": "^8.5.2",
     "js-yaml": "^4.1.1",
     "jsonwebtoken": "^9.0.3",
     "multer": "^2.1.1",
@@ -41,6 +49,7 @@
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-router-dom": "^7.15.0",
+    "ssh2": "^1.16.0",
     "swagger-parser": "^10.0.3",
     "ws": "^8.20.1"
   },
@@ -56,6 +65,7 @@
     "@types/node-cron": "^3.0.11",
     "@types/react": "^18.2.43",
     "@types/react-dom": "^18.2.17",
+    "@types/ssh2": "^1.15.0",
     "@vitejs/plugin-react": "^4.2.1",
     "tsx": "^4.7.0",
     "typescript": "^5.3.3",

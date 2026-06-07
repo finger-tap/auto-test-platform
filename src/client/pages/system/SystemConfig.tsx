@@ -19,7 +19,7 @@ export default function SystemConfig() {
 
   const fetchTags = () => {
     setLoading(true);
-    apiFetch<{ data: TagInfo[] }>('/tags').then(res => {
+    apiFetch<TagInfo[]>('/tags').then(res => {
       if (res.code === 200 && res.data) setTags(res.data);
     }).catch(() => notification.error('加载失败')).finally(() => setLoading(false));
   };

@@ -1,16 +1,26 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { apiFetch } from '../../utils/api';
 import { formatDateTime } from '../../utils/datetime';
 import FormSelect from '../../components/FormSelect';
 import './ScheduleList.css';
 
+// 2026-06-06 (#78): backend split into 4 per-type endpoints
+// (/schedule-sets-api|web|pc|mobile) after the scenario→case refactor.
+// The list component must talk to the right endpoint AND read the right
+// field name (API keeps scenario_set_id/scenario_set_name/scenario_count;
+// web/pc/mobile use case_set_id/case_set_name/case_count).
+type ScheduleTestType = 'api' | 'web' | 'pc' | 'mobile';
+
 interface ScheduleSetItem {
   id: number;
-  scenario_set_id: number;
-  scenario_set_name: string;
-  scenario_set_description: string | null;
-  scenario_count: number;
+  // Exactly one of these is populated depending on testType
+  scenario_set_id?: number;
+  scenario_set_name?: string;
+  scenario_count?: number;
+  case_set_id?: number;
+  case_set_name?: string;
+  case_count?: number;
   creator_name: string;
   cron_expr: string | null;
   status: 'none' | 'paused' | 'active';
@@ -19,6 +29,43 @@ interface ScheduleSetItem {
   last_run_status: string | null;
   created_at: string;
   updated_at: string;
+  // Stamped by fetchList — makes the rest of the file type-safe without casts.
+  // The API doesn't return these; the client adds them based on the mounted
+  // basePath so the modal/buttons can use the right endpoint.
+  testType?: ScheduleTestType;
+  setId?: number;
+  setName?: string;
+  setCount?: number;
+}
+
+// Resolve per-type config from the current basePath. basePath is the
+// React Router base the page is mounted at (e.g. /api-test, /web-test).
+function resolveType(basePath: string): ScheduleTestType {
+  if (basePath.startsWith('/api-test')) return 'api';
+  if (basePath.startsWith('/web-test')) return 'web';
+  if (basePath.startsWith('/pc-test')) return 'pc';
+  return 'mobile';
+}
+
+function endpointFor(type: ScheduleTestType): string {
+  return `/schedule-sets-${type}`;
+}
+
+// Read the right field for display. Returns a unified shape so the JSX
+// can use item.setId / item.setName / item.setCount without conditionals.
+function normalizeItem(item: ScheduleSetItem, type: ScheduleTestType) {
+  if (type === 'api') {
+    return {
+      setId: item.scenario_set_id ?? 0,
+      setName: item.scenario_set_name ?? '',
+      setCount: item.scenario_count ?? 0,
+    };
+  }
+  return {
+    setId: item.case_set_id ?? 0,
+    setName: item.case_set_name ?? '',
+    setCount: item.case_count ?? 0,
+  };
 }
 
 const STATUS_LABELS: Record<string, string> = { none: '未设置', paused: '暂停', active: '正常' };
@@ -31,7 +78,10 @@ const CRON_PRESETS = [
   { label: '每小时', value: '0 * * * *' },
 ];
 
-// Inline schedule config modal
+// Inline schedule config modal. The `item` shape comes pre-stamped with
+// testType + normalized setId/setName/setCount by the parent (see
+// fetchList in ScheduleList), so the modal can talk to the right endpoint
+// and render the right labels without re-deriving anything.
 function InlineScheduleConfig({ item, onClose, onUpdated }: {
   item: ScheduleSetItem;
   onClose: () => void;
@@ -48,6 +98,8 @@ function InlineScheduleConfig({ item, onClose, onUpdated }: {
   const [modalMsg, setModalMsg] = useState('');
   const [modalType, setModalType] = useState<'success' | 'error'>('success');
   const [modalOpen, setModalOpen] = useState(false);
+  // 2026-06-06 (#79): see field→cron effect below.
+  const skipFieldToCronSync = useRef(false);
 
   const MIN_OPTS = ['*', ...Array.from({ length: 60 }, (_, i) => String(i))];
   const HOUR_OPTS = ['*', ...Array.from({ length: 24 }, (_, i) => String(i))];
@@ -57,36 +109,80 @@ function InlineScheduleConfig({ item, onClose, onUpdated }: {
   const DOW_LABELS: Record<string, string> = { '*': '每天', '0': '周日', '1': '周一', '2': '周二', '3': '周三', '4': '周四', '5': '周五', '6': '周六' };
 
   useEffect(() => {
-    if (item.cron_expr) parseCron(item.cron_expr);
+    if (!item.cron_expr) return;
+    setCronExpr(item.cron_expr);
+    const parts = item.cron_expr.trim().split(/\s+/);
+    if (parts.length < 5) return;
+    // Mark sync as skip so the field→cron effect below doesn't overwrite the
+    // canonical cronExpr we just set with a re-derived copy of the same parts.
+    skipFieldToCronSync.current = true;
+    setMinute(parts[0]);
+    setHour(parts[1]);
+    setDay(parts[2]);
+    setMonth(parts[3]);
+    setDow(parts[4]);
   }, [item.cron_expr]);
 
-  function parseCron(expr: string) {
-    const parts = expr.trim().split(/\s+/);
-    if (parts.length >= 5) {
-      setMinute(parts[0]); setHour(parts[1]); setDay(parts[2]);
-      setMonth(parts[3]); setDow(parts[4]); setCronExpr(expr);
+  // 2026-06-06 (#79): canonical direction is 5 fields → cronExpr. Any select
+  // change flows through here. The skip flag breaks the loop when cronExpr
+  // → 5 fields is the source (typing in the cron input or clicking a preset)
+  // so we don't clobber the user's partial input by re-deriving it.
+  useEffect(() => {
+    if (skipFieldToCronSync.current) {
+      skipFieldToCronSync.current = false;
+      return;
     }
+    setCronExpr(`${minute} ${hour} ${day} ${month} ${dow}`);
+  }, [minute, hour, day, month, dow]);
+
+  // 2026-06-06 (#79): when the user picks a preset, set both the cron string
+  // and the 5 fields together. Mark the sync-skip so the effect above doesn't
+  // re-derive (it would, but writing the same string back is wasted work and
+  // can race with a subsequent keystroke).
+  function applyPreset(v: string) {
+    setCronExpr(v);
+    const parts = v.trim().split(/\s+/);
+    if (parts.length < 5) return;
+    skipFieldToCronSync.current = true;
+    setMinute(parts[0]);
+    setHour(parts[1]);
+    setDay(parts[2]);
+    setMonth(parts[3]);
+    setDow(parts[4]);
   }
 
-  function buildCron() { return `${minute} ${hour} ${day} ${month} ${dow}`; }
-  function applyPreset(v: string) { setCronExpr(v); parseCron(v); }
-  function applyFromFields() { setCronExpr(buildCron()); }
+  // 2026-06-06 (#79): typing in the cron input. The previous version called
+  // `applyFromFields()` from the select onChange, which read stale state
+  // (React batches setState calls — the new minute value wasn't visible
+  // yet when buildCron ran). The new design lets the field→cron effect
+  // own the direction instead.
   function handleExprChange(e: React.ChangeEvent<HTMLInputElement>) {
     const val = e.target.value;
     setCronExpr(val);
-    parseCron(val);
+    const parts = val.trim().split(/\s+/);
+    if (parts.length < 5) return;
+    skipFieldToCronSync.current = true;
+    setMinute(parts[0]);
+    setHour(parts[1]);
+    setDay(parts[2]);
+    setMonth(parts[3]);
+    setDow(parts[4]);
   }
 
   async function doSave(enableImmediately: boolean) {
     if (status !== 'none' && !cronExpr) { setModalType('error'); setModalMsg('请选择执行时间'); setModalOpen(true); return; }
+    // item is always stamped by the parent's fetchList; non-null asserted here
+    // because the modal only opens via setConfigItem(item) from the list JSX.
+    const ep = endpointFor(item.testType as ScheduleTestType);
     setSaving(true);
     try {
       const body = { cron_expr: cronExpr, status: enableImmediately ? 'active' : status };
       let res;
       if (item.id > 0) {
-        res = await apiFetch(`/schedule-sets/${item.id}/configure`, { method: 'PUT', body: JSON.stringify(body) });
+        res = await apiFetch(`${ep}/${item.id}/configure`, { method: 'PUT', body: JSON.stringify(body) });
       } else {
-        res = await apiFetch(`/schedule-sets/set/${item.scenario_set_id}`, { method: 'PUT', body: JSON.stringify(body) });
+        // item.setId is the resolved id (scenario_set_id for api, case_set_id for the rest)
+        res = await apiFetch(`${ep}/set/${item.setId}`, { method: 'PUT', body: JSON.stringify(body) });
       }
       const data = await res;
       setSaving(false);
@@ -111,8 +207,8 @@ function InlineScheduleConfig({ item, onClose, onUpdated }: {
           </div>
 
           <div style={{ background: '#fafafa', borderRadius: 8, padding: '12px 16px', marginBottom: 20, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-            <div><span style={{ fontSize: 12, color: '#999' }}>场景集</span><div style={{ fontSize: 14, marginTop: 2 }}>{item.scenario_set_name}</div></div>
-            <div><span style={{ fontSize: 12, color: '#999' }}>场景数</span><div style={{ fontSize: 14, marginTop: 2 }}>{item.scenario_count}</div></div>
+            <div><span style={{ fontSize: 12, color: '#999' }}>{item.testType === 'api' ? '场景集' : '用例集'}</span><div style={{ fontSize: 14, marginTop: 2 }}>{item.setName}</div></div>
+            <div><span style={{ fontSize: 12, color: '#999' }}>{item.testType === 'api' ? '场景数' : '用例数'}</span><div style={{ fontSize: 14, marginTop: 2 }}>{item.setCount}</div></div>
           </div>
 
           <div style={{ marginBottom: 16 }}>
@@ -139,7 +235,7 @@ function InlineScheduleConfig({ item, onClose, onUpdated }: {
               ].map(f => (
                 <div key={f.label} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                   <span style={{ fontSize: 12, color: '#666' }}>{f.label}</span>
-                  <select value={f.val} onChange={e => { f.set(e.target.value); applyFromFields(); }}
+                  <select value={f.val} onChange={e => f.set(e.target.value)}
                     style={{ padding: '5px 8px', border: '1px solid #d9d9d9', borderRadius: 6, minWidth: f.label === '分' ? 80 : 70 }}>
                     {f.opts.map(o => <option key={o} value={o}>{o === '*' ? `每${f.label}` : (f.label === '周' ? DOW_LABELS[o] || o : o)}</option>)}
                   </select>
@@ -192,11 +288,17 @@ function InlineScheduleConfig({ item, onClose, onUpdated }: {
 
 export default function ScheduleList({ basePath = '/api-test' }: { basePath?: string } = {}) {
   const navigate = useNavigate();
+  const testType = resolveType(basePath);
+  const ep = endpointFor(testType);
+  // 2026-06-06 (#78): API endpoints use /scene-set/{id}; web/pc/mobile use /case-set/{id}
+  const setPath = testType === 'api' ? 'scene-set' : 'case-set';
   const [list, setList] = useState<ScheduleSetItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [total, setTotal] = useState(0);
+  // Modal expects the enriched row (testType + normalized setId/setName/setCount).
+  // list items are stamped with those in fetchList so this assignment is safe.
   const [configItem, setConfigItem] = useState<ScheduleSetItem | null>(null);
   const [nameFilter, setNameFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
@@ -205,9 +307,12 @@ export default function ScheduleList({ basePath = '/api-test' }: { basePath?: st
   const fetchList = async (pageNum = 1, pageSz = pageSize) => {
     setLoading(true);
     try {
-      const res = await apiFetch<{ items: ScheduleSetItem[]; total: number; page: number; pageSize: number }>(`/schedule-sets?page=${pageNum}&pageSize=${pageSz}`);
+      const res = await apiFetch<{ items: ScheduleSetItem[]; total: number; page: number; pageSize: number }>(`${ep}?page=${pageNum}&pageSize=${pageSz}`);
       if (res.code === 200 && res.data) {
-        setList(res.data.items || []);
+        // Stamp each row with its testType so child components (modal/buttons)
+        // can build the right endpoint without prop-drilling basePath.
+        const items = (res.data.items || []).map(it => ({ ...it, testType, ...normalizeItem(it, testType) }));
+        setList(items);
         setTotal(res.data.total || 0);
         setPage(res.data.page || 1);
         setPageSize(res.data.pageSize || 10);
@@ -219,25 +324,25 @@ export default function ScheduleList({ basePath = '/api-test' }: { basePath?: st
 
   const handlePause = async (item: ScheduleSetItem) => {
     if (item.id <= 0) return;
-    await apiFetch(`/schedule-sets/${item.id}/pause`, { method: 'POST' });
+    await apiFetch(`${ep}/${item.id}/pause`, { method: 'POST' });
     fetchList(page);
   };
 
   const handleResume = async (item: ScheduleSetItem) => {
     if (item.id <= 0) return;
-    await apiFetch(`/schedule-sets/${item.id}/resume`, { method: 'POST' });
+    await apiFetch(`${ep}/${item.id}/resume`, { method: 'POST' });
     fetchList(page);
   };
 
   const handleRemove = async (item: ScheduleSetItem) => {
     if (item.id <= 0) return;
-    if (!confirm(`确认移除「${item.scenario_set_name}」的定时配置？`)) return;
-    await apiFetch(`/schedule-sets/${item.id}/remove`, { method: 'POST' });
+    if (!confirm(`确认移除「${item.setName}」的定时配置？`)) return;
+    await apiFetch(`${ep}/${item.id}/remove`, { method: 'POST' });
     fetchList(page);
   };
 
   const filtered = list.filter(item => {
-    if (nameFilter && !item.scenario_set_name.includes(nameFilter)) return false;
+    if (nameFilter && !(item.setName || '').includes(nameFilter)) return false;
     if (statusFilter && item.status !== statusFilter) return false;
     if (creatorFilter && !(item.creator_name || '').includes(creatorFilter)) return false;
     return true;
@@ -257,7 +362,7 @@ export default function ScheduleList({ basePath = '/api-test' }: { basePath?: st
       <div className="alist-filter">
         <div className="alist-filter-row">
           <div className="alist-filter-item">
-            <label>场景名称</label>
+            <label>{testType === 'api' ? '场景集名称' : '用例集名称'}</label>
             <input placeholder="搜索名称" value={nameFilter} onChange={e => setNameFilter(e.target.value)} />
           </div>
           <div className="alist-filter-item">
@@ -284,8 +389,8 @@ export default function ScheduleList({ basePath = '/api-test' }: { basePath?: st
           <table className="alist-table">
             <thead>
               <tr>
-                <th>场景集名称</th>
-                <th>场景数</th>
+                <th>{testType === 'api' ? '场景集名称' : '用例集名称'}</th>
+                <th>{testType === 'api' ? '场景数' : '用例数'}</th>
                 <th>创建人</th>
                 <th>任务状态</th>
                 <th>下次执行时间</th>
@@ -295,16 +400,16 @@ export default function ScheduleList({ basePath = '/api-test' }: { basePath?: st
             </thead>
             <tbody>
               {filtered.map(item => (
-                <tr key={item.scenario_set_id}>
-                  <td>{item.scenario_set_name}</td>
-                  <td>{item.scenario_count}</td>
+                <tr key={item.setId}>
+                  <td>{item.setName}</td>
+                  <td>{item.setCount}</td>
                   <td>{item.creator_name}</td>
                   <td><span className={getBadgeClass(item.status)}>{STATUS_LABELS[item.status]}</span></td>
                   <td className="td-next-run">{item.status === 'active' && item.next_run_at ? formatDateTime(item.next_run_at) : '—'}</td>
                   <td className="td-next-run">{item.last_run_at ? formatDateTime(item.last_run_at) : '—'}</td>
                   <td>
                     <div className="row-actions" style={{ gap: 4, flexWrap: 'wrap' }}>
-                      <button className="btn btn-sm" onClick={() => navigate(`${basePath}/scene-set/${item.scenario_set_id}`)}>进入</button>
+                      <button className="btn btn-sm" onClick={() => navigate(`${basePath}/${setPath}/${item.setId}`)}>进入</button>
                       <button className="btn btn-sm btn-default" onClick={() => setConfigItem(item)}>配置</button>
                       {item.status === 'active' && (
                         <button className="btn btn-sm" onClick={() => handlePause(item)}>暂停</button>

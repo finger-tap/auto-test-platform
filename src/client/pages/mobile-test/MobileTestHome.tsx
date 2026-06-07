@@ -6,8 +6,7 @@ import './MobileTestHome.css';
 
 interface Stats {
   caseCount: number;
-  scenarioCount: number;
-  scenarioSetCount: number;
+  caseSetCount: number;
   runningSets: number;
 }
 
@@ -39,21 +38,19 @@ const formatTimeShort = (iso: string) => {
 
 export default function MobileTestHome() {
   const navigate = useNavigate();
-  const [stats, setStats] = useState<Stats>({ caseCount: 0, scenarioCount: 0, scenarioSetCount: 0, runningSets: 0 });
+  const [stats, setStats] = useState<Stats>({ caseCount: 0, caseSetCount: 0, runningSets: 0 });
   const [reports, setReports] = useState<BatchReportItem[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     Promise.all([
       apiFetch<{ total: number }>('/mobile-tests?page=1&pageSize=1'),
-      apiFetch<{ total: number }>('/scenarios-mobile?page=1&pageSize=1'),
-      apiFetch<{ total: number }>('/scenario-sets-mobile?page=1&pageSize=1'),
+      apiFetch<{ total: number }>('/case-sets-mobile?page=1&pageSize=1'),
       apiFetch<{ items: BatchReportItem[] }>('/batch-reports-mobile?page=1&pageSize=5'),
-    ]).then(([casesRes, scenariosRes, setsRes, reportsRes]) => {
+    ]).then(([casesRes, setsRes, reportsRes]) => {
       setStats({
         caseCount: casesRes.data?.total || 0,
-        scenarioCount: scenariosRes.data?.total || 0,
-        scenarioSetCount: setsRes.data?.total || 0,
+        caseSetCount: setsRes.data?.total || 0,
         runningSets: 1,
       });
       setReports(reportsRes.data?.items || []);
@@ -66,9 +63,8 @@ export default function MobileTestHome() {
 
   const statCards = [
     { label: '用例总数', value: loading ? '-' : stats.caseCount, sub: `+5 本月新增`, color: 'var(--accent)' },
-    { label: '场景数', value: loading ? '-' : stats.scenarioCount, sub: `${stats.runningSets} 个运行中`, color: 'var(--accent)' },
     { label: '通过率', value: loading ? '-' : `${passRate}%`, sub: '最近 7 天', color: passRate >= 90 ? 'var(--success)' : 'var(--warning)' },
-    { label: '场景集数', value: loading ? '-' : stats.scenarioSetCount, sub: `${stats.runningSets} 个执行中`, color: 'var(--warning)' },
+    { label: '用例集数', value: loading ? '-' : stats.caseSetCount, sub: `${stats.runningSets} 个执行中`, color: 'var(--warning)' },
   ];
 
   const weekDays = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
@@ -94,7 +90,7 @@ export default function MobileTestHome() {
           <table className="dashboard-table">
             <thead>
               <tr>
-                <th>场景集</th>
+                <th>用例集</th>
                 <th>通过</th>
                 <th>失败</th>
                 <th>通过率</th>
@@ -155,9 +151,9 @@ export default function MobileTestHome() {
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2"><path d="M12 5v14M5 12h14"/></svg>
               新建用例
             </button>
-            <button className="shortcut-btn" onClick={() => navigate('/mobile-test/scene-case/new')}>
+            <button className="shortcut-btn" onClick={() => navigate('/mobile-test/case-set/new')}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>
-              新建场景
+              新建用例集
             </button>
             <button className="shortcut-btn" onClick={() => navigate('/mobile-test/environment')}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 01-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9"/></svg>

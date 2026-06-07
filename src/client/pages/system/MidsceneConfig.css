@@ -1,0 +1,236 @@
+/* MidsceneConfig page — extends SystemConfig card/head conventions */
+
+.msc-head-desc {
+  font-size: 13px;
+  color: var(--fg-tertiary);
+  margin-top: 6px;
+  max-width: 760px;
+  line-height: 1.55;
+}
+
+.msc-head-desc code {
+  background: var(--accent-subtle);
+  color: var(--accent);
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-size: 12px;
+  font-family: var(--font-mono, ui-monospace, monospace);
+}
+
+.msc-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.msc-field-full {
+  max-width: 520px;
+}
+
+.msc-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--fg-secondary);
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.msc-label em {
+  color: var(--danger);
+  font-style: normal;
+  font-size: 12px;
+  line-height: 1;
+}
+
+.msc-input {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 6px 10px;
+  font-size: 13px;
+  font-family: var(--font-sans);
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  background: var(--surface);
+  color: var(--fg);
+  box-sizing: border-box;
+}
+
+.msc-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-subtle);
+}
+
+.msc-select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background-image: linear-gradient(45deg, transparent 50%, var(--fg-tertiary) 50%),
+                    linear-gradient(135deg, var(--fg-tertiary) 50%, transparent 50%);
+  background-position: calc(100% - 14px) 50%, calc(100% - 9px) 50%;
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+  padding-right: 28px;
+  cursor: pointer;
+}
+
+.msc-input::placeholder {
+  color: var(--fg-tertiary);
+  font-size: 12px;
+}
+
+.msc-section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 20px 24px;
+  margin-bottom: 16px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.msc-section-head {
+  margin-bottom: 14px;
+  padding-bottom: 12px;
+  border-bottom: 1px dashed var(--border);
+}
+
+.msc-section-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--fg);
+  margin-bottom: 4px;
+}
+
+.msc-section-desc {
+  font-size: 12px;
+  color: var(--fg-tertiary);
+}
+
+.msc-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px 18px;
+}
+
+.msc-key-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.msc-key-wrap .msc-input {
+  padding-right: 36px;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  letter-spacing: 0.3px;
+}
+
+.msc-eye {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  font-size: 14px;
+  line-height: 1;
+  color: var(--fg-tertiary);
+  border-radius: 3px;
+  transition: color 0.15s, background 0.15s;
+}
+
+.msc-eye:hover {
+  color: var(--accent);
+  background: var(--accent-subtle);
+}
+
+.msc-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 24px;
+  padding: 0 4px;
+}
+
+.msc-btn-primary,
+.msc-btn-secondary {
+  font-size: 13px;
+  padding: 7px 18px;
+  border-radius: 4px;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: background 0.2s, border-color 0.2s, color 0.2s;
+  font-family: var(--font-sans);
+}
+
+.msc-btn-primary {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+
+.msc-btn-primary:hover:not(:disabled) {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+}
+
+.msc-btn-primary:disabled,
+.msc-btn-secondary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.msc-btn-secondary {
+  background: var(--surface);
+  color: var(--fg);
+  border-color: var(--border);
+}
+
+.msc-btn-secondary:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.msc-footnote {
+  margin-top: 28px;
+  padding: 14px 18px;
+  background: var(--accent-subtle);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 12px;
+  color: var(--fg-secondary);
+  line-height: 1.7;
+}
+
+.msc-hint {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--fg-secondary);
+  line-height: 1.5;
+}
+
+.msc-footnote-title {
+  font-weight: 600;
+  color: var(--fg);
+  margin-bottom: 4px;
+}
+
+.msc-footnote ul {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.msc-footnote li + li {
+  margin-top: 2px;
+}
+
+@media (max-width: 768px) {
+  .msc-grid {
+    grid-template-columns: 1fr;
+  }
+}

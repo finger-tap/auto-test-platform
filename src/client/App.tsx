@@ -16,12 +16,17 @@ import ScenarioList from './pages/scenario/ScenarioList';
 import ScenarioDetail from './pages/scenario/ScenarioDetail';
 import ScenarioSetList from './pages/scenario-set/ScenarioSetList';
 import ScenarioSetDetail from './pages/scenario-set/ScenarioSetDetail';
+import CaseSetList from './pages/case-set/CaseSetList';
+import CaseSetDetail from './pages/case-set/CaseSetDetail';
 import MockList from './pages/mock/MockList';
 import MockDetail from './pages/mock/MockDetail';
 import ScheduleList from './pages/schedule/ScheduleList';
 import EnvironmentList from './pages/environment/EnvironmentList';
 import EnvironmentDetail from './pages/environment/EnvironmentDetail';
 import SystemConfig from './pages/system/SystemConfig';
+import DeviceList from './pages/system/DeviceList';
+import MidsceneConfig from './pages/system/MidsceneConfig';
+import WebBrowserConfig from './pages/system/WebBrowserConfig';
 import MobileTestHome from './pages/mobile-test/MobileTestHome';
 import MobileTestList from './pages/mobile-test/MobileTestList';
 import MobileTestDetail from './pages/mobile-test/MobileTestDetail';
@@ -69,31 +74,32 @@ function App() {
                 <Route path="/api-test/environment/new" element={<EnvironmentDetail basePath="/api-test" />} />
                 <Route path="/api-test/environment/:id" element={<EnvironmentDetail basePath="/api-test" />} />
                 <Route path="/api-test/system-config" element={<SystemConfig />} />
-                
+                <Route path="/api-test/midscene-config" element={<MidsceneConfig />} />
+                <Route path="/api-test/devices" element={<DeviceList />} />
+
                 {/* === Web测试 /web-test === */}
                 <Route path="/web-test" element={<WebTestHome />} />
                 <Route path="/web-test/case" element={<WebCaseList />} />
                 <Route path="/web-test/case/new" element={<WebCaseDetail />} />
                 <Route path="/web-test/case/:id" element={<WebCaseDetail />} />
-                <Route path="/web-test/scene" element={<ScenarioList basePath="/web-test" testType="web" />} />
-                <Route path="/web-test/scene/:id" element={<ScenarioDetail basePath="/web-test" testType="web" />} />
-                <Route path="/web-test/scene-set" element={<ScenarioSetList basePath="/web-test" testType="web" />} />
-                <Route path="/web-test/scene-set/:id" element={<ScenarioSetDetail basePath="/web-test" testType="web" />} />
+                <Route path="/web-test/case-set" element={<CaseSetList basePath="/web-test" testType="web" />} />
+                <Route path="/web-test/case-set/:id" element={<CaseSetDetail basePath="/web-test" testType="web" />} />
                 <Route path="/web-test/schedule" element={<ScheduleList basePath="/web-test" />} />
                 <Route path="/web-test/environment" element={<EnvironmentList basePath="/web-test" />} />
                 <Route path="/web-test/environment/new" element={<EnvironmentDetail basePath="/web-test" />} />
                 <Route path="/web-test/environment/:id" element={<EnvironmentDetail basePath="/web-test" />} />
                 <Route path="/web-test/system-config" element={<SystemConfig />} />
-                
+                <Route path="/web-test/midscene-config" element={<MidsceneConfig />} />
+                <Route path="/web-test/browser-config" element={<WebBrowserConfig />} />
+                <Route path="/web-test/devices" element={<DeviceList />} />
+
                 {/* === 移动端测试 /mobile-test === */}
                 <Route path="/mobile-test" element={<MobileTestHome />} />
                 <Route path="/mobile-test/test-case" element={<MobileTestList />} />
                 <Route path="/mobile-test/test-case/new" element={<MobileTestDetail />} />
                 <Route path="/mobile-test/test-case/:id" element={<MobileTestDetail />} />
-                <Route path="/mobile-test/scene-case" element={<ScenarioList basePath="/mobile-test" testType="mobile" />} />
-                <Route path="/mobile-test/scene-case/:id" element={<ScenarioDetail basePath="/mobile-test" testType="mobile" />} />
-                <Route path="/mobile-test/scene-set" element={<ScenarioSetList basePath="/mobile-test" testType="mobile" />} />
-                <Route path="/mobile-test/scene-set/:id" element={<ScenarioSetDetail basePath="/mobile-test" testType="mobile" />} />
+                <Route path="/mobile-test/case-set" element={<CaseSetList basePath="/mobile-test" testType="mobile" />} />
+                <Route path="/mobile-test/case-set/:id" element={<CaseSetDetail basePath="/mobile-test" testType="mobile" />} />
                 <Route path="/mobile-test/schedule" element={<ScheduleList basePath="/mobile-test" />} />
                 <Route path="/mobile-test/mock" element={<MockList basePath="/mobile-test" testType="mobile" />} />
                 <Route path="/mobile-test/mock/:id" element={<MockDetail testType="mobile" />} />
@@ -101,21 +107,23 @@ function App() {
                 <Route path="/mobile-test/environment/new" element={<EnvironmentDetail basePath="/mobile-test" />} />
                 <Route path="/mobile-test/environment/:id" element={<EnvironmentDetail basePath="/mobile-test" />} />
                 <Route path="/mobile-test/system-config" element={<SystemConfig />} />
-                
+                <Route path="/mobile-test/midscene-config" element={<MidsceneConfig />} />
+                <Route path="/mobile-test/devices" element={<DeviceList />} />
+
                 {/* === PC测试 /pc-test === */}
                 <Route path="/pc-test" element={<PcTestHome />} />
                 <Route path="/pc-test/case" element={<PcCaseList />} />
                 <Route path="/pc-test/case/new" element={<PcCaseDetail />} />
                 <Route path="/pc-test/case/:id" element={<PcCaseDetail />} />
-                <Route path="/pc-test/scene" element={<ScenarioList basePath="/pc-test" testType="pc" />} />
-                <Route path="/pc-test/scene/:id" element={<ScenarioDetail basePath="/pc-test" testType="pc" />} />
-                <Route path="/pc-test/scene-set" element={<ScenarioSetList basePath="/pc-test" testType="pc" />} />
-                <Route path="/pc-test/scene-set/:id" element={<ScenarioSetDetail basePath="/pc-test" testType="pc" />} />
+                <Route path="/pc-test/case-set" element={<CaseSetList basePath="/pc-test" testType="pc" />} />
+                <Route path="/pc-test/case-set/:id" element={<CaseSetDetail basePath="/pc-test" testType="pc" />} />
                 <Route path="/pc-test/schedule" element={<ScheduleList basePath="/pc-test" />} />
                 <Route path="/pc-test/environment" element={<EnvironmentList basePath="/pc-test" />} />
                 <Route path="/pc-test/environment/new" element={<EnvironmentDetail basePath="/pc-test" />} />
                 <Route path="/pc-test/environment/:id" element={<EnvironmentDetail basePath="/pc-test" />} />
                 <Route path="/pc-test/system-config" element={<SystemConfig />} />
+                <Route path="/pc-test/midscene-config" element={<MidsceneConfig />} />
+                <Route path="/pc-test/devices" element={<DeviceList />} />
               </Route>
             </Route>
             <Route path="*" element={<Navigate to="/" replace />} />

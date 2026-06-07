@@ -1,0 +1,437 @@
+.device-list {
+  padding: 24px 32px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.device-list__header h2 {
+  font-size: 20px;
+  margin: 0 0 4px;
+  color: var(--text-primary, #1f2937);
+}
+
+.device-list__desc {
+  font-size: 13px;
+  color: var(--text-secondary, #6b7280);
+  margin: 0 0 20px;
+}
+
+.device-list__toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.device-list__filters {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.device-list__filters select,
+.device-list__filters input {
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--border-color, #e5e7eb);
+  border-radius: 6px;
+  font-size: 13px;
+  background: var(--bg-surface, #fff);
+  color: var(--text-primary, #1f2937);
+}
+
+.device-list__filters input {
+  min-width: 200px;
+}
+
+/* Custom caret for every <select> in this page — same SVG used by the
+   global .form-select so the look matches other forms in the app. */
+.device-list select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M3 4.5l3 3 3-3' fill='none' stroke='%236b7280' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 10px;
+  padding-right: 28px;
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.device-list select:hover {
+  border-color: var(--primary, #3b82f6);
+}
+.device-list select:focus {
+  outline: none;
+  border-color: var(--primary, #3b82f6);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+}
+
+.device-list__btn {
+  height: 32px;
+  padding: 0 14px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  font-size: 13px;
+  cursor: pointer;
+  transition: opacity 0.15s, background 0.15s;
+}
+
+.device-list__btn--primary {
+  background: var(--primary, #3b82f6);
+  color: #fff;
+}
+
+.device-list__btn--primary:hover {
+  opacity: 0.9;
+}
+
+.device-list__btn--secondary {
+  background: var(--bg-surface, #fff);
+  border-color: var(--border-color, #e5e7eb);
+  color: var(--text-primary, #1f2937);
+}
+
+.device-list__btn--secondary:hover {
+  background: var(--bg-hover, #f9fafb);
+}
+
+.device-list__btn--danger {
+  color: #ef4444;
+}
+
+.device-list__loading,
+.device-list__empty {
+  text-align: center;
+  padding: 60px 0;
+  color: var(--text-secondary, #6b7280);
+  font-size: 14px;
+}
+
+.device-list__table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--bg-surface, #fff);
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.device-list__table th,
+.device-list__table td {
+  padding: 10px 14px;
+  text-align: left;
+  border-bottom: 1px solid var(--border-color, #e5e7eb);
+  font-size: 13px;
+}
+
+.device-list__table th {
+  background: var(--bg-table-header, #f9fafb);
+  font-weight: 600;
+  color: var(--text-secondary, #6b7280);
+}
+
+.device-list__name {
+  font-weight: 500;
+  color: var(--text-primary, #1f2937);
+}
+
+.device-list__table code {
+  background: var(--bg-code, #f3f4f6);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 12px;
+  color: var(--text-primary, #1f2937);
+}
+
+.device-list__status {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.device-list__status--success {
+  background: rgba(34, 197, 94, 0.12);
+  color: #16a34a;
+}
+
+.device-list__status--error {
+  background: rgba(239, 68, 68, 0.12);
+  color: #dc2626;
+}
+
+.device-list__status--warning {
+  background: rgba(245, 158, 11, 0.12);
+  color: #d97706;
+}
+
+.device-list__actions {
+  display: flex;
+  gap: 4px;
+}
+
+.device-list__actions button {
+  background: transparent;
+  border: 1px solid var(--border-color, #e5e7eb);
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 12px;
+  cursor: pointer;
+  color: var(--text-primary, #1f2937);
+}
+
+.device-list__actions button:hover {
+  background: var(--bg-hover, #f9fafb);
+}
+
+.device-list__actions .device-list__btn--danger {
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+/* Online/offline state buttons — solid green for "go online" (push+start),
+   outlined red for "go offline" (stop). Same color language as the
+   status badge so the action's result is visually obvious. */
+.device-list__btn--offline {
+  background: #16a34a;
+  color: #fff;
+  border-color: #16a34a;
+  font-weight: 500;
+}
+.device-list__btn--offline:hover:not(:disabled) {
+  background: #15803d;
+  border-color: #15803d;
+}
+.device-list__btn--offline:disabled {
+  background: #86efac;
+  border-color: #86efac;
+  cursor: not-allowed;
+}
+
+.device-list__btn--online {
+  background: var(--bg-surface, #fff);
+  color: #dc2626;
+  border-color: rgba(239, 68, 68, 0.4);
+  font-weight: 500;
+}
+.device-list__btn--online:hover:not(:disabled) {
+  background: rgba(239, 68, 68, 0.08);
+  border-color: #ef4444;
+}
+.device-list__btn--online:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.device-list__modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.device-list__modal {
+  background: var(--bg-surface, #fff);
+  border-radius: 10px;
+  padding: 24px 28px;
+  width: 520px;
+  max-width: 92vw;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
+}
+
+.device-list__modal h3 {
+  margin: 0 0 18px;
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--text-primary, #1f2937);
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border-color, #e5e7eb);
+}
+
+.device-list__modal label {
+  display: block;
+  margin-bottom: 14px;
+}
+
+.device-list__modal label > span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary, #4b5563);
+  margin-bottom: 6px;
+}
+
+.device-list__modal label > span em {
+  color: #ef4444;
+  font-style: normal;
+  font-weight: 600;
+}
+
+.device-list__modal input,
+.device-list__modal select,
+.device-list__modal textarea {
+  width: 100%;
+  height: 34px;
+  padding: 0 10px;
+  border: 1px solid var(--border-color, #e5e7eb);
+  border-radius: 6px;
+  font-size: 13px;
+  font-family: var(--font-sans, inherit);
+  background: var(--bg-surface, #fff);
+  color: var(--text-primary, #1f2937);
+  box-sizing: border-box;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.device-list__modal input:hover,
+.device-list__modal select:hover,
+.device-list__modal textarea:hover {
+  border-color: #9ca3af;
+}
+
+.device-list__modal input:focus,
+.device-list__modal select:focus,
+.device-list__modal textarea:focus {
+  outline: none;
+  border-color: var(--primary, #3b82f6);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+}
+
+.device-list__modal textarea {
+  height: auto;
+  min-height: 110px;
+  padding: 8px 10px;
+  line-height: 1.5;
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 12px;
+  resize: vertical;
+}
+
+/* SSH push section — visually distinct sub-card so users see the
+   advanced configuration at a glance. */
+.device-list__ssh-section {
+  margin: 8px 0 18px;
+  border: 1px solid #e0e7ff;
+  border-radius: 8px;
+  background: linear-gradient(180deg, #f5f7ff 0%, #fafbff 100%);
+  overflow: hidden;
+}
+
+.device-list__ssh-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 14px;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid transparent;
+  font-size: 13px;
+  font-weight: 600;
+  color: #1e40af;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+.device-list__ssh-toggle:hover {
+  background: rgba(99, 102, 241, 0.06);
+}
+.device-list__ssh-toggle[aria-expanded="true"] {
+  border-bottom-color: #e0e7ff;
+}
+
+.device-list__ssh-toggle-arrow {
+  display: inline-block;
+  width: 10px;
+  font-size: 10px;
+  color: #6366f1;
+  transition: transform 0.15s;
+}
+.device-list__ssh-toggle-arrow--open {
+  transform: rotate(90deg);
+}
+
+.device-list__ssh-toggle-badge {
+  margin-left: auto;
+  font-size: 11px;
+  font-weight: 500;
+  color: #6366f1;
+  background: rgba(99, 102, 241, 0.12);
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+.device-list__ssh-body {
+  padding: 14px 16px 4px;
+}
+
+.device-list__ssh-grid {
+  display: grid;
+  grid-template-columns: 1fr 96px;
+  gap: 0 12px;
+}
+.device-list__ssh-grid label {
+  margin-bottom: 12px;
+}
+.device-list__ssh-grid label:nth-child(even) {
+  /* ssh_port col */
+}
+
+.device-list__hint {
+  display: block;
+  font-size: 11px;
+  color: var(--text-secondary, #6b7280);
+  margin: 4px 2px 12px;
+  line-height: 1.5;
+}
+.device-list__hint--warn {
+  color: #b45309;
+}
+
+.device-list__modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 20px;
+}
+
+.device-list__modal-actions button {
+  height: 32px;
+  padding: 0 14px;
+  border-radius: 6px;
+  border: 1px solid var(--border-color, #e5e7eb);
+  background: var(--bg-surface, #fff);
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text-primary, #1f2937);
+}
+
+.device-list__modal-actions button:hover {
+  background: var(--bg-hover, #f9fafb);
+}
+
+.device-list__modal-actions .device-list__btn--primary {
+  background: var(--primary, #3b82f6);
+  color: #fff;
+  border-color: transparent;
+}
+
+.device-list__modal-actions .device-list__btn--primary:hover {
+  /* 2026-06-07: keep the blue background on hover — without this, the
+     generic `.device-list__modal-actions button:hover` rule (specificity
+     0,2,1) wins over `.device-list__btn--primary` (0,2,0) and overrides
+     the background to near-white, leaving white text invisible. */
+  background: var(--primary, #3b82f6);
+  opacity: 0.9;
+}

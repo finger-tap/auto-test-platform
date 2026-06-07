@@ -1,10 +1,16 @@
 import jwt from 'jsonwebtoken';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'auto-test-platform-dev-secret';
+const JWT_SECRET_ENV = process.env.JWT_SECRET;
+const JWT_SECRET = JWT_SECRET_ENV || (process.env.NODE_ENV === 'production' ? '' : 'auto-test-platform-dev-secret-only-for-local');
 const TOKEN_EXPIRY = '24h';
 
-if (!process.env.JWT_SECRET && process.env.NODE_ENV === 'production') {
-  console.warn('Warning: Using default JWT secret in production. Set JWT_SECRET env variable.');
+if (!JWT_SECRET_ENV) {
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('JWT_SECRET environment variable is required in production. Refusing to start with a default secret.');
+  }
+  console.warn('[jwt] Using default dev JWT secret. Set JWT_SECRET env variable before deploying.');
+} else if (JWT_SECRET_ENV.length < 32) {
+  throw new Error('JWT_SECRET must be at least 32 characters long.');
 }
 
 export interface TokenPayload {

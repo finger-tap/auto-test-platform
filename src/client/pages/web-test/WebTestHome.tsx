@@ -32,21 +32,19 @@ const formatTimeShort = (iso: string) => {
 
 export default function WebTestHome() {
   const navigate = useNavigate();
-  const [stats, setStats] = useState({ caseCount: 0, scenarioCount: 0, scenarioSetCount: 0, runningSets: 0 });
+  const [stats, setStats] = useState({ caseCount: 0, caseSetCount: 0, runningSets: 0 });
   const [reports, setReports] = useState<BatchReportItem[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     Promise.all([
       apiFetch<{ total: number }>('/web-cases?page=1&pageSize=1').catch(() => ({ data: { total: 0 } })),
-      apiFetch<{ total: number }>('/scenarios-web?page=1&pageSize=1').catch(() => ({ data: { total: 0 } })),
-      apiFetch<{ total: number }>('/scenario-sets-web?page=1&pageSize=1').catch(() => ({ data: { total: 0 } })),
+      apiFetch<{ total: number }>('/case-sets-web?page=1&pageSize=1').catch(() => ({ data: { total: 0 } })),
       apiFetch<{ items: BatchReportItem[] }>('/batch-reports-web?page=1&pageSize=5').catch(() => ({ data: { items: [] } })),
-    ]).then(([casesRes, scenesRes, setsRes, reportsRes]) => {
+    ]).then(([casesRes, setsRes, reportsRes]) => {
       setStats({
         caseCount: casesRes.data?.total || 0,
-        scenarioCount: scenesRes.data?.total || 0,
-        scenarioSetCount: setsRes.data?.total || 0,
+        caseSetCount: setsRes.data?.total || 0,
         runningSets: 1,
       });
       setReports(reportsRes.data?.items || []);
@@ -59,9 +57,8 @@ export default function WebTestHome() {
 
   const statCards = [
     { label: '用例总数', value: loading ? '-' : stats.caseCount, sub: `+8 本月新增`, color: 'var(--accent)' },
-    { label: '场景数', value: loading ? '-' : stats.scenarioCount, sub: `${stats.runningSets} 个运行中`, color: 'var(--accent)' },
     { label: '通过率', value: loading ? '-' : `${passRate}%`, sub: '最近 7 天', color: 'var(--success)' },
-    { label: '场景集数', value: loading ? '-' : stats.scenarioSetCount, sub: `${stats.runningSets} 个执行中`, color: 'var(--warning)' },
+    { label: '用例集数', value: loading ? '-' : stats.caseSetCount, sub: `${stats.runningSets} 个执行中`, color: 'var(--warning)' },
   ];
 
   return (
@@ -84,7 +81,7 @@ export default function WebTestHome() {
           <table className="dashboard-table">
             <thead>
               <tr>
-                <th>场景集</th>
+                <th>用例集</th>
                 <th>通过</th>
                 <th>失败</th>
                 <th>通过率</th>

@@ -1,36 +1,45 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import CodeMirror from '@uiw/react-codemirror';
 import { json, jsonParseLinter } from '@codemirror/lang-json';
 import { linter } from '@codemirror/lint';
+import MidsceneReportViewer from '../../components/MidsceneReportViewer';
+import { CaseContentEditor, type CaseContentType } from '../../components/CaseContentEditor';
 import { apiFetch } from '../../utils/api';
 import { formatDateTime } from '../../utils/datetime';
 import notification from '../../utils/notification';
-import type { MobileTestCase, MobileTestLog, MobileTestStep, AssertionRule } from '../../types';
+import type { MobileTestCase, MobileTestLog, AssertionRule } from '../../types';
 import './MobileTestDetail.css';
 
 const TABS = [
   { key: 'detail', label: '详情' },
+  { key: 'precondition', label: '前置动作' },
   { key: 'device', label: '设备配置' },
   { key: 'app', label: '应用配置' },
-  { key: 'steps', label: '测试步骤' },
+  { key: 'content', label: '用例内容' },
   { key: 'assertions', label: '断言' },
   { key: 'advanced', label: '高级配置' },
   { key: 'logs', label: '执行记录' },
 ];
 
-const STEP_ACTIONS: { value: MobileTestStep['action']; label: string }[] = [
-  { value: 'launch', label: '启动应用' },
-  { value: 'tap', label: '点击' },
-  { value: 'input', label: '输入' },
-  { value: 'swipe', label: '滑动' },
-  { value: 'scroll', label: '滚动' },
-  { value: 'screenshot', label: '截图' },
-  { value: 'assert', label: '断言' },
-  { value: 'back', label: '返回' },
-  { value: 'home', label: 'Home' },
-  { value: 'sleep', label: '等待' },
-];
+// Legacy migration: convert the old 10-action JSON shape (test_script) into
+// a flat natural-language string. New code stores case_content directly; this
+// only fires for rows saved before 2026-06-04.
+function legacyMobileScriptToText(testScript: string): string {
+  try {
+    const actions = JSON.parse(testScript) as Array<Record<string, unknown>>;
+    if (!Array.isArray(actions) || actions.length === 0) return '';
+    const lines = actions.map((a, i) => {
+      const action = String(a.action || '');
+      const target = a.target ? ` "${String(a.target)}"` : '';
+      const value = a.value !== undefined && a.value !== '' ? ` 值: ${String(a.value)}` : '';
+      return `${i + 1}. ${action}${target}${value}`;
+    });
+    return `# 旧版 10-action 脚本(只读,保存后将迁移到新的用例内容)\n${lines.join('\n')}`;
+  } catch {
+    return '';
+  }
+}
 
 const ASSERTION_OPERATORS = [
   { value: 'equals', label: '等于' },
@@ -46,11 +55,6 @@ const STATUS_OPTIONS = [
   { value: 'disabled', label: '禁用' },
   { value: 'draft', label: '草稿' },
 ];
-
-const defaultStep = (index: number): MobileTestStep => ({
-  action: 'tap',
-  target: '',
-});
 
 const defaultAssertion = (index: number): AssertionRule => ({
   name: `规则${index}`,
@@ -92,8 +96,14 @@ export default function MobileTestDetail() {
   const [appActivity, setAppActivity] = useState('');
   const [bundleId, setBundleId] = useState('');
 
-  // Steps
-  const [steps, setSteps] = useState<MobileTestStep[]>([defaultStep(0)]);
+  // Case content (replaces the old per-step editor)
+  const [caseContent, setCaseContent] = useState('');
+  const [caseContentType, setCaseContentType] = useState<CaseContentType>('text');
+
+  // Precondition: a single natural-language action handed to Midscene's
+  // `aiAct` before the main case content runs. Old rows may store a JSON
+  // NLStep[] — the load effect flattens those into a single text.
+  const [preconditions, setPreconditions] = useState('');
 
   // Assertions
   const [assertions, setAssertions] = useState<AssertionRule[]>([defaultAssertion(0)]);
@@ -103,6 +113,10 @@ export default function MobileTestDetail() {
 
   // Logs
   const [logs, setLogs] = useState<MobileTestLog[]>([]);
+  const [latestReportUrl, setLatestReportUrl] = useState<string | null>(null);
+
+  // Toast
+  const [toast, setToast] = useState<{ type: 'success' | 'error' | 'info'; msg: string } | null>(null);
 
 
 
@@ -124,10 +138,30 @@ export default function MobileTestDetail() {
         setAppActivity(d.app_activity || '');
         setBundleId(d.bundle_id || '');
         setCapabilities(tryFormatJson(d.capabilities));
-        try {
-          const s = JSON.parse(d.test_script || '[]');
-          setSteps(s.length > 0 ? s : [defaultStep(0)]);
-        } catch { setSteps([defaultStep(0)]); }
+        if (d.case_content !== undefined && d.case_content !== null) {
+          setCaseContent(d.case_content);
+          setCaseContentType(d.case_content_type === 'yaml' ? 'yaml' : 'text');
+        } else if (d.test_script) {
+          // Legacy row: surface the old 10-action script as readable text
+          // so the user can re-author it in the new editor.
+          setCaseContent(legacyMobileScriptToText(d.test_script));
+          setCaseContentType('text');
+        } else {
+          setCaseContent('');
+          setCaseContentType('text');
+        }
+        if (d.preconditions) {
+          // Backward compat: old rows may store a JSON NLStep[].
+          const t = d.preconditions.trimStart();
+          if (t.startsWith('[')) {
+            try {
+              const legacy = JSON.parse(d.preconditions) as Array<{ description?: string; expect?: string }>;
+              setPreconditions(legacy.map(s => s.expect ? `${s.description}\n期望: ${s.expect}` : (s.description || '')).filter(Boolean).join('\n'));
+            } catch { setPreconditions(d.preconditions); }
+          } else {
+            setPreconditions(d.preconditions);
+          }
+        }
         try {
           const a = JSON.parse(d.assertions || '[]');
           setAssertions(a.length > 0 ? a : [defaultAssertion(0)]);
@@ -143,6 +177,18 @@ export default function MobileTestDetail() {
       if (res.code === 200 && res.data) setLogs(res.data);
     });
   }, [id, isNew, executing]);
+
+  // Phase 5: load latest execution with a Midscene report (if any)
+  useEffect(() => {
+    if (isNew) return;
+    apiFetch<any>(`/mobile-tests/${id}/executions?limit=1`).then(res => {
+      if (res.code === 200 && res.data && res.data.length > 0) {
+        setLatestReportUrl(res.data[0].report_url || null);
+      } else {
+        setLatestReportUrl(null);
+      }
+    }).catch(() => setLatestReportUrl(null));
+  }, [id, isNew, logs.length]);
 
   const handleSave = async () => {
     if (!name.trim()) { notification.error('请输入用例名称'); return; }
@@ -161,7 +207,13 @@ export default function MobileTestDetail() {
         app_activity: appActivity,
         bundle_id: bundleId,
         capabilities: capabilities || null,
-        test_script: JSON.stringify(steps),
+        case_content: caseContent,
+        case_content_type: caseContentType,
+        preconditions,
+        // Keep test_script populated so the legacy 10-action executor path
+        // (Phase 4 deviation) still works on old data until the next save
+        // overwrites it with the new case_content.
+        test_script: JSON.stringify([]),
         assertions: JSON.stringify(assertions),
       };
 
@@ -211,13 +263,6 @@ export default function MobileTestDetail() {
     await apiFetch(`/mobile-tests/${id}`, { method: 'DELETE' });
     navigate('/mobile-test/test-case');
   };
-
-  // Step management
-  const updateStep = (i: number, field: keyof MobileTestStep, value: string | number) => {
-    setSteps(prev => prev.map((s, idx) => idx === i ? { ...s, [field]: value } : s));
-  };
-  const addStep = () => setSteps(prev => [...prev, defaultStep(prev.length)]);
-  const removeStep = (i: number) => setSteps(prev => prev.filter((_, idx) => idx !== i));
 
   // Assertion management
   const updateAssertion = (i: number, field: keyof AssertionRule, value: string) => {
@@ -301,6 +346,24 @@ export default function MobileTestDetail() {
           </div>
         )}
 
+        {/* ── Precondition ── */}
+        {activeTab === 'precondition' && (
+          <div className="mtd-form">
+            <div className="mtd-field">
+              <label>前置动作(自然语言描述,执行用例前由 Midscene aiAct 执行)</label>
+              <textarea
+                value={preconditions}
+                onChange={e => setPreconditions(e.target.value)}
+                placeholder="例:打开应用,确认未登录状态"
+                rows={8}
+              />
+              <div className="mtd-field-hint">
+                留空则不执行前置动作。整段文本会原样交给 Midscene 的 aiAct()。
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* ── Device Config ── */}
         {activeTab === 'device' && (
           <div className="mtd-form">
@@ -368,63 +431,15 @@ export default function MobileTestDetail() {
           </div>
         )}
 
-        {/* ── Test Steps ── */}
-        {activeTab === 'steps' && (
+        {/* ── Case Content ── */}
+        {activeTab === 'content' && (
           <div className="mtd-form">
-            <div className="mtd-steps">
-              {steps.map((step, i) => (
-                <div key={i} className="mtd-step-row">
-                  <div className="mtd-step-num">{i + 1}</div>
-                  <select
-                    className="mtd-step-action"
-                    value={step.action}
-                    onChange={e => updateStep(i, 'action', e.target.value)}
-                  >
-                    {STEP_ACTIONS.map(a => <option key={a.value} value={a.value}>{a.label}</option>)}
-                  </select>
-                  {(step.action === 'tap' || step.action === 'input' || step.action === 'assert' || step.action === 'swipe') && (
-                    <input
-                      className="mtd-step-input"
-                      value={step.target || ''}
-                      onChange={e => updateStep(i, 'target', e.target.value)}
-                      placeholder={step.action === 'tap' || step.action === 'swipe' ? '坐标 x,y 或元素描述' : '目标元素'}
-                    />
-                  )}
-                  {step.action === 'input' && (
-                    <input
-                      className="mtd-step-input"
-                      value={step.value || ''}
-                      onChange={e => updateStep(i, 'value', e.target.value)}
-                      placeholder="输入内容"
-                    />
-                  )}
-                  {step.action === 'sleep' && (
-                    <input
-                      className="mtd-step-input"
-                      type="number"
-                      value={step.duration || 1000}
-                      onChange={e => updateStep(i, 'duration', Number(e.target.value))}
-                      placeholder="毫秒"
-                      style={{ maxWidth: 100 }}
-                    />
-                  )}
-                  {step.action === 'scroll' && (
-                    <select
-                      className="mtd-step-action"
-                      value={step.direction || 'down'}
-                      onChange={e => updateStep(i, 'direction', e.target.value)}
-                    >
-                      <option value="up">上</option>
-                      <option value="down">下</option>
-                      <option value="left">左</option>
-                      <option value="right">右</option>
-                    </select>
-                  )}
-                  <button className="mtd-step-del" onClick={() => removeStep(i)} title="删除">×</button>
-                </div>
-              ))}
-            </div>
-            <button className="mtd-step-add" onClick={addStep}>+ 添加步骤</button>
+            <CaseContentEditor
+              value={caseContent}
+              type={caseContentType}
+              onChange={setCaseContent}
+              onTypeChange={setCaseContentType}
+            />
           </div>
         )}
 
@@ -476,6 +491,7 @@ export default function MobileTestDetail() {
         {/* ── Logs ── */}
         {activeTab === 'logs' && (
           <div className="mtd-form">
+            <MidsceneReportViewer reportPath={latestReportUrl} label="最近一次执行的 Midscene 报告" />
             {logs.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '40px 0', color: '#999' }}>暂无执行记录</div>
             ) : (

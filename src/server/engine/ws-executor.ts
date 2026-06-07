@@ -5,6 +5,7 @@
  */
 
 import WebSocket from 'ws';
+import * as https from 'node:https';
 import { evalBuiltin } from './builtins.js';
 import { evaluateAssertions } from './api-executor.js';
 import type { AssertionRule } from '../db/apis.js';
@@ -50,7 +51,7 @@ export async function executeWsSession(
 
     const wsOptions: Record<string, unknown> = {};
     if (agentOptions) {
-      wsOptions.agent = new (require('https').Agent)(agentOptions);
+      wsOptions.agent = new https.Agent(agentOptions);
     }
 
     try {

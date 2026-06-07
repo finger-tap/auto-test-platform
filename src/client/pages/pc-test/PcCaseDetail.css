@@ -243,13 +243,6 @@
   flex: 1;
 }
 
-.nl-step-action {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--fg);
-  margin-bottom: 4px;
-}
-
 .nl-step-desc {
   font-size: 13px;
   color: var(--fg-secondary);
@@ -683,4 +676,32 @@
   to { opacity: 1; transform: translateY(0); }
 }
 /* .pc-case-detail .scenario-btn 统一定义在 App.css 的 .scenario-btn */
+
+/* ── Precondition natural-language textarea ── */
+.nl-precondition-textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border, #d9d9d9);
+  border-radius: 6px;
+  font-size: 13px;
+  font-family: inherit;
+  line-height: 1.6;
+  resize: vertical;
+  min-height: 120px;
+  outline: none;
+  box-sizing: border-box;
+  background: #fff;
+  color: var(--fg, #333);
+}
+
+.nl-precondition-textarea:focus {
+  border-color: var(--primary, #1677ff);
+  box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.1);
+}
+
+.nl-precondition-hint {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--fg-tertiary, #888);
+}
 

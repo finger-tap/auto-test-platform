@@ -214,9 +214,9 @@ export default function ApiDetail() {
         if (isBatch) {
           // Fetch details for batch leader and all sub executions
           const [leaderDetail, ...subDetails] = await Promise.all([
-            apiFetch<ApiExecution & { steps: ApiExecutionStep[] }>(`/apis/${realIdRef.current}/executions/${firstExec.id}`) as { code: number; data?: ApiExecution & { steps: ApiExecutionStep[] } },
+            apiFetch<ApiExecution & { steps: ApiExecutionStep[] }>(`/apis/${realIdRef.current}/executions/${firstExec.id}`),
             ...firstExec.sub_executions!.map(sub =>
-              apiFetch<ApiExecution & { steps: ApiExecutionStep[] }>(`/apis/${realIdRef.current}/executions/${sub.id}`) as { code: number; data?: ApiExecution & { steps: ApiExecutionStep[] } }
+              apiFetch<ApiExecution & { steps: ApiExecutionStep[] }>(`/apis/${realIdRef.current}/executions/${sub.id}`)
             )
           ]);
           const subsWithDetails = subDetails.map(r => r.data).filter(Boolean) as ApiExecution[];
@@ -379,9 +379,9 @@ export default function ApiDetail() {
       if (isBatch) {
         // Fetch details for batch leader and all sub executions
         const [leaderDetail, ...subDetails] = await Promise.all([
-          apiFetch<ApiExecution & { steps: ApiExecutionStep[] }>(`/apis/${id}/executions/${exec.id}`) as { code: number; data?: ApiExecution & { steps: ApiExecutionStep[] } },
+          apiFetch<ApiExecution & { steps: ApiExecutionStep[] }>(`/apis/${id}/executions/${exec.id}`),
           ...exec.sub_executions!.map(sub =>
-            apiFetch<ApiExecution & { steps: ApiExecutionStep[] }>(`/apis/${id}/executions/${sub.id}`) as { code: number; data?: ApiExecution & { steps: ApiExecutionStep[] } }
+            apiFetch<ApiExecution & { steps: ApiExecutionStep[] }>(`/apis/${id}/executions/${sub.id}`)
           )
         ]);
         const subsWithDetails = subDetails.map(r => r.data).filter(Boolean) as ApiExecution[];

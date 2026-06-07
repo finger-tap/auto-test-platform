@@ -197,6 +197,9 @@ const tableMigrations: { table: string; columns: { name: string; sql: string }[]
     { name: 'created_by', sql: 'TEXT' },
     { name: 'updated_by', sql: 'TEXT' },
   ]},
+  { table: 'web_browser_config', columns: [
+    { name: 'keep_context_alive', sql: 'INTEGER' },
+  ]},
 ];
 
 try {
@@ -204,7 +207,7 @@ try {
     const cols = db.prepare(`PRAGMA table_info(${mig.table})`).all() as { name: string }[];
     for (const col of mig.columns) {
       if (!cols.some(c => c.name === col.name)) {
-        db.exec(`ALTER TABLE ${mig.table} ADD COLUMN ${col.name} TEXT`);
+        db.exec(`ALTER TABLE ${mig.table} ADD COLUMN ${col.name} ${col.sql}`);
       }
     }
   }
@@ -505,6 +508,83 @@ db.exec(`
   );
 
   CREATE INDEX IF NOT EXISTS idx_environments_user_id ON environments(user_id);
+`);
+
+// 2026-06-05: per-user Midscene model configuration. One row per user.
+// Columns mirror the MIDSCENE_* env vars. The web/pc/mobile executors read
+// this row before each case and call Midscene's overrideAIConfig() so the
+// next execution picks up the new model without a server restart.
+db.exec(`
+  CREATE TABLE IF NOT EXISTS midscene_config (
+    user_id INTEGER PRIMARY KEY,
+    -- Default intent (the only one currently required by Midscene)
+    model_name TEXT,
+    model_api_key TEXT,
+    model_base_url TEXT,
+    model_family TEXT,
+    model_timeout INTEGER,
+    model_temperature REAL,
+    -- Insight intent (element localization / assertion)
+    insight_model_name TEXT,
+    insight_model_api_key TEXT,
+    insight_model_base_url TEXT,
+    insight_model_family TEXT,
+    insight_model_timeout INTEGER,
+    insight_model_temperature REAL,
+    -- Planning intent (action decomposition)
+    planning_model_name TEXT,
+    planning_model_api_key TEXT,
+    planning_model_base_url TEXT,
+    planning_model_family TEXT,
+    planning_model_timeout INTEGER,
+    planning_model_temperature REAL,
+    -- Preferences
+    preferred_language TEXT,
+    -- 2026-06-06: per-user Midscene report storage path. null = use the
+    -- default REPORTS_ROOT (data/midscene-reports). Absolute path on disk.
+    -- Read by src/server/engine/report-paths.ts:generateReportPath() and
+    -- src/server/index.ts:serveMidsceneReport() to dynamically resolve the
+    -- filesystem location of /midscene-reports/* URLs.
+    report_storage_path TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now', '+8 hours')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now', '+8 hours')),
+    FOREIGN KEY (user_id) REFERENCES users(id)
+  );
+`);
+
+// Idempotent migration for already-existing midscene_config tables that
+// pre-date the report_storage_path column. CREATE TABLE IF NOT EXISTS
+// does NOT add new columns to an existing table, so we add it here.
+// The PRAGMA + ALTER pattern matches the rest of this file.
+const mscCols = db.prepare("PRAGMA table_info(midscene_config)").all() as { name: string }[];
+if (!mscCols.some((col) => col.name === 'report_storage_path')) {
+  db.exec("ALTER TABLE midscene_config ADD COLUMN report_storage_path TEXT");
+  console.log('[DB Migration] Added midscene_config.report_storage_path column');
+}
+
+db.exec(`
+  -- Per-user Web browser configuration. Replaces the per-case driver_path /
+  -- close_browser_after_execution columns on web_test_cases, plus adds
+  -- previously-unimplemented Playwright launch options (userDataDir /
+  -- acceptDownloads / downloadsPath / autoDownload / executablePath /
+  -- chromiumSandbox / defaultTimeoutMs). The web executor resolves the
+  -- user's row at case-start and merges into the launch options.
+  CREATE TABLE IF NOT EXISTS web_browser_config (
+    user_id INTEGER PRIMARY KEY,
+    driver_path TEXT,
+    user_data_dir TEXT,
+    accept_downloads INTEGER NOT NULL DEFAULT 0,
+    download_dir TEXT,
+    auto_download INTEGER NOT NULL DEFAULT 0,
+    executable_path TEXT,
+    chromium_sandbox INTEGER NOT NULL DEFAULT 0,
+    close_browser_after_execution INTEGER NOT NULL DEFAULT 0,
+    keep_context_alive INTEGER NOT NULL DEFAULT 0,
+    default_timeout_ms INTEGER,
+    created_at TEXT NOT NULL DEFAULT (datetime('now', '+8 hours')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now', '+8 hours')),
+    FOREIGN KEY (user_id) REFERENCES users(id)
+  );
 
   CREATE TABLE IF NOT EXISTS scenario_sets (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -577,6 +657,9 @@ db.exec(`
     timeout INTEGER DEFAULT 30000,
     headless_mode INTEGER DEFAULT 0,
     base_url TEXT,
+    case_content TEXT,
+    case_content_type TEXT DEFAULT 'text',
+    driver_path TEXT,
     created_at TEXT NOT NULL DEFAULT (datetime('now', '+8 hours')),
     updated_at TEXT NOT NULL DEFAULT (datetime('now', '+8 hours')),
     created_by TEXT,
@@ -600,6 +683,9 @@ db.exec(`
     preconditions TEXT,
     window_size TEXT DEFAULT '1920x1080',
     timeout INTEGER DEFAULT 30000,
+    case_content TEXT,
+    case_content_type TEXT DEFAULT 'text',
+    driver_path TEXT,
     created_at TEXT NOT NULL DEFAULT (datetime('now', '+8 hours')),
     updated_at TEXT NOT NULL DEFAULT (datetime('now', '+8 hours')),
     created_by TEXT,
@@ -625,14 +711,248 @@ db.exec(`
     capabilities TEXT,
     test_script TEXT,
     assertions TEXT,
+    preconditions TEXT,
     tags TEXT,
     status TEXT NOT NULL DEFAULT 'active',
+    case_content TEXT,
+    case_content_type TEXT DEFAULT 'text',
     created_at TEXT NOT NULL DEFAULT (datetime('now', '+8 hours')),
     updated_at TEXT NOT NULL DEFAULT (datetime('now', '+8 hours')),
     created_by TEXT,
     updated_by TEXT,
     FOREIGN KEY (user_id) REFERENCES users(id)
   );
+`);
+
+// Phase 4: add preconditions column to mobile_test_cases for parity with web/pc
+try {
+  db.exec("ALTER TABLE mobile_test_cases ADD COLUMN preconditions TEXT");
+} catch (e) {
+  // Column already exists — ignore.
+}
+
+// 2026-06-05: 浏览器复用 + 关闭配置。close_browser_after_execution=1 表示本 case
+// 跑完后销毁共享 Browser;0(默认)表示保留 Browser 给后续 case 复用,避免每次
+// 重新 launch。
+try { db.exec("ALTER TABLE web_test_cases ADD COLUMN close_browser_after_execution INTEGER DEFAULT 0"); } catch (e) { /* exists */ }
+try { db.exec("ALTER TABLE pc_test_cases ADD COLUMN close_browser_after_execution INTEGER DEFAULT 0"); } catch (e) { /* exists */ }
+
+// Phase 8 (2026-06-04): add case_content + case_content_type columns to
+// web/pc/mobile case tables. The new "用例内容" tab stores its body as raw
+// text (→ Midscene aiAct) or YAML (→ Midscene runYaml). Pre-existing `steps`
+// (web/pc) and `test_script` (mobile) columns are kept for backward compat —
+// the executor falls back to them when `case_content` is empty.
+const caseContentAlter: Array<{ table: string; col: string; ddl: string }> = [
+  { table: 'web_test_cases', col: 'case_content', ddl: 'ALTER TABLE web_test_cases ADD COLUMN case_content TEXT' },
+  { table: 'web_test_cases', col: 'case_content_type', ddl: "ALTER TABLE web_test_cases ADD COLUMN case_content_type TEXT DEFAULT 'text'" },
+  { table: 'pc_test_cases', col: 'case_content', ddl: 'ALTER TABLE pc_test_cases ADD COLUMN case_content TEXT' },
+  { table: 'pc_test_cases', col: 'case_content_type', ddl: "ALTER TABLE pc_test_cases ADD COLUMN case_content_type TEXT DEFAULT 'text'" },
+  { table: 'mobile_test_cases', col: 'case_content', ddl: 'ALTER TABLE mobile_test_cases ADD COLUMN case_content TEXT' },
+  { table: 'mobile_test_cases', col: 'case_content_type', ddl: "ALTER TABLE mobile_test_cases ADD COLUMN case_content_type TEXT DEFAULT 'text'" },
+];
+for (const { ddl } of caseContentAlter) {
+  try { db.exec(ddl); } catch { /* column already exists — ignore */ }
+}
+
+// Phase 9 (2026-06-04): per-case `driver_path` override for Playwright
+// browser binaries. Empty / NULL = use the project-bundled default at
+// <projectRoot>/drivers (set in src/server/index.ts at startup).
+const driverPathAlter: Array<{ table: string; ddl: string }> = [
+  { table: 'web_test_cases', ddl: 'ALTER TABLE web_test_cases ADD COLUMN driver_path TEXT' },
+  { table: 'pc_test_cases', ddl: 'ALTER TABLE pc_test_cases ADD COLUMN driver_path TEXT' },
+];
+for (const { ddl } of driverPathAlter) {
+  try { db.exec(ddl); } catch { /* column already exists — ignore */ }
+}
+
+// ── Devices table（Web/PC/Mobile 设备/浏览器统一管理）──
+// test_type: 'web' | 'pc' | 'mobile' —— 设备所属测试类型
+// platform:  web=chromium/firefox/webkit；pc=win/mac/linux；mobile=android/ios/harmony
+// serial: 浏览器实例 id 或设备序列号 / udid
+// host: ADB/WDA 远程地址（如 192.168.1.10:5555）
+// status: online / offline / unknown —— 由执行器 / 手动刷新 / agent 心跳写入
+// 2026-06-06: 加入 agent_* / last_seen_at 列,支持 agent 远程浏览器注册与心跳
+db.exec(`
+  CREATE TABLE IF NOT EXISTS devices (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    test_type TEXT NOT NULL,
+    platform TEXT NOT NULL,
+    serial TEXT,
+    host TEXT,
+    status TEXT NOT NULL DEFAULT 'unknown',
+    last_heartbeat TEXT,
+    metadata TEXT DEFAULT '{}',
+    -- 2026-06-06 agent fields (web type uses these for remote launch):
+    -- agent_token:    per-device bearer token, generated on create, used as
+    --                 Authorization: Bearer for all agent <-> server comms
+    -- agent_endpoint: agent's reachable HTTP URL, e.g. http://192.168.1.50:4001
+    -- agent_version:  last seen agent version string
+    -- last_seen_at:   separate from last_heartbeat (which is for general status
+    --                 refresh). last_seen_at is the agent heartbeat timestamp.
+    agent_token TEXT,
+    agent_endpoint TEXT,
+    agent_version TEXT,
+    last_seen_at TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now', '+8 hours')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now', '+8 hours')),
+    FOREIGN KEY (user_id) REFERENCES users(id)
+  );
+  CREATE INDEX IF NOT EXISTS idx_devices_user_id ON devices(user_id);
+  CREATE INDEX IF NOT EXISTS idx_devices_test_type ON devices(test_type);
+`);
+
+// 2026-06-06: idempotent migration for the new agent_* / last_seen_at columns
+// on already-existing devices tables. Same try/catch PRAGMA pattern as the
+// rest of this file. Must run BEFORE the unique index on agent_token.
+const deviceAgentCols: { col: string; ddl: string }[] = [
+  { col: 'agent_token', ddl: 'ALTER TABLE devices ADD COLUMN agent_token TEXT' },
+  { col: 'agent_endpoint', ddl: 'ALTER TABLE devices ADD COLUMN agent_endpoint TEXT' },
+  { col: 'agent_version', ddl: 'ALTER TABLE devices ADD COLUMN agent_version TEXT' },
+  { col: 'last_seen_at', ddl: 'ALTER TABLE devices ADD COLUMN last_seen_at TEXT' },
+];
+for (const { ddl } of deviceAgentCols) {
+  try { db.exec(ddl); } catch { /* column already exists — ignore */ }
+}
+
+// 2026-06-07: SSH push / upgrade fields. ssh_* are user-supplied connection
+// details (encrypted at rest), needs_upgrade is set by the server's startup
+// version scan, and last_push_* is the audit trail of the last SSH push.
+const devicePushCols: { col: string; ddl: string }[] = [
+  { col: 'ssh_host', ddl: 'ALTER TABLE devices ADD COLUMN ssh_host TEXT' },
+  { col: 'ssh_port', ddl: 'ALTER TABLE devices ADD COLUMN ssh_port INTEGER DEFAULT 22' },
+  { col: 'ssh_user', ddl: 'ALTER TABLE devices ADD COLUMN ssh_user TEXT' },
+  { col: 'ssh_auth_type', ddl: 'ALTER TABLE devices ADD COLUMN ssh_auth_type TEXT' },
+  { col: 'ssh_password', ddl: 'ALTER TABLE devices ADD COLUMN ssh_password TEXT' },
+  { col: 'ssh_private_key', ddl: 'ALTER TABLE devices ADD COLUMN ssh_private_key TEXT' },
+  { col: 'os_type', ddl: "ALTER TABLE devices ADD COLUMN os_type TEXT DEFAULT 'linux'" },
+  { col: 'needs_upgrade', ddl: 'ALTER TABLE devices ADD COLUMN needs_upgrade INTEGER DEFAULT 0' },
+  { col: 'last_push_at', ddl: 'ALTER TABLE devices ADD COLUMN last_push_at TEXT' },
+  { col: 'last_push_status', ddl: 'ALTER TABLE devices ADD COLUMN last_push_status TEXT' },
+  { col: 'last_push_error', ddl: 'ALTER TABLE devices ADD COLUMN last_push_error TEXT' },
+];
+for (const { ddl } of devicePushCols) {
+  try { db.exec(ddl); } catch { /* column already exists — ignore */ }
+}
+
+db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_devices_agent_token ON devices(agent_token);`);
+
+// ── Web case execution 表（标准化 + Midscene 报告）──
+db.exec(`
+  CREATE TABLE IF NOT EXISTS web_case_executions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    case_id INTEGER NOT NULL,
+    user_id INTEGER NOT NULL,
+    status TEXT NOT NULL DEFAULT 'running',
+    started_at TEXT NOT NULL,
+    finished_at TEXT,
+    duration_ms INTEGER,
+    executed_by TEXT,
+    report_path TEXT,
+    report_type TEXT DEFAULT 'midscene',
+    error_message TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now', '+8 hours')),
+    FOREIGN KEY (case_id) REFERENCES web_test_cases(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id)
+  );
+  CREATE INDEX IF NOT EXISTS idx_web_case_executions_case_id ON web_case_executions(case_id);
+  CREATE INDEX IF NOT EXISTS idx_web_case_executions_user_id ON web_case_executions(user_id);
+`);
+
+// ── Web case log 表（兼容现有 createWebCaseLog 接口）──
+db.exec(`
+  CREATE TABLE IF NOT EXISTS web_case_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    case_id INTEGER NOT NULL,
+    status TEXT NOT NULL,
+    duration_ms INTEGER,
+    executed_by TEXT,
+    result TEXT,
+    error_message TEXT,
+    executed_at TEXT NOT NULL DEFAULT (datetime('now', '+8 hours')),
+    FOREIGN KEY (case_id) REFERENCES web_test_cases(id) ON DELETE CASCADE
+  );
+  CREATE INDEX IF NOT EXISTS idx_web_case_logs_case_id ON web_case_logs(case_id);
+`);
+
+// ── PC case execution 表（标准化 + Midscene 报告）──
+db.exec(`
+  CREATE TABLE IF NOT EXISTS pc_case_executions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    case_id INTEGER NOT NULL,
+    user_id INTEGER NOT NULL,
+    status TEXT NOT NULL DEFAULT 'running',
+    started_at TEXT NOT NULL,
+    finished_at TEXT,
+    duration_ms INTEGER,
+    executed_by TEXT,
+    report_path TEXT,
+    report_type TEXT DEFAULT 'midscene',
+    error_message TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now', '+8 hours')),
+    FOREIGN KEY (case_id) REFERENCES pc_test_cases(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id)
+  );
+  CREATE INDEX IF NOT EXISTS idx_pc_case_executions_case_id ON pc_case_executions(case_id);
+  CREATE INDEX IF NOT EXISTS idx_pc_case_executions_user_id ON pc_case_executions(user_id);
+`);
+
+// ── PC case log 表（兼容现有 createPcCaseLog 接口）──
+db.exec(`
+  CREATE TABLE IF NOT EXISTS pc_case_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    case_id INTEGER NOT NULL,
+    status TEXT NOT NULL,
+    duration_ms INTEGER,
+    executed_by TEXT,
+    result TEXT,
+    error_message TEXT,
+    executed_at TEXT NOT NULL DEFAULT (datetime('now', '+8 hours')),
+    FOREIGN KEY (case_id) REFERENCES pc_test_cases(id) ON DELETE CASCADE
+  );
+  CREATE INDEX IF NOT EXISTS idx_pc_case_logs_case_id ON pc_case_logs(case_id);
+`);
+
+// ── Mobile case execution 表（标准化 + Midscene 报告）──
+db.exec(`
+  CREATE TABLE IF NOT EXISTS mobile_case_executions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    case_id INTEGER NOT NULL,
+    user_id INTEGER NOT NULL,
+    status TEXT NOT NULL DEFAULT 'running',
+    started_at TEXT NOT NULL,
+    finished_at TEXT,
+    duration_ms INTEGER,
+    executed_by TEXT,
+    device_id INTEGER,
+    report_path TEXT,
+    report_type TEXT DEFAULT 'midscene',
+    error_message TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now', '+8 hours')),
+    FOREIGN KEY (case_id) REFERENCES mobile_test_cases(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id),
+    FOREIGN KEY (device_id) REFERENCES devices(id) ON DELETE SET NULL
+  );
+  CREATE INDEX IF NOT EXISTS idx_mobile_case_executions_case_id ON mobile_case_executions(case_id);
+  CREATE INDEX IF NOT EXISTS idx_mobile_case_executions_user_id ON mobile_case_executions(user_id);
+`);
+
+// ── Mobile test log 表（兼容现有 createMobileTestLog 接口）──
+db.exec(`
+  CREATE TABLE IF NOT EXISTS mobile_test_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    test_case_id INTEGER NOT NULL,
+    status TEXT NOT NULL,
+    duration_ms INTEGER,
+    executed_by TEXT,
+    result TEXT,
+    error_message TEXT,
+    screenshots TEXT,
+    executed_at TEXT NOT NULL DEFAULT (datetime('now', '+8 hours')),
+    FOREIGN KEY (test_case_id) REFERENCES mobile_test_cases(id) ON DELETE CASCADE
+  );
+  CREATE INDEX IF NOT EXISTS idx_mobile_test_logs_case_id ON mobile_test_logs(test_case_id);
 `);
 
 export default db;
@@ -707,6 +1027,9 @@ for (const t of MOCK_TABLE_TYPES) {
 
 for (const t of MOCK_TABLE_TYPES) {
   const tableName = `batch_reports_${t}`;
+  // API 端的 batch_reports 仍 FK 指向 scenario_sets(id);web/pc/mobile 端
+  // 改 FK 指向 case_sets_${t}(id)(2026-06-05 重构:场景集 → 用例集)。
+  const fkTarget = t === 'api' ? 'scenario_sets(id)' : `case_sets_${t}(id)`;
   db.exec(`
     CREATE TABLE IF NOT EXISTS ${tableName} (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -717,90 +1040,108 @@ for (const t of MOCK_TABLE_TYPES) {
       total_duration_ms INTEGER DEFAULT 0,
       executed_by TEXT,
       executed_at TEXT NOT NULL DEFAULT (datetime('now', '+8 hours')),
-      FOREIGN KEY (set_id) REFERENCES scenario_sets_${t}(id) ON DELETE CASCADE
+      FOREIGN KEY (set_id) REFERENCES ${fkTarget} ON DELETE CASCADE
     );
     CREATE INDEX IF NOT EXISTS idx_${tableName}_set_id ON ${tableName}(set_id);
   `);
 }
 
-// ── 补齐 5 张隔离场景/场景集表的 CREATE TABLE ──
+// ── 新建 case_sets / schedule_sets 分表 (2026-06-05 重构) ──
+// 用途: web/pc/mobile 移除 scenarios/scenario_sets 子树,改用 case_sets
+// 存 test_case_ids 引用;schedule_sets 也按测试类型拆 4 张。
+// API 端 schedule_sets 表名保持(由 schedule-sets-api.ts 用)。
 for (const t of MOCK_TABLE_TYPES) {
   db.exec(`
-    CREATE TABLE IF NOT EXISTS scenarios_${t} (
+    CREATE TABLE IF NOT EXISTS case_sets_${t} (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       user_id INTEGER NOT NULL,
       name TEXT NOT NULL,
       description TEXT,
-      status TEXT NOT NULL DEFAULT 'active',
+      test_case_ids TEXT DEFAULT '[]',
       tags TEXT DEFAULT '',
-      parameters TEXT DEFAULT '',
+      status TEXT NOT NULL DEFAULT 'active',
       created_at TEXT NOT NULL DEFAULT (datetime('now', '+8 hours')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now', '+8 hours')),
       FOREIGN KEY (user_id) REFERENCES users(id)
     );
-    CREATE INDEX IF NOT EXISTS idx_scenarios_${t}_user_id ON scenarios_${t}(user_id);
+    CREATE INDEX IF NOT EXISTS idx_case_sets_${t}_user_id ON case_sets_${t}(user_id);
 
-    CREATE TABLE IF NOT EXISTS scenario_nodes_${t} (
+    CREATE TABLE IF NOT EXISTS case_set_executions_${t} (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      scenario_id INTEGER NOT NULL,
-      node_id TEXT NOT NULL,
-      type TEXT NOT NULL,
-      position_x REAL NOT NULL DEFAULT 0,
-      position_y REAL NOT NULL DEFAULT 0,
-      label TEXT,
-      config TEXT,
-      pre_script TEXT,
-      post_script TEXT,
-      created_at TEXT NOT NULL DEFAULT (datetime('now', '+8 hours')),
-      updated_at TEXT NOT NULL DEFAULT (datetime('now', '+8 hours')),
-      FOREIGN KEY (scenario_id) REFERENCES scenarios_${t}(id) ON DELETE CASCADE,
-      UNIQUE(scenario_id, node_id)
-    );
-    CREATE INDEX IF NOT EXISTS idx_scenario_nodes_${t}_scenario_id ON scenario_nodes_${t}(scenario_id);
-
-    CREATE TABLE IF NOT EXISTS scenario_edges_${t} (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      scenario_id INTEGER NOT NULL,
-      edge_id TEXT NOT NULL,
-      source_node_id TEXT NOT NULL,
-      target_node_id TEXT NOT NULL,
-      source_handle TEXT,
-      label TEXT,
-      created_at TEXT NOT NULL DEFAULT (datetime('now', '+8 hours')),
-      FOREIGN KEY (scenario_id) REFERENCES scenarios_${t}(id) ON DELETE CASCADE,
-      UNIQUE(scenario_id, edge_id)
-    );
-    CREATE INDEX IF NOT EXISTS idx_scenario_edges_${t}_scenario_id ON scenario_edges_${t}(scenario_id);
-
-    CREATE TABLE IF NOT EXISTS scenario_logs_${t} (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      scenario_id INTEGER NOT NULL,
-      status TEXT NOT NULL,
+      set_id INTEGER NOT NULL,
+      status TEXT NOT NULL DEFAULT 'running',
       trigger_type TEXT NOT NULL DEFAULT 'manual',
       executed_by TEXT,
-      node_results TEXT,
+      total_count INTEGER NOT NULL DEFAULT 0,
+      passed_count INTEGER NOT NULL DEFAULT 0,
+      failed_count INTEGER NOT NULL DEFAULT 0,
+      skipped_count INTEGER NOT NULL DEFAULT 0,
+      total_duration_ms INTEGER,
+      started_at TEXT NOT NULL,
+      finished_at TEXT NOT NULL DEFAULT '',
+      FOREIGN KEY (set_id) REFERENCES case_sets_${t}(id) ON DELETE CASCADE
+    );
+    CREATE INDEX IF NOT EXISTS idx_case_set_executions_${t}_set_id ON case_set_executions_${t}(set_id);
+
+    CREATE TABLE IF NOT EXISTS case_set_execution_items_${t} (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      set_execution_id INTEGER NOT NULL,
+      case_id INTEGER NOT NULL,
+      case_name TEXT,
+      status TEXT NOT NULL DEFAULT 'pending',
       duration_ms INTEGER,
       error_message TEXT,
-      executed_at TEXT NOT NULL DEFAULT (datetime('now', '+8 hours')),
-      FOREIGN KEY (scenario_id) REFERENCES scenarios_${t}(id) ON DELETE CASCADE
+      case_execution_id INTEGER,
+      report_path TEXT,
+      started_at TEXT,
+      finished_at TEXT,
+      FOREIGN KEY (set_execution_id) REFERENCES case_set_executions_${t}(id) ON DELETE CASCADE
     );
-    CREATE INDEX IF NOT EXISTS idx_scenario_logs_${t}_scenario_id ON scenario_logs_${t}(scenario_id);
-
-    CREATE TABLE IF NOT EXISTS scenario_sets_${t} (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      user_id INTEGER NOT NULL,
-      name TEXT NOT NULL,
-      description TEXT,
-      scenario_ids TEXT DEFAULT '[]',
-      tags TEXT DEFAULT '',
-      status TEXT NOT NULL DEFAULT 'draft',
-      created_at TEXT NOT NULL DEFAULT (datetime('now', '+8 hours')),
-      updated_at TEXT NOT NULL DEFAULT (datetime('now', '+8 hours')),
-      FOREIGN KEY (user_id) REFERENCES users(id)
-    );
-    CREATE INDEX IF NOT EXISTS idx_scenario_sets_${t}_user_id ON scenario_sets_${t}(user_id);
+    CREATE INDEX IF NOT EXISTS idx_case_set_execution_items_${t}_set_exec_id ON case_set_execution_items_${t}(set_execution_id);
   `);
 }
+
+// schedule_sets_* 分表(2026-06-05 重构):
+//   - api 端:scenario_set_id 列(指向 scenario_sets.id),与老 schedule-sets.ts 兼容
+//   - web/pc/mobile 端:case_set_id 列(指向各自 case_sets_*.id)
+// 不在上面的 case_sets_* 循环里建,避免与已存在的 schedule_sets_api(scenario_set_id)冲突。
+for (const t of ['web', 'pc', 'mobile'] as const) {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS schedule_sets_${t} (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      case_set_id INTEGER NOT NULL,
+      cron_expr TEXT,
+      status TEXT NOT NULL DEFAULT 'none',
+      next_run_at TEXT,
+      last_run_at TEXT,
+      last_run_status TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now', '+8 hours')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now', '+8 hours')),
+      FOREIGN KEY (case_set_id) REFERENCES case_sets_${t}(id) ON DELETE CASCADE
+    );
+    CREATE INDEX IF NOT EXISTS idx_schedule_sets_${t}_case_set_id ON schedule_sets_${t}(case_set_id);
+    CREATE INDEX IF NOT EXISTS idx_schedule_sets_${t}_status ON schedule_sets_${t}(status, next_run_at);
+  `);
+}
+
+// API 端的 schedule_sets 表使用 scenario_set_id FK 到 scenario_sets(id) —
+// 列名兼容老 schedule-sets.ts 代码(API 端的"集"是场景集,沿用 scenario_set_id 命名)。
+db.exec(`
+  CREATE TABLE IF NOT EXISTS schedule_sets_api (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    scenario_set_id INTEGER NOT NULL,
+    cron_expr TEXT,
+    status TEXT NOT NULL DEFAULT 'none',
+    next_run_at TEXT,
+    last_run_at TEXT,
+    last_run_status TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now', '+8 hours')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now', '+8 hours')),
+    FOREIGN KEY (scenario_set_id) REFERENCES scenario_sets(id) ON DELETE CASCADE
+  );
+  CREATE INDEX IF NOT EXISTS idx_schedule_sets_api_ssid ON schedule_sets_api(scenario_set_id);
+  CREATE INDEX IF NOT EXISTS idx_schedule_sets_api_status ON schedule_sets_api(status, next_run_at);
+`);
 
 // ── 表重建工具函数（保留 PK/NOT NULL/DEFAULT 约束）──
 type ColInfo = { name: string; type: string; pk: number; notnull: number; dflt_value: unknown };
@@ -945,6 +1286,10 @@ const RESTORE_SCHEMAS: Record<string, string> = {
     timeout INTEGER DEFAULT 30000,
     headless_mode INTEGER DEFAULT 0,
     base_url TEXT,
+    case_content TEXT,
+    case_content_type TEXT DEFAULT 'text',
+    driver_path TEXT,
+    close_browser_after_execution INTEGER DEFAULT 0,
     created_at TEXT NOT NULL DEFAULT (datetime('now', '+8 hours')),
     updated_at TEXT NOT NULL DEFAULT (datetime('now', '+8 hours')),
     created_by TEXT,
@@ -964,6 +1309,10 @@ const RESTORE_SCHEMAS: Record<string, string> = {
     preconditions TEXT,
     window_size TEXT DEFAULT '1920x1080',
     timeout INTEGER DEFAULT 30000,
+    case_content TEXT,
+    case_content_type TEXT DEFAULT 'text',
+    driver_path TEXT,
+    close_browser_after_execution INTEGER DEFAULT 0,
     created_at TEXT NOT NULL DEFAULT (datetime('now', '+8 hours')),
     updated_at TEXT NOT NULL DEFAULT (datetime('now', '+8 hours')),
     created_by TEXT,
@@ -985,8 +1334,11 @@ const RESTORE_SCHEMAS: Record<string, string> = {
     capabilities TEXT,
     test_script TEXT,
     assertions TEXT,
+    preconditions TEXT,
     tags TEXT,
     status TEXT NOT NULL DEFAULT 'active',
+    case_content TEXT,
+    case_content_type TEXT DEFAULT 'text',
     created_at TEXT NOT NULL DEFAULT (datetime('now', '+8 hours')),
     updated_at TEXT NOT NULL DEFAULT (datetime('now', '+8 hours')),
     created_by TEXT,
@@ -1031,3 +1383,40 @@ if (mockEndpointsExists) {
   db.exec('DROP TABLE mock_endpoints');
   console.log('[DB Migration] Dropped legacy mock_endpoints table (split into 4 per-type tables)');
 }
+
+// ── 2026-06-05: web/pc/mobile 移除 scenarios + scenario_sets,改用 case_sets ──
+// 用户已明确授权 DROP,不可恢复。API 端 scenarios/scenario_sets 不动。
+// 老的 schedule_sets 表也 DROP,被 schedule_sets_api/web/pc/mobile 4 张表取代
+// (api 用 scenario_set_id 列指向 scenario_sets.id;web/pc/mobile 用 case_set_id 列指向各自 case_sets_*.id)。
+const SCENARIO_TABLES_TO_DROP = [
+  'scenarios_web', 'scenarios_pc', 'scenarios_mobile',
+  'scenario_nodes_web', 'scenario_nodes_pc', 'scenario_nodes_mobile',
+  'scenario_edges_web', 'scenario_edges_pc', 'scenario_edges_mobile',
+  'scenario_logs_web', 'scenario_logs_pc', 'scenario_logs_mobile',
+  'scenario_sets_web', 'scenario_sets_pc', 'scenario_sets_mobile',
+];
+db.exec('PRAGMA foreign_keys = OFF');
+try {
+  for (const t of SCENARIO_TABLES_TO_DROP) {
+    const exists = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name=?").get(t);
+    if (exists) {
+      db.exec(`DROP TABLE ${t}`);
+      console.log(`[DB Migration 2026-06-05] Dropped legacy table ${t} (web/pc/mobile scenarios removed, user authorized)`);
+    }
+  }
+  // 老的 schedule_sets 表(FK 指向 scenario_sets(id) — API 场景集)DROP
+  // 新的 schedule_sets_api 表用同名 scenario_set_id 列指向 scenario_sets(id)
+  // web/pc/mobile 三张 schedule_sets_* 表用 case_set_id 列指向各自 case_sets_*
+  const oldScheduleSets = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='schedule_sets'").get();
+  if (oldScheduleSets) {
+    db.exec('DROP TABLE schedule_sets');
+    console.log('[DB Migration 2026-06-05] Dropped legacy schedule_sets table (rebuilt as 4 per-type tables)');
+  }
+} finally {
+  db.exec('PRAGMA foreign_keys = ON');
+}
+
+// 2026-06-03 NL 化迁移:旧 {action, desc} 数据无意义,但 DELETE 已被移除,
+// 因为这是不可逆的用户数据丢失。前端 step 编辑器 NL 化通过 case_content
+// /case_content_type 列和 resolveCaseContent 兜底处理(见 engine/nl-steps.ts),
+// 不需要清空历史 case。

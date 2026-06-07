@@ -7,6 +7,7 @@ export interface AvailableVar {
   varName: string;
   sourceNode: string;
   sourceNodeName: string;
+  stage?: string;
 }
 
 interface Props {
@@ -55,6 +56,7 @@ export default function NodeConfigPanel({ node, apis, availableVariables, onUpda
       <ApiNodeConfigPanel
         node={node}
         apis={apis}
+        availableVariables={availableVariables}
         onUpdate={onUpdate}
         onDelete={onDelete}
         onClose={onClose}

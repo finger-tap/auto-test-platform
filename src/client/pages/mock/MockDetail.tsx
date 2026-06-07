@@ -267,7 +267,7 @@ export default function MockDetail({ testType = 'api' }: { testType?: string }) 
             />
           </div>
           <div className="field field-url"><label>请求路径</label>
-            <InlineText value={pathPattern} onChange={v => { setPathPattern(v); dirtyRef(true); }} placeholder="点击输入路径，如 /api/users/:id" mono />
+            <InlineText value={pathPattern} onChange={v => { setPathPattern(v); dirtyRef(true); }} placeholder="点击输入路径，如 /api/users/:id" monospace />
           </div>
         </div>
         {/* 命中统计 */}
@@ -279,8 +279,8 @@ export default function MockDetail({ testType = 'api' }: { testType?: string }) 
         )}
         {!isNew && (
           <div className="api-detail-row">
-            <div className="field"><label>创建时间</label><span className="field-value">{'' || '-'}</span></div>
-            <div className="field"><label>更新时间</label><span className="field-value">{'' || '-'}</span></div>
+            <div className="field"><label>创建时间</label><span className="field-value">-</span></div>
+            <div className="field"><label>更新时间</label><span className="field-value">-</span></div>
           </div>
         )}
       </div>

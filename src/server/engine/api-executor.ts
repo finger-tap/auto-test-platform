@@ -304,15 +304,20 @@ export async function executeApi(
 
     const addStep = (logType: ApiExecutionStep['log_type'], stepName: string, logText: string, logData: Record<string, unknown> = {}) => {
       stepOrder.current++;
-      createApiExecutionStep({
-        api_execution_id: executionId,
-        step_order: stepOrder.current,
-        log_type: logType,
-        step_name: stepName,
-        log_text: logText,
-        log_data: logData,
-        created_at: new Date().toISOString(),
-      });
+      try {
+        createApiExecutionStep({
+          api_execution_id: executionId,
+          step_order: stepOrder.current,
+          log_type: logType,
+          step_name: stepName,
+          log_text: logText,
+          log_data: logData,
+          created_at: new Date().toISOString(),
+        });
+      } catch (err) {
+        // Don't let a logging failure abort the actual API execution flow.
+        console.error('[api-executor] failed to persist step', { executionId, logType, stepName, err });
+      }
     };
 
     // Helper to build URL
@@ -350,6 +355,8 @@ export async function executeApi(
     let reqHeaders: Record<string, string> = {};
     const allExtracted: Record<string, string> = {};
     let envDbConfigs: Record<string, DbConfig> | null = options?.dbConfigs ?? null;
+    let totalPassed = 0;
+    let totalFailed = 0;
 
     const preAssertResults: Array<{ rule: AssertionRule; passed: boolean; actual: string }> = [];
     const mainAssertResults: Array<{ rule: AssertionRule; passed: boolean; actual: string }> = [];
@@ -532,6 +539,8 @@ export async function executeApi(
 
           const passed = mainResults.filter(r => r.rule.assert !== false && r.passed).length;
           const failed = mainResults.filter(r => r.rule.assert !== false && !r.passed).length;
+          totalPassed += passed;
+          totalFailed += failed;
           addStep('main_action', '主体断言', `主体断言: ${passed} 通过, ${failed} 失败`, { assertions: mainResults });
 
           if (failed > 0) status = 'failed';
@@ -637,6 +646,13 @@ export async function executeApi(
           }
         }
       }
+
+      // Final summary step before end — captures overall assertion outcome
+      addStep('final_check', '最终检查', `最终断言: ${totalPassed} 通过, ${totalFailed} 失败`, {
+        passed: totalPassed,
+        failed: totalFailed,
+        status,
+      });
 
       addStep('end', '完成', `执行${status === 'success' ? '成功' : status === 'failed' ? '失败' : '错误'}`, {
         status,

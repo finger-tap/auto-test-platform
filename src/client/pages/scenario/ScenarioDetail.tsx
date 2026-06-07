@@ -182,7 +182,8 @@ export default function ScenarioDetail({ basePath = '/api-test', testType = 'api
           arr.forEach((r: AssertionRule) => {
             if (r.assert === false) {
               if (r.name) addVar(r.name, stage);
-              if ((r as Record<string, unknown>).var_name) addVar((r as Record<string, unknown>).var_name as string, stage);
+              const rAny = r as unknown as Record<string, unknown>;
+              if (rAny.var_name) addVar(rAny.var_name as string, stage);
             }
           });
         }
@@ -206,7 +207,8 @@ export default function ScenarioDetail({ basePath = '/api-test', testType = 'api
               (action.assertions as AssertionRule[]).forEach((r) => {
                 if (r.assert === false) {
                   if (r.name) addVar(r.name, stage);
-                  if ((r as Record<string, unknown>).var_name) addVar((r as Record<string, unknown>).var_name as string, stage);
+                  const rAny = r as unknown as Record<string, unknown>;
+                  if (rAny.var_name) addVar(rAny.var_name as string, stage);
                 }
               });
             }
@@ -648,7 +650,7 @@ export default function ScenarioDetail({ basePath = '/api-test', testType = 'api
       reader.onload = (ev) => {
         const text = ev.target?.result as string;
         const lines = text.trim().split('\n');
-        if (lines.length < 2) { setModalType('warning'); setModalMsg('CSV 至少需要一行表头和一行数据'); setModalOpen(true); return; }
+        if (lines.length < 2) { notification.warning('CSV 至少需要一行表头和一行数据'); return; }
         const csvHeaders = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
         const csvRows = lines.slice(1).map(line => line.split(',').map(cell => cell.trim().replace(/^"|"$/g, '')));
 
@@ -709,7 +711,7 @@ export default function ScenarioDetail({ basePath = '/api-test', testType = 'api
       const newHeaders: string[] = [];
 
       for (const n of apiNodes) {
-        const config = (n.data || {}) as ApiNodeConfig;
+        const config = (n.data || {}) as unknown as ApiNodeConfig;
         if (!config.api_id) continue;
         try {
           const res = await apiFetch<ApiItem>(`/apis/${config.api_id}`);

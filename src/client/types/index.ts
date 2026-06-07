@@ -282,6 +282,9 @@ export interface MobileTestCase {
   capabilities: string | null;
   test_script: string | null;
   assertions: string | null;
+  preconditions: string | null;
+  case_content?: string | null;
+  case_content_type?: string | null;
   tags: string | null;
   status: string;
   created_at: string;
@@ -300,12 +303,9 @@ export interface MobileTestLog {
   executed_at: string;
 }
 
-export interface MobileTestStep {
-  action: 'launch' | 'tap' | 'input' | 'swipe' | 'assert' | 'screenshot' | 'back' | 'home' | 'sleep' | 'scroll';
-  target?: string;
-  value?: string;
-  duration?: number;
-  direction?: 'up' | 'down' | 'left' | 'right';
+export interface NLStep {
+  description: string;
+  expect?: string;
 }
 
 // ── New Execution Types ──
@@ -340,6 +340,8 @@ export interface ApiExecution {
   started_at: string;
   finished_at: string;
   batch_id: number;
+  // Optional legacy field — present in api_logs, not in api_executions.
+  status_code?: number | null;
   steps?: ApiExecutionStep[];
   sub_executions?: ApiExecution[];
 }
@@ -430,4 +432,90 @@ export interface ScenarioSetExecution {
   started_at: string;
   finished_at: string;
   items?: ScenarioSetExecutionItem[];
+}
+
+// ── Web/PC Test Case (full row, returned by GET /api/web-cases/:id) ──
+
+export interface WebTestCase {
+  id: number;
+  user_id: number;
+  name: string;
+  description: string | null;
+  tags: string | null;
+  status: string;
+  steps: string | null;
+  check_points: string | null;
+  data_drive: string | null;
+  preconditions: string | null;
+  browser: string | null;
+  window_size: string | null;
+  timeout: number | null;
+  headless_mode: number | null;
+  base_url: string | null;
+  case_content: string | null;
+  case_content_type: string | null;
+  driver_path: string | null;
+  close_browser_after_execution: number | null;
+  created_at: string;
+  updated_at: string;
+  created_by: string | null;
+  updated_by: string | null;
+}
+
+export interface PcTestCase {
+  id: number;
+  user_id: number;
+  name: string;
+  description: string | null;
+  tags: string | null;
+  status: string;
+  steps: string | null;
+  check_points: string | null;
+  data_drive: string | null;
+  window_size: string | null;
+  timeout: number | null;
+  preconditions: string | null;
+  case_content: string | null;
+  case_content_type: string | null;
+  driver_path: string | null;
+  close_browser_after_execution: number | null;
+  created_at: string;
+  updated_at: string;
+  created_by: string | null;
+  updated_by: string | null;
+}
+
+// ── CaseSet Types (web/pc/mobile) ──
+// Replaces legacy scenario-sets-{web,pc,mobile} UI/storage.
+// Stores test_case_ids (instead of scenario_ids) per the 2026-06-05 refactor.
+
+export interface CaseSetExecutionItem {
+  id: number;
+  set_execution_id: number;
+  case_id: number;
+  case_name: string;
+  status: string;
+  duration_ms: number | null;
+  error_message: string | null;
+  case_execution_id: number | null;
+  report_path: string | null;
+  report_url: string | null;
+  started_at: string | null;
+  finished_at: string | null;
+}
+
+export interface CaseSetExecution {
+  id: number;
+  set_id: number;
+  status: string;
+  trigger_type: string;
+  executed_by: string | null;
+  total_count: number;
+  passed_count: number;
+  failed_count: number;
+  skipped_count: number;
+  total_duration_ms: number | null;
+  started_at: string;
+  finished_at: string;
+  items?: CaseSetExecutionItem[];
 }

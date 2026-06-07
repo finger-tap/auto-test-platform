@@ -2,14 +2,11 @@ import { Router, Request, Response } from 'express';
 import { authRoutes } from './auth.js';
 import { apiRoutes } from './apis.js';
 import { scenarioRoutes } from './scenarios.js';
-import { scenarioRoutes as scenarioRoutesWeb } from './scenarios-web.js';
-import { scenarioRoutes as scenarioRoutesPc } from './scenarios-pc.js';
-import { scenarioRoutes as scenarioRoutesMobile } from './scenarios-mobile.js';
 import { envRoutes } from './environments.js';
 import { setRoutes } from './scenario-sets.js';
-import { scenarioSetRoutes as scenarioSetRoutesWeb } from './scenario-sets-web.js';
-import { scenarioSetRoutes as scenarioSetRoutesPc } from './scenario-sets-pc.js';
-import { scenarioSetRoutes as scenarioSetRoutesMobile } from './scenario-sets-mobile.js';
+import { caseSetRoutes as caseSetRoutesWeb } from './case-sets-web.js';
+import { caseSetRoutes as caseSetRoutesPc } from './case-sets-pc.js';
+import { caseSetRoutes as caseSetRoutesMobile } from './case-sets-mobile.js';
 import { mockRoutes as mockRoutesApi } from './mocks-api.js';
 import { mockRoutes as mockRoutesWeb } from './mocks-web.js';
 import { mockRoutes as mockRoutesPc } from './mocks-pc.js';
@@ -23,8 +20,15 @@ import { tagRoutes } from '../db/tags.js';
 import { mobileTestRoutes } from './mobile-tests.js';
 import { webCaseRoutes } from './web-cases.js';
 import { pcCaseRoutes } from './pc-cases.js';
+import { midsceneConfigRoutes } from './midscene-config.js';
+import { webBrowserConfigRoutes } from './web-browser-config.js';
 
-import { scheduleSetRoutes } from './schedule-sets.js';
+import { scheduleSetApiRoutes } from './schedule-sets-api.js';
+import { scheduleSetWebRoutes } from './schedule-sets-web.js';
+import { scheduleSetPcRoutes } from './schedule-sets-pc.js';
+import { scheduleSetMobileRoutes } from './schedule-sets-mobile.js';
+import { deviceRoutes } from './devices.js';
+import { agentRoutes } from './agents.js';
 
 export const routes = Router();
 
@@ -32,26 +36,48 @@ routes.get('/health', (_req: Request, res: Response) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+// Debug-only: shows the Playwright env var + driver layout so we can see
+// what the running process actually sees. Strip after diagnosing the
+// "browser doesn't start" issue. The dev server is open to localhost only.
+routes.get('/debug/playwright', async (_req: Request, res: Response) => {
+  const fs = await import('node:fs/promises');
+  const driverPath = process.env.PLAYWRIGHT_BROWSERS_PATH || '';
+  let driverEntries: string[] = [];
+  let driverExists = false;
+  try {
+    driverEntries = (await fs.readdir(driverPath)).slice(0, 30);
+    driverExists = true;
+  } catch (e: any) {
+    driverEntries = [`error: ${e.message}`];
+  }
+  let defaultCache: string[] = [];
+  try {
+    defaultCache = (await fs.readdir('/Users/dinghao/Library/Caches/ms-playwright')).slice(0, 30);
+  } catch {}
+  res.json({
+    cwd: process.cwd(),
+    env_PBP: process.env.PLAYWRIGHT_BROWSERS_PATH ?? null,
+    driverExists,
+    driverEntries,
+    defaultCache,
+    // resolved location Playwright will actually look at, computed from env
+    resolvedChromiumChannelPath: driverPath
+      ? `${driverPath}/chromium-1223/chrome-mac-x64/Google Chrome for Testing.app`
+      : '~/Library/Caches/ms-playwright/chromium-1223/chrome-mac-x64/Google Chrome for Testing.app',
+  });
+});
+
 routes.use('/auth', authRoutes);
 routes.use('/apis', apiRoutes);
 // 接口测试场景（共用表，保持兼容性）
 routes.use('/scenarios', scenarioRoutes);
-// Web测试场景（独立表）
-routes.use('/scenarios-web', scenarioRoutesWeb);
-// PC测试场景（独立表）
-routes.use('/scenarios-pc', scenarioRoutesPc);
-// 移动端测试场景（独立表）
-routes.use('/scenarios-mobile', scenarioRoutesMobile);
-routes.use('/schedule-sets', scheduleSetRoutes);
 routes.use('/environments', envRoutes);
 // 接口测试场景集（共用表，保持兼容性）
 routes.use('/scenario-sets', setRoutes);
-// Web测试场景集（独立表）
-routes.use('/scenario-sets-web', scenarioSetRoutesWeb);
-// PC测试场景集（独立表）
-routes.use('/scenario-sets-pc', scenarioSetRoutesPc);
-// 移动端测试场景集（独立表）
-routes.use('/scenario-sets-mobile', scenarioSetRoutesMobile);
+// Web/PC/Mobile 用例集（独立表，存 test_case_ids）
+routes.use('/case-sets-web', caseSetRoutesWeb);
+routes.use('/case-sets-pc', caseSetRoutesPc);
+routes.use('/case-sets-mobile', caseSetRoutesMobile);
 // 接口测试 Mock（独立表）
 routes.use('/mocks-api', mockRoutesApi);
 // Web测试 Mock（独立表）
@@ -73,3 +99,42 @@ routes.use('/tags', tagRoutes);
 routes.use('/mobile-tests', mobileTestRoutes);
 routes.use('/web-cases', webCaseRoutes);
 routes.use('/pc-cases', pcCaseRoutes);
+routes.use('/devices', deviceRoutes);
+// 2026-06-06: agent <-> server comms. Uses its own bearer auth (per-device
+// agent_token), not the human JWT — the agentRoutes router applies its own
+// agentAuthMiddleware.
+routes.use('/agents', agentRoutes);
+routes.use('/midscene-config', midsceneConfigRoutes);
+routes.use('/web-browser-config', webBrowserConfigRoutes);
+// 调度 — 按测试类型拆 4 张表
+// (api 用 scenario_set_id 列指向 scenario_sets.id;web/pc/mobile 用 case_set_id 列指向各自 case_sets_*.id)
+routes.use('/schedule-sets-api', scheduleSetApiRoutes);
+routes.use('/schedule-sets-web', scheduleSetWebRoutes);
+routes.use('/schedule-sets-pc', scheduleSetPcRoutes);
+routes.use('/schedule-sets-mobile', scheduleSetMobileRoutes);
+
+// ── Executor diagnostics: shared-browser state ────────────────────────────
+// The web/pc executors each keep a process-level Browser singleton so
+// consecutive cases don't pay the ~2-3s Chromium cold-start. These
+// endpoints let ops see if a browser is currently running and force-close
+// it (useful when the user has finished debugging and wants the window
+// gone, or when PBP needs to change).
+import { getSharedBrowserInfo as getWebSharedBrowserInfo, closeSharedBrowser as closeWebSharedBrowser } from '../engine/web-executor.js';
+import { getSharedBrowserInfo as getPcSharedBrowserInfo, closeSharedBrowser as closePcSharedBrowser } from '../engine/pc-executor.js';
+
+routes.get('/executor/shared-browsers', (_req: Request, res: Response) => {
+  res.json({
+    code: 200,
+    message: 'ok',
+    data: {
+      web: getWebSharedBrowserInfo(),
+      pc: getPcSharedBrowserInfo(),
+    },
+  });
+});
+
+routes.post('/executor/shared-browsers/close', async (_req: Request, res: Response) => {
+  console.log('[api] force-close all shared browsers (admin)');
+  await Promise.all([closeWebSharedBrowser(), closePcSharedBrowser()]);
+  res.json({ code: 200, message: 'Shared browsers closed', data: { web: null, pc: null } });
+});

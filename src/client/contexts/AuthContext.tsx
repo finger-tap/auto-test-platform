@@ -11,7 +11,7 @@ interface AuthContextType {
   logout: () => void;
   updateUser: (user: UserInfo) => void;
   changePassword: (oldPassword: string, newPassword: string) => Promise<void>;
-  resetPassword: (account: string, newPassword: string) => Promise<void>;
+  resetPassword: (oldPassword: string, newPassword: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>(null!);
@@ -117,10 +117,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (res.code !== 200) throw new Error(res.message);
   };
 
-  const resetPassword = async (account: string, newPassword: string) => {
+  const resetPassword = async (oldPassword: string, newPassword: string) => {
     const res = await apiFetch('/auth/reset-password', {
       method: 'POST',
-      body: JSON.stringify({ account, newPassword }),
+      body: JSON.stringify({ oldPassword, newPassword }),
     }) as { code: number; message?: string };
     if (res.code !== 200) throw new Error(res.message);
   };
