@@ -1,111 +1,5 @@
-/* CaseSetDetail - Responsive Layout */
-/* (Ported from ScenarioSetDetail; class names kept as sset-* for shared styling.) */
-.sset-detail {
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  min-height: 100%;
-  height: 100%;
-  box-sizing: border-box;
-}
-
-.sset-detail-loading {
-  padding: 3.75rem;
-  text-align: center;
-  color: var(--fg-tertiary);
-}
-
-.sset-detail-header {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  flex-shrink: 0;
-  padding: 0 1.5rem;
-  height: 3rem;
-  background: var(--bg);
-  border-bottom: 1px solid var(--border);
-  box-sizing: border-box;
-}
-
-.sset-detail-page-title {
-  font-size: 0.875rem;
-  color: var(--fg-secondary);
-  font-weight: 400;
-}
-
-.sset-detail-content {
-  flex: 1;
-  min-height: 0;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  padding: 0;
-  background: var(--bg);
-}
-
-/* Back Button */
-.sset-back {
-  background: none;
-  border: none;
-  color: var(--primary);
-  font-size: 0.8125rem;
-  cursor: pointer;
-  padding: 0;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
-}
-
-.sset-back:hover { text-decoration: underline; }
-
-/* Card */
-.sset-card {
-  background: var(--surface);
-  border-radius: 0;
-  padding: 0;
-  margin-bottom: 1.25rem;
-  box-shadow: none;
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  height: 100%;
-  min-height: 0;
-  border: 1px solid var(--border);
-  border-bottom: none;
-}
-
-.sset-card > .tab-body {
-  flex: 1;
-  overflow-y: auto;
-  min-height: 0;
-}
-
-/* Card Header */
-.sset-card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding-bottom: 1rem;
-  border-bottom: 1px solid var(--border);
-  margin-bottom: 1.25rem;
-}
-
-.sset-card-header h2 {
-  font-size: 1rem;
-  font-weight: 600;
-  color: var(--fg);
-  margin: 0;
-}
-
-.sset-card-header h3 {
-  font-size: 1rem;
-  font-weight: 600;
-  color: var(--fg);
-  margin: 0;
-}
-
-.sset-header-actions { display: flex; gap: 0.5rem; }
+/* CaseSetDetail */
+/* Shared layout styles (api-detail-*) are in detail-components.css */
 
 /* Buttons —— .sset-btn / .sset-btn-primary / .scenario-btn / .scenario-btn.dirty 统一定义在 App.css */
 
@@ -120,49 +14,6 @@
 }
 
 .sset-btn-add:hover { background: var(--accent-hover); }
-
-/* Info Section */
-.sset-info-section {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.sset-info-row {
-  display: flex;
-  gap: 1.5rem;
-  align-items: flex-start;
-}
-
-.sset-info-field {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 0.375rem;
-}
-
-.sset-info-field-inline {
-  flex: 0 0 auto;
-  flex-direction: row;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.sset-info-field label { font-size: 0.8125rem; color: var(--fg-tertiary); }
-.sset-info-field-inline label { min-width: 2.5rem; }
-
-.sset-info-field input {
-  padding: 0.5rem 0.75rem;
-  border: 1px solid var(--border);
-  border-radius: 0.375rem;
-  font-size: 0.875rem;
-  color: var(--fg);
-}
-
-.sset-info-field input:focus {
-  outline: none;
-  border-color: var(--primary);
-}
 
 /* Status Badge */
 .sset-status-badge {
@@ -206,6 +57,8 @@
   border-radius: 0.375rem;
   font-size: 0.8125rem;
   width: 10rem;
+  background: var(--surface);
+  color: var(--fg);
 }
 
 .sset-scenario-search:focus {
@@ -498,6 +351,8 @@
   font-size: 0.8125rem;
   width: 100%;
   box-sizing: border-box;
+  background: var(--surface);
+  color: var(--fg);
 }
 
 .sset-modal-filter-item input:focus,
@@ -587,82 +442,7 @@
   cursor: not-allowed;
 }
 
-/* Tab Navigation */
-.tab-nav {
-  display: flex;
-  border-bottom: 1px solid var(--border);
-  padding: 0 1.5rem;
-  background: var(--surface);
-}
-
-.tab-btn {
-  padding: 0.75rem 1.25rem;
-  background: none;
-  border: none;
-  border-bottom: 2px solid transparent;
-  font-size: 0.8125rem;
-  color: var(--fg-secondary);
-  cursor: pointer;
-  transition: all 0.2s;
-  margin-bottom: -1px;
-}
-
-.tab-btn:hover { color: var(--primary); }
-.tab-btn.active { color: var(--primary); border-bottom-color: var(--primary); font-weight: 500; }
-
-.tab-body {
-  padding: 0;
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  overflow-y: auto;
-  min-height: 0;
-}
-
-.tab-content-wrapper {
-  animation: fadeIn 0.15s ease;
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  padding: 1.5rem 1.5rem;
-  min-height: 0;
-  overflow-y: auto;
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(4px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-.sset-field-value {
-  font-size: 0.8125rem;
-  color: var(--fg);
-  font-family: 'SF Mono', Monaco, monospace;
-}
-
-/* Floating Action Bar */
-.detail-action-bar {
-  position: fixed;
-  bottom: 5%;
-  left: 50%;
-  transform: translateX(-50%);
-  margin: 0;
-  padding: 0;
-  background: transparent;
-  border: none;
-  border-radius: 0;
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 0.75rem;
-  height: auto;
-  z-index: 100;
-  box-shadow: none;
-  backdrop-filter: none;
-}
-  box-shadow: 0 1px 2px rgba(0,0,0,0.04);
-  backdrop-filter: blur(8px);
-}
+/* Tab Navigation - 全局 tabs.css 统一管理 */
 
 /* Pagination */
 .alist-pagination {
@@ -699,53 +479,6 @@
 
 .page-btn:hover { border-color: var(--primary); color: var(--primary); }
 .page-btn:disabled { color: var(--fg-tertiary); cursor: not-allowed; }
-
-/* ── Execution Detail ── */
-.sset-section {
-  margin-bottom: 1rem;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  overflow: hidden;
-}
-
-.sset-section-head {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 1rem;
-  background: var(--bg-secondary);
-  border-bottom: 1px solid var(--border);
-}
-
-.sset-exec-detail {
-  padding: 0.75rem 1rem;
-}
-
-.sset-exec-stats {
-  display: flex;
-  gap: 1rem;
-  padding: 0.5rem 0;
-  font-size: 0.875rem;
-  border-bottom: 1px solid var(--border);
-  margin-bottom: 0.5rem;
-}
-
-.sset-exec-pass { color: var(--success); font-weight: 600; }
-.sset-exec-fail { color: var(--danger); font-weight: 600; }
-
-.sset-exec-no-steps {
-  text-align: center;
-  padding: 1rem;
-  color: var(--fg-tertiary);
-  font-size: 0.8125rem;
-}
-
-.sset-exec-no-items {
-  text-align: center;
-  padding: 1rem;
-  color: var(--fg-tertiary);
-  font-size: 0.8125rem;
-}
 
 /* Scenario Execution Timeline (used by ScenarioExecutionTimeline component) */
 .scenario-exec-timeline { padding: 0.75rem 0; }

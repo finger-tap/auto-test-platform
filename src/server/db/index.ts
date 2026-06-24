@@ -159,6 +159,7 @@ const tableMigrations: { table: string; columns: { name: string; sql: string }[]
   { table: 'apis', columns: [
     { name: 'created_by', sql: 'TEXT' },
     { name: 'updated_by', sql: 'TEXT' },
+    { name: 'ssl_cert_name', sql: 'TEXT' },
   ]},
   { table: 'scenarios', columns: [
     { name: 'created_by', sql: 'TEXT' },
@@ -172,6 +173,7 @@ const tableMigrations: { table: string; columns: { name: string; sql: string }[]
   { table: 'environments', columns: [
     { name: 'created_by', sql: 'TEXT' },
     { name: 'updated_by', sql: 'TEXT' },
+    { name: 'ssl_certs', sql: "TEXT DEFAULT '[]'" },
   ]},
   { table: 'schedules', columns: [
     { name: 'created_by', sql: 'TEXT' },
@@ -231,6 +233,32 @@ try {
 
   if (!hasDatabasesField) {
     db.exec("ALTER TABLE environments ADD COLUMN databases TEXT DEFAULT '[]'");
+  }
+} catch {
+  // environments table doesn't exist yet
+}
+
+// Migration: move old ssl_cert/ssl_key into ssl_certs JSON array
+try {
+  const envCols = db.prepare("PRAGMA table_info(environments)").all() as { name: string }[];
+  const hasSslCerts = envCols.some(c => c.name === 'ssl_certs');
+  const hasOldSslCert = envCols.some(c => c.name === 'ssl_cert');
+
+  if (hasOldSslCert && !hasSslCerts) {
+    db.exec("ALTER TABLE environments ADD COLUMN ssl_certs TEXT DEFAULT '[]'");
+  }
+  // Also migrate when ssl_certs column exists but is empty '[]' while old ssl_cert has data
+  if (hasOldSslCert) {
+    const oldEnvs = db.prepare(
+      "SELECT id, ssl_cert, ssl_key FROM environments WHERE ssl_cert IS NOT NULL AND ssl_cert != '' AND (ssl_certs IS NULL OR ssl_certs = '[]' OR ssl_certs = '')"
+    ).all() as Array<{ id: number; ssl_cert: string; ssl_key: string }>;
+    for (const env of oldEnvs) {
+      const certs = [{ name: '默认证书', cert: env.ssl_cert, key: env.ssl_key || '' }];
+      db.prepare("UPDATE environments SET ssl_certs = ? WHERE id = ?").run(JSON.stringify(certs), env.id);
+    }
+    if (oldEnvs.length > 0) {
+      console.log(`[DB Migration] Migrated ${oldEnvs.length} environments SSL certs to ssl_certs JSON format`);
+    }
   }
 } catch {
   // environments table doesn't exist yet
@@ -487,6 +515,7 @@ db.exec(`
     variables TEXT DEFAULT '[]',
     ssl_cert TEXT,
     ssl_key TEXT,
+    ssl_certs TEXT DEFAULT '[]',
     timeout INTEGER DEFAULT 30000,
     sort_order INTEGER DEFAULT 0,
     is_default INTEGER DEFAULT 0,
@@ -1630,3 +1659,14 @@ const mobileAppAlter: Array<{ ddl: string }> = [
 for (const { ddl } of mobileAppAlter) {
   try { db.exec(ddl); } catch { /* column already exists — ignore */ }
 }
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS user_preferences (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    test_type TEXT NOT NULL,
+    environment_id INTEGER,
+    updated_at TEXT NOT NULL DEFAULT (datetime('now', '+8 hours')),
+    UNIQUE(user_id, test_type)
+  );
+`);

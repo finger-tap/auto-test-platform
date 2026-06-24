@@ -1,0 +1,56 @@
+/* ── Unified Badge / Status System ── */
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.badge-success {
+  background: var(--success-subtle);
+  color: var(--success);
+}
+.badge-warning {
+  background: var(--warning-subtle);
+  color: var(--warning);
+}
+.badge-danger {
+  background: var(--danger-subtle);
+  color: var(--danger);
+}
+.badge-info {
+  background: var(--info-subtle);
+  color: var(--info);
+}
+.badge-default {
+  background: var(--border-subtle);
+  color: var(--fg-secondary);
+}
+
+/* Tag pills */
+.tag-pill {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 9999px;
+  font-size: 11px;
+  background: var(--accent-subtle);
+  color: var(--accent);
+  margin-right: 4px;
+}
+
+/* Status dot */
+.status-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  margin-right: 4px;
+}
+.status-dot-success { background: var(--success); }
+.status-dot-warning { background: var(--warning); }
+.status-dot-danger { background: var(--danger); }
+.status-dot-default { background: var(--fg-tertiary); }

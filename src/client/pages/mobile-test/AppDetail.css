@@ -1,0 +1,235 @@
+/* AppDetail — 应用详情页 */
+
+.ad-page {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow-y: auto;
+}
+
+.ad-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 20rem;
+  color: var(--fg-tertiary);
+  font-size: 0.875rem;
+}
+
+/* Header */
+.ad-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.ad-header-left {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.ad-back {
+  background: none;
+  border: none;
+  color: var(--primary);
+  font-size: 0.8125rem;
+  cursor: pointer;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
+  flex-shrink: 0;
+}
+
+.ad-back:hover { background: var(--accent-subtle); }
+
+.ad-title-input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--fg);
+  background: transparent;
+  padding: 0.25rem 0;
+  outline: none;
+}
+
+.ad-title-input::placeholder { color: var(--fg-tertiary); }
+
+.meta-time {
+  font-size: 0.75rem;
+  color: var(--fg-tertiary);
+  flex-shrink: 0;
+}
+
+.ad-header-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+/* Content */
+.ad-content {
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+/* Section */
+.ad-section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  padding: 1.25rem;
+}
+
+.ad-section-head {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--fg);
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* Metadata grid */
+.app-detail-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.app-detail-grid label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.app-detail-grid label span {
+  font-size: 0.8125rem;
+  color: var(--fg-secondary);
+  font-weight: 500;
+}
+
+.app-detail-grid input,
+.app-detail-grid select {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  background: var(--surface);
+  color: var(--fg);
+}
+
+.app-detail-grid input:focus,
+.app-detail-grid select:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+
+/* Install button */
+.app-install-btn {
+  font-size: 0.8125rem;
+  padding: 0.375rem 0.875rem;
+}
+
+/* Upload form */
+.app-upload-form {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.75rem;
+  background: var(--bg);
+  border-radius: 0.375rem;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+
+.app-upload-form input[type="file"] {
+  font-size: 0.8125rem;
+  color: var(--fg-secondary);
+}
+
+.app-upload-version {
+  width: 7.5rem;
+  padding: 0.375rem 0.625rem;
+  border: 1px solid var(--border);
+  border-radius: 0.375rem;
+  font-size: 0.8125rem;
+  background: var(--surface);
+  color: var(--fg);
+}
+
+.app-upload-version:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+
+.app-upload-changelog {
+  flex: 1;
+  min-width: 10rem;
+  padding: 0.375rem 0.625rem;
+  border: 1px solid var(--border);
+  border-radius: 0.375rem;
+  font-size: 0.8125rem;
+  background: var(--surface);
+  color: var(--fg);
+}
+
+.app-upload-changelog:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+
+/* No versions */
+.app-no-versions {
+  text-align: center;
+  padding: 2rem;
+  color: var(--fg-tertiary);
+  font-size: 0.875rem;
+}
+
+/* Version table */
+.app-version-table {
+  margin-top: 0;
+}
+
+.app-version-latest {
+  background: var(--accent-subtle);
+}
+
+.app-version-tag {
+  font-weight: 600;
+  color: var(--fg);
+  font-size: 0.875rem;
+}
+
+.app-latest-badge {
+  display: inline-block;
+  margin-left: 0.375rem;
+  padding: 0.0625rem 0.375rem;
+  border-radius: 0.625rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  background: var(--success-subtle);
+  color: var(--success);
+}
+
+.app-changelog {
+  max-width: 12rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--fg-secondary);
+  font-size: 0.8125rem;
+}

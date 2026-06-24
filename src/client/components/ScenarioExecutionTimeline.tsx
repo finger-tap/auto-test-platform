@@ -91,7 +91,7 @@ export default function ScenarioExecutionTimeline({ steps, apiLinks, cacheKeyPre
                               if (targetApiId) {
                                 const params = new URLSearchParams({ exec: String(link.api_execution_id) });
                                 if (link.param_row_index != null && link.param_row_index >= 0) params.set('paramRow', String(link.param_row_index));
-                                navigate(`/api-test/api-case/${targetApiId}?${params}`);
+                                navigate(`/api-test/case/${targetApiId}?${params}`);
                               }
                             }}
                           >

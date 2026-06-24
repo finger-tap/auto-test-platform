@@ -264,7 +264,7 @@ export default function ScenarioDetail({ basePath = '/api-test', testType = 'api
   const ensureCreated = async (): Promise<string | null> => {
     if (realIdRef.current) return realIdRef.current;
     const apiPath = API_PATH_MAP[testType] || API_PATH_MAP.api;
-    const routeBase = testType === 'api' ? '/api-test/scene-case' : testType === 'web' ? '/web-test/scene' : testType === 'pc' ? '/pc-test/scene' : '/mobile-test/scene-case';
+    const routeBase = testType === 'api' ? '/api-test/scene' : testType === 'web' ? '/web-test/scene' : testType === 'pc' ? '/pc-test/scene' : '/mobile-test/scene';
     try {
       const res = await apiFetch<{ id: number }>(apiPath.list, {
         method: 'POST',
@@ -504,7 +504,7 @@ export default function ScenarioDetail({ basePath = '/api-test', testType = 'api
   // ─── Tab: Detail ───
   const renderDetailTab = () => (
     <div className="tab-content-wrapper">
-      <div className="sd-section">
+      <div className="ad-section">
         <div className="api-detail-row">
           <div className="field"><label>场景名称</label><InlineText value={scenario.name} onChange={v => saveField('name', v)} placeholder="点击输入场景名称" /></div>
           <div className="field"><label>状态</label><InlineSelect value={scenario.status} options={STATUS_OPTIONS} onChange={v => saveField('status', v)} renderDisplay={(v, label) => <span className={`scenario-status scenario-status-${v}`}>{label}</span>} /></div>
@@ -533,13 +533,13 @@ export default function ScenarioDetail({ basePath = '/api-test', testType = 'api
   // ─── Tab: Flow ───
   const renderFlowTab = () => (
     <div className="tab-content-wrapper" style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-      <div className="sd-section" style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+      <div className="ad-section" style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
         <div className="scenario-toolbar">
           <div className="scenario-toolbar-title">添加节点</div>
-          <button className="scenario-toolbar-btn" onClick={() => addNode('start')}>开始</button>
-          <button className="scenario-toolbar-btn" onClick={() => addNode('api')}>接口</button>
-          <button className="scenario-toolbar-btn" onClick={() => addNode('condition')}>条件</button>
-          <button className="scenario-toolbar-btn" onClick={() => addNode('end')}>结束</button>
+          <button className="ad-btn ad-btn-default ad-btn-sm" onClick={() => addNode('start')}>开始</button>
+          <button className="ad-btn ad-btn-default ad-btn-sm" onClick={() => addNode('api')}>接口</button>
+          <button className="ad-btn ad-btn-default ad-btn-sm" onClick={() => addNode('condition')}>条件</button>
+          <button className="ad-btn ad-btn-default ad-btn-sm" onClick={() => addNode('end')}>结束</button>
         </div>
         <div className="scenario-canvas-wrapper" style={{ flex: 1, minHeight: 0, position: 'relative', display: 'flex' }}>
           <div className="scenario-canvas" style={{ flex: 1, minHeight: 0, position: 'relative' }}>
@@ -706,7 +706,7 @@ export default function ScenarioDetail({ basePath = '/api-test', testType = 'api
     // 从流程图节点提取参数化 keys
     const extractFromNodes = async () => {
       const apiNodes = nodes.filter(n => n.type === 'api');
-      if (apiNodes.length === 0) { alert('流程图中没有 API 节点'); return; }
+      if (apiNodes.length === 0) { notification.warning('流程图中没有 API 节点'); return; }
       const seen = new Set<string>();
       const newHeaders: string[] = [];
 
@@ -726,7 +726,7 @@ export default function ScenarioDetail({ basePath = '/api-test', testType = 'api
         } catch (err) { console.error('提取参数失败', err); }
       }
 
-      if (newHeaders.length === 0) { alert('未从节点中提取到参数化字段'); return; }
+      if (newHeaders.length === 0) { notification.warning('未从节点中提取到参数化字段'); return; }
 
       setParamConfig(prev => {
         const combinedHeaders = [...prev.headers, ...newHeaders.filter(h => !prev.headers.includes(h))];
@@ -746,7 +746,7 @@ export default function ScenarioDetail({ basePath = '/api-test', testType = 'api
               <button type="button" className="ad-btn ad-btn-sm" onClick={addColumn}>添加列</button>
               <button type="button" className="ad-btn ad-btn-sm" onClick={addRow}>添加行</button>
               <button type="button" className="ad-btn ad-btn-sm" onClick={extractFromNodes}>从节点提取</button>
-              <label className="param-upload-btn">
+              <label className="ad-btn ad-btn-sm" style={{ cursor: 'pointer' }}>
                 <input type="file" accept=".csv,.xlsx,.xls" style={{ display: 'none' }} onChange={handleFileUpload} />
                 上传 CSV
               </label>
@@ -769,13 +769,13 @@ export default function ScenarioDetail({ basePath = '/api-test', testType = 'api
                         />
                       )}
                     </th>
-                    <th className="param-th-del"></th>
                     {paramConfig.headers.map((h, ci) => (
                       <th key={ci}>
                         <input className="param-header-input" value={h} onChange={e => setHeader(ci, e.target.value)} placeholder="变量名" />
                         <button className="param-col-del" onClick={() => removeColumn(ci)} title="删除此列">✕</button>
                       </th>
                     ))}
+                    <th className="param-th-del"></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -788,7 +788,6 @@ export default function ScenarioDetail({ basePath = '/api-test', testType = 'api
                           <input type="checkbox" checked={paramConfig.enabledRows[ri] !== false} onChange={() => toggleRowEnabled(ri)} />
                         </label>
                       </td>
-                      <td><button className="param-row-del" onClick={() => removeRow(ri)} title="删除此行">✕</button></td>
                       {paramConfig.headers.map((_, ci) => (
                         <td key={ci}>
                           <input
@@ -798,6 +797,7 @@ export default function ScenarioDetail({ basePath = '/api-test', testType = 'api
                           />
                         </td>
                       ))}
+                      <td><button className="param-row-del" onClick={() => removeRow(ri)} title="删除此行">✕</button></td>
                     </tr>
                   ))}
                 </tbody>
@@ -819,7 +819,6 @@ export default function ScenarioDetail({ basePath = '/api-test', testType = 'api
 
   // ─── Tab: Logs ───
   const renderLogsTab = () => {
-    // Backend already groups by batch_id, just sort by time
     const displayRows = [...scenarioExecutions].sort((a, b) =>
       (b.started_at || '').localeCompare(a.started_at || '')
     );
@@ -830,26 +829,28 @@ export default function ScenarioDetail({ basePath = '/api-test', testType = 'api
       const isExpanded = expandedLog === execItem.id;
       return (
         <Fragment key={execItem.id}>
-          <tr className="scenario-log-row" onClick={() => { setExpandedLog(isExpanded ? null : execItem.id); setActiveParamRow(1); }}>
+          <tr className={isExpanded ? 'log-row-selected' : ''}>
             <td>{toLocalDateTime(execItem.started_at)}</td>
             <td>
-              <span className={`scenario-log-status scenario-log-${execItem.status}`}>{execItem.status}</span>
+              <span className={`status-badge status-${execItem.status}`}>{execItem.status === 'success' ? '通过' : execItem.status === 'failed' ? '失败' : execItem.status}</span>
               {batchLabel && <span className="scenario-log-batch">{batchLabel}</span>}
             </td>
             <td>{execItem.duration_ms != null ? `${execItem.duration_ms} ms` : '-'}</td>
             <td>{execItem.executed_by || '-'}</td>
-            <td>{isExpanded ? '收起' : '查看'}</td>
+            <td><button className="log-view-btn" onClick={() => { setExpandedLog(isExpanded ? null : execItem.id); setActiveParamRow(1); }}>{isExpanded ? '收起' : '查看'}</button></td>
           </tr>
           {isExpanded && (
-            <tr><td colSpan={5} className="scenario-log-expanded">
-              {subCount > 0 ? (
-                <ScenarioBatchExecutionView execution={execItem} />
-              ) : (
-                <ScenarioExecutionTimeline
-                  steps={execItem.steps || []}
-                  apiLinks={execItem.api_links || []}
-                />
-              )}
+            <tr className="log-detail-row"><td colSpan={5}>
+              <div className="log-expanded">
+                {subCount > 0 ? (
+                  <ScenarioBatchExecutionView execution={execItem} />
+                ) : (
+                  <ScenarioExecutionTimeline
+                    steps={execItem.steps || []}
+                    apiLinks={execItem.api_links || []}
+                  />
+                )}
+              </div>
             </td></tr>
           )}
         </Fragment>
@@ -858,29 +859,43 @@ export default function ScenarioDetail({ basePath = '/api-test', testType = 'api
 
     return (
       <div className="tab-content-wrapper">
-        {scenarioExecutions.length === 0 ? (<div className="scenario-logs-empty">暂无执行记录</div>) : (
-          <table className="scenario-logs-table">
-            <thead><tr><th>执行时间</th><th>状态</th><th>耗时</th><th>执行人</th><th>操作</th></tr></thead>
-            <tbody>
-              {displayRows.map((row) => renderExecutionRow(row))}
-            </tbody>
-          </table>
-        )}
+        <div className="ad-section">
+          <div className="ad-section-head"><label>执行记录</label></div>
+          {scenarioExecutions.length === 0 ? (<div className="api-empty" style={{ padding: '24px 0' }}>暂无执行记录</div>) : (
+            <table className="log-table">
+              <thead><tr><th>执行时间</th><th>状态</th><th>耗时</th><th>执行人</th><th>操作</th></tr></thead>
+              <tbody>
+                {displayRows.map((row) => renderExecutionRow(row))}
+              </tbody>
+            </table>
+          )}
+        </div>
       </div>
     );
   };
 
   // Compute route base for navigation based on test type
-  const routeBase = testType === 'api' ? '/api-test/scene-case' : testType === 'web' ? '/web-test/scene' : testType === 'pc' ? '/pc-test/scene' : '/mobile-test/scene-case';
+  const routeBase = testType === 'api' ? '/api-test/scene' : testType === 'web' ? '/web-test/scene' : testType === 'pc' ? '/pc-test/scene' : '/mobile-test/scene';
 
   return (
-    <div className="scenario-detail">
-      <div className="scenario-detail-header">
-        <button className="scenario-back" onClick={() => navigate(routeBase)}>← 返回列表</button>
-        <span className="scenario-detail-page-title">场景用例详情</span>
+    <div className="api-detail page-enter">
+      <div className="api-detail-header">
+        <div className="api-detail-breadcrumb">
+          <button className="api-detail-back" onClick={() => navigate(routeBase)}>场景列表</button>
+          <span className="api-detail-breadcrumb-sep">/</span>
+          <input className="api-detail-name-input" value={scenario?.name || ''} onChange={e => saveField('name', e.target.value)} placeholder="输入场景名称" />
+        </div>
+        <div className="api-detail-meta">
+          {!isNew && scenario && <span className={`status-badge-light ${scenario.status}`}>{STATUS_OPTIONS.find(o => o.value === scenario.status)?.label || scenario.status}</span>}
+          {scenario?.updated_at && <span className="meta-time">更新于 {toLocalDateTime(scenario.updated_at)}</span>}
+        </div>
+        <div className="api-detail-actions">
+          <button className="scenario-btn" onClick={handleSave} disabled={saving}>{saving ? '保存中...' : '保存'}</button>
+          <button className={`sset-btn sset-btn-primary${!realIdRef.current ? ' scenario-btn-disabled' : ''}`} onClick={handleExecute} disabled={executing}>{executing ? <><span className="ad-btn-loading">⟳</span> 执行中</> : '执行'}</button>
+        </div>
       </div>
-      <div className="scenario-detail-content">
-        <div className="scenario-detail-card" style={{ padding: 0 }}>
+      <div className="api-detail-content">
+        <div className="api-detail-card">
           <div className="tab-nav">{TABS.map((tab) => (<button key={tab.key} className={`tab-btn ${activeTab === tab.key ? 'active' : ''}`} onClick={() => setActiveTab(tab.key)}>{tab.label}</button>))}</div>
           <div className="tab-body">
             {activeTab === 'detail' && renderDetailTab()}
@@ -888,12 +903,6 @@ export default function ScenarioDetail({ basePath = '/api-test', testType = 'api
             {activeTab === 'params' && renderParamsTab()}
             {activeTab === 'logs' && renderLogsTab()}
           </div>
-          {activeTab !== 'logs' && (
-            <div className="detail-action-bar">
-              <button className={`scenario-btn ${dirtyRef.current ? 'dirty' : ''}`} onClick={handleSave} disabled={saving}>{saving ? '保存中...' : '保存'}</button>
-              <button className={`sset-btn sset-btn-primary ${!realIdRef.current ? 'scenario-btn-disabled' : ''}`} onClick={handleExecute} disabled={executing}>{executing ? <><span className="ad-btn-loading">⟳</span> 执行中</> : '执行'}</button>
-            </div>
-          )}
         </div>
       </div>
       {error && <div className="scenario-error">{error}</div>}

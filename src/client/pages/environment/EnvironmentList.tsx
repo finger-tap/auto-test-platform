@@ -2,7 +2,9 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { apiFetch } from '../../utils/api';
 import { formatDateTime } from '../../utils/datetime';
+import notification from '../../utils/notification';
 import { useEnvironment } from '../../contexts/EnvironmentContext';
+import FormSelect from '../../components/FormSelect';
 import type { Environment, EnvVariable } from '../../types';
 
 import './EnvironmentList.css';
@@ -11,6 +13,9 @@ export default function EnvironmentList({ basePath = '/api-test' }: { basePath?:
   const [envs, setEnvs] = useState<Environment[]>([]);
   const [loading, setLoading] = useState(true);
   const [fName, setFName] = useState('');
+  const [appliedName, setAppliedName] = useState('');
+  const [fDefault, setFDefault] = useState('');
+  const [appliedDefault, setAppliedDefault] = useState('');
 
   const navigate = useNavigate();
   const { activeEnv, setActiveEnv } = useEnvironment();
@@ -47,7 +52,8 @@ export default function EnvironmentList({ basePath = '/api-test' }: { basePath?:
   }, []);
 
   async function doDelete(env: Environment) {
-    if (!confirm(`确认删除环境「${env.name}」？`)) return;
+    const ok = await notification.confirm(`确认删除环境「${env.name}」？`);
+    if (!ok) return;
     await apiFetch(`/environments/${env.id}`, { method: 'DELETE' });
     load();
     if (activeEnv?.id === env.id) {
@@ -79,14 +85,28 @@ export default function EnvironmentList({ basePath = '/api-test' }: { basePath?:
     }
   }
 
-  // 本地按名称过滤
+  // 本地按名称和默认状态过滤（点击查询按钮后生效）
   const filtered = envs.filter(env => {
-    if (fName && !env.name.toLowerCase().includes(fName.toLowerCase())) return false;
+    if (appliedName && !env.name.toLowerCase().includes(appliedName.toLowerCase())) return false;
+    if (appliedDefault === 'yes' && env.is_default !== 1) return false;
+    if (appliedDefault === 'no' && env.is_default === 1) return false;
     return true;
   });
 
+  function handleQuery() {
+    setAppliedName(fName);
+    setAppliedDefault(fDefault);
+  }
+
+  function handleReset() {
+    setFName('');
+    setAppliedName('');
+    setFDefault('');
+    setAppliedDefault('');
+  }
+
   return (
-    <div className="elist">
+    <div className="elist page-enter">
       {/* Filter Area */}
       <div className="alist-filter">
         <div className="alist-filter-row">
@@ -94,7 +114,17 @@ export default function EnvironmentList({ basePath = '/api-test' }: { basePath?:
             <label>环境名称</label>
             <input placeholder="搜索环境" value={fName} onChange={e => setFName(e.target.value)} />
           </div>
+          <div className="alist-filter-item">
+            <label>是否默认</label>
+            <FormSelect
+              value={fDefault}
+              options={[{ value: '', label: '全部' }, { value: 'yes', label: '默认环境' }, { value: 'no', label: '非默认' }]}
+              onChange={val => setFDefault(val)}
+            />
+          </div>
           <div className="alist-filter-actions">
+            <button className="btn btn-primary" onClick={handleQuery}>查询</button>
+            <button className="btn btn-default" onClick={handleReset}>重置</button>
             <button className="btn btn-default" onClick={() => navigate(`${basePath}/environment/new`)}>新增</button>
           </div>
         </div>
@@ -119,11 +149,11 @@ export default function EnvironmentList({ basePath = '/api-test' }: { basePath?:
                 <th>超时</th>
                 <th>默认</th>
                 <th>创建时间</th>
-                <th style={{ width: 80 }}></th>
+                <th style={{ width: 120 }}></th>
               </tr>
             </thead>
             <tbody>
-              {filtered.map(env => {
+              {filtered.map((env, index) => {
                 const isActive = activeEnv?.id === env.id;
                 const varsRaw = normalizeVars(env.variables);
                 const varCount = varsRaw.filter((v) => v.key?.trim()).length;
@@ -131,7 +161,7 @@ export default function EnvironmentList({ basePath = '/api-test' }: { basePath?:
                 const hasKey = !!env.ssl_key?.trim();
 
                 return (
-                  <tr key={env.id} onClick={() => navigate(`${basePath}/environment/${env.id}`)} style={{ cursor: 'pointer' }}>
+                  <tr key={env.id} className="row-enter" style={{ '--delay': `${index * 30}ms`, cursor: 'pointer' } as React.CSSProperties} onClick={() => navigate(`${basePath}/environment/${env.id}`)}>
                     <td>
                       {isActive && <span className="elist-card-dot" style={{ display: 'inline-block', marginRight: 6 }} />}
                       {env.name}
@@ -144,9 +174,9 @@ export default function EnvironmentList({ basePath = '/api-test' }: { basePath?:
                     <td>
                       <div className="row-actions">
                         {!isActive && (
-                          <button className="row-action-btn" title="设为默认" onClick={(e) => { e.stopPropagation(); useEnv(env); }}>★</button>
+                          <button className="row-action-btn" title="设为默认" onClick={(e) => { e.stopPropagation(); useEnv(env); }}>设为默认</button>
                         )}
-                        <button className="row-action-btn row-action-del" title="删除" onClick={(e) => { e.stopPropagation(); doDelete(env); }}>✕</button>
+                        <button className="row-action-btn row-action-del" title="删除" onClick={(e) => { e.stopPropagation(); doDelete(env); }}>删除</button>
                       </div>
                     </td>
                   </tr>

@@ -2,10 +2,14 @@ import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { InlineText, InlineSelect } from '../../components/InlineEdit';
 import TagInput from '../../components/TagInput';
+import FormSelect from '../../components/FormSelect';
+import DevicePickerModal from '../../components/DevicePickerModal';
 import LogTab, { type ExecRecord } from '../../components/tabs/LogTab';
 import { CaseContentEditor, type CaseContentType } from '../../components/CaseContentEditor';
+import PcPreviewPanel from '../../components/PcPreviewPanel';
 import { apiFetch } from '../../utils/api';
-import { formatDateTime } from '../../utils/datetime';
+import { useEnvironment } from '../../contexts/EnvironmentContext';
+import { formatDateTime, formatDuration } from '../../utils/datetime';
 import notification from '../../utils/notification';
 import type { NLStep } from '../../types';
 import './PcCaseDetail.css';
@@ -18,13 +22,14 @@ interface Checkpoint extends NLStep {
 }
 
 interface EnvConfig {
-  browser: string;
+  // 桌面自动化配置(ComputerAgent)
+  displayId: string;        // 多显示器指定目标屏,空=主屏
+  keyboardDriver: string;   // macOS 键盘:'applescript'(默认)|'libnut'|''(自动)
+  xvfbResolution: string;   // Linux headless Xvfb 分辨率,如 '1920x1080x24'
+  headless: boolean;        // Linux 下启 Xvfb headless
+  timeout: string;          // 用例超时(秒)
+  // 向后兼容字段(Playwright 时代遗留,不再使用,保留只为读取旧数据)
   windowSize: string;
-  timeout: string;
-  headless: boolean;
-  baseUrl: string;
-  driverPath: string;
-  closeBrowserAfterExecution: boolean;
 }
 
 // ── Constants ──
@@ -57,18 +62,16 @@ function nlStepsToText(steps: NLStep[]): string {
     .join('\n');
 }
 
-const BROWSER_OPTIONS = [
-  { value: 'chrome', label: 'Chrome' },
-  { value: 'firefox', label: 'Firefox' },
-  { value: 'safari', label: 'Safari' },
-  { value: 'edge', label: 'Edge' },
+const KEYBOARD_DRIVER_OPTIONS = [
+  { value: '', label: '自动(默认)' },
+  { value: 'applescript', label: 'AppleScript(macOS,更稳)' },
+  { value: 'libnut', label: 'libnut(更快)' },
 ];
 
-const WINDOW_OPTIONS = [
-  { value: '1920x1080', label: '1920 x 1080' },
-  { value: '1366x768', label: '1366 x 768' },
-  { value: '1280x720', label: '1280 x 720' },
-  { value: '1440x900', label: '1440 x 900' },
+const XVFB_RESOLUTION_OPTIONS = [
+  { value: '1920x1080x24', label: '1920 x 1080' },
+  { value: '1366x768x24', label: '1366 x 768' },
+  { value: '1280x720x24', label: '1280 x 720' },
 ];
 
 // ── Render: variable tokens ──
@@ -86,7 +89,9 @@ function renderDesc(desc: string) {
 export default function PcCaseDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const isNew = id === 'new';
+  const { activeEnv } = useEnvironment();
+  // /pc-test/case/new 路由没有 :id 参数，useParams() 中 id 为 undefined
+  const isNew = !id || id === 'new';
   const [loading, setLoading] = useState(false);
   const [executing, setExecuting] = useState(false);
 
@@ -121,17 +126,24 @@ export default function PcCaseDetail() {
   const [dataEnabled, setDataEnabled] = useState<boolean[]>([]);
 
   const [envConfig, setEnvConfig] = useState<EnvConfig>({
-    browser: 'chrome',
+    displayId: '',
+    keyboardDriver: '',
+    xvfbResolution: '1920x1080x24',
+    headless: false,
+    timeout: '300',
     windowSize: '1920x1080',
-    timeout: '30',
-    headless: true,
-    baseUrl: '',
-    driverPath: '',
-    closeBrowserAfterExecution: false,
   });
 
   const [execRecords, setExecRecords] = useState<ExecRecord[]>([]);
   const [latestReportUrl, setLatestReportUrl] = useState<string | null>(null);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [execError, setExecError] = useState<string | null>(null);
+
+  // 2026-06-15: 远程 PC 设备选择 — 用于执行时指定远程 pc-agent。
+  // null = 本地执行(不选设备); 非 null = 远程执行(传 deviceId 给后端)。
+  const [selectedDeviceId, setSelectedDeviceId] = useState<number | null>(null);
+  const [selectedDeviceName, setSelectedDeviceName] = useState<string | null>(null);
+  const [devicePickerOpen, setDevicePickerOpen] = useState(false);
 
   // Compute dirty by JSON-encoding every relevant field. Compared to the
   // original snapshot taken at load time (or right after a successful save).
@@ -212,13 +224,12 @@ export default function PcCaseDetail() {
             }
           }
           setEnvConfig({
-            browser: d.browser || 'chrome',
+            displayId: d.display_id || '',
+            keyboardDriver: d.keyboard_driver || '',
+            xvfbResolution: d.xvfb_resolution || '1920x1080x24',
+            headless: d.headless === 1 || d.headless === true,
+            timeout: d.timeout != null ? String(Math.round(d.timeout / 1000)) : '300',
             windowSize: d.window_size || '1920x1080',
-            timeout: String(d.timeout || '30'),
-            headless: d.headless_mode === 1 || d.headless_mode === true,
-            baseUrl: d.base_url || '',
-            driverPath: d.driver_path || '',
-            closeBrowserAfterExecution: d.close_browser_after_execution === 1 || d.close_browser_after_execution === true,
           });
           // Capture the original snapshot after the synchronous state setters
           // have flushed. We rebuild it from the same keys the dirty effect
@@ -243,13 +254,12 @@ export default function PcCaseDetail() {
               dataRows: (() => { try { return JSON.parse(d.data_drive || '{}').rows || []; } catch { return []; } })(),
               dataEnabled: (() => { try { return JSON.parse(d.data_drive || '{}').enabled || []; } catch { return []; } })(),
               envConfig: {
-                browser: d.browser || 'chrome',
+                displayId: d.display_id || '',
+                keyboardDriver: d.keyboard_driver || '',
+                xvfbResolution: d.xvfb_resolution || '1920x1080x24',
+                headless: d.headless === 1 || d.headless === true,
+                timeout: d.timeout != null ? String(Math.round(d.timeout / 1000)) : '300',
                 windowSize: d.window_size || '1920x1080',
-                timeout: String(d.timeout || '30'),
-                headless: d.headless_mode === 1 || d.headless_mode === true,
-                baseUrl: d.base_url || '',
-                driverPath: d.driver_path || '',
-                closeBrowserAfterExecution: d.close_browser_after_execution === 1 || d.close_browser_after_execution === true,
               },
             });
             setDirty(false);
@@ -260,41 +270,28 @@ export default function PcCaseDetail() {
       .finally(() => setLoading(false));
   }, [id, isNew]);
 
-  // Load execution logs
+  // Load executions (has report_url) and build execRecords from them
   useEffect(() => {
     if (isNew || !id) return;
-    apiFetch<any>(`/pc-cases/${id}/logs?limit=10`).then(res => {
-      if (res.code === 200 && res.data) {
-        setExecRecords(res.data.map((log: any) => ({
-          id: log.id,
-          time: formatDateTime(log.executed_at),
-          status: log.status as 'success' | 'failed' | 'running',
-          duration: log.duration_ms ? `${log.duration_ms}ms` : '-',
-          executor: log.executed_by || '-',
-          passRate: log.result ? (() => {
-            try {
-              const r = JSON.parse(log.result);
-              const total = r.steps?.length || 0;
-              const passed = r.steps?.filter((s: any) => s.status === 'success').length || 0;
-              return total > 0 ? `${Math.round((passed / total) * 100)}%` : '-';
-            } catch { return '-'; }
-          })() : '-',
-        })));
-      }
-    });
-  }, [id, isNew]);
-
-  // Phase 5: load latest execution with a Midscene report (if any)
-  useEffect(() => {
-    if (isNew || !id) return;
-    apiFetch<any>(`/pc-cases/${id}/executions?limit=1`).then(res => {
+    apiFetch<any>(`/pc-cases/${id}/executions?limit=20`).then(res => {
       if (res.code === 200 && res.data && res.data.length > 0) {
-        const exec = res.data[0];
-        setLatestReportUrl(exec.report_url || null);
+        const execs = res.data;
+        setExecRecords(execs.map((e: any) => ({
+          id: e.id,
+          time: formatDateTime(e.started_at),
+          status: (e.status === 'success' || e.status === 'failed' || e.status === 'error') ? e.status : 'running',
+          duration: formatDuration(e.duration_ms),
+          executor: '-',
+          passRate: '-',
+          reportUrl: e.report_url,
+          errorMessage: e.error_message,
+        })));
+        const latest = execs[0];
+        setLatestReportUrl(latest.report_url || null);
         // Fill `passed` on each checkpoint by index from latest execution
-        const result = typeof exec.result === 'string'
-          ? (() => { try { return JSON.parse(exec.result); } catch { return null; } })()
-          : exec.result;
+        const result = typeof latest.result === 'string'
+          ? (() => { try { return JSON.parse(latest.result); } catch { return null; } })()
+          : latest.result;
         const flags: unknown = result && typeof result === 'object' ? (result as any).checkpoints : null;
         if (Array.isArray(flags)) {
           setCheckpoints(prev => prev.map((cp, i) => ({
@@ -306,35 +303,61 @@ export default function PcCaseDetail() {
         setLatestReportUrl(null);
       }
     }).catch(() => setLatestReportUrl(null));
-  }, [id, isNew, execRecords.length]);
+  }, [id, isNew]);
 
 
 
   const handleExecute = async () => {
     if (!id || isNew) { notification.error('请先保存用例'); return; }
+    // 打开桌面实时预览（跟移动端逻辑一致：执行时自动开预览）
+    setPreviewOpen(true);
     setExecuting(true);
+    setExecError(null);
     try {
-      const res = await apiFetch(`/pc-cases/${id}/execute`, { method: 'POST' });
-      if (res.code === 200) {
-        notification.success('执行完成');
-        // Reload logs
-        const logsRes = await apiFetch<any>(`/pc-cases/${id}/logs?limit=10`);
-        if (logsRes.code === 200 && logsRes.data) {
-          setExecRecords(logsRes.data.map((log: any) => ({
-            id: log.id,
-            time: formatDateTime(log.executed_at),
-            status: log.status as 'success' | 'failed' | 'running',
-            duration: log.duration_ms ? `${log.duration_ms}ms` : '-',
-            executor: log.executed_by || '-',
-            passRate: '-',
-          })));
-          setActiveTab('logs');
+      // 2026-06-15: 远程 PC 设备选择 — 传 deviceId query param 给后端
+      const url = selectedDeviceId
+        ? `/pc-cases/${id}/execute?deviceId=${selectedDeviceId}`
+        : `/pc-cases/${id}/execute`;
+      const res = await apiFetch<any>(url, {
+        method: 'POST',
+        body: JSON.stringify({ environmentId: activeEnv?.id }),
+      });
+      if (res.code === 200 && res.data) {
+        const data = res.data;
+        if (data.status === 'success') {
+          notification.success('执行完成');
+        } else {
+          // 执行完成但状态为 failed/error — 展示具体原因
+          const msg = data.error_message || '未知错误';
+          setExecError(msg);
+          notification.error(`执行${data.status === 'failed' ? '失败' : '异常'}: ${msg.slice(0, 120)}`);
         }
+        // Reload executions
+        const execRes = await apiFetch<any>(`/pc-cases/${id}/executions?limit=20`);
+        if (execRes.code === 200 && execRes.data) {
+          setExecRecords(execRes.data.map((e: any) => ({
+            id: e.id,
+            time: formatDateTime(e.started_at),
+            status: (e.status === 'success' || e.status === 'failed' || e.status === 'error') ? e.status : 'running',
+            duration: formatDuration(e.duration_ms),
+            executor: '-',
+            passRate: '-',
+            reportUrl: e.report_url,
+            errorMessage: e.error_message,
+          })));
+          if (execRes.data[0]?.report_url) setLatestReportUrl(execRes.data[0].report_url);
+        }
+        // 始终切到执行记录 tab（成功/失败都看记录）
+        setActiveTab('logs');
       } else {
-        notification.error('执行失败');
+        const msg = res.message || '请求失败';
+        setExecError(msg);
+        notification.error(msg);
       }
-    } catch {
-      notification.error('执行出错');
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setExecError(msg);
+      notification.error(`执行出错: ${msg}`);
     } finally {
       setExecuting(false);
     }
@@ -352,13 +375,12 @@ export default function PcCaseDetail() {
       check_points: JSON.stringify(checkpointsForSave),
       data_drive: JSON.stringify({ headers: dataHeaders, rows: dataRows, enabled: dataEnabled }),
       preconditions,
-      browser: envConfig.browser,
+      display_id: envConfig.displayId.trim() || null,
+      keyboard_driver: envConfig.keyboardDriver || null,
+      xvfb_resolution: envConfig.xvfbResolution.trim() || null,
+      headless: envConfig.headless ? 1 : 0,
+      timeout: (Number(envConfig.timeout) || 300) * 1000,
       window_size: envConfig.windowSize,
-      timeout: Number(envConfig.timeout) || 30,
-      headless_mode: envConfig.headless ? 1 : 0,
-      base_url: envConfig.baseUrl,
-      driver_path: envConfig.driverPath,
-      close_browser_after_execution: envConfig.closeBrowserAfterExecution ? 1 : 0,
     };
     const method = isNew ? 'POST' : 'PUT';
     const path = isNew ? '/pc-cases' : `/pc-cases/${id}`;
@@ -433,8 +455,8 @@ export default function PcCaseDetail() {
   // ── Tab Renderers ──
 
   const renderDetailTab = () => (
-    <div className="tab-content-wrapper tab-detail-wrapper">
-      <div className="ad-section ad-section-fill">
+    <div className="tab-content-wrapper">
+      <div className="ad-section">
         <div className="api-detail-row">
           <div className="field">
             <label>用例名称</label>
@@ -567,10 +589,10 @@ export default function PcCaseDetail() {
                     />
                   )}
                 </th>
-                <th className="param-th-del"></th>
                 {dataHeaders.map((h, ci) => (
                   <th key={ci}>{h}</th>
                 ))}
+                <th className="param-th-del"></th>
               </tr>
             </thead>
             <tbody>
@@ -581,9 +603,6 @@ export default function PcCaseDetail() {
                       <input type="checkbox" checked={dataEnabled[ri]} onChange={() => toggleDataRow(ri)} />
                     </label>
                   </td>
-                  <td>
-                    <button className="param-row-del" onClick={() => removeDataRow(ri)} title="删除此行">✕</button>
-                  </td>
                   {row.map((cell, ci) => (
                     <td key={ci}>
                       <input
@@ -593,6 +612,9 @@ export default function PcCaseDetail() {
                       />
                     </td>
                   ))}
+                  <td>
+                    <button className="param-row-del" onClick={() => removeDataRow(ri)} title="删除此行">✕</button>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -615,22 +637,21 @@ export default function PcCaseDetail() {
         </div>
         <div className="api-detail-row">
           <div className="field">
-            <label>浏览器</label>
-            <select
-              value={envConfig.browser}
-              onChange={e => setEnvConfig(c => ({ ...c, browser: e.target.value }))}
-            >
-              {BROWSER_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-            </select>
+            <label>显示器</label>
+            <input
+              type="text"
+              value={envConfig.displayId}
+              onChange={e => setEnvConfig(c => ({ ...c, displayId: e.target.value }))}
+              placeholder="留空用主屏；多屏填显示器 id（如 1）"
+            />
           </div>
           <div className="field">
-            <label>窗口大小</label>
-            <select
-              value={envConfig.windowSize}
-              onChange={e => setEnvConfig(c => ({ ...c, windowSize: e.target.value }))}
-            >
-              {WINDOW_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-            </select>
+            <label>macOS 键盘驱动</label>
+            <FormSelect
+              value={envConfig.keyboardDriver}
+              options={KEYBOARD_DRIVER_OPTIONS}
+              onChange={v => setEnvConfig(c => ({ ...c, keyboardDriver: v }))}
+            />
           </div>
         </div>
         <div className="api-detail-row">
@@ -644,9 +665,9 @@ export default function PcCaseDetail() {
             />
           </div>
           <div className="field">
-            <label>无头模式</label>
+            <label>Linux 无头模式（Xvfb）</label>
             <div className="web-env-headless">
-              <label className="rule-switch">
+              <label className="rule-switch rule-switch--labeled" title="仅 Linux 生效。开启后用 Xvfb 虚拟显示器执行,无需真实屏幕。macOS/Windows 忽略此项。">
                 <input
                   type="checkbox"
                   checked={envConfig.headless}
@@ -661,57 +682,83 @@ export default function PcCaseDetail() {
         </div>
         <div className="api-detail-row">
           <div className="field">
-            <label>基础 URL</label>
-            <input
-              type="text"
-              value={envConfig.baseUrl}
-              onChange={e => setEnvConfig(c => ({ ...c, baseUrl: e.target.value }))}
-              placeholder="https://example.com"
-            />
-          </div>
-          <div className="field">
-            <label>驱动路径（可选）</label>
-            <input
-              type="text"
-              value={envConfig.driverPath}
-              onChange={e => setEnvConfig(c => ({ ...c, driverPath: e.target.value }))}
-              placeholder="留空使用项目自带驱动；填绝对路径则用指定驱动"
+            <label>Xvfb 分辨率</label>
+            <FormSelect
+              value={envConfig.xvfbResolution}
+              options={XVFB_RESOLUTION_OPTIONS}
+              onChange={v => setEnvConfig(c => ({ ...c, xvfbResolution: v }))}
             />
           </div>
         </div>
-        <div className="api-detail-row">
-          <div className="field">
-            <label>执行后关闭浏览器</label>
-            <div className="web-env-headless">
-              <label className="rule-switch" title="关闭后本 case 执行完销毁共享浏览器;关闭后下一个 case 会重新启动。默认关闭=复用浏览器,加速连续执行。">
-                <input
-                  type="checkbox"
-                  checked={envConfig.closeBrowserAfterExecution}
-                  onChange={() => setEnvConfig(c => ({ ...c, closeBrowserAfterExecution: !c.closeBrowserAfterExecution }))}
-                />
-                <span className="rule-switch-slider">
-                  <span className="rule-switch-label">{envConfig.closeBrowserAfterExecution ? '关闭' : '复用'}</span>
-                </span>
-              </label>
-            </div>
-          </div>
+        <div className="api-detail-hint">
+          PC 测试使用原生桌面自动化（@midscene/computer），可控制任意桌面应用。
+          macOS 首次执行需在「系统设置 → 隐私与安全」授予控制当前 App 的<strong>辅助功能</strong>与<strong>屏幕录制</strong>权限；
+          Linux 无头环境需安装 <code>xvfb</code>。
         </div>
       </div>
     </div>
   );
 
   const renderLogsTab = () => (
-    <LogTab latestReportUrl={latestReportUrl} execRecords={execRecords} />
+    <div className="tab-content-wrapper">
+      {execError && (
+        <div className="pc-exec-error-banner">
+          <div className="pc-exec-error-title">执行异常</div>
+          <pre className="pc-exec-error-msg">{execError}</pre>
+          <button className="pc-exec-error-dismiss" onClick={() => setExecError(null)}>✕</button>
+        </div>
+      )}
+      <LogTab latestReportUrl={latestReportUrl} execRecords={execRecords} />
+    </div>
   );
 
   return (
-    <div className="web-case-detail">
+    <div className={`api-detail page-enter ${previewOpen ? 'with-preview' : ''}`}>
       <div className="api-detail-header">
-        <button className="api-detail-back" onClick={() => navigate('/pc-test/case')}>← 返回列表</button>
-        <span className="api-detail-page-title">{form.name || '新建 PC 测试用例'}</span>
-        <span className={`status-badge web-status-badge status-${form.status}`}>
-          {STATUS_OPTIONS.find(o => o.value === form.status)?.label || form.status}
-        </span>
+        <div className="api-detail-breadcrumb">
+          <button className="api-detail-back" onClick={() => navigate('/pc-test/case')}>用例列表</button>
+          <span className="api-detail-breadcrumb-sep">/</span>
+          <input
+            className="api-detail-name-input"
+            value={form.name}
+            onChange={e => setForm(prev => ({ ...prev, name: e.target.value }))}
+            placeholder="新建 PC 测试用例"
+          />
+        </div>
+        <div className="api-detail-meta">
+          {!isNew && (
+            <span className={`status-badge-light ${form.status}`}>
+              {STATUS_OPTIONS.find(o => o.value === form.status)?.label || form.status}
+            </span>
+          )}
+          {form.updated_at && (
+            <span className="meta-time">更新于 {formatDateTime(form.updated_at)}</span>
+          )}
+        </div>
+        <div className="api-detail-actions">
+          {!isNew && (
+            <button
+              className={`preview-toggle-btn ${previewOpen ? 'active' : ''}`}
+              onClick={() => setPreviewOpen(v => !v)}
+              title={previewOpen ? '关闭桌面预览' : '打开桌面预览'}
+            >
+              {previewOpen ? '关闭预览' : '桌面预览'}
+            </button>
+          )}
+          <button
+            type="button"
+            className="scenario-btn"
+            onClick={() => setDevicePickerOpen(true)}
+            disabled={executing}
+            title="选择执行设备"
+          >
+            {selectedDeviceName || '本机'}
+          </button>
+          <button className={`scenario-btn ${dirty ? 'dirty' : ''}`} onClick={handleSave}>保存</button>
+          <button className="sset-btn sset-btn-primary" onClick={handleExecute} disabled={executing || isNew}>
+            {executing ? '执行中...' : selectedDeviceId ? '远程执行' : '执行'}
+          </button>
+        </div>
       </div>
       <div className="api-detail-content">
         <div className="api-detail-card" style={{ padding: 0 }}>
@@ -735,16 +782,26 @@ export default function PcCaseDetail() {
             {activeTab === 'env' && renderEnvTab()}
             {activeTab === 'logs' && renderLogsTab()}
           </div>
-          {activeTab !== 'logs' && (
-            <div className="detail-action-bar">
-              <button className={`scenario-btn ${dirty ? 'dirty' : ''}`} onClick={handleSave}>保存</button>
-              <button className="sset-btn sset-btn-primary" onClick={handleExecute} disabled={executing || isNew}>
-                {executing ? '执行中...' : '执行'}
-              </button>
-            </div>
-          )}
         </div>
+        {previewOpen && (
+          <PcPreviewPanel onClose={() => setPreviewOpen(false)} />
+        )}
       </div>
+      <DevicePickerModal
+        open={devicePickerOpen}
+        testType="pc"
+        onClose={() => setDevicePickerOpen(false)}
+        onLocalExecute={() => {
+          setSelectedDeviceId(null);
+          setSelectedDeviceName(null);
+          setDevicePickerOpen(false);
+        }}
+        onSelect={(device) => {
+          setSelectedDeviceId(device.id as number);
+          setSelectedDeviceName(device.name);
+          setDevicePickerOpen(false);
+        }}
+      />
     </div>
   );
 }

@@ -12,6 +12,7 @@ export interface Environment {
   variables: EnvVariable[];
   ssl_cert: string | null;
   ssl_key: string | null;
+  ssl_certs?: string; // JSON array of SslCertEntry
   timeout: number;
   sort_order: number;
   is_default: number;
@@ -19,6 +20,13 @@ export interface Environment {
   updated_at: string;
   // Multiple databases
   databases?: string; // JSON array of DatabaseEntry
+}
+
+// SSL certificate entry for mTLS
+export interface SslCertEntry {
+  name: string;   // User-defined alias
+  cert: string;   // PEM certificate content
+  key: string;    // PEM private key content
 }
 
 export interface DatabaseEntry {
@@ -78,6 +86,7 @@ export interface ApiItem {
   pre_actions?: string;   // JSON array of PrePostAction[]
   post_actions?: string; // JSON array of PrePostAction[]
   parameters?: string | null;  // JSON: ParametersConfig
+  ssl_cert_name?: string | null;
   ws_messages?: string | null;
   ws_wait_ms?: number | null;
   ws_auto_close_ms?: number | null;
@@ -127,6 +136,15 @@ export interface AssertionRule {
   expected: string;
   assert?: boolean;
 }
+
+/** 自然语言断言 — 新格式,每条一段文字,由 Midscene aiAssert 执行 */
+export interface TextAssertion {
+  type: 'text';
+  text: string;
+}
+
+/** 断言规则:旧格式(结构化)或新格式(自然语言) */
+export type AssertionEntry = AssertionRule | TextAssertion;
 
 export interface AssertionResult {
   rule: AssertionRule;
@@ -287,6 +305,30 @@ export interface MobileTestCase {
   case_content_type?: string | null;
   tags: string | null;
   status: string;
+  app_id?: number | null;
+  app_version?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+// ── Mobile App Types ──
+
+export interface MobileAppVersion {
+  version: string;
+  filename: string;
+  file_size: number;
+  uploaded_at: string;
+  changelog?: string;
+}
+
+export interface MobileApp {
+  id: number;
+  user_id: number;
+  name: string;
+  platform: 'android' | 'ios' | 'harmony';
+  package_name: string | null;
+  versions: string; // JSON string of MobileAppVersion[]
+  latest_version: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -518,4 +560,69 @@ export interface CaseSetExecution {
   started_at: string;
   finished_at: string;
   items?: CaseSetExecutionItem[];
+}
+
+// ── Mobile Device Preview (2026-06-09) ──
+// DevicePickerModal 数据源;也用于执行流"哪台机器"的查询/展示。
+
+export type DevicePlatform = 'android' | 'ios' | 'harmony';
+export type DeviceSource = 'local' | 'remote' | 'both';
+
+export interface ScreenSize {
+  width: number;
+  height: number;
+  density: number;
+}
+
+export interface DeviceRichInfo {
+  manufacturer: string | null;
+  model: string | null;
+  os_version: string | null;
+  sdk_int: number | null;
+  screen_size: ScreenSize | null;
+  imsi: null;
+}
+
+export interface MergedDevice {
+  // 本地设备用 `local:<platform>:<serial>` 字符串;远端设备用 devices.id
+  id: number | string;
+  source: DeviceSource;
+  name: string;
+  platform: DevicePlatform;
+  serial: string;
+  rich_info: DeviceRichInfo;
+  status: 'online' | 'offline';
+  last_seen_at: string | null;
+  agent_endpoint?: string | null;
+  host?: string | null;
+  remote_device_id?: number;
+  // 2026-06-10: 三态 badge 字段(server 端 merge.ts 算好下发,这里只镜像类型)
+  busy: boolean;
+  viewerCount: number;
+  previewReleasingAt: number | null;
+}
+
+export type PreviewKind = 'screenshot' | 'scrcpy' | 'mjpeg';
+
+export interface PreviewSession {
+  sessionId: string;
+  kind: PreviewKind;
+  /** SSE 流:GET /api/mobile/preview/stream?sessionId=xxx */
+  ssePath?: string;
+  /** scrcpy:WS 路径,前端需附加 &token=<jwt> */
+  wsPath?: string;
+  device: { name: string; platform: string; serial: string };
+}
+
+export interface MobileExecuteResult {
+  // 旧 mobile_test_logs 写入的 id(向后兼容)
+  id: number;
+  // Phase 4:归一化到 mobile_case_executions 的 id
+  execution_id: number;
+  status: string;
+  duration_ms: number | null;
+  report_path: string | null;
+  report_url: string | null;
+  executed_by: string;
+  error_message?: string | null;
 }

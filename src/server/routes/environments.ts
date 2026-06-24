@@ -18,6 +18,12 @@ envRoutes.get('/', (req: Request, res: Response) => {
   res.json({ code: 200, message: 'ok', data: envs });
 });
 
+// GET /api/environments/default — must be before /:id to avoid Express matching "default" as :id
+envRoutes.get('/default', (req: Request, res: Response) => {
+  const env = findDefaultEnv(req.user!.userId);
+  res.json({ code: 200, message: 'ok', data: env });
+});
+
 // GET /api/environments/:id
 envRoutes.get('/:id', (req: Request, res: Response) => {
   const id = Number(req.params.id);
@@ -29,19 +35,14 @@ envRoutes.get('/:id', (req: Request, res: Response) => {
   res.json({ code: 200, message: 'ok', data: env });
 });
 
-// GET /api/environments/default
-envRoutes.get('/default', (req: Request, res: Response) => {
-  const env = findDefaultEnv(req.user!.userId);
-  res.json({ code: 200, message: 'ok', data: env });
-});
-
 // POST /api/environments
 envRoutes.post('/', (req: Request, res: Response) => {
-  const { name, variables, ssl_cert, ssl_key, timeout, is_default, databases } = req.body as {
+  const { name, variables, ssl_cert, ssl_key, ssl_certs, timeout, is_default, databases } = req.body as {
     name?: string;
     variables?: Array<{ key: string; value: string; description?: string; enabled?: boolean }>;
     ssl_cert?: string;
     ssl_key?: string;
+    ssl_certs?: Array<{ name: string; cert: string; key: string }>;
     timeout?: number;
     is_default?: boolean;
     databases?: Array<{ name: string; type: string; host: string; port: number; user: string; password: string; database: string }>;
@@ -53,7 +54,7 @@ envRoutes.post('/', (req: Request, res: Response) => {
   }
 
   const id = createEnv(req.user!.userId, name.trim(), variables || [], {
-    ssl_cert, ssl_key, timeout, is_default, databases,
+    ssl_cert, ssl_key, ssl_certs, timeout, is_default, databases,
   });
   const env = findEnvById(id, req.user!.userId);
   res.json({ code: 200, message: '创建成功', data: env });
@@ -68,11 +69,12 @@ envRoutes.put('/:id', (req: Request, res: Response) => {
     return;
   }
 
-  const { name, variables, ssl_cert, ssl_key, timeout, is_default, databases } = req.body as {
+  const { name, variables, ssl_cert, ssl_key, ssl_certs, timeout, is_default, databases } = req.body as {
     name?: string;
     variables?: Array<{ key: string; value: string; description?: string; enabled?: boolean }>;
     ssl_cert?: string | null;
     ssl_key?: string | null;
+    ssl_certs?: Array<{ name: string; cert: string; key: string }>;
     timeout?: number;
     is_default?: boolean;
     databases?: Array<{ name: string; type: string; host: string; port: number; user: string; password: string; database: string }>;
@@ -83,6 +85,7 @@ envRoutes.put('/:id', (req: Request, res: Response) => {
     variables,
     ssl_cert,
     ssl_key,
+    ssl_certs,
     timeout,
     is_default,
     databases,

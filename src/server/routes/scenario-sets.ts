@@ -38,6 +38,8 @@ setRoutes.get('/', (req: Request, res: Response) => {
     name: req.query.name as string,
     tags: req.query.tags as string,
     status: req.query.status as string,
+    dateFrom: req.query.dateFrom as string | undefined,
+    dateTo: req.query.dateTo as string | undefined,
   };
   const result = findSetsByUserIdPaginated(req.user!.userId, page, pageSize, filters, sort, order);
   res.json({ code: 200, message: 'ok', data: result });

@@ -15,6 +15,7 @@ import {
 import { findUserById } from '../db/users.js';
 import { executeWebCase } from '../engine/web-executor.js';
 import { relativeReportUrl } from '../engine/report-paths.js';
+import { findEnvById, envToMap } from '../db/environments.js';
 
 export const webCaseRoutes = Router();
 webCaseRoutes.use(authMiddleware);
@@ -23,12 +24,16 @@ webCaseRoutes.use(authMiddleware);
 webCaseRoutes.get('/', (req: Request, res: Response) => {
   const page = Math.max(1, Number(req.query.page) || 1);
   const pageSize = Math.min(100, Math.max(1, Number(req.query.pageSize) || 10));
-  const sortField = (req.query.sortField as string) || 'updated_at';
-  const sortOrder = (req.query.sortOrder as string) || 'DESC';
+  const sortField = (req.query.sort as string) || 'updated_at';
+  const sortOrder = (req.query.order as string) || 'DESC';
   const filters = {
     name: req.query.name as string | undefined,
+    description: req.query.description as string | undefined,
     status: req.query.status as string | undefined,
     tag: req.query.tag as string | undefined,
+    browser: req.query.browser as string | undefined,
+    dateFrom: req.query.dateFrom as string | undefined,
+    dateTo: req.query.dateTo as string | undefined,
   };
 
   const result = listWebCases(
@@ -204,26 +209,65 @@ webCaseRoutes.post('/:id/execute', async (req: Request, res: Response) => {
   const executor = findUserById(req.user!.userId);
   const executedBy = executor?.nickname || executor?.account || 'unknown';
 
+  // 2026-06-06: accept an optional `deviceId` to run on a remote agent.
+  // null/undefined = local in-process (default). The executor validates
+  // ownership + test_type, so this is safe to forward as-is.
+  const deviceId = Number(req.query.deviceId) || undefined;
+
+  // 2026-06-20: busy 锁 — 远程设备必须空闲才能执行
+  if (deviceId) {
+    const { findRunningWebExecutionByDevice } = await import('../db/web-cases.js');
+    const running = findRunningWebExecutionByDevice(deviceId);
+    if (running) {
+      res.status(409).json({ code: 409, message: '该设备正在执行其他任务，请稍后再试' });
+      return;
+    }
+  }
+
   // Phase 2: write a normalized web_case_executions row first so we can
   // store the Midscene report path even on error.
   const startedAt = new Date().toISOString();
   const execId = createWebCaseExecution(webCase.id, req.user!.userId, {
     started_at: startedAt,
     executed_by: executedBy,
+    device_id: deviceId,
   });
 
-  // 2026-06-06: accept an optional `deviceId` to run on a remote agent.
-  // null/undefined = local in-process (default). The executor validates
-  // ownership + test_type, so this is safe to forward as-is.
-  const deviceId = typeof req.body?.deviceId === 'number' ? req.body.deviceId : null;
+  // Environment variable substitution: load env vars from the selected environment.
+  let envVars: Record<string, string> | undefined;
+  const environmentId = typeof req.body?.environmentId === 'number' ? req.body.environmentId : undefined;
+  if (environmentId) {
+    const env = findEnvById(environmentId, req.user!.userId);
+    if (env) {
+      envVars = envToMap(env);
+      console.log(`[routes:web-cases] case=${webCase.id} envId=${environmentId} envVars=${Object.keys(envVars).length} keys=${Object.keys(envVars).join(',')}`);
+    }
+  }
 
-  const result = await executeWebCase(webCase, {
-    executedBy,
-    caseId: webCase.id,
-    execId,
-    userId: req.user!.userId,
-    deviceId,
-  });
+  let result: Awaited<ReturnType<typeof executeWebCase>>;
+  try {
+    result = await executeWebCase(webCase, {
+      executedBy,
+      caseId: webCase.id,
+      execId,
+      userId: req.user!.userId,
+      deviceId,
+      envVars,
+    });
+  } catch (err) {
+    const finishedAt = new Date().toISOString();
+    console.error(`[routes:web-cases] executor threw for case=${webCase.id} execId=${execId}`, err);
+    finishWebCaseExecution(execId, {
+      status: 'failed',
+      finished_at: finishedAt,
+      duration_ms: Date.now() - new Date(startedAt).getTime(),
+      report_path: null,
+      report_type: null,
+      error_message: err instanceof Error ? err.message : String(err),
+    });
+    res.status(500).json({ code: 500, message: '执行异常', data: { error_message: err instanceof Error ? err.message : String(err) } });
+    return;
+  }
 
   const finishedAt = new Date().toISOString();
   finishWebCaseExecution(execId, {

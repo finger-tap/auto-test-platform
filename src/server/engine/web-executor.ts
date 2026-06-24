@@ -21,8 +21,9 @@ import {
   type TestType,
 } from './report-paths.js';
 import { parseNLSteps, migrateStep, isOldStep, resolveCaseContent, resolvePreconditionText, nlStepsToText, type NLStep } from './nl-steps.js';
-import { applyUserMidsceneConfig } from './midscene-config.js';
+import { applyUserMidsceneConfig, getAgentOptOverrides } from './midscene-config.js';
 import { applyUserWebBrowserConfig, type ResolvedBrowserConfig } from './web-browser-config.js';
+import { substituteVars } from './vars.js';
 import { getDeviceForUser, type DeviceRow } from '../db/devices.js';
 import {
   launchOnAgent,
@@ -95,8 +96,10 @@ export interface ExecuteOptions {
   // 2026-06-06: target device. null = local in-process browser (default).
   // When set, the executor uses the agent identified by device.agent_token
   // for the launch + report cycle. See engine/agent-client.ts and
-  // src/agent/ for the remote protocol.
+  // src/agent-web/ for the remote protocol.
   deviceId?: number | null;
+  /** Environment variables for ${varName} substitution in content/preconditions/checkpoints. */
+  envVars?: Record<string, string>;
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -131,6 +134,9 @@ interface SharedBrowserState {
 }
 let _sharedBrowser: SharedBrowserState | null = null;
 let _sharedBrowserClosing: Promise<void> | null = null;
+// 2026-06-23: serialize getSharedBrowser to prevent race where two callers
+// both see _sharedBrowser=null after teardown and both launch a new browser.
+let _browserMutex: Promise<void> = Promise.resolve();
 
 // Module-level singleton (opt-in). When the user sets
 // `keep_context_alive=1`, the BrowserContext + Page are also reused across
@@ -179,6 +185,9 @@ export async function resolveDeviceForExecution(
   }
   if (device.test_type !== 'web') {
     throw new Error(`设备 ${device.name} 类型为 ${device.test_type}，不能用于 web 测试`);
+  }
+  if (device.status !== 'online') {
+    throw new Error(`设备 ${device.name} 当前状态为 ${device.status}，无法执行（需要 agent 在线）`);
   }
   return device;
 }
@@ -320,44 +329,56 @@ async function getSharedBrowser(
   browserCfg: ResolvedBrowserConfig,
   device: DeviceRow | null
 ): Promise<PWBrowser> {
-  const key = `${browserLaunchKey(browserName, headless, browserCfg)}|${device?.id ?? 'local'}`;
+  // Serialize through the mutex so only one caller at a time can go through
+  // the teardown → acquire cycle. Without this, two callers can both see
+  // _sharedBrowser=null after a teardown and both launch a new browser.
+  let result: PWBrowser;
+  const acquire = async () => {
+    const key = `${browserLaunchKey(browserName, headless, browserCfg)}|${device?.id ?? 'local'}`;
 
-  // If a previous close is still in flight, await it before launching a new
-  // one. Otherwise Playwright can throw "Browser has been closed" on
-  // newContext() if the user closes mid-close.
-  if (_sharedBrowserClosing) {
-    await _sharedBrowserClosing.catch(() => {});
-  }
+    // If a previous close is still in flight, await it before launching a new
+    // one. Otherwise Playwright can throw "Browser has been closed" on
+    // newContext() if the user closes mid-close.
+    if (_sharedBrowserClosing) {
+      await _sharedBrowserClosing.catch(() => {});
+    }
 
-  if (_sharedBrowser && _sharedBrowser.key === key) {
-    _sharedBrowser.launches += 1;
-    console.log(`[executor:web] reuse shared browser id=${_sharedBrowser.browser.browserType().name()} launches=${_sharedBrowser.launches} deviceId=${device?.id ?? 'local'} sessionId=${_sharedBrowser.sessionId ?? '-'} uptimeMs=${Date.now() - _sharedBrowser.launchedAt}`);
-    return _sharedBrowser.browser;
-  }
+    if (_sharedBrowser && _sharedBrowser.key === key) {
+      _sharedBrowser.launches += 1;
+      console.log(`[executor:web] reuse shared browser id=${_sharedBrowser.browser.browserType().name()} launches=${_sharedBrowser.launches} deviceId=${device?.id ?? 'local'} sessionId=${_sharedBrowser.sessionId ?? '-'} uptimeMs=${Date.now() - _sharedBrowser.launchedAt}`);
+      result = _sharedBrowser.browser;
+      return;
+    }
 
-  // Mismatch: tear down the old one before launching a new one so we don't
-  // leak Chromium processes / agent sessions when the user toggles
-  // headless/browser/driver/device.
-  if (_sharedBrowser) {
-    console.log(`[executor:web] shared browser params changed (old=${_sharedBrowser.key} new=${key}), closing old`);
-    const old = _sharedBrowser;
-    _sharedBrowser = null;
-    void teardownSharedBrowser(old);
-    await _sharedBrowserClosing;
-  }
+    // Mismatch: tear down the old one before launching a new one so we don't
+    // leak Chromium processes / agent sessions when the user toggles
+    // headless/browser/driver/device.
+    if (_sharedBrowser) {
+      console.log(`[executor:web] shared browser params changed (old=${_sharedBrowser.key} new=${key}), closing old`);
+      const old = _sharedBrowser;
+      _sharedBrowser = null;
+      void teardownSharedBrowser(old);
+      await _sharedBrowserClosing;
+    }
 
-  const acquired = await acquireBrowser(browserName, headless, browserCfg, device);
-  _sharedBrowser = {
-    browser: acquired.browser,
-    key,
-    launchedAt: Date.now(),
-    launches: 1,
-    device,
-    sessionId: acquired.sessionId,
-    localServer: acquired.localServer,
+    const acquired = await acquireBrowser(browserName, headless, browserCfg, device);
+    _sharedBrowser = {
+      browser: acquired.browser,
+      key,
+      launchedAt: Date.now(),
+      launches: 1,
+      device,
+      sessionId: acquired.sessionId,
+      localServer: acquired.localServer,
+    };
+    console.log(`[executor:web] new shared browser launched id=${acquired.browser.browserType().name()} key=${key} deviceId=${device?.id ?? 'local'} sessionId=${acquired.sessionId ?? '-'}`);
+    result = acquired.browser;
   };
-  console.log(`[executor:web] new shared browser launched id=${acquired.browser.browserType().name()} key=${key} deviceId=${device?.id ?? 'local'} sessionId=${acquired.sessionId ?? '-'}`);
-  return acquired.browser;
+
+  const next = _browserMutex.then(acquire, acquire);
+  _browserMutex = next.then(() => {}, () => {});
+  await next;
+  return result!;
 }
 
 /**
@@ -665,17 +686,27 @@ export async function executeWebCase(
   opts: ExecuteOptions
 ): Promise<ExecuteResult> {
   const globalStart = Date.now();
-  const { content, type } = resolveCaseContent(
+  const { content: rawContent, type } = resolveCaseContent(
     testCase.case_content,
     testCase.case_content_type,
     testCase.steps
   );
-  const checkpoints = parseNLSteps(testCase.check_points);
+  const rawCheckpoints = parseNLSteps(testCase.check_points);
   // Preconditions: a single natural-language task passed to Midscene's
   // `aiAct` (action). Old rows may still hold a JSON NLStep[] from the
   // legacy assertion-shaped format — resolvePreconditionText flattens
   // those into a single string so existing rows still execute.
-  const preconditionText = resolvePreconditionText(testCase.preconditions);
+  const rawPreconditionText = resolvePreconditionText(testCase.preconditions);
+
+  // Substitute ${varName} placeholders with environment variable values.
+  const vars = opts.envVars || {};
+  const content = substituteVars(rawContent, vars);
+  const preconditionText = substituteVars(rawPreconditionText, vars);
+  const checkpoints = rawCheckpoints.map(cp => ({
+    ...cp,
+    description: substituteVars(cp.description, vars),
+    ...(cp.expect ? { expect: substituteVars(cp.expect, vars) } : {}),
+  }));
   const headless = testCase.headless_mode === 1;
   const browser = testCase.browser || 'chromium';
   const windowSize = testCase.window_size || '1920x1080';
@@ -739,7 +770,7 @@ export async function executeWebCase(
   }
   const closeBrowserAfter = browserCfg.close_browser_after_execution;
 
-  console.log(`[executor:web] case=${opts.caseId} exec=${opts.execId} start name="${testCase.name}" type=${type} hasContent=${!!content} hasPrecondition=${!!preconditionText} checkpoints=${checkpoints.length} baseUrl=${baseUrl || '(none)'} headless=${headless} closeBrowserAfter=${closeBrowserAfter} keepContextAlive=${browserCfg.keep_context_alive}`);
+  console.log(`[executor:web] case=${opts.caseId} exec=${opts.execId} start name="${testCase.name}" type=${type} hasContent=${!!content} hasPrecondition=${!!preconditionText} checkpoints=${checkpoints.length} baseUrl=${baseUrl || '(none)'} headless=${headless} closeBrowserAfter=${closeBrowserAfter} keepContextAlive=${browserCfg.keep_context_alive} envVars=${Object.keys(vars).length} keys=${Object.keys(vars).join(',')}`);
 
   // Push the owning user's Midscene model config into the live runtime
   // before any agent action. Best-effort: a failure here will surface
@@ -791,6 +822,7 @@ export async function executeWebCase(
       reportFileName: reportName,
       groupName: testCase.name,
       groupDescription: testCase.description || undefined,
+      ...getAgentOptOverrides(opts.userId),
     });
     console.log(`[executor:web] case=${opts.caseId} exec=${opts.execId} PlaywrightAgent ready report=${reportName}`);
 

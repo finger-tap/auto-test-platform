@@ -57,6 +57,7 @@ import {
 import { executeWebCase } from './web-executor.js';
 import { executePcCase } from './pc-executor.js';
 import { executeMobileTest } from './mobile-executor.js';
+import { findEnvById, envToMap } from '../db/environments.js';
 
 export type CaseSetTestType = 'web' | 'pc' | 'mobile';
 
@@ -98,7 +99,7 @@ interface Dispatcher {
   finishCaseExecution: FinishCaseExec;
   runCase: (
     testCase: unknown,
-    opts: { executedBy: string; caseId: number; execId: number; userId: number }
+    opts: { executedBy: string; caseId: number; execId: number; userId: number; envVars?: Record<string, string> }
   ) => Promise<{ status: string; duration_ms: number; report_path?: string; error_message?: string }>;
   createSetExec(setId: number, triggerType: string, executedBy: string, startedAt: string): number;
   updateSetExec(id: number, patch: {
@@ -208,13 +209,24 @@ export async function runCaseSet(
   setId: number,
   testType: CaseSetTestType,
   executedBy: string,
-  filterCaseIds?: number[]
+  filterCaseIds?: number[],
+  environmentId?: number,
 ): Promise<RunCaseSetResult> {
-  console.log(`[case-set-executor] start setId=${setId} type=${testType} executor=${executedBy}`);
+  console.log(`[case-set-executor] start setId=${setId} type=${testType} executor=${executedBy} envId=${environmentId ?? '(none)'}`);
 
   const dispatcher = getDispatcher(testType);
   const set = dispatcher.findSet(setId);
   if (!set) throw new Error(`Case set ${setId} not found`);
+
+  // Load environment variables for ${varName} substitution.
+  let envVars: Record<string, string> | undefined;
+  if (environmentId) {
+    const env = findEnvById(environmentId, set.user_id);
+    if (env) {
+      envVars = envToMap(env);
+      console.log(`[case-set-executor] setId=${setId} envId=${environmentId} envVars=${Object.keys(envVars).length} keys=${Object.keys(envVars).join(',')}`);
+    }
+  }
 
   let allIds: number[] = [];
   try {
@@ -285,6 +297,7 @@ export async function runCaseSet(
         caseId,
         execId: caseExecId,
         userId: set.user_id,
+        envVars,
       });
 
       const caseEndMs = Date.now();

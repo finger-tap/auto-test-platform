@@ -66,10 +66,14 @@ export interface UpdateWebCaseInput {
   close_browser_after_execution?: number | null;
 }
 
-interface ListFilter {
+export interface WebCaseListFilter {
   name?: string;
-  status?: string;
+  description?: string;
   tag?: string;
+  status?: string;
+  browser?: string;
+  dateFrom?: string;
+  dateTo?: string;
 }
 
 export function listWebCases(
@@ -78,7 +82,7 @@ export function listWebCases(
   pageSize: number,
   sortField: string,
   sortOrder: string,
-  filters: ListFilter
+  filters: WebCaseListFilter
 ): { items: WebCaseRow[]; total: number; page: number; pageSize: number } {
   const offset = (page - 1) * pageSize;
   const validSorts: Record<string, string> = {
@@ -96,13 +100,29 @@ export function listWebCases(
     conditions.push('name LIKE ?');
     values.push(`%${filters.name}%`);
   }
-  if (filters.status) {
-    conditions.push('status = ?');
-    values.push(filters.status);
+  if (filters.description) {
+    conditions.push('description LIKE ?');
+    values.push(`%${filters.description}%`);
   }
   if (filters.tag) {
     conditions.push('tags LIKE ?');
     values.push(`%${filters.tag}%`);
+  }
+  if (filters.status) {
+    conditions.push('status = ?');
+    values.push(filters.status);
+  }
+  if (filters.browser) {
+    conditions.push('browser = ?');
+    values.push(filters.browser);
+  }
+  if (filters.dateFrom) {
+    conditions.push('created_at >= ?');
+    values.push(filters.dateFrom);
+  }
+  if (filters.dateTo) {
+    conditions.push('created_at <= ?');
+    values.push(filters.dateTo + 'T23:59:59');
   }
 
   const whereClause = conditions.join(' AND ');
@@ -217,12 +237,32 @@ export interface WebCaseExecutionRow {
 export function createWebCaseExecution(caseId: number, userId: number, data: {
   started_at: string;
   executed_by: string | null;
+  device_id?: number | null;
 }): number {
   const result = db.prepare(
-    `INSERT INTO web_case_executions (case_id, user_id, status, started_at, executed_by)
-     VALUES (?, ?, 'running', ?, ?)`
-  ).run(caseId, userId, data.started_at, data.executed_by);
+    `INSERT INTO web_case_executions (case_id, user_id, status, started_at, executed_by, device_id)
+     VALUES (?, ?, 'running', ?, ?, ?)`
+  ).run(caseId, userId, data.started_at, data.executed_by, data.device_id ?? null);
   return result.lastInsertRowid as number;
+}
+
+// 2026-06-20: 设备级 busy 锁查询
+export function findRunningWebExecutionByDevice(deviceId: number): { id: number } | null {
+  return db.prepare(
+    `SELECT id FROM web_case_executions WHERE device_id = ? AND status = 'running' LIMIT 1`
+  ).get(deviceId) as { id: number } | null;
+}
+
+// 批量查询：一次拿到 N 个设备的 running 状态（给 merge 模块用）
+export function findRunningWebExecutionsByDeviceIds(deviceIds: number[]): Map<number, { id: number }> {
+  if (deviceIds.length === 0) return new Map();
+  const placeholders = deviceIds.map(() => '?').join(',');
+  const rows = db.prepare(
+    `SELECT id, device_id FROM web_case_executions WHERE device_id IN (${placeholders}) AND status = 'running'`
+  ).all(...deviceIds) as { id: number; device_id: number }[];
+  const map = new Map<number, { id: number }>();
+  for (const r of rows) map.set(r.device_id, { id: r.id });
+  return map;
 }
 
 export function finishWebCaseExecution(id: number, data: {

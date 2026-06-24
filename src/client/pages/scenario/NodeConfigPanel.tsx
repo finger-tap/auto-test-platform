@@ -1,6 +1,8 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import type { Node } from '@xyflow/react';
 import type { ApiItem, ApiNodeConfig, ConditionNodeConfig, ExtractRule, AssertionRule } from '../../types';
+import FormSelect from '../../components/FormSelect';
+import notification from '../../utils/notification';
 
 // Rich variable info with source tracking
 export interface AvailableVar {
@@ -227,7 +229,7 @@ function ApiNodeConfigPanel({ node, apis, availableVariables, onUpdate, onDelete
   // 从案例导入（提取+断言）
   const syncFromApi = () => {
     if (!selectedApi?.assertions) {
-      alert('该接口未配置断言，请手动添加');
+      notification.warning('该接口未配置断言，请手动添加');
       return;
     }
     try {
@@ -240,7 +242,7 @@ function ApiNodeConfigPanel({ node, apis, availableVariables, onUpdate, onDelete
       setAssertions(newAssertions);
       save({ extractions: newExtractions, assertions: newAssertions });
     } catch {
-      alert('解析接口断言失败');
+      notification.error('解析接口断言失败');
     }
   };
 
@@ -371,9 +373,7 @@ function ApiNodeConfigPanel({ node, apis, availableVariables, onUpdate, onDelete
                     {rule.name || `规则 ${idx + 1}`}
                   </span>
                 )}
-                <select value={rule.source} onChange={(e) => updateAssertion(idx, 'source', e.target.value)}>
-                  {ASSERTION_SOURCES.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
-                </select>
+                <FormSelect value={rule.source} options={ASSERTION_SOURCES} onChange={(v) => updateAssertion(idx, 'source', v)} size="compact" />
                 <input
                   className="rule-key"
                   placeholder={rule.source === 'status' ? '(自动)' : rule.source === 'header' ? 'Header名' : '路径如 data.id'}
@@ -381,7 +381,7 @@ function ApiNodeConfigPanel({ node, apis, availableVariables, onUpdate, onDelete
                   onChange={(e) => updateAssertion(idx, 'key', e.target.value)}
                   disabled={rule.source === 'status'}
                 />
-                <label className="rule-switch">
+                <label className="rule-switch rule-switch--labeled">
                   <input type="checkbox" checked={rule.assert !== false}
                     onChange={(e) => {
                       if (!e.target.checked) {
@@ -394,10 +394,7 @@ function ApiNodeConfigPanel({ node, apis, availableVariables, onUpdate, onDelete
                     }} />
                   <span className="rule-switch-slider"><span className="rule-switch-label">{rule.assert !== false ? '检查' : '提取'}</span></span>
                 </label>
-                <select className="rule-operator" value={rule.operator} onChange={(e) => updateAssertion(idx, 'operator', e.target.value)}
-                  style={{ display: rule.assert === false ? 'none' : undefined }}>
-                  {ASSERTION_OPERATORS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-                </select>
+                <FormSelect className="rule-operator" value={rule.operator} options={ASSERTION_OPERATORS} onChange={(v) => updateAssertion(idx, 'operator', v)} size="compact" style={{ display: rule.assert === false ? 'none' : undefined }} />
                 {rule.assert !== false && !['exists', 'not_exists'].includes(rule.operator) && (
                   <input className="rule-expected" placeholder="期望值" value={rule.expected}
                     onChange={(e) => updateAssertion(idx, 'expected', e.target.value)} />

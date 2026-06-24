@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { authMiddleware } from '../auth/middleware.js';
-import { findApisByUserIdPaginated, findApisByUserId, findApiById, createApi, updateApi, deleteApi, findApiExecutionsByApiId, findApiExecutionWithSteps, createApiExecution, type ApiRow, type ApiExecutionRow } from '../db/apis.js';
+import { findApisByUserIdPaginated, findApisByUserId, findApiById, createApi, updateApi, deleteApi, findApiExecutionsByApiId, findApiExecutionWithSteps, createApiExecution, type ApiRow, type ApiExecutionRow, type ApiListFilter } from '../db/apis.js';
 import type { AssertionRule } from '../db/apis.js';
 import { executeApi, evaluateAssertions } from '../engine/api-executor.js';
 import { evalBuiltin } from '../engine/builtins.js';
@@ -27,12 +27,21 @@ async function executeWs(api: ApiRow, req: Request, res: Response) {
   let allDbConfigs: Record<string, import('../db/environments.js').DbConfig> | null = null;
 
   if (req.body.environmentId) {
-    const { findEnvById, envToMap, envToDbConfigs } = await import('../db/environments.js');
+    const { findEnvById, envToMap, envToDbConfigs, envToSslCerts } = await import('../db/environments.js');
     const env = findEnvById(Number(req.body.environmentId), req.user!.userId);
     if (env) {
       Object.assign(envContext, envToMap(env));
-      if (env.ssl_cert) sslCert = env.ssl_cert;
-      if (env.ssl_key) sslKey = env.ssl_key;
+      // Prefer ssl_certs array; look up by api.ssl_cert_name, fall back to first
+      const certs = envToSslCerts(env);
+      const certName = api.ssl_cert_name;
+      const target = certName ? certs.find(c => c.name === certName) : certs[0];
+      if (target) {
+        sslCert = target.cert;
+        sslKey = target.key;
+      } else if (env.ssl_cert) {
+        sslCert = env.ssl_cert;
+        sslKey = env.ssl_key || undefined;
+      }
       if (env.timeout) envTimeout = env.timeout;
       allDbConfigs = envToDbConfigs(env);
     }
@@ -190,13 +199,21 @@ apiRoutes.get('/', (req: Request, res: Response) => {
   const pageSize = Math.min(100, Math.max(1, Number(req.query.pageSize) || 10));
   const sort = (req.query.sort as string) || 'updated_at';
   const order = (req.query.order as string) || 'DESC';
-  const { items, total } = findApisByUserIdPaginated(req.user!.userId, page, pageSize, sort, order);
-  res.json({ code: 200, message: 'ok', data: { items, total, page, pageSize } });
+  const filters: ApiListFilter = {
+    name: req.query.name as string | undefined,
+    description: req.query.description as string | undefined,
+    tag: req.query.tag as string | undefined,
+    status: req.query.status as string | undefined,
+    dateFrom: req.query.dateFrom as string | undefined,
+    dateTo: req.query.dateTo as string | undefined,
+  };
+  const result = findApisByUserIdPaginated(req.user!.userId, page, pageSize, sort, order, filters);
+  res.json({ code: 200, message: 'ok', data: result });
 });
 
 // POST /api/apis
 apiRoutes.post('/', (req: Request, res: Response) => {
-  const { name, method, url, protocol, headers, body, description, tags, status, content_type, assertions, pre_script, post_script, pre_db_name, pre_db_query, post_db_name, post_db_query, pre_assertions, post_assertions, final_assertions, ws_send, ws_expect, pre_actions, post_actions, parameters } = req.body;
+  const { name, method, url, protocol, headers, body, description, tags, status, content_type, assertions, pre_script, post_script, pre_db_name, pre_db_query, post_db_name, post_db_query, pre_assertions, post_assertions, final_assertions, ws_send, ws_expect, pre_actions, post_actions, parameters, ssl_cert_name } = req.body;
 
   if (!name || typeof name !== 'string' || !name.trim()) {
     res.status(400).json({ code: 400, message: 'Name is required' });
@@ -211,7 +228,7 @@ apiRoutes.post('/', (req: Request, res: Response) => {
     return;
   }
 
-  const id = createApi(req.user!.userId, { name: name.trim(), method, url: url.trim(), protocol, headers, body, description, tags, status, content_type, assertions, pre_script, post_script, pre_db_name, pre_db_query, post_db_name, post_db_query, pre_assertions, post_assertions, final_assertions, ws_send, ws_expect, pre_actions, post_actions });
+  const id = createApi(req.user!.userId, { name: name.trim(), method, url: url.trim(), protocol, headers, body, description, tags, status, content_type, assertions, pre_script, post_script, pre_db_name, pre_db_query, post_db_name, post_db_query, pre_assertions, post_assertions, final_assertions, ws_send, ws_expect, pre_actions, post_actions, parameters, ssl_cert_name });
   res.status(201).json({ code: 201, message: 'Created', data: { id } });
 });
 
@@ -246,13 +263,13 @@ apiRoutes.put('/:id', (req: Request, res: Response) => {
   const api = checkOwnership(req, res);
   if (!api) return;
 
-  const { name, method, url, protocol, headers, body, description, tags, status, content_type, assertions, pre_script, post_script, pre_db_name, pre_db_query, post_db_name, post_db_query, pre_assertions, post_assertions, final_assertions, ws_send, ws_expect, pre_actions, post_actions, parameters } = req.body;
+  const { name, method, url, protocol, headers, body, description, tags, status, content_type, assertions, pre_script, post_script, pre_db_name, pre_db_query, post_db_name, post_db_query, pre_assertions, post_assertions, final_assertions, ws_send, ws_expect, pre_actions, post_actions, parameters, ssl_cert_name } = req.body;
   if (method && !VALID_METHODS.includes(method)) {
     res.status(400).json({ code: 400, message: 'Invalid method' });
     return;
   }
 
-  updateApi(api.id, { name, method, url, protocol, headers, body, description, tags, status, content_type, assertions, pre_script, post_script, pre_db_name, pre_db_query, post_db_name, post_db_query, pre_assertions, post_assertions, final_assertions, ws_send, ws_expect, pre_actions, post_actions, parameters });
+  updateApi(api.id, { name, method, url, protocol, headers, body, description, tags, status, content_type, assertions, pre_script, post_script, pre_db_name, pre_db_query, post_db_name, post_db_query, pre_assertions, post_assertions, final_assertions, ws_send, ws_expect, pre_actions, post_actions, parameters, ssl_cert_name });
   res.json({ code: 200, message: 'Updated' });
 });
 
@@ -287,12 +304,22 @@ apiRoutes.post('/:id/execute', async (req: Request, res: Response) => {
   let envTimeout: number | undefined;
 
   if (req.body.environmentId) {
-    const { findEnvById, envToMap, envToDbConfigs } = await import('../db/environments.js');
+    const { findEnvById, envToMap, envToDbConfigs, envToSslCerts } = await import('../db/environments.js');
     const env = findEnvById(Number(req.body.environmentId), req.user!.userId);
     if (env) {
       Object.assign(envContext, envToMap(env));
-      if (env.ssl_cert) sslCert = env.ssl_cert;
-      if (env.ssl_key) sslKey = env.ssl_key;
+      // Prefer ssl_certs array; look up by api.ssl_cert_name, fall back to first
+      const certs = envToSslCerts(env);
+      const certName = api.ssl_cert_name;
+      const target = certName ? certs.find(c => c.name === certName) : certs[0];
+      if (target) {
+        sslCert = target.cert;
+        sslKey = target.key;
+      } else if (env.ssl_cert) {
+        // Legacy single cert fallback
+        sslCert = env.ssl_cert;
+        sslKey = env.ssl_key || undefined;
+      }
       if (env.timeout) envTimeout = env.timeout;
     }
   }

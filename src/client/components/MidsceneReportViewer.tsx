@@ -1,5 +1,6 @@
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect, useMemo } from 'react';
 import notification from '../utils/notification';
+import { useThemeMode } from '../hooks/useThemeMode';
 import './MidsceneReportViewer.css';
 
 interface Props {
@@ -7,28 +8,77 @@ interface Props {
   label?: string;
 }
 
+type ReportStatus = 'loading' | 'ok' | 'missing' | 'error';
+
 export default function MidsceneReportViewer({ reportPath, label = 'Midscene 报告' }: Props) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [reloadKey, setReloadKey] = useState(0);
   const [downloading, setDownloading] = useState(false);
+  const [status, setStatus] = useState<ReportStatus>('loading');
+  const theme = useThemeMode();
 
-  if (!reportPath) {
+  // Always pass darkMode explicitly so the URL param overrides the report's
+  // internal localStorage, keeping the report theme in sync with the platform.
+  const themedReportUrl = useMemo(() => {
+    if (!reportPath) return reportPath;
+    const url = new URL(reportPath, window.location.origin);
+    url.searchParams.set('darkMode', theme === 'dark' ? 'true' : 'false');
+    return url.pathname + url.search;
+  }, [reportPath, theme]);
+
+  // Probe report availability before rendering iframe.
+  // Avoids showing the SPA home page inside the iframe when the
+  // report file is missing or inaccessible.
+  useEffect(() => {
+    if (!reportPath) { setStatus('missing'); return; }
+    let cancelled = false;
+    setStatus('loading');
+    fetch(reportPath, { method: 'HEAD', credentials: 'include' })
+      .then(res => {
+        if (cancelled) return;
+        const ct = res.headers.get('content-type') || '';
+        if (res.ok && ct.includes('text/html')) {
+          setStatus('ok');
+        } else if (res.status === 404) {
+          setStatus('missing');
+        } else if (res.status === 403) {
+          setStatus('error');
+        } else {
+          // Non-HTML response (e.g. SPA fallback serving index.html for
+          // a route that should be a report) — treat as missing.
+          setStatus('missing');
+        }
+      })
+      .catch(() => { if (!cancelled) setStatus('error'); });
+    return () => { cancelled = true; };
+  }, [reportPath, reloadKey]);
+
+  if (!reportPath || status === 'missing') {
     return (
       <div className="mrv-empty">
         <div className="mrv-empty-icon">📄</div>
-        <div className="mrv-empty-text">本次执行未生成 Midscene 报告</div>
-        <div className="mrv-empty-hint">执行失败或浏览器未安装时会显示此占位</div>
+        <div className="mrv-empty-text">未找到测试报告</div>
+        <div className="mrv-empty-hint">执行异常或执行尚未完成时会出现此提示</div>
+      </div>
+    );
+  }
+
+  if (status === 'error') {
+    return (
+      <div className="mrv-empty">
+        <div className="mrv-empty-icon">⚠️</div>
+        <div className="mrv-empty-text">报告文件无法访问</div>
+        <div className="mrv-empty-hint">文件可能已被删除或存储路径无读取权限，请检查系统设置中的报告路径配置</div>
       </div>
     );
   }
 
   const handleOpenInNewTab = () => {
-    window.open(reportPath, '_blank', 'noopener,noreferrer');
+    window.open(themedReportUrl, '_blank', 'noopener,noreferrer');
   };
 
   const handleRefresh = () => {
     setReloadKey((k) => k + 1);
-    iframeRef.current?.contentWindow?.location.reload();
   };
 
   // 任务 #39 (修订): 在执行记录页旁边加"导出到本地"按钮.
@@ -74,14 +124,18 @@ export default function MidsceneReportViewer({ reportPath, label = 'Midscene 报
           </button>
         </div>
       </div>
-      <iframe
-        key={reloadKey}
-        ref={iframeRef}
-        className="mrv-frame"
-        src={reportPath}
-        title={label}
-        sandbox="allow-scripts allow-same-origin"
-      />
+      {status === 'loading' ? (
+        <div className="mrv-loading">加载中...</div>
+      ) : (
+        <iframe
+          key={reloadKey}
+          ref={iframeRef}
+          className="mrv-frame"
+          src={themedReportUrl}
+          title={label}
+          sandbox="allow-scripts allow-same-origin"
+        />
+      )}
     </div>
   );
 }

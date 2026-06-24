@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { apiFetch } from '../../utils/api';
 import { formatDateTime } from '../../utils/datetime';
+import notification from '../../utils/notification';
 import FormSelect from '../../components/FormSelect';
 import './MockList.css';
 
@@ -21,9 +22,11 @@ interface MockEndpoint {
   updated_at: string;
 }
 
-export default function MockList({ basePath = '/api-test', testType = 'api' }: { basePath?: string; testType?: string } = {}) {
+export default function MockList() {
   const navigate = useNavigate();
-  const mocksPath = `/mocks-${testType}`;
+  // Mock 服务只属于接口测试(API),后端表为 mocks-api,前端路由固定 /api-test。
+  const mocksPath = '/mocks-api';
+  const basePath = '/api-test';
   const [mocks, setMocks] = useState<MockEndpoint[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
@@ -35,6 +38,13 @@ export default function MockList({ basePath = '/api-test', testType = 'api' }: {
   const [fName, setFName] = useState('');
   const [fMethod, setFMethod] = useState('');
   const [fPath, setFPath] = useState('');
+  const [fEnabled, setFEnabled] = useState('');
+  const [fStatusCode, setFStatusCode] = useState('');
+  const [appliedName, setAppliedName] = useState('');
+  const [appliedMethod, setAppliedMethod] = useState('');
+  const [appliedPath, setAppliedPath] = useState('');
+  const [appliedEnabled, setAppliedEnabled] = useState('');
+  const [appliedStatusCode, setAppliedStatusCode] = useState('');
 
   const fetchMocks = async (pageNum = 1, pageSz = pageSize) => {
     setLoading(true);
@@ -56,7 +66,8 @@ export default function MockList({ basePath = '/api-test', testType = 'api' }: {
   useEffect(() => { fetchMocks(); }, []);
 
   async function doDelete(id: number, name: string) {
-    if (!confirm(`确认删除 Mock「${name}」？`)) return;
+    const ok = await notification.confirm(`确认删除 Mock「${name}」？`);
+    if (!ok) return;
     await apiFetch(`${mocksPath}/${id}`, { method: 'DELETE' });
     fetchMocks(page, pageSize);
   }
@@ -80,16 +91,38 @@ export default function MockList({ basePath = '/api-test', testType = 'api' }: {
   };
 
   const filtered = mocks.filter(m => {
-    if (fName && !m.name.toLowerCase().includes(fName.toLowerCase())) return false;
-    if (fMethod && m.method !== fMethod) return false;
-    if (fPath && !m.path_pattern.toLowerCase().includes(fPath.toLowerCase())) return false;
+    if (appliedName && !m.name.toLowerCase().includes(appliedName.toLowerCase())) return false;
+    if (appliedMethod && m.method !== appliedMethod) return false;
+    if (appliedPath && !m.path_pattern.toLowerCase().includes(appliedPath.toLowerCase())) return false;
+    if (appliedEnabled === 'yes' && !m.enabled) return false;
+    if (appliedEnabled === 'no' && m.enabled) return false;
+    if (appliedStatusCode && m.response_status !== Number(appliedStatusCode)) return false;
     return true;
   });
 
-  const handleReset = () => { setFName(''); setFMethod(''); setFPath(''); };
+  const handleQuery = () => {
+    setAppliedName(fName);
+    setAppliedMethod(fMethod);
+    setAppliedPath(fPath);
+    setAppliedEnabled(fEnabled);
+    setAppliedStatusCode(fStatusCode);
+  };
+
+  const handleReset = () => {
+    setFName('');
+    setFMethod('');
+    setFPath('');
+    setFEnabled('');
+    setFStatusCode('');
+    setAppliedName('');
+    setAppliedMethod('');
+    setAppliedPath('');
+    setAppliedEnabled('');
+    setAppliedStatusCode('');
+  };
 
   return (
-    <div className="mock-list-root">
+    <div className="mock-list-root page-enter">
       {/* Filter Area */}
       <div className="alist-filter">
         <div className="alist-filter-row">
@@ -109,9 +142,22 @@ export default function MockList({ basePath = '/api-test', testType = 'api' }: {
             <label>路径</label>
             <input placeholder="搜索路径" value={fPath} onChange={e => setFPath(e.target.value)} />
           </div>
+          <div className="alist-filter-item">
+            <label>状态</label>
+            <FormSelect
+              value={fEnabled}
+              options={[{ value: '', label: '全部' }, { value: 'yes', label: '已启用' }, { value: 'no', label: '已禁用' }]}
+              onChange={val => setFEnabled(val)}
+            />
+          </div>
+          <div className="alist-filter-item">
+            <label>状态码</label>
+            <input placeholder="如 200" value={fStatusCode} onChange={e => setFStatusCode(e.target.value)} style={{ width: 80 }} />
+          </div>
           <div className="alist-filter-actions">
+            <button className="btn btn-primary" onClick={handleQuery}>查询</button>
             <button className="btn btn-default" onClick={handleReset}>重置</button>
-            <button className="btn btn-primary" onClick={() => navigate(`${basePath}/mock/new`)}>新增</button>
+            <button className="btn btn-default" onClick={() => navigate(`${basePath}/mock/new`)}>新增</button>
           </div>
         </div>
       </div>
@@ -139,16 +185,16 @@ export default function MockList({ basePath = '/api-test', testType = 'api' }: {
                   <th style={{ width: 72 }}>延迟</th>
                   <th style={{ width: 56 }}>命中</th>
                   <th style={{ width: 148 }}>更新时间</th>
-                  <th style={{ width: 80 }}></th>
+                  <th style={{ width: 120 }}></th>
                 </tr>
               </thead>
               <tbody>
-                {filtered.map(m => (
+                {filtered.map((m, index) => (
                   <tr
                     key={m.id}
-                    className={`alist-row ${m.enabled ? '' : 'alist-row-disabled'}`}
+                    className={`alist-row row-enter ${m.enabled ? '' : 'alist-row-disabled'}`}
+                    style={{ '--delay': `${index * 30}ms`, cursor: 'pointer' } as React.CSSProperties}
                     onClick={() => navigate(`${basePath}/mock/${m.id}`)}
-                    style={{ cursor: 'pointer' }}
                   >
                     <td onClick={e => e.stopPropagation()}>
                       <button className={`mock-enabled-btn ${m.enabled ? 'on' : 'off'}`} onClick={() => toggleEnabled(m)}>
@@ -168,8 +214,8 @@ export default function MockList({ basePath = '/api-test', testType = 'api' }: {
                     <td className="mock-time">{formatDateTime(m.updated_at)}</td>
                     <td>
                       <div className="row-actions">
-                        <button className="row-action-btn" title="编辑" onClick={(e) => { e.stopPropagation(); navigate(`${basePath}/mock/${m.id}`); }}>✎</button>
-                        <button className="row-action-btn row-action-del" title="删除" onClick={(e) => { e.stopPropagation(); doDelete(m.id, m.name); }}>✕</button>
+                        <button className="row-action-btn" title="编辑" onClick={(e) => { e.stopPropagation(); navigate(`${basePath}/mock/${m.id}`); }}>编辑</button>
+                        <button className="row-action-btn row-action-del" title="删除" onClick={(e) => { e.stopPropagation(); doDelete(m.id, m.name); }}>删除</button>
                       </div>
                     </td>
                   </tr>

@@ -145,3 +145,82 @@ export function browserConfigToLaunchParams(
     chromiumSandbox: !!browserCfg.chromium_sandbox,
   };
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 2026-06-15: PC-agent client (remote @midscene/computer execution)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Request body for pc-agent POST /execute.
+ * Mirrors the agent's ExecuteRequest — we send the whole case content and
+ * the agent runs it locally with @midscene/computer.
+ */
+export interface PcAgentExecuteRequest {
+  groupName: string;
+  groupDescription?: string;
+  reportName: string;
+  content: string;
+  contentType: 'text' | 'yaml';
+  preconditionText?: string;
+  checkpoints: Array<{ description: string; expect?: string }>;
+  /** ComputerDeviceOpt overrides: displayId, keyboardDriver, xvfbResolution, headless */
+  deviceOpt?: Record<string, unknown>;
+}
+
+/** Response from pc-agent POST /execute (the `data` wrapper). */
+export interface PcAgentExecuteResponse {
+  sessionId: string;
+  result: {
+    status: 'success' | 'failed' | 'error';
+    duration_ms: number;
+    steps: Array<{
+      index: number;
+      description: string;
+      expect?: string;
+      status: 'success' | 'failed' | 'skipped';
+      duration_ms: number;
+      error?: string;
+    }>;
+    error_message?: string;
+    report_dir?: string;
+  };
+}
+
+/**
+ * POST /execute on the pc-agent. Sends the whole case; the agent runs it
+ * with @midscene/computer on its local desktop and returns the result.
+ * Unlike web-agent's /launch, there is no back-and-forth — the agent
+ * owns the entire execution from start to finish.
+ */
+export async function executeOnPcAgent(
+  agentEndpoint: string,
+  agentToken: string,
+  request: PcAgentExecuteRequest
+): Promise<PcAgentExecuteResponse> {
+  const url = `${agentEndpoint.replace(/\/$/, '')}/execute`;
+  console.log(`[agent-client:pc] executeOnPcAgent url=${url} groupName="${request.groupName}"`);
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: authHeader(agentToken),
+    body: JSON.stringify(request),
+  });
+  await checkOk(res, 'executeOnPcAgent');
+  const json = await res.json() as { data: PcAgentExecuteResponse };
+  if (!json?.data?.sessionId) {
+    throw new AgentError('executeOnPcAgent: malformed response (no sessionId)', 502);
+  }
+  return json.data;
+}
+
+/**
+ * GET /sessions/:id/report on the pc-agent — returns a tar.gz of the
+ * Midscene report. Reuses the existing downloadReportFromAgent helper since
+ * the API shape is identical.
+ */
+export async function downloadPcReport(
+  agentEndpoint: string,
+  agentToken: string,
+  sessionId: string
+): Promise<Buffer> {
+  return downloadReportFromAgent(agentEndpoint, agentToken, sessionId);
+}

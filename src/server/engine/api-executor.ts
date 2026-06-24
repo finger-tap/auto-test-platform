@@ -322,7 +322,7 @@ export async function executeApi(
 
     // Helper to build URL
     const buildUrl = (ctx: Record<string, string>) => {
-      let fullUrl = doSub(api.url, ctx);
+      let fullUrl = doSub(api.url, ctx).trim();
       if (!/^https?:\/\//i.test(fullUrl)) {
         fullUrl = `${api.protocol}://${fullUrl}`;
       }
@@ -478,8 +478,8 @@ export async function executeApi(
         else reqHeaders['Content-Type'] = 'text/plain';
       }
 
-      const requestHeadersStr = JSON.stringify(reqHeaders);
-      const requestBodyStr = reqBody || null;
+      requestHeadersStr = JSON.stringify(reqHeaders);
+      requestBodyStr = reqBody || null;
       const requestStart = Date.now();
 
       addStep('main_action', '主体请求', `${api.method} ${fullUrl}`, {
@@ -491,20 +491,24 @@ export async function executeApi(
       });
 
       try {
-        const fetchOptions: RequestInit & { agent?: unknown } = {
+        const fetchOptions: RequestInit & { dispatcher?: unknown } = {
           method: api.method,
           headers: reqHeaders,
           body: reqBody,
           signal: AbortSignal.timeout(timeout),
         };
 
-        // SSL client certificate support
+        // SSL/TLS support — Node.js fetch uses undici, not node:https
         const urlObj = new URL(fullUrl);
-        if (urlObj.protocol === 'https:' && (options?.sslCert || options?.sslKey)) {
-          const { default: https } = await import('node:https');
-          fetchOptions.agent = new https.Agent({ cert: options.sslCert, key: options.sslKey });
+        if (urlObj.protocol === 'https:') {
+          const { Agent } = await import('undici');
+          const connectOptions: Record<string, unknown> = { rejectUnauthorized: false };
+          if (options?.sslCert) connectOptions.cert = options.sslCert;
+          if (options?.sslKey) connectOptions.key = options.sslKey;
+          fetchOptions.dispatcher = new Agent({ connect: connectOptions });
         }
 
+        console.log(`[api-executor] 发送请求: ${api.method} ${fullUrl}`);
         const response = await fetch(fullUrl, fetchOptions as Parameters<typeof fetch>[1]);
         const requestDuration = Date.now() - requestStart;
 
@@ -516,6 +520,8 @@ export async function executeApi(
           respBody = respBody.slice(0, 1_000_000) + '\n\n[Response truncated at 1MB]';
         }
 
+        console.log(`[api-executor] 响应: ${statusCode} (${requestDuration}ms)\n${respBody}`);
+
         addStep('main_action', '主体响应', `响应: ${statusCode} (${requestDuration}ms)`, {
           status_code: statusCode,
           response_headers: respHeadersObj,
@@ -526,6 +532,7 @@ export async function executeApi(
         const requestDuration = Date.now() - requestStart;
         errorMessage = err instanceof Error ? err.message : 'Unknown error';
         status = 'error';
+        console.error(`[api-executor] 请求失败: ${api.method} ${fullUrl} — ${errorMessage}`, err);
         addStep('error', '请求错误', `请求失败: ${errorMessage}`, { error: errorMessage, duration_ms: requestDuration });
       }
 
@@ -662,6 +669,7 @@ export async function executeApi(
     } catch (err) {
       status = 'error';
       errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      console.error(`[api-executor] 执行异常: ${api.name} — ${errorMessage}`, err);
       addStep('error', '错误', `执行异常: ${errorMessage}`, { error: errorMessage });
     }
 

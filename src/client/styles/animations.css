@@ -1,0 +1,78 @@
+/* ── Micro-interaction Animations ── */
+
+/* Page entrance */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.page-enter {
+  animation: fadeInUp 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* List row stagger — use with CSS custom property */
+@keyframes rowFadeIn {
+  from { opacity: 0; transform: translateX(-8px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+.row-enter {
+  animation: rowFadeIn 0.2s ease-out both;
+  animation-delay: var(--delay, 0ms);
+}
+
+/* Hover lift */
+.hover-lift {
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+.hover-lift:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+
+/* Card hover glow */
+.hover-glow {
+  transition: box-shadow 0.2s, border-color 0.2s;
+}
+.hover-glow:hover {
+  box-shadow: 0 0 0 1px var(--accent), var(--shadow-md);
+  border-color: var(--accent);
+}
+
+/* Number counter entrance */
+@keyframes countUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.count-up {
+  animation: countUp 0.4s ease-out;
+}
+
+/* Pulse for live indicators */
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+.pulse {
+  animation: pulse 2s ease-in-out infinite;
+}
+
+/* Skeleton loading */
+@keyframes shimmer {
+  from { background-position: -200% 0; }
+  to { background-position: 200% 0; }
+}
+.skeleton {
+  background: linear-gradient(90deg, var(--border-subtle) 25%, var(--surface-raised) 50%, var(--border-subtle) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+  border-radius: var(--radius-sm);
+}
+
+/* Tooltip fade */
+.tooltip-enter {
+  animation: fadeIn 0.1s ease;
+}

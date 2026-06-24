@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import CodeMirror from '@uiw/react-codemirror';
+import ThemedCodeMirror from './ThemedCodeMirror';
 import { json } from '@codemirror/lang-json';
 import type { ApiExecutionStep, ApiExecution, AssertionResult } from '../types';
 
@@ -153,7 +153,7 @@ export default function ApiExecutionTimeline({ execution, steps, assertionResult
                     {Boolean(logData.request_headers) && (
                       <div className="step-section">
                         <div className="step-section-label">请求头</div>
-                        <CodeMirror
+                        <ThemedCodeMirror
                           value={tryFormatJson(JSON.stringify(logData.request_headers))}
                           height="auto" maxHeight="150px"
                           extensions={[json()]}
@@ -165,7 +165,7 @@ export default function ApiExecutionTimeline({ execution, steps, assertionResult
                     {Boolean(logData.request_body) && (
                       <div className="step-section">
                         <div className="step-section-label">请求体</div>
-                        <CodeMirror
+                        <ThemedCodeMirror
                           value={tryFormatJson(String(logData.request_body))}
                           height="auto" maxHeight="150px"
                           extensions={[json()]}
@@ -177,7 +177,7 @@ export default function ApiExecutionTimeline({ execution, steps, assertionResult
                     {Boolean(logData.status_code) && (
                       <div className="step-section">
                         <div className="step-section-label">响应状态</div>
-                        <CodeMirror
+                        <ThemedCodeMirror
                           value={JSON.stringify({ status_code: logData.status_code, duration_ms: logData.duration_ms }, null, 2)}
                           height="auto" maxHeight="100px"
                           extensions={[json()]}
@@ -190,7 +190,7 @@ export default function ApiExecutionTimeline({ execution, steps, assertionResult
                     {ld.response_body ? (
                       <div className="step-section">
                         <div className="step-section-label">响应体</div>
-                        <CodeMirror
+                        <ThemedCodeMirror
                           value={tryFormatJson(String(ld.response_body))}
                           height="auto" maxHeight="200px"
                           extensions={[json()]}
@@ -202,7 +202,7 @@ export default function ApiExecutionTimeline({ execution, steps, assertionResult
                     {ld.script ? (
                       <div className="step-section">
                         <div className="step-section-label">脚本内容</div>
-                        <CodeMirror
+                        <ThemedCodeMirror
                           value={String(ld.script)}
                           height="auto" maxHeight="150px"
                           extensions={[json()]}

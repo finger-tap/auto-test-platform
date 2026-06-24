@@ -1,7 +1,8 @@
 import React from 'react';
-import CodeMirror from '@uiw/react-codemirror';
+import ThemedCodeMirror from './ThemedCodeMirror';
 import { javascript } from '@codemirror/lang-javascript';
 import { FilterableSelect } from './InlineEdit';
+import FormSelect from './FormSelect';
 
 // 动作类型
 export type ActionType = 'script' | 'db';
@@ -157,17 +158,18 @@ export const PrePostActionItem: React.FC<ActionItemProps> = ({
           }}
           placeholder="动作名称"
         />
-        <select
+        <FormSelect
           className="action-type-select"
           value={action.type}
-          onChange={e => {
-            onChange({ ...action, type: e.target.value as ActionType });
+          options={[
+            { value: 'script', label: '脚本' },
+            { value: 'db', label: '数据库' },
+          ]}
+          onChange={v => {
+            onChange({ ...action, type: v as ActionType });
             onDirty?.();
           }}
-        >
-          <option value="script">脚本</option>
-          <option value="db">数据库</option>
-        </select>
+        />
         <input
           className="action-desc-input"
           value={action.description || ''}
@@ -195,7 +197,7 @@ export const PrePostActionItem: React.FC<ActionItemProps> = ({
       <div className="action-item-editor">
         {action.type === 'script' && (
           <div className="action-editor-wrap">
-            <CodeMirror
+            <ThemedCodeMirror
               value={action.script}
               height="140px"
               extensions={[javascript()]}
@@ -266,13 +268,13 @@ export const PrePostActionItem: React.FC<ActionItemProps> = ({
                   <span className="main-rule-name-edit">✎</span>
                 </span>
               )}
-              <select
+              <FormSelect
                 className="rule-source"
                 value={rule.source}
-                onChange={e => updateRule(idx, 'source', e.target.value)}
-              >
-                {(action.type === 'db' ? SOURCES.db : SOURCES.script).map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
-              </select>
+                options={action.type === 'db' ? SOURCES.db : SOURCES.script}
+                onChange={v => updateRule(idx, 'source', v)}
+                size="compact"
+              />
               <input
                 className="rule-key"
                 placeholder={rule.source === 'status' ? '(自动)' : '变量名或路径如 data.id'}
@@ -281,7 +283,7 @@ export const PrePostActionItem: React.FC<ActionItemProps> = ({
                 disabled={rule.source === 'status'}
               />
               {/* 校验开关：开关控制后面operator和expected的显示 */}
-              <label className="rule-switch">
+              <label className="rule-switch rule-switch--labeled">
                 <input
                   type="checkbox"
                   checked={rule.assert !== false}
@@ -291,14 +293,14 @@ export const PrePostActionItem: React.FC<ActionItemProps> = ({
                   <span className="rule-switch-label">{rule.assert !== false ? '检查' : '提取'}</span>
                 </span>
               </label>
-              <select
+              <FormSelect
                 className="rule-operator"
                 value={rule.operator}
-                onChange={e => updateRule(idx, 'operator', e.target.value)}
+                options={OPERATORS}
+                onChange={v => updateRule(idx, 'operator', v)}
+                size="compact"
                 style={{ display: rule.assert === false ? 'none' : undefined }}
-              >
-                {OPERATORS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-              </select>
+              />
               {rule.assert !== false && !['exists', 'not_exists'].includes(rule.operator) && (
                 <input
                   className="rule-expected"

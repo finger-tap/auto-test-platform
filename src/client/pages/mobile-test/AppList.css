@@ -1,0 +1,25 @@
+/* 2026-06-23: App list page styles */
+
+.app-platform-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.app-platform-android {
+  background: oklch(92% 0.06 145);
+  color: oklch(35% 0.08 145);
+}
+
+.app-platform-ios {
+  background: oklch(92% 0.04 250);
+  color: oklch(35% 0.08 250);
+}
+
+.app-platform-harmony {
+  background: oklch(92% 0.04 30);
+  color: oklch(35% 0.08 30);
+}

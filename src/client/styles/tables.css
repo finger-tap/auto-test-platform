@@ -1,0 +1,119 @@
+/* ── Unified Table System ── */
+
+.alist-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+
+.alist-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.alist-table th {
+  padding: 10px 12px;
+  text-align: left;
+  font-weight: 600;
+  font-size: 12px;
+  color: var(--fg-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 1px solid var(--border);
+  border-right: 1px solid var(--border-subtle);
+  background: var(--surface);
+  position: sticky;
+  top: 0;
+  white-space: nowrap;
+}
+.alist-table th:last-child { border-right: none; }
+.alist-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-subtle);
+  border-right: 1px solid var(--border-subtle);
+  color: var(--fg);
+  font-size: 13px;
+}
+.alist-table td:last-child { border-right: none; }
+.alist-table tbody tr:last-child td { border-bottom: none; }
+.alist-table tr {
+  transition: background-color 0.1s;
+}
+.alist-table tbody tr:hover td {
+  background: var(--surface-raised);
+}
+.alist-table .sortable {
+  cursor: pointer;
+  user-select: none;
+}
+.alist-table .sortable:hover {
+  color: var(--fg);
+}
+.sort-icon {
+  opacity: 0.3;
+  margin-left: 4px;
+  font-size: 11px;
+}
+.sort-active .sort-icon {
+  opacity: 1;
+  color: var(--accent);
+}
+
+/* Row actions column */
+.row-actions {
+  display: flex;
+  gap: 4px;
+  justify-content: flex-end;
+  white-space: nowrap;
+}
+
+/* Sticky action column — stays fixed on the right when scrolling */
+.alist-table th:last-child,
+.alist-table td:last-child {
+  position: sticky;
+  right: 0;
+  z-index: 1;
+}
+.alist-table th:last-child {
+  background: var(--surface);
+}
+.alist-table td:last-child {
+  background: var(--surface);
+}
+.alist-table tbody tr:hover td:last-child {
+  background: var(--surface-raised);
+}
+
+/* Text action buttons */
+.row-action-btn {
+  height: 26px;
+  padding: 0 8px;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+  background: none;
+  color: var(--fg-secondary);
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  white-space: nowrap;
+}
+.row-action-btn:hover {
+  background: var(--accent-subtle);
+  color: var(--accent);
+}
+.row-action-del:hover {
+  background: var(--danger-subtle);
+  color: var(--danger);
+}
+.row-action-btn:disabled {
+  color: var(--fg-tertiary);
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+.row-action-btn:disabled:hover {
+  background: none;
+  color: var(--fg-tertiary);
+}

@@ -2,7 +2,7 @@
 // agent needs to run, then push it via SSH.
 //
 // Bundle layout (root of the tar):
-//   agent-src/             # src/agent/*.{ts,json,md}, flat list
+//   agent-src/             # src/agent-web/*.{ts,json,md}, flat list
 //   package.json           # minimal manifest, version == DEPLOY_VERSION
 //   node_modules/          # server's full node_modules
 //                          #   (~450MB; chosen to avoid depending on
@@ -34,7 +34,14 @@ const __dirname = path.dirname(__filename);
 
 // Project root = src/server/agent-push/bundler.ts → 3 levels up.
 const PROJECT_ROOT = path.resolve(__dirname, '..', '..', '..');
-const AGENT_SRC = path.join(PROJECT_ROOT, 'src', 'agent');
+const AGENT_SRC = path.join(PROJECT_ROOT, 'src', 'agent-web');
+// 2026-06-08: mobile-agent 跟 web-agent 平级,同一份 bundle 也带上
+const MOBILE_AGENT_SRC = path.join(PROJECT_ROOT, 'src', 'agent-mobile');
+// 2026-06-15: pc-agent is compiled (tsc) before bundling, so we package the
+// .js output from dist/agent-pc/ (which also includes the compiled
+// agent-web re-exports). The bundler walks this tree and maps it into the
+// tar as pc-agent-src/.
+const PC_AGENT_DIST = path.join(PROJECT_ROOT, 'dist', 'agent-pc');
 const NODE_MODULES = path.join(PROJECT_ROOT, 'node_modules');
 const BROWSERS_DIR = process.env.PLAYWRIGHT_BROWSERS_PATH || path.join(PROJECT_ROOT, 'drivers');
 const PKG_PATH = path.join(PROJECT_ROOT, 'package.json');
@@ -121,7 +128,7 @@ async function enumerate(): Promise<{ files: BundleFile[]; dirs: BundleFile[]; v
   const files: BundleFile[] = [];
   const dirs: BundleFile[] = [];
 
-  // 1. src/agent/** — only source files (ts/json/md), no test fixtures.
+  // 1. src/agent-web/** — only source files (ts/json/md), no test fixtures.
   const agentEntries = await fs.readdir(AGENT_SRC, { withFileTypes: true });
   for (const e of agentEntries) {
     if (!e.isFile()) continue;
@@ -131,6 +138,50 @@ async function enumerate(): Promise<{ files: BundleFile[]; dirs: BundleFile[]; v
     files.push({ abs, rel: `agent-src/${e.name}`, size: st.size, mtime: Math.floor(st.mtimeMs / 1000) });
   }
   dirs.push({ abs: AGENT_SRC, rel: 'agent-src/', size: 0, mtime: 0 });
+
+  // 1b. src/agent-mobile/** — same shape as above, separate dir inside bundle.
+  // systemd unit ExecStart 指向 mobile-agent/index.js,所以这一段必须独立。
+  const mobileExists = await fs.access(MOBILE_AGENT_SRC).then(() => true).catch(() => false);
+  if (mobileExists) {
+    const mobEntries = await fs.readdir(MOBILE_AGENT_SRC, { withFileTypes: true });
+    for (const e of mobEntries) {
+      if (!e.isFile()) continue;
+      if (!/\.(ts|json|md)$/.test(e.name)) continue;
+      const abs = path.join(MOBILE_AGENT_SRC, e.name);
+      const st = await fs.stat(abs);
+      files.push({ abs, rel: `mobile-agent-src/${e.name}`, size: st.size, mtime: Math.floor(st.mtimeMs / 1000) });
+    }
+    // 1c. src/agent-mobile/bin/scrcpy-server — mobile-agent 启动 scrcpy 用的 Java jar
+    // (从 midscene android-playground 同步过来),tar 里走 mobile-agent-bin/scrcpy-server
+    // 一并存到远端,启动时通过 CLASSPATH 加载。
+    const mobileBin = path.join(MOBILE_AGENT_SRC, 'bin');
+    const mobileBinExists = await fs.access(mobileBin).then(() => true).catch(() => false);
+    if (mobileBinExists) {
+      const binEntries = await fs.readdir(mobileBin, { withFileTypes: true });
+      for (const e of binEntries) {
+        if (!e.isFile()) continue;
+        const abs = path.join(mobileBin, e.name);
+        const st = await fs.stat(abs);
+        files.push({ abs, rel: `mobile-agent-bin/${e.name}`, size: st.size, mtime: Math.floor(st.mtimeMs / 1000) });
+      }
+      dirs.push({ abs: mobileBin, rel: 'mobile-agent-bin/', size: 0, mtime: 0 });
+    }
+    dirs.push({ abs: MOBILE_AGENT_SRC, rel: 'mobile-agent-src/', size: 0, mtime: 0 });
+  }
+
+  // 1d. dist/agent-pc/** — compiled pc-agent (tsc -p tsconfig.agent-pc.json).
+  // Walks the full tree (agent-pc/ + agent-web/ compiled re-exports).
+  // Must run `npm run build:agent-pc` before bundling.
+  const pcAgentExists = await fs.access(PC_AGENT_DIST).then(() => true).catch(() => false);
+  if (pcAgentExists) {
+    await walkDir(PC_AGENT_DIST, 'pc-agent-src', files, dirs, (rel) => {
+      if (!/\.(js|json)$/.test(rel)) return false;
+      return true;
+    });
+    dirs.push({ abs: PC_AGENT_DIST, rel: 'pc-agent-src/', size: 0, mtime: 0 });
+  } else {
+    console.warn('[agent-push:bundler] dist/agent-pc not found; run "npm run build:agent-pc" first');
+  }
 
   // 2. node_modules/** — skip per-package .cache dirs (regenerated).
   const nmExists = await fs.access(NODE_MODULES).then(() => true).catch(() => false);

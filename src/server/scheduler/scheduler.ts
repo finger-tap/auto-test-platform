@@ -27,7 +27,7 @@ import { findSetById as findWebCaseSet } from '../db/case-sets-web.js';
 import { findSetById as findPcCaseSet } from '../db/case-sets-pc.js';
 import { findSetById as findMobileCaseSet } from '../db/case-sets-mobile.js';
 import { findUserById } from '../db/users.js';
-import { listWebDevicesWithAgent, getRequiredAgentVersion, setNeedsUpgrade } from '../db/devices.js';
+import { listWebDevicesWithAgent, listMobileDevicesWithAgent, getRequiredAgentVersion, setNeedsUpgrade } from '../db/devices.js';
 import db from '../db/index.js';
 
 export type SchedulerTestType = 'api' | 'web' | 'pc' | 'mobile';
@@ -282,6 +282,9 @@ export async function runSchedule(scheduleId: number, testType: SchedulerTestTyp
  * Devices that have never reported a version (agent_version is null)
  * are left alone — they're not yet online, so there's nothing to
  * upgrade yet. The flag will get set by the next 401 response.
+ *
+ * 2026-06-08: mobile-agent 共用同一份 agent_token / agent_version 协议,
+ * 所以这里也扫 mobile 设备。逻辑合并到 scanKind('web' | 'mobile') helper。
  */
 export function scanDeviceVersions(): void {
   const required = getRequiredAgentVersion();
@@ -289,10 +292,18 @@ export function scanDeviceVersions(): void {
     console.warn('[Scheduler] scanDeviceVersions: required version is unknown (package.json read failed); skipping');
     return;
   }
-  const devices = listWebDevicesWithAgent();
+  const webMarked = scanKind('web', listWebDevicesWithAgent(), required);
+  const mobileMarked = scanKind('mobile', listMobileDevicesWithAgent(), required);
+  const totalMarked = webMarked + mobileMarked;
+  if (totalMarked > 0) {
+    console.log(`[Scheduler] scanDeviceVersions: marked ${totalMarked} device(s) as needs_upgrade (web=${webMarked}, mobile=${mobileMarked}, required=${required})`);
+  }
+}
+
+function scanKind(kind: 'web' | 'mobile', devices: ReturnType<typeof listWebDevicesWithAgent>, required: string): number {
   if (devices.length === 0) {
-    console.log(`[Scheduler] scanDeviceVersions: 0 web devices with agents, required=${required}`);
-    return;
+    console.log(`[Scheduler] scanDeviceVersions: 0 ${kind} devices with agents, required=${required}`);
+    return 0;
   }
   let marked = 0;
   for (const d of devices) {
@@ -304,9 +315,8 @@ export function scanDeviceVersions(): void {
       marked++;
     }
   }
-  if (marked > 0) {
-    console.log(`[Scheduler] scanDeviceVersions: marked ${marked} device(s) as needs_upgrade (required=${required})`);
-  } else {
-    console.log(`[Scheduler] scanDeviceVersions: all ${devices.length} device(s) match required=${required}`);
+  if (marked === 0) {
+    console.log(`[Scheduler] scanDeviceVersions: all ${devices.length} ${kind} device(s) match required=${required}`);
   }
+  return marked;
 }

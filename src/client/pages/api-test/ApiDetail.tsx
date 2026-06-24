@@ -3,6 +3,7 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import CodeMirror from '@uiw/react-codemirror';
 import { json, jsonParseLinter } from '@codemirror/lang-json';
 import { xml } from '@codemirror/lang-xml';
+import FormSelect from '../../components/FormSelect';
 import { javascript } from '@codemirror/lang-javascript';
 import { linter } from '@codemirror/lint';
 import type { Extension } from '@codemirror/state';
@@ -15,7 +16,7 @@ import VarHoverTip from '../../components/VarHoverTip';
 import CodeMirrorHover from '../../components/CodeMirrorHover';
 import notification from '../../utils/notification';
 import SelectFunctionModal from '../../components/SelectFunctionModal';
-import type { ApiItem, ApiLog, AssertionRule, AssertionResult, DatabaseEntry, ApiExecution, ApiExecutionStep } from '../../types';
+import type { ApiItem, ApiLog, AssertionRule, AssertionResult, DatabaseEntry, ApiExecution, ApiExecutionStep, SslCertEntry } from '../../types';
 import { PrePostActionList, defaultAction, type PrePostAction } from '../../components/PrePostActionItem';
 import ApiExecutionTimeline from '../../components/ApiExecutionTimeline';
 import BatchExecutionView from './BatchExecutionView';
@@ -101,8 +102,8 @@ export default function ApiDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  // Route /api-test/api-case/new has no :id param, so id is undefined
-  // Route /api-test/api-case/:id has id param (string)
+  // Route /api-test/case/new has no :id param, so id is undefined
+  // Route /api-test/case/:id has id param (string)
   const isNew = !id || id === 'new';
   // For new pages, set api immediately to avoid "loading" state
   const [api, setApi] = useState<ApiItem | null>(null);
@@ -121,6 +122,9 @@ export default function ApiDetail() {
   const [selectedExecution, setSelectedExecution] = useState<ApiExecution | null>(null);
   // When jumping to a specific execution, track which member tab to show by default
   const [jumpMemberIndex, setJumpMemberIndex] = useState(0);
+  // Execution history pagination (15 rows per page)
+  const [execPage, setExecPage] = useState(1);
+  const EXEC_PAGE_SIZE = 15;
 
   // 前置/后置动作列表（组件化新格式）
   const [preActions, setPreActions] = useState<PrePostAction[]>([]);
@@ -138,6 +142,7 @@ export default function ApiDetail() {
     pre_actions: '[]',
     post_actions: '[]',
     parameters: '',
+    ssl_cert_name: '',
   });
   const [mainRules, setMainRules] = useState<AssertionRule[]>([]);
   const [preExtractionRules, setPreExtractionRules] = useState<AssertionRule[]>([]);
@@ -184,7 +189,7 @@ export default function ApiDetail() {
       const res = await apiFetch<{ id: number }>('/apis', { method: 'POST', body: JSON.stringify(payload) }) as { code: number; message?: string; data?: { id: number } };
       if (res.code === 201 && res.data) {
         realIdRef.current = String(res.data.id);
-        navigate(`/api-test/api-case/${res.data.id}`, { replace: true });
+        navigate(`/api-test/case/${res.data.id}`, { replace: true });
         setApi(prev => prev ? { ...prev, id: res.data!.id } : prev);
         return realIdRef.current;
       }
@@ -261,6 +266,7 @@ export default function ApiDetail() {
           pre_actions: d.pre_actions || '[]',
           post_actions: d.post_actions || '[]',
           parameters: d.parameters || '',
+          ssl_cert_name: d.ssl_cert_name || '',
         });
         // 主体动作：所有规则合并存储
         try {
@@ -525,16 +531,16 @@ export default function ApiDetail() {
               <span className="main-rule-name-edit">✎</span>
             </span>
           )}
-          <select value={rule.source} onChange={(e) => onUpdate(idx, 'source', e.target.value)}>{ASSERTION_SOURCES.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}</select>
+          <FormSelect value={rule.source} options={ASSERTION_SOURCES} onChange={(v) => onUpdate(idx, 'source', v)} size="compact" />
           <input className="rule-key" placeholder={rule.source === 'status' ? '(自动)' : rule.source === 'header' ? 'Header名' : rule.source === 'vars' ? '变量名' : '路径如 data.id'} value={rule.key} onChange={(e) => onUpdate(idx, 'key', e.target.value)} disabled={rule.source === 'status'} />
           {mode === 'assert' && (
             <>
               {/* 校验开关：打开显示"检查"+下拉+输入框，关闭显示"提取"+隐藏下拉和输入框 */}
-              <label className="rule-switch">
+              <label className="rule-switch rule-switch--labeled">
                 <input type="checkbox" checked={rule.assert !== false} onChange={() => { onUpdate(idx, 'assert', rule.assert === false); }} />
                 <span className="rule-switch-slider"><span className="rule-switch-label">{rule.assert !== false ? '检查' : '提取'}</span></span>
               </label>
-              <select className="rule-operator" value={rule.operator} onChange={(e) => onUpdate(idx, 'operator', e.target.value)} style={{ display: rule.assert === false ? 'none' : undefined }}>{ASSERTION_OPERATORS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}</select>
+              <FormSelect className="rule-operator" value={rule.operator} options={ASSERTION_OPERATORS} onChange={(v) => onUpdate(idx, 'operator', v)} size="compact" style={{ display: rule.assert === false ? 'none' : undefined }} />
               {rule.assert !== false && !['exists', 'not_exists'].includes(rule.operator) && (<input className="rule-expected" placeholder="期望值" value={rule.expected} onChange={(e) => onUpdate(idx, 'expected', e.target.value)} />)}
             </>
           )}
@@ -553,8 +559,8 @@ export default function ApiDetail() {
 
   // ─── Tab: Detail ───
   const renderDetailTab = () => (
-    <div className="tab-content-wrapper tab-detail-wrapper">
-      <div className="ad-section ad-section-fill">
+    <div className="tab-content-wrapper">
+      <div className="ad-section">
         <div className="api-detail-row">
           <div className="field"><label>接口名称 <span className="required">*</span></label><InlineText value={form.name} onChange={v => { setForm(f => ({ ...f, name: v })); dirtyRef.current = true; }} placeholder="点击输入接口名称" /></div>
         </div>
@@ -598,6 +604,31 @@ export default function ApiDetail() {
           <div className="field"><label>请求方法</label><InlineSelect value={form.method} options={METHODS.map(m => ({ value: m, label: m }))} onChange={v => { setForm(f => ({ ...f, method: v })); dirtyRef.current = true; }} renderDisplay={(v) => <span className={`method-badge method-${v}`}>{v}</span>} /></div>
           <div className="field"><label>协议</label><InlineSelect value={form.protocol} options={PROTOCOL_OPTIONS} onChange={v => { setForm(f => ({ ...f, protocol: v })); dirtyRef.current = true; }} /></div>
         </div>
+        {form.protocol === 'https' && (() => {
+          const certOptions: Array<{ value: string; label: string }> = [{ value: '', label: '请选择' }];
+          if (activeEnv?.ssl_certs) {
+            try {
+              const certs: SslCertEntry[] = JSON.parse(activeEnv.ssl_certs);
+              if (Array.isArray(certs)) {
+                for (const c of certs) {
+                  if (c.cert) certOptions.push({ value: c.name, label: c.name || '未命名证书' });
+                }
+              }
+            } catch { /* ignore */ }
+          }
+          return (
+            <div className="api-detail-row">
+              <div className="field">
+                <label>SSL 证书</label>
+                <InlineSelect
+                  value={form.ssl_cert_name}
+                  options={certOptions}
+                  onChange={v => { setForm(f => ({ ...f, ssl_cert_name: v })); dirtyRef.current = true; }}
+                />
+              </div>
+            </div>
+          );
+        })()}
         <div className="api-detail-row">
           <div className="field field-url"><label>请求地址 <span className="required">*</span></label>
             <span className="ie-field ie-mono url-editable" onClick={() => setEditingUrl(true)}>
@@ -625,7 +656,7 @@ export default function ApiDetail() {
           </div>
         </div>
         <div className="ad-editor-section">
-          <div className="ad-editor-label"><label>请求头</label><button type="button" className="btn btn-sm" onClick={() => handleFormat('headers')}>格式化</button></div>
+          <div className="ad-editor-label"><label>请求头</label><button type="button" className="ad-btn ad-btn-sm" onClick={() => handleFormat('headers')}>格式化</button></div>
           <CodeMirrorHover value={form.headers} height="120px" extensions={[json(), linter(jsonParseLinter())]} onChange={(val) => { setForm({ ...form, headers: val }); dirtyRef.current = true; }} placeholder={HEADER_HINT} basicSetup={{ lineNumbers: true, foldGutter: true, highlightActiveLine: true, bracketMatching: true }} />
         </div>
         <div className="api-detail-row" style={{ marginTop: 12 }}>
@@ -633,12 +664,11 @@ export default function ApiDetail() {
             <label>报文类型</label>
             <div className="ad-ct-row">
               {CONTENT_TYPES.map((ct) => (<button key={ct.value} type="button" className={`ad-ct-btn ${form.content_type === ct.value ? 'active' : ''}`} onClick={() => { setForm({ ...form, content_type: ct.value }); dirtyRef.current = true; }}>{ct.label}</button>))}
-              <span className="ad-body-hint">{BODY_HINTS[form.content_type]}</span>
             </div>
           </div>
         </div>
         <div className="ad-editor-section">
-          <div className="ad-editor-label"><label>请求体</label><button type="button" className="btn btn-sm" onClick={() => handleFormat('body')}>格式化</button></div>
+          <div className="ad-editor-label"><label>请求体</label><button type="button" className="ad-btn ad-btn-sm" onClick={() => handleFormat('body')}>格式化</button></div>
           <CodeMirrorHover value={form.body} height="200px" extensions={getEditorLang(form.content_type) || []} onChange={(val) => { setForm({ ...form, body: val }); dirtyRef.current = true; }} placeholder={BODY_HINTS[form.content_type]} basicSetup={{ lineNumbers: true, foldGutter: true, highlightActiveLine: true, bracketMatching: true }} />
         </div>
       </div>
@@ -649,53 +679,53 @@ export default function ApiDetail() {
           <label>提取 & 断言</label>
         </div>
         <div className="rules-list">
-          {mainRules.map((rule, idx) => (
-            <div key={idx} className={`rule-card ${rule.assert === false ? 'rule-extract' : 'rule-assert'}`}>
-              <span className="rule-index">{idx + 1}</span>
-              {mainEditingRuleIdx === idx ? (
-                <input
-                  className="main-rule-name-input"
-                  autoFocus
-                  value={rule.name || ''}
-                  placeholder={`规则 ${idx + 1}`}
-                  onChange={(e) => { const u = [...mainRules]; u[idx] = { ...u[idx], name: e.target.value }; setMainRules(u); dirtyRef.current = true; }}
-                  onBlur={() => setMainEditingRuleIdx(null)}
-                  onKeyDown={(e) => { if (e.key === 'Enter') setMainEditingRuleIdx(null); }}
-                />
-              ) : (
-                <span className="main-rule-name" onClick={() => setMainEditingRuleIdx(idx)}>
-                  {rule.name || `规则${idx + 1}`}
-                  <span className="main-rule-name-edit">✎</span>
-                </span>
-              )}
-              <select value={rule.source} onChange={(e) => updateMainRule(idx, 'source', e.target.value)}>{ASSERTION_SOURCES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}</select>
-              <input className="rule-key" placeholder={rule.source === 'status' ? '(自动)' : rule.source === 'header' ? 'Header名' : '路径如 data.id'} value={rule.key} onChange={(e) => updateMainRule(idx, 'key', e.target.value)} disabled={rule.source === 'status'} />
-              {/* 校验开关：开关控制后面operator和expected的显示，关闭时清空值 */}
-              <label className="rule-switch">
-                <input
-                  type="checkbox"
-                  checked={rule.assert !== false}
-                  onChange={() => toggleMainRule(idx)}
-                />
-                <span className="rule-switch-slider">
-                  {rule.assert !== false ? <span className="rule-switch-label">检查</span> : <span className="rule-switch-label">提取</span>}
-                </span>
-              </label>
-              {rule.assert !== false && (
-                <>
-                  <select value={rule.operator} onChange={(e) => updateMainRule(idx, 'operator', e.target.value)}>{ASSERTION_OPERATORS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}</select>
-                  {!['exists', 'not_exists'].includes(rule.operator) && (<input className="rule-expected" placeholder="期望值" value={rule.expected} onChange={(e) => updateMainRule(idx, 'expected', e.target.value)} />)}
-                </>
-              )}
-              <button type="button" className="rule-del" onClick={() => removeMainRule(idx)}>✕</button>
-            </div>
-          ))}
-          {mainRules.length === 0 && (
-            <div style={{ fontSize: '0.75rem', color: '#bbb', marginBottom: 8 }}>暂无提取和断言规则</div>
-          )}
+            {mainRules.map((rule, idx) => (
+              <div key={idx} className={`rule-card ${rule.assert === false ? 'rule-extract' : 'rule-assert'}`}>
+                <span className="rule-index">{idx + 1}</span>
+                {mainEditingRuleIdx === idx ? (
+                  <input
+                    className="main-rule-name-input"
+                    autoFocus
+                    value={rule.name || ''}
+                    placeholder={`规则 ${idx + 1}`}
+                    onChange={(e) => { const u = [...mainRules]; u[idx] = { ...u[idx], name: e.target.value }; setMainRules(u); dirtyRef.current = true; }}
+                    onBlur={() => setMainEditingRuleIdx(null)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') setMainEditingRuleIdx(null); }}
+                  />
+                ) : (
+                  <span className="main-rule-name" onClick={() => setMainEditingRuleIdx(idx)}>
+                    {rule.name || `规则${idx + 1}`}
+                    <span className="main-rule-name-edit">✎</span>
+                  </span>
+                )}
+                <FormSelect value={rule.source} options={ASSERTION_SOURCES} onChange={(v) => updateMainRule(idx, 'source', v)} size="compact" />
+                <input className="rule-key" placeholder={rule.source === 'status' ? '(自动)' : rule.source === 'header' ? 'Header名' : '路径如 data.id'} value={rule.key} onChange={(e) => updateMainRule(idx, 'key', e.target.value)} disabled={rule.source === 'status'} />
+                {/* 校验开关：开关控制后面operator和expected的显示，关闭时清空值 */}
+                <label className="rule-switch rule-switch--labeled">
+                  <input
+                    type="checkbox"
+                    checked={rule.assert !== false}
+                    onChange={() => toggleMainRule(idx)}
+                  />
+                  <span className="rule-switch-slider">
+                    {rule.assert !== false ? <span className="rule-switch-label">检查</span> : <span className="rule-switch-label">提取</span>}
+                  </span>
+                </label>
+                {rule.assert !== false && (
+                  <>
+                    <FormSelect value={rule.operator} options={ASSERTION_OPERATORS} onChange={(v) => updateMainRule(idx, 'operator', v)} size="compact" />
+                    {!['exists', 'not_exists'].includes(rule.operator) && (<input className="rule-expected" placeholder="期望值" value={rule.expected} onChange={(e) => updateMainRule(idx, 'expected', e.target.value)} />)}
+                  </>
+                )}
+                <button type="button" className="rule-del" onClick={() => removeMainRule(idx)}>✕</button>
+              </div>
+            ))}
+            {mainRules.length === 0 && (
+              <div style={{ fontSize: '0.75rem', color: 'var(--fg-tertiary)', marginBottom: 8 }}>暂无提取和断言规则</div>
+            )}
+          </div>
+          <button type="button" className="ad-btn ad-btn-sm" onClick={() => { addMainRule(); dirtyRef.current = true; }}>+ 添加规则</button>
         </div>
-        <button type="button" className="btn btn-sm" style={{ marginTop: 8, display: 'block' }} onClick={() => { addMainRule(); dirtyRef.current = true; }}>+ 添加规则</button>
-      </div>
     </div>
   );
 
@@ -972,22 +1002,23 @@ export default function ApiDetail() {
         <div className="ad-section">
           {/* 全局启用开关 */}
           <div className="param-enable-row">
-            <label className="param-switch">
+            <label className="rule-switch rule-switch--labeled">
               <input type="checkbox" checked={paramConfig.enabled} onChange={toggleEnabled} />
-              <span className="param-switch-slider"></span>
+              <span className="rule-switch-slider">
+                <span className="rule-switch-label">{paramConfig.enabled ? '已启用' : '已禁用'}</span>
+              </span>
             </label>
-            <span className="param-enable-label">{paramConfig.enabled ? '已启用' : '已禁用'}</span>
           </div>
 
           <div className="param-table-wrapper">
             <div className="param-action-row">
-              <button type="button" className="btn btn-sm" onClick={addColumn}>添加列</button>
-              <button type="button" className="btn btn-sm" onClick={addRow}>添加行</button>
-              <label className="param-upload-btn">
+              <button type="button" className="ad-btn ad-btn-sm" onClick={addColumn}>添加列</button>
+              <button type="button" className="ad-btn ad-btn-sm" onClick={addRow}>添加行</button>
+              <label className="scenario-btn">
                 <input type="file" accept=".csv,.xlsx,.xls" style={{ display: 'none' }} onChange={handleFileUpload} />
                 上传 CSV
               </label>
-              <button type="button" className="btn btn-sm" onClick={downloadTemplate}>下载模板</button>
+              <button type="button" className="scenario-btn" onClick={downloadTemplate}>下载模板</button>
             </div>
 
             {paramConfig.headers.length === 0 ? (
@@ -1006,13 +1037,13 @@ export default function ApiDetail() {
                         />
                       )}
                     </th>
-                    <th className="param-th-del"></th>
                     {paramConfig.headers.map((h, ci) => (
                       <th key={ci}>
                         <input className="param-header-input" value={h} onChange={e => setHeader(ci, e.target.value)} placeholder="变量名" />
                         <button className="param-col-del" onClick={() => removeColumn(ci)} title="删除此列">✕</button>
                       </th>
                     ))}
+                    <th className="param-th-del"></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1025,7 +1056,6 @@ export default function ApiDetail() {
                           <input type="checkbox" checked={paramConfig.enabledRows[ri] !== false} onChange={() => toggleRowEnabled(ri)} />
                         </label>
                       </td>
-                      <td><button className="param-row-del" onClick={() => removeRow(ri)} title="删除此行">✕</button></td>
                       {paramConfig.headers.map((_, ci) => (
                         <td key={ci}>
                           <input
@@ -1035,6 +1065,7 @@ export default function ApiDetail() {
                           />
                         </td>
                       ))}
+                      <td><button className="param-row-del" onClick={() => removeRow(ri)} title="删除此行">✕</button></td>
                     </tr>
                   ))}
                 </tbody>
@@ -1055,54 +1086,83 @@ export default function ApiDetail() {
   };
 
   // ─── Tab: Logs ───
-  const renderLogsTab = () => (
-    <div className="tab-content-wrapper">
-      <div className="ad-section">
-        <div className="ad-section-head"><label>执行历史</label></div>
-        {executions.length === 0 ? (<div className="api-empty" style={{ padding: '24px 0' }}>暂无执行记录</div>) : (
-          <table className="log-table">
-            <thead><tr><th>时间</th><th>状态</th><th>耗时</th><th>执行人</th><th>操作</th></tr></thead>
-            <tbody>{executions.map((exec) => {
-              const isSelected = selectedExecution?.id === exec.id;
-              const isBatch = exec.sub_executions && exec.sub_executions.length > 0;
-              return (
-                <Fragment key={exec.id}>
-                  <tr className={isSelected ? 'log-row-selected' : ''}>
-                    <td>{toLocalDateTime(exec.started_at)}</td>
-                    <td><span className={`status-badge ${exec.status === 'success' ? 'success' : exec.status === 'failed' ? 'failed' : 'error'}`}>{exec.status}</span>{isBatch && <span className="batch-badge">({exec.sub_executions!.length + 1}组)</span>}</td>
-                    <td>{exec.duration_ms != null ? `${exec.duration_ms} ms` : '-'}</td>
-                    <td>{exec.executed_by || '-'}</td>
-                    <td><button className="log-view-btn" onClick={() => handleSelectExecution(exec)}>{isSelected ? '收起' : '查看'}</button></td>
-                  </tr>
-                  {isSelected && (
-                    <tr className="log-detail-row">
-                      <td colSpan={5}>
-                        {isBatch ? (
-                          <BatchExecutionView execution={selectedExecution} id={id!} defaultActiveRow={jumpMemberIndex} />
-                        ) : (
-                          <ApiExecutionTimeline
-                            execution={selectedExecution}
-                            steps={selectedExecution.steps || []}
-                            assertionResults={{ pre: [], main: [], post: [], final: [] }}
-                          />
-                        )}
-                      </td>
-                    </tr>
-                  )}
-                </Fragment>
-              );
-            })}</tbody>
-          </table>
-        )}
+  const renderLogsTab = () => {
+    const totalExecPages = Math.max(1, Math.ceil(executions.length / EXEC_PAGE_SIZE));
+    const pagedExecs = executions.slice((execPage - 1) * EXEC_PAGE_SIZE, execPage * EXEC_PAGE_SIZE);
+    return (
+      <div className="tab-content-wrapper">
+        <div className="ad-section">
+          <div className="ad-section-head">
+            <label>执行历史</label>
+            {executions.length > EXEC_PAGE_SIZE && (
+              <span style={{ fontSize: 12, color: 'var(--fg-tertiary)' }}>共 {executions.length} 条</span>
+            )}
+          </div>
+          {executions.length === 0 ? (<div className="api-empty" style={{ padding: '24px 0' }}>暂无执行记录</div>) : (
+            <>
+              <table className="log-table">
+                <thead><tr><th>时间</th><th>状态</th><th>耗时</th><th>执行人</th><th>操作</th></tr></thead>
+                <tbody>{pagedExecs.map((exec) => {
+                  const isSelected = selectedExecution?.id === exec.id;
+                  const isBatch = exec.sub_executions && exec.sub_executions.length > 0;
+                  return (
+                    <Fragment key={exec.id}>
+                      <tr className={isSelected ? 'log-row-selected' : ''}>
+                        <td>{toLocalDateTime(exec.started_at)}</td>
+                        <td><span className={`status-badge ${exec.status === 'success' ? 'success' : exec.status === 'failed' ? 'failed' : 'error'}`}>{exec.status}</span>{isBatch && <span className="batch-badge">({exec.sub_executions!.length + 1}组)</span>}</td>
+                        <td>{exec.duration_ms != null ? `${exec.duration_ms} ms` : '-'}</td>
+                        <td>{exec.executed_by || '-'}</td>
+                        <td><button className="log-view-btn" onClick={() => handleSelectExecution(exec)}>{isSelected ? '收起' : '查看'}</button></td>
+                      </tr>
+                      {isSelected && (
+                        <tr className="log-detail-row">
+                          <td colSpan={5}>
+                            {isBatch ? (
+                              <BatchExecutionView execution={selectedExecution} id={id!} defaultActiveRow={jumpMemberIndex} />
+                            ) : (
+                              <ApiExecutionTimeline
+                                execution={selectedExecution}
+                                steps={selectedExecution.steps || []}
+                                assertionResults={{ pre: [], main: [], post: [], final: [] }}
+                              />
+                            )}
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
+                  );
+                })}</tbody>
+              </table>
+              {totalExecPages > 1 && (
+                <div className="log-pagination">
+                  <button className="btn btn-sm btn-ghost" disabled={execPage <= 1} onClick={() => setExecPage(p => p - 1)}>上一页</button>
+                  <span className="log-pagination-info">{execPage} / {totalExecPages}</span>
+                  <button className="btn btn-sm btn-ghost" disabled={execPage >= totalExecPages} onClick={() => setExecPage(p => p + 1)}>下一页</button>
+                </div>
+              )}
+            </>
+          )}
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   return (
-    <div className="api-detail">
+    <div className="api-detail page-enter">
       <div className="api-detail-header">
-        <button className="api-detail-back" onClick={() => navigate('/api-test/api-case')}>← 返回列表</button>
-        <span className="api-detail-page-title">接口用例详情</span>
+        <div className="api-detail-breadcrumb">
+          <button className="api-detail-back" onClick={() => navigate('/api-test/case')}>用例列表</button>
+          <span className="api-detail-breadcrumb-sep">/</span>
+          <input className="api-detail-name-input" value={form.name} onChange={e => { setForm({ ...form, name: e.target.value }); dirtyRef.current = true; }} placeholder="输入接口名称" />
+        </div>
+        <div className="api-detail-meta">
+          {!isNew && api && <span className={`status-badge-light ${form.status}`}>{STATUS_OPTIONS.find(o => o.value === form.status)?.label || form.status}</span>}
+          {api?.updated_at && <span className="meta-time">更新于 {toLocalDateTime(api.updated_at)}</span>}
+        </div>
+        <div className="api-detail-actions">
+          <button className="scenario-btn" onClick={handleSave}>保存</button>
+          <button className={`sset-btn sset-btn-primary${!realIdRef.current ? ' scenario-btn-disabled' : ''}`} onClick={handleExecute} disabled={executing}>{executing ? <><span className="ad-btn-loading">⟳</span> 执行中</> : '执行'}</button>
+        </div>
       </div>
       <div className="api-detail-content">
         <div className="api-detail-card" style={{ padding: 0 }}>
@@ -1115,12 +1175,6 @@ export default function ApiDetail() {
             {activeTab === 'params' && renderParamsTab()}
             {activeTab === 'logs' && renderLogsTab()}
           </div>
-          {activeTab !== 'logs' && (
-            <div className="detail-action-bar">
-              <button className={`scenario-btn ${dirtyRef.current ? 'dirty' : ''}`} onClick={handleSave}>保存</button>
-              <button className={`sset-btn sset-btn-primary ${!realIdRef.current ? 'scenario-btn-disabled' : ''}`} onClick={handleExecute} disabled={executing}>{executing ? <><span className="ad-btn-loading">⟳</span> 执行中</> : '执行'}</button>
-            </div>
-          )}
         </div>
       </div>
       {error && <div className="api-error">{error}</div>}

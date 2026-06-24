@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import CodeMirror from '@uiw/react-codemirror';
+import ThemedCodeMirror from '../../components/ThemedCodeMirror';
+import FormSelect from '../../components/FormSelect';
 import { json } from '@codemirror/lang-json';
 import { apiFetch } from '../../utils/api';
 import { formatDateTime } from '../../utils/datetime';
@@ -86,11 +87,12 @@ const METHOD_COLORS: Record<string, string> = {
   GET: '#52c41a', POST: '#1677ff', PUT: '#faad14', DELETE: '#ff4d4f', PATCH: '#722ed1', '*': '#999',
 };
 
-export default function MockDetail({ testType = 'api' }: { testType?: string }) {
+export default function MockDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const isNew = id === 'new';
-  const mocksPath = `/mocks-${testType}`;
+  // Mock 服务只属于接口测试(API),后端表为 mocks-api。
+  const mocksPath = '/mocks-api';
 
   const [loading, setLoading] = useState(!isNew);
   const [conditions, setConditions] = useState<MockCondition[]>([]);
@@ -233,8 +235,8 @@ export default function MockDetail({ testType = 'api' }: { testType?: string }) 
 
   // ─── Tab: 基本信息 ───
   const renderDetailTab = () => (
-    <div className="tab-content-wrapper tab-detail-wrapper">
-      <div className="ad-section ad-section-fill">
+    <div className="tab-content-wrapper">
+      <div className="ad-section">
         <div className="api-detail-row">
           <div className="field"><label>名称</label>
             <InlineText value={name} onChange={v => { setName(v); dirtyRef(true); }} placeholder="点击输入名称" />
@@ -322,18 +324,14 @@ export default function MockDetail({ testType = 'api' }: { testType?: string }) 
             {conditions.map((cond, idx) => (
               <div key={cond.id} className="rule-card">
                 <span className="rule-index">{idx + 1}</span>
-                <select className="rule-source" value={cond.source} onChange={e => updateCondition(cond.id, 'source', e.target.value)}>
-                  {COND_SOURCES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
-                </select>
+                <FormSelect className="rule-source" value={cond.source} options={COND_SOURCES} onChange={v => updateCondition(cond.id, 'source', v)} size="compact" />
                 <input
                   className="rule-key"
                   value={cond.param}
                   onChange={e => updateCondition(cond.id, 'param', e.target.value)}
                   placeholder="参数名"
                 />
-                <select className="rule-operator" value={cond.operator} onChange={e => updateCondition(cond.id, 'operator', e.target.value)}>
-                  {COND_OPERATORS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                </select>
+                <FormSelect className="rule-operator" value={cond.operator} options={COND_OPERATORS} onChange={v => updateCondition(cond.id, 'operator', v)} size="compact" />
                 {!['exists', 'not_exists'].includes(cond.operator) && (
                   <input
                     className="rule-expected"
@@ -371,12 +369,11 @@ export default function MockDetail({ testType = 'api' }: { testType?: string }) 
       <div className="ad-section" style={{ marginTop: '0.75rem' }}>
         <div className="ad-section-head"><label>响应头</label></div>
         <div className="ad-editor-section">
-          <CodeMirror
+          <ThemedCodeMirror
             value={responseHeaders}
             height="120px"
             extensions={[json()]}
             onChange={v => { setResponseHeaders(v); dirtyRef(true); }}
-            theme="light"
           />
         </div>
       </div>
@@ -384,12 +381,11 @@ export default function MockDetail({ testType = 'api' }: { testType?: string }) 
       <div className="ad-section" style={{ marginTop: '0.75rem' }}>
         <div className="ad-section-head"><label>响应体</label></div>
         <div className="ad-editor-section">
-          <CodeMirror
+          <ThemedCodeMirror
             value={responseBody}
             height="300px"
             extensions={[json()]}
             onChange={v => { setResponseBody(v); dirtyRef(true); }}
-            theme="light"
           />
         </div>
       </div>
@@ -397,11 +393,20 @@ export default function MockDetail({ testType = 'api' }: { testType?: string }) 
   );
 
   return (
-    <div className="api-detail">
+    <div className="api-detail page-enter">
       {/* Header */}
       <div className="api-detail-header">
-        <button className="api-detail-back" onClick={handleCancel}>← 返回列表</button>
-        <span className="api-detail-page-title">{isNew ? '新建 Mock' : 'Mock 详情'}</span>
+        <div className="api-detail-breadcrumb">
+          <button className="api-detail-back" onClick={handleCancel}>Mock 列表</button>
+          <span className="api-detail-breadcrumb-sep">/</span>
+          <input className="api-detail-name-input" value={name} onChange={e => { setName(e.target.value); dirtyRef(true); }} placeholder="输入 Mock 名称" />
+        </div>
+        <div className="api-detail-meta">
+          {!isNew && <span className={`status-badge-light ${status}`}>{STATUS_OPTIONS.find(o => o.value === status)?.label || status}</span>}
+        </div>
+        <div className="api-detail-actions">
+          <button className={`scenario-btn${dirty ? ' dirty' : ''}`} onClick={doSave} disabled={saving}>{saving ? '保存中...' : '保存'}</button>
+        </div>
       </div>
 
       {/* Content */}
@@ -421,14 +426,6 @@ export default function MockDetail({ testType = 'api' }: { testType?: string }) 
             {activeTab === 'detail' && renderDetailTab()}
             {activeTab === 'match' && renderMatchTab()}
             {activeTab === 'response' && renderResponseTab()}
-          </div>
-
-          {/* Floating Action Bar */}
-          <div className="detail-action-bar">
-            <button className="scenario-btn" onClick={handleCancel}>取消</button>
-            <button className={`scenario-btn ${dirty ? 'dirty' : ''}`} onClick={doSave} disabled={saving}>
-              {saving ? '保存中...' : '保存'}
-            </button>
           </div>
         </div>
       </div>

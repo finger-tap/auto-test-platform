@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, type FormEvent } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { apiFetch, getToken, setUserInfo } from '../utils/api';
+import notification from '../utils/notification';
 import type { UserInfo } from '../types';
 import './Profile.css';
 
@@ -28,7 +29,7 @@ export default function Profile() {
     const file = e.target.files?.[0];
     if (!file) return;
     if (file.size > 2 * 1024 * 1024) {
-      alert('图片大小不能超过 2MB');
+      notification.error('图片大小不能超过 2MB');
       return;
     }
     setAvatarFile(file);

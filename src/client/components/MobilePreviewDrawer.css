@@ -1,0 +1,270 @@
+/* 2026-06-09: 移动端预览抽屉 — 右侧 400px 滑出,内部用 transform 动画 */
+
+.mpd-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 1100;
+  pointer-events: none;
+  background: transparent;
+  transition: background 0.18s;
+}
+
+.mpd-mask.open {
+  background: rgba(0, 0, 0, 0.18);
+  pointer-events: auto;
+}
+
+.mpd-drawer {
+  position: absolute;
+  top: 0;
+  right: 0;
+  height: 100vh;
+  width: 400px;
+  max-width: 100vw;
+  background: var(--surface, #fff);
+  box-shadow: -8px 0 24px rgba(0, 0, 0, 0.12);
+  display: flex;
+  flex-direction: column;
+  transform: translateX(100%);
+  transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.mpd-drawer.open {
+  transform: translateX(0);
+}
+
+.mpd-header {
+  display: flex;
+  align-items: flex-start;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border, #e5e7eb);
+  background: var(--surface, #fff);
+  gap: 12px;
+}
+
+.mpd-title {
+  flex: 1;
+  min-width: 0;
+}
+
+.mpd-header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.mpd-hint {
+  font-size: 11px;
+  color: var(--fg-tertiary, #6b7280);
+  max-width: 180px;
+  line-height: 1.4;
+  text-align: right;
+}
+
+.mpd-device-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--fg, #1f2937);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mpd-meta {
+  font-size: 11px;
+  color: var(--fg-tertiary, #6b7280);
+  margin-top: 2px;
+  font-family: var(--font-mono, 'JetBrains Mono', monospace);
+}
+
+.mpd-close {
+  border: none;
+  background: none;
+  font-size: 22px;
+  cursor: pointer;
+  color: var(--fg-tertiary, #6b7280);
+  padding: 0 4px;
+  line-height: 1;
+}
+
+.mpd-close:hover {
+  color: var(--fg, #1f2937);
+}
+
+.mpd-body {
+  flex: 1;
+  background: #0a0a0a;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.mpd-status {
+  color: #9ca3af;
+  font-size: 13px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  text-align: center;
+  padding: 20px;
+}
+
+.mpd-status-spinner {
+  width: 28px;
+  height: 28px;
+  border: 3px solid rgba(255, 255, 255, 0.15);
+  border-top-color: var(--success, #10b981);
+  border-radius: 50%;
+  animation: mpd-spin 0.8s linear infinite;
+}
+
+@keyframes mpd-spin {
+  to { transform: rotate(360deg); }
+}
+
+.mpd-error {
+  text-align: center;
+  padding: 32px 20px;
+  color: #fca5a5;
+}
+
+.mpd-error-title {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.mpd-error-msg {
+  font-size: 12px;
+  color: #f87171;
+  font-family: var(--font-mono, 'JetBrains Mono', monospace);
+  word-break: break-all;
+}
+
+.mpd-stream {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mpd-screen {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  background: #000;
+}
+
+.mpd-scrcpy {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #000;
+}
+
+.mpd-scrcpy-canvas {
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  background: #000;
+  display: block;
+}
+
+.mpd-scrcpy-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #d4d4d4;
+  font-size: 12px;
+  font-family: var(--font-mono, 'JetBrains Mono', monospace);
+  background: rgba(0, 0, 0, 0.55);
+  pointer-events: none;
+}
+
+.mpd-scrcpy-overlay-err {
+  color: #fca5a5;
+  padding: 0 24px;
+  text-align: center;
+}
+
+.mpd-scrcpy-stats {
+  position: absolute;
+  left: 8px;
+  bottom: 8px;
+  background: rgba(0, 0, 0, 0.65);
+  padding: 6px 10px;
+  border-radius: 4px;
+  font-size: 11px;
+  color: #d4d4d4;
+  font-family: var(--font-mono, 'JetBrains Mono', monospace);
+  display: flex;
+  gap: 12px;
+}
+
+.mpd-scrcpy-stats b {
+  color: #fff;
+  font-weight: 600;
+}
+
+.mpd-scrcpy-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+  margin-bottom: 12px;
+}
+
+.mpd-scrcpy-status {
+  margin-bottom: 16px;
+  color: #86efac;
+}
+
+.mpd-scrcpy-hint {
+  line-height: 1.7;
+  color: #9ca3af;
+  margin-bottom: 20px;
+}
+
+.mpd-scrcpy-stats {
+  text-align: left;
+  background: var(--bg-secondary, #1a1a1a);
+  padding: 12px 16px;
+  border-radius: var(--radius-md, 6px);
+  border: 1px solid var(--border, #2a2a2a);
+}
+
+.mpd-scrcpy-stats b {
+  color: #fff;
+  font-weight: 600;
+}
+
+.mpd-footer {
+  display: flex;
+  gap: 16px;
+  padding: 8px 18px;
+  border-top: 1px solid var(--border, #e5e7eb);
+  background: var(--bg, #f9fafb);
+  font-size: 11px;
+  color: var(--fg-tertiary, #6b7280);
+  font-family: var(--font-mono, 'JetBrains Mono', monospace);
+  flex-wrap: wrap;
+}
+
+.mpd-stat {
+  white-space: nowrap;
+}
+
+.mpd-stat-warn {
+  color: var(--warning, #f59e0b);
+}

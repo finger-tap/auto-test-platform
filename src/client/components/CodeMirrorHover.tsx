@@ -1,9 +1,9 @@
 import React, { useMemo } from 'react';
-import CodeMirror from '@uiw/react-codemirror';
 import type { Extension } from '@codemirror/state';
 import { EditorView, hoverTooltip, Decoration } from '@codemirror/view';
 import { json } from '@codemirror/lang-json';
 import { javascript } from '@codemirror/lang-javascript';
+import ThemedCodeMirror from './ThemedCodeMirror';
 import { useEnvironment } from '../contexts/EnvironmentContext';
 import type { EnvVariable } from '../types';
 
@@ -126,7 +126,7 @@ export default function CodeMirrorHover({
   };
 
   return (
-    <CodeMirror
+    <ThemedCodeMirror
       value={value}
       height={height}
       extensions={mergedExtensions}

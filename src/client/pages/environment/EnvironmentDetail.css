@@ -1,26 +1,6 @@
-.envdt {
-  padding: 20px;
-  width: 100%;
-  box-sizing: border-box;
-}
-
-.envdt-head {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  margin-bottom: 24px;
-}
-
-.envdt-head h2 {
-  margin: 0;
-  font-size: 18px;
-  color: var(--fg);
-}
-
-.envdt-loading {
-  padding: 60px;
-  text-align: center;
-  color: var(--fg-tertiary);
+/* 环境详情页内容区需要滚动（覆盖 detail-components 的 overflow: hidden） */
+.env-detail-page .api-detail-content {
+  overflow-y: auto;
 }
 
 .envdt-form {
@@ -28,70 +8,29 @@
   flex-direction: column;
   gap: 16px;
   max-width: 100%;
+  padding: 20px 24px 40px;
 }
 
-.envdt-card {
-  background: var(--surface);
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--border);
-  padding: 20px 24px;
-}
-
-.envdt-card-title {
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--fg);
-  margin-bottom: 6px;
-}
-
-.envdt-card-desc {
+.api-detail-card-desc {
   font-size: 12px;
   color: var(--fg-tertiary);
   margin-bottom: 14px;
 }
 
-.envdt-card-desc code {
+.api-detail-card-desc code {
   background: var(--accent-subtle);
   padding: 1px 5px;
   border-radius: 3px;
   color: var(--accent);
 }
 
-.envdt-fields {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-
-.envdt-field {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.envdt-field-row {
-  flex-direction: row;
-  align-items: flex-end;
-  gap: 20px;
-}
-
-.envdt-field-row .envdt-field {
-  flex: 1;
-}
-
-.envdt-field label {
-  font-size: 12px;
-  color: var(--fg-secondary);
-  font-weight: 500;
-}
-
-.envdt-field .required {
+.field .required {
   color: var(--danger);
 }
 
-.envdt-field input[type="text"],
-.envdt-field input[type="number"],
-.envdt-field input[type="password"] {
+.field input[type="text"],
+.field input[type="number"],
+.field input[type="password"] {
   width: 100%;
   height: 36px;
   padding: 0 12px;
@@ -104,14 +43,14 @@
   outline: none;
   transition: border-color 0.15s;
 }
-.envdt-field input[type="text"]:focus,
-.envdt-field input[type="number"]:focus,
-.envdt-field input[type="password"]:focus {
+.field input[type="text"]:focus,
+.field input[type="number"]:focus,
+.field input[type="password"]:focus {
   border-color: var(--accent);
   box-shadow: 0 0 0 3px var(--accent-subtle);
 }
 
-.envdt-field textarea {
+.field textarea {
   width: 100%;
   min-height: 80px;
   padding: 10px 12px;
@@ -125,12 +64,12 @@
   resize: vertical;
   line-height: 1.6;
 }
-.envdt-field textarea:focus {
+.field textarea:focus {
   border-color: var(--accent);
   box-shadow: 0 0 0 3px var(--accent-subtle);
 }
 
-.envdt-field select {
+.field select {
   width: 100%;
   height: 36px;
   padding: 0 32px 0 12px;
@@ -145,7 +84,7 @@
   appearance: none;
   -webkit-appearance: none;
 }
-.envdt-field select:focus {
+.field select:focus {
   border-color: var(--accent);
   box-shadow: 0 0 0 3px var(--accent-subtle);
 }
@@ -230,34 +169,6 @@
   border-color: var(--danger);
   color: var(--danger);
   background: var(--danger-subtle);
-}
-
-.envdt-add-var {
-  margin-top: 6px;
-  padding: 8px 16px;
-  border: 1px dashed var(--border);
-  border-radius: var(--radius-sm);
-  background: transparent;
-  color: var(--accent);
-  font-size: 13px;
-  cursor: pointer;
-  transition: all 0.15s;
-}
-
-.envdt-add-var:hover {
-  border-color: var(--accent);
-  background: var(--accent-subtle);
-  border-style: solid;
-}
-
-/* Footer */
-.envdt-foot {
-  display: flex;
-  justify-content: center;
-  gap: 10px;
-  margin-top: 20px;
-  padding-top: 20px;
-  border-top: 1px solid var(--border);
 }
 
 /* Database test button */
@@ -359,6 +270,80 @@
   gap: 10px;
 }
 
+.envdt-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.envdt-field label {
+  font-size: 12px;
+  color: var(--fg-secondary);
+  font-weight: 500;
+}
+
+.envdt-field input,
+.envdt-field select {
+  height: 34px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-family: var(--font-sans);
+  background: var(--surface);
+  color: var(--fg);
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.envdt-field input:focus,
+.envdt-field select:focus,
+.envdt-field textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-subtle);
+}
+
+.envdt-field textarea {
+  width: 100%;
+  min-height: 60px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-family: var(--font-mono);
+  background: var(--surface);
+  color: var(--fg);
+  outline: none;
+  resize: vertical;
+  line-height: 1.5;
+  box-sizing: border-box;
+}
+
+.envdt-upload-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  color: var(--fg-secondary);
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+
+.envdt-upload-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-subtle);
+}
+
+.envdt-field-row {
+  flex-direction: row;
+  gap: 10px;
+}
+
 .envdt-db-test-row {
   flex-direction: row;
   align-items: center;
@@ -369,35 +354,3 @@
   flex: 0 0 auto;
 }
 
-.envdt-add-db {
-  margin-top: 6px;
-  padding: 8px 16px;
-  border: 1px dashed var(--border);
-  border-radius: var(--radius-sm);
-  background: transparent;
-  color: var(--accent);
-  font-size: 13px;
-  cursor: pointer;
-  transition: all 0.15s;
-}
-
-.envdt-add-db:hover {
-  border-color: var(--accent);
-  background: var(--accent-subtle);
-  border-style: solid;
-}
-
-.envdt-back {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
-  color: var(--primary);
-  text-decoration: none;
-  font-size: 0.8125rem;
-  cursor: pointer;
-  background: none;
-  border: none;
-  padding: 0;
-  flex-shrink: 0;
-}
-.envdt-back:hover { text-decoration: underline; }

@@ -28,6 +28,7 @@ export interface ApiRow {
   pre_actions: string | null;
   post_actions: string | null;
   parameters: string | null;  // JSON: { enabled: boolean, source: 'csv'|'manual', headers: string[], rows: string[][] }
+  ssl_cert_name: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -83,6 +84,7 @@ export interface CreateApiInput {
   pre_actions?: string;
   post_actions?: string;
   parameters?: string;
+  ssl_cert_name?: string;
 }
 
 export interface UpdateApiInput {
@@ -111,16 +113,60 @@ export interface UpdateApiInput {
   pre_actions?: string;
   post_actions?: string;
   parameters?: string;
+  ssl_cert_name?: string;
 }
 
-export function findApisByUserIdPaginated(userId: number, page: number, pageSize: number, sort = 'updated_at', order = 'DESC'): { items: ApiRow[]; total: number } {
+export interface ApiListFilter {
+  name?: string;
+  description?: string;
+  tag?: string;
+  status?: string;
+  dateFrom?: string;
+  dateTo?: string;
+}
+
+export function findApisByUserIdPaginated(
+  userId: number, page: number, pageSize: number,
+  sort = 'updated_at', order = 'DESC',
+  filters: ApiListFilter = {}
+): { items: ApiRow[]; total: number; page: number; pageSize: number } {
   const offset = (page - 1) * pageSize;
-  const validSorts: Record<string, string> = { updated_at: 'updated_at', created_at: 'created_at', name: 'name' };
+  const validSorts: Record<string, string> = { updated_at: 'updated_at', created_at: 'created_at', name: 'name', url: 'url' };
   const sortCol = validSorts[sort] || 'updated_at';
   const sortDir = order === 'ASC' ? 'ASC' : 'DESC';
-  const items = db.prepare(`SELECT * FROM apis WHERE user_id = ? ORDER BY ${sortCol} ${sortDir} LIMIT ? OFFSET ?`).all(userId, pageSize, offset) as ApiRow[];
-  const { count } = db.prepare(`SELECT COUNT(*) AS count FROM apis WHERE user_id = ?`).get(userId) as { count: number };
-  return { items, total: count };
+
+  const conditions: string[] = ['user_id = ?'];
+  const values: unknown[] = [userId];
+
+  if (filters.name) {
+    conditions.push('(name LIKE ? OR url LIKE ?)');
+    values.push(`%${filters.name}%`, `%${filters.name}%`);
+  }
+  if (filters.description) {
+    conditions.push('description LIKE ?');
+    values.push(`%${filters.description}%`);
+  }
+  if (filters.tag) {
+    conditions.push('tags LIKE ?');
+    values.push(`%${filters.tag}%`);
+  }
+  if (filters.status) {
+    conditions.push('status = ?');
+    values.push(filters.status);
+  }
+  if (filters.dateFrom) {
+    conditions.push('created_at >= ?');
+    values.push(filters.dateFrom);
+  }
+  if (filters.dateTo) {
+    conditions.push('created_at <= ?');
+    values.push(filters.dateTo + 'T23:59:59');
+  }
+
+  const whereClause = conditions.join(' AND ');
+  const items = db.prepare(`SELECT * FROM apis WHERE ${whereClause} ORDER BY ${sortCol} ${sortDir} LIMIT ? OFFSET ?`).all(...values, pageSize, offset) as ApiRow[];
+  const { count } = db.prepare(`SELECT COUNT(*) AS count FROM apis WHERE ${whereClause}`).get(...values) as { count: number };
+  return { items, total: count, page, pageSize };
 }
 
 export function findApisByUserId(userId: number): ApiRow[] {
@@ -133,9 +179,9 @@ export function findApiById(id: number): ApiRow | undefined {
 
 export function createApi(userId: number, data: CreateApiInput): number {
   const result = db.prepare(
-    `INSERT INTO apis (user_id, name, method, url, protocol, headers, body, description, tags, status, content_type, assertions, pre_script, post_script, pre_db_name, pre_db_query, post_db_name, post_db_query, pre_assertions, post_assertions, final_assertions, ws_send, ws_expect, parameters, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now', '+8 hours'), datetime('now', '+8 hours'))`
-  ).run(userId, data.name, data.method, data.url, data.protocol || 'https', data.headers || null, data.body || null, data.description || null, data.tags || '', data.status || 'active', data.content_type || 'json', data.assertions || null, data.pre_script || null, data.post_script || null, data.pre_db_name || null, data.pre_db_query || null, data.post_db_name || null, data.post_db_query || null, data.pre_assertions || null, data.post_assertions || null, data.final_assertions || null, data.ws_send || null, data.ws_expect || null, data.parameters || null);
+    `INSERT INTO apis (user_id, name, method, url, protocol, headers, body, description, tags, status, content_type, assertions, pre_script, post_script, pre_db_name, pre_db_query, post_db_name, post_db_query, pre_assertions, post_assertions, final_assertions, ws_send, ws_expect, parameters, ssl_cert_name, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now', '+8 hours'), datetime('now', '+8 hours'))`
+  ).run(userId, data.name, data.method, data.url, data.protocol || 'https', data.headers || null, data.body || null, data.description || null, data.tags || '', data.status || 'active', data.content_type || 'json', data.assertions || null, data.pre_script || null, data.post_script || null, data.pre_db_name || null, data.pre_db_query || null, data.post_db_name || null, data.post_db_query || null, data.pre_assertions || null, data.post_assertions || null, data.final_assertions || null, data.ws_send || null, data.ws_expect || null, data.parameters || null, data.ssl_cert_name || null);
   return result.lastInsertRowid as number;
 }
 

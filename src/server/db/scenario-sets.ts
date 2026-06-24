@@ -26,7 +26,7 @@ export function findSetsByUserIdPaginated(
   userId: number,
   page: number,
   pageSize: number,
-  filters: { name?: string; tags?: string; status?: string } = {},
+  filters: { name?: string; tags?: string; status?: string; dateFrom?: string; dateTo?: string } = {},
   sort = 'updated_at',
   order = 'DESC'
 ): { items: ScenarioSetItem[]; total: number; page: number; pageSize: number } {
@@ -40,6 +40,8 @@ export function findSetsByUserIdPaginated(
   if (filters.name) { conditions.push('name LIKE ?'); params.push(`%${filters.name}%`); }
   if (filters.tags) { conditions.push('tags LIKE ?'); params.push(`%${filters.tags}%`); }
   if (filters.status) { conditions.push('status = ?'); params.push(filters.status); }
+  if (filters.dateFrom) { conditions.push('created_at >= ?'); params.push(filters.dateFrom); }
+  if (filters.dateTo) { conditions.push('created_at <= ?'); params.push(filters.dateTo + 'T23:59:59'); }
 
   const where = conditions.join(' AND ');
   const rows = db.prepare(

@@ -14,6 +14,7 @@ export interface Environment {
   variables: EnvVariable[];
   ssl_cert: string | null;
   ssl_key: string | null;
+  ssl_certs?: string; // JSON array of SslCertEntry
   timeout: number;
   sort_order: number;
   is_default: number;
@@ -43,6 +44,13 @@ export interface DbConfig {
   database: string;
 }
 
+// SSL certificate entry for mTLS
+export interface SslCertEntry {
+  name: string;   // User-defined alias, e.g. "测试证书"、"生产证书"
+  cert: string;   // PEM certificate content
+  key: string;    // PEM private key content
+}
+
 export function findEnvsByUserId(userId: number): Environment[] {
   return db.prepare(`
     SELECT * FROM environments
@@ -60,18 +68,19 @@ export function findDefaultEnv(userId: number): Environment | null {
 }
 
 export function createEnv(userId: number, name: string, vars: EnvVariable[] = [], opts?: {
-  ssl_cert?: string; ssl_key?: string; timeout?: number; is_default?: boolean;
+  ssl_cert?: string; ssl_key?: string; ssl_certs?: SslCertEntry[]; timeout?: number; is_default?: boolean;
   databases?: DatabaseEntry[];
 }): number {
   const now = new Date().toISOString();
   const result = db.prepare(`
-    INSERT INTO environments (user_id, name, variables, ssl_cert, ssl_key, timeout, is_default, databases, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO environments (user_id, name, variables, ssl_cert, ssl_key, ssl_certs, timeout, is_default, databases, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     userId, name,
     JSON.stringify(vars),
     opts?.ssl_cert ?? null,
     opts?.ssl_key ?? null,
+    JSON.stringify(opts?.ssl_certs ?? []),
     opts?.timeout ?? 30000,
     opts?.is_default ? 1 : 0,
     JSON.stringify(opts?.databases ?? []),
@@ -85,6 +94,7 @@ export function updateEnv(id: number, userId: number, patch: Partial<{
   variables: EnvVariable[];
   ssl_cert: string | null;
   ssl_key: string | null;
+  ssl_certs: SslCertEntry[];
   timeout: number;
   is_default: boolean;
   databases: DatabaseEntry[];
@@ -96,6 +106,7 @@ export function updateEnv(id: number, userId: number, patch: Partial<{
   if (patch.variables !== undefined) { fields.push('variables = ?'); vals.push(JSON.stringify(patch.variables)); }
   if (patch.ssl_cert !== undefined) { fields.push('ssl_cert = ?'); vals.push(patch.ssl_cert); }
   if (patch.ssl_key !== undefined) { fields.push('ssl_key = ?'); vals.push(patch.ssl_key); }
+  if (patch.ssl_certs !== undefined) { fields.push('ssl_certs = ?'); vals.push(JSON.stringify(patch.ssl_certs)); }
   if (patch.timeout !== undefined) { fields.push('timeout = ?'); vals.push(patch.timeout); }
   if (patch.is_default !== undefined) {
     fields.push('is_default = ?');
@@ -188,5 +199,16 @@ export function envToDbConfig(env: Environment | null): DbConfig | null {
     };
   } catch {
     return null;
+  }
+}
+
+// Returns parsed SSL certificate entries from the environment
+export function envToSslCerts(env: Environment | null): SslCertEntry[] {
+  if (!env || !env.ssl_certs) return [];
+  try {
+    const certs: SslCertEntry[] = JSON.parse(env.ssl_certs);
+    return Array.isArray(certs) ? certs.filter(c => c.cert) : [];
+  } catch {
+    return [];
   }
 }

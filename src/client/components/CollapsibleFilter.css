@@ -1,0 +1,108 @@
+/* 2026-06-21: CollapsibleFilter — 质感折叠筛选 */
+
+/* ── 容器 ── */
+.cf {
+  transition: box-shadow 0.25s ease;
+}
+
+.cf--expanded {
+  box-shadow: inset 0 -2px 0 var(--accent-subtle);
+}
+
+/* ── 主筛选行 ── */
+.cf-primary {
+  align-items: flex-end;
+}
+
+.cf-spacer {
+  flex: 1;
+  min-width: 8px;
+}
+
+/* ── 切换按钮 — 药丸形，filter icon + 文字 + 箭头 ── */
+.cf-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 32px;
+  padding: 0 12px 0 8px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface);
+  color: var(--fg-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.cf-toggle:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-subtle);
+}
+
+.cf-toggle--active {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-subtle);
+}
+
+.cf-toggle-icon {
+  flex-shrink: 0;
+  opacity: 0.7;
+  transition: opacity 0.2s;
+}
+
+.cf-toggle:hover .cf-toggle-icon,
+.cf-toggle--active .cf-toggle-icon {
+  opacity: 1;
+}
+
+.cf-toggle-text {
+  line-height: 1;
+}
+
+.cf-toggle-arrow {
+  flex-shrink: 0;
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.cf-toggle-arrow--up {
+  transform: rotate(180deg);
+}
+
+/* ── 高级筛选面板 — CSS Grid 动画实现平滑高度过渡 ── */
+.cf-panel {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.cf-panel--open {
+  grid-template-rows: 1fr;
+}
+
+.cf-panel-inner {
+  overflow: hidden;
+}
+
+.cf-advanced-row {
+  padding-top: 12px;
+  margin-top: 12px;
+  border-top: 1px solid var(--border-subtle);
+  animation: cfFadeIn 0.25s ease 0.05s both;
+}
+
+@keyframes cfFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

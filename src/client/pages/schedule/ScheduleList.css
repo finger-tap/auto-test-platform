@@ -1,31 +1,7 @@
-/* Schedule List */
+/* ScheduleList — page-specific styles only */
 @import '../api-test/ApiList.css';
 
-/* ── Row Action Buttons ── */
-.alist-table .row-action-btn {
-  width: 26px;
-  height: 26px;
-  border: none;
-  border-radius: var(--radius-sm);
-  font-size: 12px;
-  cursor: pointer;
-  transition: background 0.12s;
-  background: none;
-  color: var(--fg-secondary);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-.alist-table .row-action-btn:hover {
-  background: var(--accent-subtle);
-  color: var(--accent);
-}
-.alist-table .row-action-btn.row-action-del:hover {
-  background: var(--danger-subtle);
-  color: var(--danger);
-}
-
-/* ── Status Badge ── */
+/* Status Badge */
 .schedule-status-badge {
   display: inline-block;
   padding: 2px 10px;
@@ -33,50 +9,30 @@
   font-size: 12px;
   font-weight: 500;
 }
-
 .status-none {
   background: var(--bg);
   color: var(--fg-tertiary);
 }
-
 .status-paused {
-  background: #fff7e6;
+  background: var(--warning-subtle);
   color: var(--warning);
 }
-
 .status-active {
   background: var(--success-subtle);
   color: var(--success);
 }
 
-/* ── Next Run Time ── */
+/* Next Run Time */
 .td-next-run {
   font-size: 12px;
   color: var(--fg-secondary);
 }
 
-/* ── Floating Action Buttons ── */
-.alist-float-pause {
-  color: var(--warning);
-}
-.alist-float-pause:hover {
-  background: #fff7e6;
-}
-
-.alist-float-resume {
-  color: var(--success);
-}
-.alist-float-resume:hover {
-  background: var(--success-subtle);
-}
-
-.alist-float-remove {
-  color: var(--danger);
-}
-.alist-float-remove:hover:not(:disabled) {
-  background: var(--danger-subtle);
-}
-.alist-float-remove:disabled {
-  color: var(--fg-tertiary);
-  cursor: not-allowed;
-}
+/* Floating Action Buttons */
+.alist-float-pause { color: var(--warning); }
+.alist-float-pause:hover { background: var(--warning-subtle); }
+.alist-float-resume { color: var(--success); }
+.alist-float-resume:hover { background: var(--success-subtle); }
+.alist-float-remove { color: var(--danger); }
+.alist-float-remove:hover:not(:disabled) { background: var(--danger-subtle); }
+.alist-float-remove:disabled { color: var(--fg-tertiary); cursor: not-allowed; }

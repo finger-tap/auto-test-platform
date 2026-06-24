@@ -84,6 +84,7 @@ CREATE TABLE IF NOT EXISTS apis (
   post_assertions TEXT,
   final_assertions TEXT,
   parameters TEXT,
+  ssl_cert_name TEXT,
   FOREIGN KEY (user_id) REFERENCES users(id)
 );
 CREATE INDEX IF NOT EXISTS idx_apis_user_id ON apis(user_id);
@@ -978,6 +979,7 @@ CREATE TABLE IF NOT EXISTS environments (
   variables TEXT DEFAULT '[]',
   ssl_cert TEXT,
   ssl_key TEXT,
+  ssl_certs TEXT DEFAULT '[]',
   timeout INTEGER DEFAULT 30000,
   sort_order INTEGER DEFAULT 0,
   is_default INTEGER DEFAULT 0,
@@ -1073,9 +1075,21 @@ CREATE TABLE IF NOT EXISTS web_browser_config (
 );
 
 -- ============================================================================
--- 表清单汇总 (共 45 张表)
+-- 用户偏好（按测试类型存储环境选择等）
 -- ============================================================================
--- users, user_tags, pending_items
+CREATE TABLE IF NOT EXISTS user_preferences (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL,
+  test_type TEXT NOT NULL,          -- 'api' | 'web' | 'pc' | 'mobile'
+  environment_id INTEGER,           -- NULL = 未选择
+  updated_at TEXT NOT NULL DEFAULT (datetime('now', '+8 hours')),
+  UNIQUE(user_id, test_type)
+);
+
+-- ============================================================================
+-- 表清单汇总 (共 46 张表)
+-- ============================================================================
+-- users, user_tags, pending_items, user_preferences
 -- apis, api_logs, api_executions, api_execution_steps
 -- scenarios, scenario_nodes, scenario_edges, scenario_logs
 -- scenario_executions, scenario_execution_steps, scenario_api_execution_links

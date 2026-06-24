@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { apiFetch } from '../../utils/api';
 import { formatDateTime } from '../../utils/datetime';
+import notification from '../../utils/notification';
 import TagFilterSelect from '../../components/TagFilterSelect';
 import FormSelect from '../../components/FormSelect';
 import './CaseSetList.css';
@@ -39,11 +40,9 @@ const API_PATH_MAP: Record<string, { list: string; delete: string }> = {
   mobile: { list: '/case-sets-mobile', delete: '/case-sets-mobile' },
 };
 
-// 路由路径按测试类型映射
-// - api: /api-test/scene-set（保留场景集术语）
-// - web/pc/mobile: /{testType}/case-set
+// 路由路径按测试类型映射 — 统一为 /{testType}/case-set
 const ROUTE_PATH_MAP: Record<string, { list: string; detail: string; create: string }> = {
-  api: { list: '/api-test/scene-set', detail: '/api-test/scene-set', create: '/api-test/scene-set/new' },
+  api: { list: '/api-test/case-set', detail: '/api-test/case-set', create: '/api-test/case-set/new' },
   web: { list: '/web-test/case-set', detail: '/web-test/case-set', create: '/web-test/case-set/new' },
   pc: { list: '/pc-test/case-set', detail: '/pc-test/case-set', create: '/pc-test/case-set/new' },
   mobile: { list: '/mobile-test/case-set', detail: '/mobile-test/case-set', create: '/mobile-test/case-set/new' },
@@ -62,6 +61,7 @@ export default function CaseSetList({ basePath = '/api-test', testType = 'api' }
   const [filterStatus, setFilterStatus] = useState('');
   const [sortField, setSortField] = useState('updated_at');
   const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC'>('DESC');
+  const [forceLoad, setForceLoad] = useState(0);
 
   const apiPaths = API_PATH_MAP[testType] || API_PATH_MAP.api;
   const routePaths = ROUTE_PATH_MAP[testType] || ROUTE_PATH_MAP.api;
@@ -88,10 +88,11 @@ export default function CaseSetList({ basePath = '/api-test', testType = 'api' }
     }).finally(() => setLoading(false));
   }
 
-  useEffect(() => { load(); }, [page, pageSize, filterName, filterTags, filterStatus, sortField, sortOrder]);
+  useEffect(() => { load(); }, [page, pageSize, sortField, sortOrder, forceLoad]);
 
   async function doDelete(id: number, name: string) {
-    if (!confirm(`确认删除「${name}」？`)) return;
+    const ok = await notification.confirm(`确认删除「${name}」？`);
+    if (!ok) return;
     await apiFetch(`${apiPaths.delete}/${id}`, { method: 'DELETE' });
     load();
   }
@@ -105,11 +106,12 @@ export default function CaseSetList({ basePath = '/api-test', testType = 'api' }
     setFilterTags('');
     setFilterStatus('');
     setPage(1);
+    setForceLoad(f => f + 1);
   }
 
   function handleQuery() {
     setPage(1);
-    load();
+    setForceLoad(f => f + 1);
   }
 
   const toggleSort = (field: string) => {
@@ -122,7 +124,7 @@ export default function CaseSetList({ basePath = '/api-test', testType = 'api' }
   };
 
   return (
-    <div className="alist">
+    <div className="alist page-enter">
       {/* Filter bar */}
       <div className="alist-filter">
         <div className="alist-filter-row">
@@ -132,7 +134,6 @@ export default function CaseSetList({ basePath = '/api-test', testType = 'api' }
               placeholder="搜索名称"
               value={filterName}
               onChange={e => setFilterName(e.target.value)}
-              onBlur={() => handleQuery()}
             />
           </div>
           <div className="alist-filter-item">
@@ -144,7 +145,8 @@ export default function CaseSetList({ basePath = '/api-test', testType = 'api' }
             <FormSelect value={filterStatus} options={[{value:"",label:"全部"},{value:"active",label:"启用"},{value:"disabled",label:"禁用"},{value:"draft",label:"草稿"}]} onChange={val => { setFilterStatus(val); setPage(1); }} />
           </div>
           <div className="alist-filter-actions">
-            <button className="btn btn-default" onClick={() => { handleReset(); load(); }}>重置</button>
+            <button className="btn btn-default" onClick={handleReset}>重置</button>
+            <button className="btn btn-primary" onClick={handleQuery}>查询</button>
             <button className="btn btn-primary" onClick={handleCreate}>新增</button>
           </div>
         </div>
@@ -166,18 +168,19 @@ export default function CaseSetList({ basePath = '/api-test', testType = 'api' }
                 <th>执行统计</th>
                 <th>最近执行时间</th>
                 <th className="sortable" onClick={() => toggleSort('created_at')}>创建时间 {sortIcon('created_at')}</th>
-                <th style={{ width: 80 }}></th>
+                <th style={{ width: 120 }}></th>
               </tr>
             </thead>
             <tbody>
-              {sets.map(s => {
+              {sets.map((s, index) => {
                 const statusInfo = STATUS_MAP[s.status] || { label: s.status, color: '#999' };
                 const tagList = s.tags ? s.tags.split(',').filter(Boolean) : [];
                 return (
                   <tr
                     key={s.id}
+                    className="row-enter"
+                    style={{ '--delay': `${index * 30}ms`, cursor: 'pointer' } as React.CSSProperties}
                     onClick={() => navigate(`${routePaths.list}/${s.id}`)}
-                    style={{ cursor: 'pointer' }}
                   >
                     <td>{s.name}</td>
                     <td>
@@ -207,7 +210,7 @@ export default function CaseSetList({ basePath = '/api-test', testType = 'api' }
                     <td>{formatDateTime(s.created_at)}</td>
                     <td>
                       <div className="row-actions">
-                        <button className="row-action-btn row-action-del" title="删除" onClick={(e) => { e.stopPropagation(); doDelete(s.id, s.name); }}>✕</button>
+                        <button className="row-action-btn row-action-del" title="删除" onClick={(e) => { e.stopPropagation(); doDelete(s.id, s.name); }}>删除</button>
                       </div>
                     </td>
                   </tr>

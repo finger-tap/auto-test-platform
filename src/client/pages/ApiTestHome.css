@@ -2,12 +2,13 @@
 .dashboard-home {
   max-width: 960px;
   margin: 0 auto;
+  padding: 20px;
 }
 
 /* ── Stat cards ── */
 .dashboard-cards {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 14px;
   margin-bottom: 24px;
 }
@@ -57,51 +58,6 @@
   padding: 32px 0;
   color: var(--fg-tertiary);
   font-size: 13px;
-}
-
-/* ── Bottom dual panel ── */
-.dashboard-bottom {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
-}
-
-/* ── Trend chart ── */
-.trend-chart {
-  display: flex;
-  align-items: flex-end;
-  gap: 8px;
-  height: 120px;
-  padding-bottom: 4px;
-}
-
-.trend-col {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  height: 100%;
-}
-
-.trend-bar-wrap {
-  flex: 1;
-  width: 100%;
-  display: flex;
-  align-items: flex-end;
-}
-
-.trend-bar {
-  width: 100%;
-  border-radius: 4px 4px 0 0;
-  min-height: 4px;
-  transition: height 0.3s ease;
-}
-
-.trend-label {
-  font-size: 10px;
-  color: var(--fg-tertiary);
-  flex-shrink: 0;
 }
 
 /* ── Shortcut grid ── */
@@ -227,9 +183,5 @@
 @media (max-width: 768px) {
   .dashboard-cards {
     grid-template-columns: repeat(2, 1fr);
-  }
-
-  .dashboard-bottom {
-    grid-template-columns: 1fr;
   }
 }

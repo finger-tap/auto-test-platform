@@ -89,7 +89,7 @@ export default function CaseSetDetail({ basePath = '/api-test', testType = 'api'
   const [expandedSetExec, setExpandedSetExec] = useState<number | null>(null);
   const { activeEnv } = useEnvironment();
   const originalRef = useRef({ name: '', description: '', tags: '', status: 'draft', selectedIds: [] as number[] });
-  const dirtyRef = useRef(false);
+  const [isDirty, setIsDirty] = useState(false);
   const [activeTab, setActiveTab] = useState('detail');
 
   const isCaseSet = testType !== 'api';
@@ -118,11 +118,11 @@ export default function CaseSetDetail({ basePath = '/api-test', testType = 'api'
   }, [showAddCaseModal]);
 
   useEffect(() => {
-    if (isNew) dirtyRef.current = !!(name || description || tags || selectedIds.length > 0);
-    else dirtyRef.current =
+    if (isNew) setIsDirty(!!(name || description || tags || selectedIds.length > 0));
+    else setIsDirty(
       name !== originalRef.current.name || description !== originalRef.current.description ||
       tags !== originalRef.current.tags || status !== originalRef.current.status ||
-      JSON.stringify([...selectedIds].sort()) !== JSON.stringify([...originalRef.current.selectedIds].sort());
+      JSON.stringify([...selectedIds].sort()) !== JSON.stringify([...originalRef.current.selectedIds].sort()));
   }, [name, description, tags, status, selectedIds]);
 
   useEffect(() => {
@@ -133,7 +133,7 @@ export default function CaseSetDetail({ basePath = '/api-test', testType = 'api'
           setSetData(res.data); setName(res.data.name); setDescription(res.data.description || '');
           setTags(res.data.tags || ''); setStatus(res.data.status || 'draft'); setSelectedIds(res.data.test_case_ids);
           originalRef.current = { name: res.data.name, description: res.data.description || '', tags: res.data.tags || '', status: res.data.status || 'draft', selectedIds: [...res.data.test_case_ids] };
-          dirtyRef.current = false;
+          setIsDirty(false);
         }
       }).finally(() => setLoading(false));
       apiFetch<CaseSetExecution[]>(`${apiPath.detail}/${id}/executions`).then(res => {
@@ -160,16 +160,14 @@ export default function CaseSetDetail({ basePath = '/api-test', testType = 'api'
     });
   }, [expandedSetExec, id]);
 
-  function handleFieldChange(setter: React.Dispatch<React.SetStateAction<string>>, value: string) { setter(value); dirtyRef.current = true; }
-  function handleStatusChange(value: string) { setStatus(value); dirtyRef.current = true; }
+  function handleFieldChange(setter: React.Dispatch<React.SetStateAction<string>>, value: string) { setter(value); setIsDirty(true); }
+  function handleStatusChange(value: string) { setStatus(value); setIsDirty(true); }
 
   async function doSave() {
     if (!name.trim()) return;
     setSaving(true);
     const apiPath = API_PATH_MAP[testType] || API_PATH_MAP.api;
-    const routeBase = isCaseSet
-      ? (testType === 'web' ? '/web-test/case-set' : testType === 'pc' ? '/pc-test/case-set' : '/mobile-test/case-set')
-      : '/api-test/scene-set';
+    const routeBase = testType === 'api' ? '/api-test/case-set' : testType === 'web' ? '/web-test/case-set' : testType === 'pc' ? '/pc-test/case-set' : '/mobile-test/case-set';
     try {
       if (isNew) {
         const body: Record<string, unknown> = { name: name.trim(), description, tags, status };
@@ -180,7 +178,7 @@ export default function CaseSetDetail({ basePath = '/api-test', testType = 'api'
         const body: Record<string, unknown> = { name: name.trim(), description, tags, status };
         body[fieldName] = selectedIds;
         await apiFetch(`${apiPath.detail}/${id}`, { method: 'PUT', body: JSON.stringify(body) });
-        dirtyRef.current = false;
+        setIsDirty(false);
         notification.success('保存成功');
       }
     } finally { setSaving(false); }
@@ -191,7 +189,7 @@ export default function CaseSetDetail({ basePath = '/api-test', testType = 'api'
     setExecuting(true);
     const apiPath = API_PATH_MAP[testType] || API_PATH_MAP.api;
     try {
-      if (dirtyRef.current) await doSave();
+      if (isDirty) await doSave();
       const body: Record<string, unknown> = { environmentId: activeEnv?.id };
       if (caseIdsToRun && caseIdsToRun.length > 0) body[filterCaseIdParam] = caseIdsToRun;
       const res = await apiFetch<CaseSetExecution>(`${apiPath.detail}/${id}/execute`, { method: 'POST', body: JSON.stringify(body) });
@@ -240,7 +238,7 @@ export default function CaseSetDetail({ basePath = '/api-test', testType = 'api'
   function toggleCheck(caseId: number) { setSelectedForRemoval(prev => { const next = new Set(prev); if (next.has(caseId)) next.delete(caseId); else next.add(caseId); return next; }); }
   function removeChecked() { if (selectedForRemoval.size === 0) return; setSelectedIds(prev => prev.filter(id => !selectedForRemoval.has(id))); setSelectedForRemoval(new Set()); }
 
-  if (loading) return <div className="sset-detail-loading">加载中...</div>;
+  if (loading) return <div className="api-empty">加载中...</div>;
 
   const selectedCases = allCases.filter(s => selectedIds.includes(s.id));
   const filteredSelected = selectedCases.filter(s => s.name.toLowerCase().includes(caseKeyword.toLowerCase()));
@@ -248,15 +246,16 @@ export default function CaseSetDetail({ basePath = '/api-test', testType = 'api'
   // ─── Tab: Detail ───
   const renderDetailTab = () => (
     <div className="tab-content-wrapper">
-      <div className="sset-info-section">
-        <div className="sset-info-row">
-          <div className="sset-info-field"><label>名称</label><InlineText value={name} onChange={v => handleFieldChange(setName, v)} placeholder="点击输入集名称" /></div>
+      <div className="ad-section">
+        <div className="ad-section-head"><label>基本信息</label></div>
+        <div className="api-detail-row">
+          <div className="field"><label>名称</label><InlineText value={name} onChange={v => handleFieldChange(setName, v)} placeholder="点击输入集名称" /></div>
         </div>
-        <div className="sset-info-row">
-          <div className="sset-info-field"><label>描述</label><InlineText value={description || ''} onChange={v => handleFieldChange(setDescription, v)} placeholder="点击输入描述" multiline /></div>
+        <div className="api-detail-row">
+          <div className="field"><label>描述</label><InlineText value={description || ''} onChange={v => handleFieldChange(setDescription, v)} placeholder="点击输入描述" multiline /></div>
         </div>
-        <div className="sset-info-row">
-          <div className="sset-info-field">
+        <div className="api-detail-row">
+          <div className="field">
             <label>标签</label>
             <TagInput
               value={tags || ''}
@@ -264,12 +263,12 @@ export default function CaseSetDetail({ basePath = '/api-test', testType = 'api'
               placeholder="输入标签，回车确认"
             />
           </div>
-          <div className="sset-info-field sset-info-field-inline"><label>状态</label><InlineSelect value={status} options={STATUS_OPTIONS} onChange={handleStatusChange} renderDisplay={(v, label) => <span className={`sset-status-badge status-${v}`}>{label}</span>} /></div>
+          <div className="field"><label>状态</label><InlineSelect value={status} options={STATUS_OPTIONS} onChange={handleStatusChange} renderDisplay={(v, label) => <span className={`sset-status-badge status-${v}`}>{label}</span>} /></div>
         </div>
         {!isNew && (
-          <div className="sset-info-row">
-            <div className="sset-info-field"><label>创建时间</label><span className="sset-field-value">{toLocalDateTime(setData?.created_at)}</span></div>
-            <div className="sset-info-field"><label>更新时间</label><span className="sset-field-value">{toLocalDateTime(setData?.updated_at)}</span></div>
+          <div className="api-detail-row">
+            <div className="field"><label>创建时间</label><span className="field-value">{toLocalDateTime(setData?.created_at)}</span></div>
+            <div className="field"><label>更新时间</label><span className="field-value">{toLocalDateTime(setData?.updated_at)}</span></div>
           </div>
         )}
       </div>
@@ -279,14 +278,15 @@ export default function CaseSetDetail({ basePath = '/api-test', testType = 'api'
   // ─── Tab: Cases ───
   const renderCasesTab = () => (
     <div className="tab-content-wrapper">
-      <div className="sset-card-header" style={{ borderBottom: '1px solid #f0f0f0', paddingBottom: 12, marginBottom: 16 }}>
-        <h3 style={{ margin: 0 }}>{listTitle}（{selectedCases.length} 个）</h3>
-        <div className="sset-scenario-actions">
-          <input className="sset-scenario-search" placeholder={`搜索${casesFieldName}名称`} value={caseKeyword} onChange={e => setCaseKeyword(e.target.value)} />
-          <button className="sset-btn-add" onClick={openAddModal}>{`+ 添加${casesFieldName}`}</button>
-          {selectedForRemoval.size > 0 && (<button className="sset-btn-remove-checked" onClick={removeChecked}>移除选中（{selectedForRemoval.size}）</button>)}
+      <div className="ad-section">
+        <div className="ad-section-head">
+          <label>{listTitle}（{selectedCases.length} 个）</label>
+          <div className="sset-scenario-actions">
+            <input className="sset-scenario-search" placeholder={`搜索${casesFieldName}名称`} value={caseKeyword} onChange={e => setCaseKeyword(e.target.value)} />
+            <button className="sset-btn-add" onClick={openAddModal}>{`+ 添加${casesFieldName}`}</button>
+            {selectedForRemoval.size > 0 && (<button className="sset-btn-remove-checked" onClick={removeChecked}>移除选中（{selectedForRemoval.size}）</button>)}
+          </div>
         </div>
-      </div>
       {selectedCases.length === 0 ? (<div className="sset-empty">{`暂无${casesFieldName}，点击上方"添加${casesFieldName}"进行选择`}</div>) : (
         <table className="sset-table">
           <thead><tr><th style={{ width: 40 }}><input type="checkbox" checked={filteredSelected.length > 0 && filteredSelected.every(s => selectedForRemoval.has(s.id))} onChange={e => { if (e.target.checked) setSelectedForRemoval(new Set(filteredSelected.map(s => s.id))); else setSelectedForRemoval(new Set()); }} /></th><th>{casesFieldName}名称</th><th>状态</th><th style={{ width: 160 }}>操作</th></tr></thead>
@@ -305,6 +305,7 @@ export default function CaseSetDetail({ basePath = '/api-test', testType = 'api'
           </tbody>
         </table>
       )}
+      </div>
     </div>
   );
 
@@ -379,68 +380,74 @@ export default function CaseSetDetail({ basePath = '/api-test', testType = 'api'
 
     return (
       <div className="tab-content-wrapper">
-        {isCaseSet && displayExecutions.length > 0 && (
-          <div className="sset-exec-help">每条执行记录下的「查看报告」链接打开该用例的 Midscene 报告（新窗口）</div>
-        )}
-        {!isCaseSet && displayExecutions.length > 0 && (
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
-            <button className="sset-btn sset-btn-primary" onClick={doExportReport}>导出报告</button>
+        <div className="ad-section">
+          <div className="ad-section-head">
+            <label>执行记录</label>
+            {!isCaseSet && displayExecutions.length > 0 && (
+              <button className="sset-btn sset-btn-primary" onClick={doExportReport}>导出报告</button>
+            )}
           </div>
-        )}
-        {displayExecutions.length === 0 ? (
-          <div className="sset-empty">暂无执行记录</div>
-        ) : (
-          <table className="sset-exec-table">
-            <thead>
-              <tr>
-                <th rowSpan={2}>执行时间</th>
-                <th rowSpan={2}>状态</th>
-                <th rowSpan={2}>总数</th>
-                <th rowSpan={2}>结果</th>
-                <th rowSpan={2}>耗时</th>
-                <th rowSpan={2}>执行人</th>
-                <th rowSpan={2}>操作</th>
-              </tr>
-            </thead>
-            <tbody>
-              {displayExecutions.map(exec => renderExecItem(exec))}
-            </tbody>
-          </table>
-        )}
+          {isCaseSet && displayExecutions.length > 0 && (
+            <div style={{ fontSize: 12, color: 'var(--fg-tertiary)', marginBottom: 12 }}>每条执行记录下的「查看报告」链接打开该用例的 Midscene 报告（新窗口）</div>
+          )}
+          {displayExecutions.length === 0 ? (
+            <div className="sset-empty">暂无执行记录</div>
+          ) : (
+            <table className="sset-exec-table">
+              <thead>
+                <tr>
+                  <th rowSpan={2}>执行时间</th>
+                  <th rowSpan={2}>状态</th>
+                  <th rowSpan={2}>总数</th>
+                  <th rowSpan={2}>结果</th>
+                  <th rowSpan={2}>耗时</th>
+                  <th rowSpan={2}>执行人</th>
+                  <th rowSpan={2}>操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                {displayExecutions.map(exec => renderExecItem(exec))}
+              </tbody>
+            </table>
+          )}
+        </div>
       </div>
     );
   };
 
-  const caseRouteBase = testType === 'api' ? '/api-test/scene-case' : testType === 'web' ? '/web-test/case' : testType === 'pc' ? '/pc-test/case' : '/mobile-test/test-case';
-  const setRouteBase = isCaseSet
-    ? (testType === 'web' ? '/web-test/case-set' : testType === 'pc' ? '/pc-test/case-set' : '/mobile-test/case-set')
-    : '/api-test/scene-set';
+  const caseRouteBase = testType === 'api' ? '/api-test/case' : testType === 'web' ? '/web-test/case' : testType === 'pc' ? '/pc-test/case' : '/mobile-test/case';
+  const setRouteBase = testType === 'api' ? '/api-test/case-set' : testType === 'web' ? '/web-test/case-set' : testType === 'pc' ? '/pc-test/case-set' : '/mobile-test/case-set';
 
   return (
-    <div className="sset-detail">
-      <div className="sset-detail-header">
-        <button className="sset-back" onClick={() => navigate(setRouteBase)}>← 返回列表</button>
-        <span className="sset-detail-page-title">{detailTitle}</span>
+    <div className="api-detail page-enter">
+      <div className="api-detail-header">
+        <div className="api-detail-breadcrumb">
+          <button className="api-detail-back" onClick={() => navigate(setRouteBase)}>用例集列表</button>
+          <span className="api-detail-breadcrumb-sep">/</span>
+          <input className="api-detail-name-input" value={name} onChange={e => handleFieldChange(setName, e.target.value)} placeholder="输入用例集名称" />
+        </div>
+        <div className="api-detail-meta">
+          {!isNew && <span className={`status-badge-light ${status}`}>{STATUS_OPTIONS.find(o => o.value === status)?.label || status}</span>}
+          {setData?.updated_at && <span className="meta-time">更新于 {toLocalDateTime(setData.updated_at)}</span>}
+        </div>
+        <div className="api-detail-actions">
+          <button className={`scenario-btn${isDirty ? ' dirty' : ''}`} onClick={doSave} disabled={saving}>{saving ? '保存中...' : '保存'}</button>
+          {!isNew && (() => {
+            const hasSelection = activeTab === 'cases' && selectedForRemoval.size > 0;
+            const execIds = hasSelection ? Array.from(selectedForRemoval) : undefined;
+            const label = hasSelection ? `执行选中（${selectedForRemoval.size}）` : executeButtonLabel;
+            return <button className="sset-btn sset-btn-primary" onClick={() => { doExecute(execIds); if (hasSelection) setSelectedForRemoval(new Set()); }} disabled={executing || selectedIds.length === 0}>{executing ? '⟳ 执行中...' : label}</button>;
+          })()}
+        </div>
       </div>
-      <div className="sset-detail-content">
-        <div className="sset-card" style={{ padding: 0 }}>
+      <div className="api-detail-content">
+        <div className="api-detail-card">
           <div className="tab-nav">{TABS.map((tab) => (<button key={tab.key} className={`tab-btn ${activeTab === tab.key ? 'active' : ''}`} onClick={() => setActiveTab(tab.key)}>{tab.label}</button>))}</div>
           <div className="tab-body">
             {activeTab === 'detail' && renderDetailTab()}
             {activeTab === 'cases' && renderCasesTab()}
             {activeTab === 'reports' && renderReportsTab()}
           </div>
-          {activeTab !== 'reports' && (
-            <div className="detail-action-bar">
-              <button className={`scenario-btn ${dirtyRef.current ? 'dirty' : ''}`} onClick={doSave} disabled={saving}>{saving ? '保存中...' : '保存'}</button>
-              {!isNew && (() => {
-                const hasSelection = activeTab === 'cases' && selectedForRemoval.size > 0;
-                const execIds = hasSelection ? Array.from(selectedForRemoval) : undefined;
-                const label = hasSelection ? `执行选中（${selectedForRemoval.size}）` : executeButtonLabel;
-                return <button className="sset-btn sset-btn-primary" onClick={() => { doExecute(execIds); if (hasSelection) setSelectedForRemoval(new Set()); }} disabled={executing || selectedIds.length === 0}>{executing ? '⟳ 执行中...' : label}</button>;
-              })()}
-            </div>
-          )}
         </div>
       </div>
 

@@ -6,9 +6,6 @@
 import type { Request, Response, NextFunction } from 'express';
 import db from './db/index.js';
 import { incrementMockHit as incrementMockHitApi } from './db/mocks-api.js';
-import { incrementMockHit as incrementMockHitWeb } from './db/mocks-web.js';
-import { incrementMockHit as incrementMockHitPc } from './db/mocks-pc.js';
-import { incrementMockHit as incrementMockHitMobile } from './db/mocks-mobile.js';
 
 interface MockConditions {
   param: string;
@@ -74,13 +71,13 @@ function matchConditions(conditions: MockConditions[], req: Request): boolean {
   return true;
 }
 
-type MockSource = 'api' | 'web' | 'pc' | 'mobile';
+type MockSource = 'api';
 
+// 2026-06-14: mock 服务仅保留给接口测试。web/pc/mobile 的 mock 表和路由
+// 已移除 —— 这三种测试类型执行器不依赖 mock,且全局 mock-proxy 会误拦
+// 其它测试类型的请求,移除后行为更清晰。前端入口也已从侧边栏删除。
 const MOCK_TABLES: Array<{ name: string; source: MockSource; increment: (id: number) => void }> = [
   { name: 'mock_endpoints_api', source: 'api', increment: incrementMockHitApi },
-  { name: 'mock_endpoints_web', source: 'web', increment: incrementMockHitWeb },
-  { name: 'mock_endpoints_pc', source: 'pc', increment: incrementMockHitPc },
-  { name: 'mock_endpoints_mobile', source: 'mobile', increment: incrementMockHitMobile },
 ];
 
 export function checkMock(req: Request, res: Response, next: NextFunction) {

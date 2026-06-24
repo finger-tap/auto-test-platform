@@ -1,0 +1,213 @@
+/* 2026-06-11: 移动端预览面板 — 纯内容组件,无 drawer 包装 */
+
+.mpp {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  background: var(--surface, #fff);
+}
+
+.mpp-header {
+  display: flex;
+  align-items: flex-start;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border, #e5e7eb);
+  background: var(--surface, #fff);
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.mpp-title {
+  flex: 1;
+  min-width: 0;
+}
+
+.mpp-header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.mpp-hint {
+  font-size: 11px;
+  color: var(--fg-tertiary, #6b7280);
+  max-width: 180px;
+  line-height: 1.4;
+  text-align: right;
+}
+
+.mpp-device-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--fg, #1f2937);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mpp-meta {
+  font-size: 11px;
+  color: var(--fg-tertiary, #6b7280);
+  margin-top: 2px;
+  font-family: var(--font-mono, 'JetBrains Mono', monospace);
+}
+
+.mpp-close {
+  border: none;
+  background: none;
+  font-size: 22px;
+  cursor: pointer;
+  color: var(--fg-tertiary, #6b7280);
+  padding: 0 4px;
+  line-height: 1;
+}
+
+.mpp-close:hover {
+  color: var(--fg, #1f2937);
+}
+
+.mpp-body {
+  flex: 1;
+  background: #0a0a0a;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  min-height: 0;
+}
+
+.mpp-status {
+  color: #9ca3af;
+  font-size: 13px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  text-align: center;
+  padding: 20px;
+}
+
+.mpp-status-spinner {
+  width: 28px;
+  height: 28px;
+  border: 3px solid rgba(255, 255, 255, 0.15);
+  border-top-color: #10b981;
+  border-radius: 50%;
+  animation: mpp-spin 0.8s linear infinite;
+}
+
+@keyframes mpp-spin {
+  to { transform: rotate(360deg); }
+}
+
+.mpp-error {
+  text-align: center;
+  padding: 32px 20px;
+  color: #fca5a5;
+}
+
+.mpp-error-title {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.mpp-error-msg {
+  font-size: 12px;
+  color: #f87171;
+  font-family: var(--font-mono, 'JetBrains Mono', monospace);
+  word-break: break-all;
+}
+
+.mpp-stream {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mpp-screen {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  background: #000;
+}
+
+.mpp-scrcpy {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #000;
+}
+
+.mpp-scrcpy-canvas {
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  background: #000;
+  display: block;
+}
+
+.mpp-scrcpy-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #d4d4d4;
+  font-size: 12px;
+  font-family: var(--font-mono, 'JetBrains Mono', monospace);
+  background: rgba(0, 0, 0, 0.55);
+  pointer-events: none;
+}
+
+.mpp-scrcpy-overlay-err {
+  color: #fca5a5;
+  padding: 0 24px;
+  text-align: center;
+}
+
+.mpp-scrcpy-stats {
+  position: absolute;
+  left: 8px;
+  bottom: 8px;
+  background: rgba(0, 0, 0, 0.65);
+  padding: 6px 10px;
+  border-radius: 4px;
+  font-size: 11px;
+  color: #d4d4d4;
+  font-family: var(--font-mono, 'JetBrains Mono', monospace);
+  display: flex;
+  gap: 12px;
+}
+
+.mpp-scrcpy-stats b {
+  color: #fff;
+  font-weight: 600;
+}
+
+.mpp-footer {
+  display: flex;
+  gap: 16px;
+  padding: 8px 18px;
+  border-top: 1px solid var(--border, #e5e7eb);
+  background: var(--bg, #f9fafb);
+  font-size: 11px;
+  color: var(--fg-tertiary, #6b7280);
+  font-family: var(--font-mono, 'JetBrains Mono', monospace);
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+
+.mpp-stat {
+  white-space: nowrap;
+}

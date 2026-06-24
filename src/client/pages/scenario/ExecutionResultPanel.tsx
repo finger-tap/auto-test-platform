@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import CodeMirror from '@uiw/react-codemirror';
+import ThemedCodeMirror from '../../components/ThemedCodeMirror';
 import { json } from '@codemirror/lang-json';
 import type { Node, Edge } from '@xyflow/react';
 import type { ScenarioLog, NodeExecutionResult } from '../../types';
@@ -119,7 +119,7 @@ function NodeResultCard({ node, result, expanded, onToggle }: {
 
               <div className="scenario-exec-section">
                 <label>请求头</label>
-                <CodeMirror
+                <ThemedCodeMirror
                   value={tryFormatJson(result.request_headers ?? null)}
                   height="auto"
                   maxHeight="150px"
@@ -131,7 +131,7 @@ function NodeResultCard({ node, result, expanded, onToggle }: {
 
               <div className="scenario-exec-section">
                 <label>请求体</label>
-                <CodeMirror
+                <ThemedCodeMirror
                   value={tryFormatJson(result.request_body ?? null) || '(空)'}
                   height="auto"
                   maxHeight="150px"
@@ -143,7 +143,7 @@ function NodeResultCard({ node, result, expanded, onToggle }: {
 
               <div className="scenario-exec-section">
                 <label>响应头</label>
-                <CodeMirror
+                <ThemedCodeMirror
                   value={tryFormatJson(result.response_headers ?? null)}
                   height="auto"
                   maxHeight="150px"
@@ -155,7 +155,7 @@ function NodeResultCard({ node, result, expanded, onToggle }: {
 
               <div className="scenario-exec-section">
                 <label>响应体</label>
-                <CodeMirror
+                <ThemedCodeMirror
                   value={tryFormatJson(result.response_body ?? null)}
                   height="auto"
                   maxHeight="200px"

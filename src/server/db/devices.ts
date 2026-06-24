@@ -35,6 +35,15 @@ export interface DeviceRow {
   last_push_at: string | null;
   last_push_status: 'ok' | 'error' | null;
   last_push_error: string | null;
+  // 2026-06-08 Mobile 屏幕预览字段:
+  //   preview_kind  'scrcpy' | 'mjpeg' | 'screenshot' | null — 决定 preview-manager 用哪条 relay
+  //   last_rich_info_at  上次从 adb / hdc / xcrun 查到完整 rich info 的时间,30s 缓存窗口
+  //   ssh_tunnel_port  server 端 SSH LocalForward 占用的 127.0.0.1 端口
+  //   mobile_agent_port  mobile-agent 监听端口,默认 4002
+  preview_kind: 'scrcpy' | 'mjpeg' | 'screenshot' | null;
+  last_rich_info_at: string | null;
+  ssh_tunnel_port: number | null;
+  mobile_agent_port: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -248,6 +257,26 @@ export function markAgentOffline(id: number): number {
 }
 
 /**
+ * 2026-06-09: 持久化 mobile-agent 上报的设备列表到 `devices.metadata`。
+ * 给的是 agent 拉到的本机设备(Android/Harmony/iOS)原始行 — server 端 merge.ts
+ * 读 metadata 时按 JSON 反序列化、配合 server 端本地 adb/hdc 的数据合并。
+ *
+ * items 是 array,不是单设备行 — 一台远端 Linux 上可能接多台设备。
+ * metadata 字段沿用 TEXT (JSON 序列化),不做 schema 校验,merge.ts 解析时
+ * 容忍字段缺失(老数据 / 部分字段查不到都正常)。
+ *
+ * 不动 status / agent_endpoint — heartbeat 自己管那些字段。
+ */
+export function updateAgentDeviceMetadata(id: number, items: unknown[]): number {
+  return db.prepare(
+    `UPDATE devices
+        SET metadata = ?, last_rich_info_at = datetime('now', '+8 hours'),
+            updated_at = datetime('now', '+8 hours')
+      WHERE id = ?`
+  ).run(JSON.stringify(items), id).changes;
+}
+
+/**
  * Cron job: sweep all devices with an agent_token whose last_seen_at is
  * older than `staleSeconds` ago. Sets them to offline. Idempotent — devices
  * that are already offline are left alone.
@@ -286,6 +315,19 @@ export function listWebDevicesWithAgent(): DeviceRow[] {
   return db.prepare(
     `SELECT * FROM devices
        WHERE test_type = 'web' AND agent_token IS NOT NULL
+       ORDER BY id`
+  ).all() as DeviceRow[];
+}
+
+/**
+ * 2026-06-08: 同上,但只列 mobile 设备。mobile-agent 跟 web-agent 共享
+ * `agent_token` / `agent_version` 字段(version 协议也相同),所以 mobile
+ * 也走同一份 startup version scan。
+ */
+export function listMobileDevicesWithAgent(): DeviceRow[] {
+  return db.prepare(
+    `SELECT * FROM devices
+       WHERE test_type = 'mobile' AND agent_token IS NOT NULL
        ORDER BY id`
   ).all() as DeviceRow[];
 }

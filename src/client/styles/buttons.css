@@ -1,0 +1,164 @@
+/* ── Unified Button System ── */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 16px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 500;
+  font-family: var(--font-sans);
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.btn:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+/* Primary */
+.btn-primary {
+  background: var(--accent);
+  color: #fff;
+  border-color: transparent;
+}
+.btn-primary:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+/* Default / Secondary */
+.btn-default {
+  background: var(--surface);
+  color: var(--fg);
+  border-color: var(--border);
+}
+.btn-default:hover:not(:disabled) {
+  background: var(--surface-raised);
+}
+
+/* Danger */
+.btn-danger {
+  background: var(--danger);
+  color: #fff;
+  border-color: transparent;
+}
+.btn-danger:hover:not(:disabled) {
+  background: #dc2626;
+}
+
+/* Success */
+.btn-success {
+  background: var(--success);
+  color: #fff;
+  border-color: transparent;
+}
+.btn-success:hover:not(:disabled) {
+  background: #16a34a;
+}
+
+/* Outline */
+.btn-outline {
+  background: transparent;
+  color: var(--accent);
+  border-color: var(--accent);
+}
+.btn-outline:hover:not(:disabled) {
+  background: var(--accent-subtle);
+}
+
+/* Ghost */
+.btn-ghost {
+  background: transparent;
+  color: var(--fg-secondary);
+  border-color: var(--border);
+}
+.btn-ghost:hover:not(:disabled) {
+  background: var(--surface-raised);
+}
+
+/* Text */
+.btn-text {
+  background: transparent;
+  color: var(--accent);
+  border-color: transparent;
+  padding: 0 8px;
+}
+.btn-text:hover:not(:disabled) {
+  background: var(--accent-subtle);
+}
+
+/* Sizes */
+.btn-sm {
+  height: 26px;
+  padding: 0 10px;
+  font-size: 12px;
+}
+.btn-lg {
+  height: 40px;
+  padding: 0 24px;
+  font-size: 14px;
+}
+
+/* Icon button (for row actions) */
+.btn-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--fg-secondary);
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.15s;
+}
+.btn-icon:hover {
+  background: var(--surface-raised);
+  color: var(--fg);
+}
+.btn-icon.btn-icon-danger:hover {
+  background: var(--danger-subtle);
+  color: var(--danger);
+}
+
+/* Save / secondary action (with dirty state) */
+.btn-action {
+  padding: 0.375rem 1rem;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--fg);
+  transition: all 0.2s;
+}
+.btn-action:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-subtle);
+}
+.btn-action:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.btn-action.dirty {
+  border-color: var(--accent);
+  color: var(--accent);
+  animation: btn-dirty-pulse 1.5s ease-in-out infinite;
+}
+@keyframes btn-dirty-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.3); }
+  50% { box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.15); }
+}

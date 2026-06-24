@@ -1,0 +1,13 @@
+/* ── Shared Styles Index ── */
+@import './animations.css';
+@import './buttons.css';
+@import './modals.css';
+@import './tables.css';
+@import './filters.css';
+@import './tabs.css';
+@import './badges.css';
+@import './forms.css';
+@import './timeline.css';
+@import './pagination.css';
+@import './empty.css';
+@import './detail-components.css';

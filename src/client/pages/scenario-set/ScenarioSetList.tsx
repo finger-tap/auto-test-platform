@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { apiFetch } from '../../utils/api';
 import { formatDateTime } from '../../utils/datetime';
+import notification from '../../utils/notification';
 import TagFilterSelect from '../../components/TagFilterSelect';
 import FormSelect from '../../components/FormSelect';
 import './ScenarioSetList.css';
@@ -37,10 +38,10 @@ const API_PATH_MAP: Record<string, { list: string; delete: string }> = {
 };
 
 const ROUTE_PATH_MAP: Record<string, { list: string; detail: string; create: string }> = {
-  api: { list: '/api-test/scene-set', detail: '/api-test/scene-set', create: '/api-test/scene-set/new' },
-  web: { list: '/web-test/scene-set', detail: '/web-test/scene-set', create: '/web-test/scene-set/new' },
-  pc: { list: '/pc-test/scene-set', detail: '/pc-test/scene-set', create: '/pc-test/scene-set/new' },
-  mobile: { list: '/mobile-test/scene-set', detail: '/mobile-test/scene-set', create: '/mobile-test/scene-set/new' },
+  api: { list: '/api-test/case-set', detail: '/api-test/case-set', create: '/api-test/case-set/new' },
+  web: { list: '/web-test/case-set', detail: '/web-test/case-set', create: '/web-test/case-set/new' },
+  pc: { list: '/pc-test/case-set', detail: '/pc-test/case-set', create: '/pc-test/case-set/new' },
+  mobile: { list: '/mobile-test/case-set', detail: '/mobile-test/case-set', create: '/mobile-test/case-set/new' },
 };
 
 export default function ScenarioSetList({ basePath = '/api-test', testType = 'api' }: { basePath?: string; testType?: string } = {}) {
@@ -56,6 +57,7 @@ export default function ScenarioSetList({ basePath = '/api-test', testType = 'ap
   const [filterStatus, setFilterStatus] = useState('');
   const [sortField, setSortField] = useState('updated_at');
   const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC'>('DESC');
+  const [forceLoad, setForceLoad] = useState(0);
 
   const apiPaths = API_PATH_MAP[testType] || API_PATH_MAP.api;
   const routePaths = ROUTE_PATH_MAP[testType] || ROUTE_PATH_MAP.api;
@@ -80,10 +82,11 @@ export default function ScenarioSetList({ basePath = '/api-test', testType = 'ap
     }).finally(() => setLoading(false));
   }
 
-  useEffect(() => { load(); }, [page, pageSize, filterName, filterTags, filterStatus, sortField, sortOrder]);
+  useEffect(() => { load(); }, [page, pageSize, sortField, sortOrder, forceLoad]);
 
   async function doDelete(id: number, name: string) {
-    if (!confirm(`确认删除场景集「${name}」？`)) return;
+    const ok = await notification.confirm(`确认删除场景集「${name}」？`);
+    if (!ok) return;
     await apiFetch(`${apiPaths.delete}/${id}`, { method: 'DELETE' });
     load();
   }
@@ -97,16 +100,12 @@ export default function ScenarioSetList({ basePath = '/api-test', testType = 'ap
     setFilterTags('');
     setFilterStatus('');
     setPage(1);
+    setForceLoad(f => f + 1);
   }
 
   function handleQuery() {
     setPage(1);
-    load();
-  }
-
-  function handleAdd() {
-    setPage(1);
-    handleQuery();
+    setForceLoad(f => f + 1);
   }
 
   const toggleSort = (field: string) => {
@@ -119,7 +118,7 @@ export default function ScenarioSetList({ basePath = '/api-test', testType = 'ap
   };
 
   return (
-    <div className="alist">
+    <div className="alist page-enter">
       {/* Filter bar */}
       <div className="alist-filter">
         <div className="alist-filter-row">
@@ -129,7 +128,6 @@ export default function ScenarioSetList({ basePath = '/api-test', testType = 'ap
               placeholder="搜索名称"
               value={filterName}
               onChange={e => setFilterName(e.target.value)}
-              onBlur={() => handleQuery()}
             />
           </div>
           <div className="alist-filter-item">
@@ -141,7 +139,8 @@ export default function ScenarioSetList({ basePath = '/api-test', testType = 'ap
             <FormSelect value={filterStatus} options={[{value:"",label:"全部"},{value:"active",label:"启用"},{value:"disabled",label:"禁用"},{value:"draft",label:"草稿"}]} onChange={val => { setFilterStatus(val); setPage(1); }} />
           </div>
           <div className="alist-filter-actions">
-            <button className="btn btn-default" onClick={() => { handleReset(); load(); }}>重置</button>
+            <button className="btn btn-default" onClick={handleReset}>重置</button>
+            <button className="btn btn-primary" onClick={handleQuery}>查询</button>
             <button className="btn btn-primary" onClick={handleCreate}>新增</button>
           </div>
         </div>
@@ -163,18 +162,19 @@ export default function ScenarioSetList({ basePath = '/api-test', testType = 'ap
                 <th>执行统计</th>
                 <th>最近执行时间</th>
                 <th className="sortable" onClick={() => toggleSort('created_at')}>创建时间 {sortIcon('created_at')}</th>
-                <th style={{ width: 80 }}></th>
+                <th style={{ width: 120 }}></th>
               </tr>
             </thead>
             <tbody>
-              {sets.map(s => {
+              {sets.map((s, index) => {
                 const statusInfo = STATUS_MAP[s.status] || { label: s.status, color: '#999' };
                 const tagList = s.tags ? s.tags.split(',').filter(Boolean) : [];
                 return (
                   <tr
                     key={s.id}
-                    onClick={() => navigate(`${basePath}/scene-set/${s.id}`)}
-                    style={{ cursor: 'pointer' }}
+                    className="row-enter"
+                    style={{ '--delay': `${index * 30}ms`, cursor: 'pointer' } as React.CSSProperties}
+                    onClick={() => navigate(`${routePaths.detail}/${s.id}`)}
                   >
                     <td>{s.name}</td>
                     <td>
@@ -204,7 +204,7 @@ export default function ScenarioSetList({ basePath = '/api-test', testType = 'ap
                     <td>{formatDateTime(s.created_at)}</td>
                     <td>
                       <div className="row-actions">
-                        <button className="row-action-btn row-action-del" title="删除" onClick={(e) => { e.stopPropagation(); doDelete(s.id, s.name); }}>✕</button>
+                        <button className="row-action-btn row-action-del" title="删除" onClick={(e) => { e.stopPropagation(); doDelete(s.id, s.name); }}>删除</button>
                       </div>
                     </td>
                   </tr>

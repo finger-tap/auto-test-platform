@@ -39,12 +39,6 @@
 
 .api-detail-back:hover { text-decoration: underline; }
 
-.api-detail-page-title {
-  font-size: 0.875rem;
-  color: var(--fg-secondary);
-  font-weight: 400;
-}
-
 .api-detail-content {
   flex: 1;
   min-height: 0;
@@ -52,11 +46,11 @@
   display: flex;
   flex-direction: column;
   padding: 0;
-  background: var(--bg);
+  background: var(--surface);
 }
 
 .api-detail-card {
-  background: #fff;
+  background: var(--surface);
   border-radius: 0;
   box-shadow: none;
   padding: 0;
@@ -66,8 +60,6 @@
   flex-direction: column;
   height: 100%;
   min-height: 0;
-  border: 1px solid var(--border);
-  border-bottom: none;
 }
 
 .api-detail-card > .tab-body {
@@ -76,128 +68,8 @@
   min-height: 0;
 }
 
-/* Tab Navigation */
-.tab-nav {
-  display: flex;
-  border-bottom: 1px solid var(--border);
-  padding: 0 1.5rem;
-  background: #fff;
-}
 
-.tab-btn {
-  padding: 0.75rem 1.25rem;
-  background: none;
-  border: none;
-  border-bottom: 2px solid transparent;
-  font-size: 0.8125rem;
-  color: var(--fg-secondary);
-  cursor: pointer;
-  transition: all 0.2s;
-  margin-bottom: -1px;
-}
 
-.tab-btn:hover { color: var(--primary); }
-
-.tab-btn.active {
-  color: var(--primary);
-  border-bottom-color: var(--primary);
-  font-weight: 500;
-}
-
-.tab-body {
-  padding: 0;
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  overflow-y: auto;
-  min-height: 0;
-}
-
-.tab-content-wrapper {
-  animation: fadeIn 0.15s ease;
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  padding: 1.5rem 1.5rem;
-  min-height: 0;
-  overflow-y: auto;
-}
-
-.tab-detail-wrapper {
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-}
-
-.ad-section-fill {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  min-height: 100%;
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(4px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-/* Sections */
-.ad-section {
-  margin-top: 1rem;
-  padding: 0.75rem;
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: 0.375rem;
-}
-
-.ad-section-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 0.5rem;
-}
-
-.ad-section-head label {
-  font-size: 0.75rem;
-  color: var(--fg-secondary);
-  font-weight: 500;
-}
-
-.ad-empty-hint {
-  font-size: 0.75rem;
-  color: var(--fg-tertiary);
-  text-align: center;
-  padding: 0.5rem 0;
-}
-
-/* Rows & Fields */
-.api-detail-row {
-  display: flex;
-  gap: 0.75rem;
-  margin-bottom: 0.75rem;
-}
-
-.api-detail-row .field {
-  flex: 1;
-}
-
-.api-detail-row .field label {
-  display: block;
-  font-size: 0.75rem;
-  color: var(--fg-tertiary);
-  margin-bottom: 0.25rem;
-}
-
-.api-detail-row .field .value {
-  font-size: 0.8125rem;
-  color: var(--fg);
-}
-
-.field-value {
-  font-size: 0.8125rem;
-  color: var(--fg);
-  font-family: 'SF Mono', Monaco, monospace;
-}
 
 /* Method Badge */
 .method-badge {
@@ -237,29 +109,6 @@
   margin-top: 0.5rem;
 }
 
-/* Buttons */
-.ad-btn {
-  padding: 0.25rem 0.875rem;
-  border-radius: 0.25rem;
-  font-size: 0.8125rem;
-  cursor: pointer;
-  border: 1px solid var(--border);
-  background: #fff;
-  color: var(--fg);
-  transition: all 0.15s;
-}
-
-.ad-btn-sm {
-  padding: 0.125rem 0.625rem;
-  font-size: 0.75rem;
-  border-color: var(--primary);
-  color: var(--primary);
-}
-
-.ad-btn-sm:hover {
-  background: var(--primary);
-  color: #fff;
-}
 
 /* Rules list */
 .rules-list {
@@ -268,30 +117,12 @@
   gap: 0.5rem;
 }
 
-.rule-card {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 0.75rem;
-  background: #fff;
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  flex-wrap: wrap;
-}
-
-.rule-index {
-  font-size: 0.6875rem;
-  color: var(--fg-tertiary);
-  font-weight: 600;
-  min-width: 16px;
-}
-
 .rule-card select {
   font-size: 0.75rem;
   border: 1px solid var(--border);
   border-radius: 4px;
   padding: 3px 6px;
-  background: #fff;
+  background: var(--surface);
   cursor: pointer;
   outline: none;
 }
@@ -314,55 +145,13 @@
 .rule-key:focus,
 .rule-expected:focus { border-color: var(--primary); }
 
-.rule-del {
-  width: 20px;
-  height: 20px;
-  border: none;
-  background: transparent;
-  color: var(--fg-tertiary);
-  font-size: 0.875rem;
-  cursor: pointer;
-  border-radius: 3px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.15s;
-  flex-shrink: 0;
-}
-
-.rule-del:hover {
-  color: var(--danger);
-  background: var(--danger-subtle);
-}
-
-/* Floating Action Bar */
-.detail-action-bar {
-  position: fixed;
-  bottom: 5%;
-  left: 50%;
-  transform: translateX(-50%);
-  margin: 0;
-  padding: 0;
-  background: transparent;
-  border: none;
-  border-radius: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.75rem;
-  height: auto;
-  z-index: 100;
-  box-shadow: none;
-  backdrop-filter: none;
-}
-
 .scenario-btn {
   padding: 0.375rem 1.25rem;
   border-radius: 0.25rem;
   font-size: 0.8125rem;
   cursor: pointer;
   border: 1px solid var(--border);
-  background: #fff;
+  background: var(--surface);
   color: var(--fg);
   transition: all 0.15s;
 }
@@ -384,34 +173,6 @@
   50% { box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.15); }
 }
 
-/* CodeMirror Editor sections */
-.ad-editor-section {
-  margin-top: 0.5rem;
-}
-
-.ad-editor-section > label {
-  display: block;
-  font-size: 0.75rem;
-  color: var(--fg-tertiary);
-  margin-bottom: 0.25rem;
-}
-
-.ad-editor-section .cm-editor {
-  border: 1px solid var(--border);
-  border-radius: 0.25rem;
-  font-size: 0.75rem;
-  max-width: 100%;
-}
-
-.ad-editor-section .cm-editor.cm-focused {
-  border-color: var(--primary);
-  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.1);
-}
-
-.ad-editor-section .cm-scroller {
-  font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
-  overflow-x: auto !important;
-}
 
 /* InlineText / InlineSelect shared styles */
 .field-url .ie-field {
@@ -438,7 +199,7 @@
   border: 1px solid var(--border);
   border-radius: 4px;
   padding: 2px 8px;
-  background: #fff;
+  background: var(--surface);
   cursor: pointer;
   outline: none;
   min-width: 60px;
@@ -464,12 +225,6 @@
 .api-detail-row .field .ie-empty { font-size: 0.8125rem; color: var(--fg-tertiary); }
 .api-detail-row .field .ie-icon { font-size: 0.6875rem; color: var(--fg-tertiary); opacity: 0; transition: opacity 0.15s; }
 
-/* API empty */
-.api-empty {
-  text-align: center;
-  padding: 1.5rem 0;
-  color: var(--fg-tertiary);
-}
 
 /* Ad rule add group */
 .ad-rule-add-group {

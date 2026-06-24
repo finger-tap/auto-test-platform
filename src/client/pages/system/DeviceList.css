@@ -7,12 +7,12 @@
 .device-list__header h2 {
   font-size: 20px;
   margin: 0 0 4px;
-  color: var(--text-primary, #1f2937);
+  color: var(--fg);
 }
 
 .device-list__desc {
   font-size: 13px;
-  color: var(--text-secondary, #6b7280);
+  color: var(--fg-tertiary);
   margin: 0 0 20px;
 }
 
@@ -36,11 +36,11 @@
 .device-list__filters input {
   height: 32px;
   padding: 0 10px;
-  border: 1px solid var(--border-color, #e5e7eb);
+  border: 1px solid var(--border);
   border-radius: 6px;
   font-size: 13px;
-  background: var(--bg-surface, #fff);
-  color: var(--text-primary, #1f2937);
+  background: var(--surface);
+  color: var(--fg);
 }
 
 .device-list__filters input {
@@ -62,11 +62,11 @@
   transition: border-color 0.15s, box-shadow 0.15s;
 }
 .device-list select:hover {
-  border-color: var(--primary, #3b82f6);
+  border-color: var(--primary);
 }
 .device-list select:focus {
   outline: none;
-  border-color: var(--primary, #3b82f6);
+  border-color: var(--primary);
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
 }
 
@@ -81,7 +81,7 @@
 }
 
 .device-list__btn--primary {
-  background: var(--primary, #3b82f6);
+  background: var(--primary);
   color: #fff;
 }
 
@@ -90,31 +90,31 @@
 }
 
 .device-list__btn--secondary {
-  background: var(--bg-surface, #fff);
-  border-color: var(--border-color, #e5e7eb);
-  color: var(--text-primary, #1f2937);
+  background: var(--surface);
+  border-color: var(--border);
+  color: var(--fg);
 }
 
 .device-list__btn--secondary:hover {
-  background: var(--bg-hover, #f9fafb);
+  background: var(--surface-raised);
 }
 
 .device-list__btn--danger {
-  color: #ef4444;
+  color: var(--danger);
 }
 
 .device-list__loading,
 .device-list__empty {
   text-align: center;
   padding: 60px 0;
-  color: var(--text-secondary, #6b7280);
+  color: var(--fg-tertiary);
   font-size: 14px;
 }
 
 .device-list__table {
   width: 100%;
   border-collapse: collapse;
-  background: var(--bg-surface, #fff);
+  background: var(--surface);
   border-radius: 8px;
   overflow: hidden;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
@@ -124,27 +124,27 @@
 .device-list__table td {
   padding: 10px 14px;
   text-align: left;
-  border-bottom: 1px solid var(--border-color, #e5e7eb);
+  border-bottom: 1px solid var(--border);
   font-size: 13px;
 }
 
 .device-list__table th {
-  background: var(--bg-table-header, #f9fafb);
+  background: var(--surface-raised);
   font-weight: 600;
-  color: var(--text-secondary, #6b7280);
+  color: var(--fg-secondary);
 }
 
 .device-list__name {
   font-weight: 500;
-  color: var(--text-primary, #1f2937);
+  color: var(--fg);
 }
 
 .device-list__table code {
-  background: var(--bg-code, #f3f4f6);
+  background: var(--surface-raised);
   padding: 2px 6px;
   border-radius: 4px;
   font-size: 12px;
-  color: var(--text-primary, #1f2937);
+  color: var(--fg);
 }
 
 .device-list__status {
@@ -156,18 +156,18 @@
 }
 
 .device-list__status--success {
-  background: rgba(34, 197, 94, 0.12);
-  color: #16a34a;
+  background: var(--success-subtle);
+  color: var(--success);
 }
 
 .device-list__status--error {
-  background: rgba(239, 68, 68, 0.12);
-  color: #dc2626;
+  background: var(--danger-subtle);
+  color: var(--danger);
 }
 
 .device-list__status--warning {
-  background: rgba(245, 158, 11, 0.12);
-  color: #d97706;
+  background: var(--warning-subtle, rgba(245, 158, 11, 0.12));
+  color: var(--warning, #d97706);
 }
 
 .device-list__actions {
@@ -177,50 +177,51 @@
 
 .device-list__actions button {
   background: transparent;
-  border: 1px solid var(--border-color, #e5e7eb);
+  border: 1px solid var(--border);
   border-radius: 4px;
   padding: 4px 8px;
   font-size: 12px;
   cursor: pointer;
-  color: var(--text-primary, #1f2937);
+  color: var(--fg);
 }
 
 .device-list__actions button:hover {
-  background: var(--bg-hover, #f9fafb);
+  background: var(--surface-raised);
 }
 
 .device-list__actions .device-list__btn--danger {
-  border-color: rgba(239, 68, 68, 0.3);
+  border-color: var(--danger-subtle);
 }
 
 /* Online/offline state buttons — solid green for "go online" (push+start),
    outlined red for "go offline" (stop). Same color language as the
    status badge so the action's result is visually obvious. */
 .device-list__btn--offline {
-  background: #16a34a;
+  background: var(--success);
   color: #fff;
-  border-color: #16a34a;
+  border-color: var(--success);
   font-weight: 500;
 }
 .device-list__btn--offline:hover:not(:disabled) {
-  background: #15803d;
-  border-color: #15803d;
+  background: var(--success);
+  border-color: var(--success);
+  opacity: 0.9;
 }
 .device-list__btn--offline:disabled {
-  background: #86efac;
-  border-color: #86efac;
+  background: var(--success-subtle);
+  border-color: var(--success-subtle);
   cursor: not-allowed;
 }
 
 .device-list__btn--online {
-  background: var(--bg-surface, #fff);
-  color: #dc2626;
-  border-color: rgba(239, 68, 68, 0.4);
+  background: var(--surface);
+  color: var(--danger);
+  border-color: var(--danger-subtle);
   font-weight: 500;
 }
 .device-list__btn--online:hover:not(:disabled) {
-  background: rgba(239, 68, 68, 0.08);
-  border-color: #ef4444;
+  background: var(--danger-subtle);
+  border-color: var(--danger);
 }
 .device-list__btn--online:disabled {
   opacity: 0.5;
@@ -238,7 +239,7 @@
 }
 
 .device-list__modal {
-  background: var(--bg-surface, #fff);
+  background: var(--surface);
   border-radius: 10px;
   padding: 24px 28px;
   width: 520px;
@@ -252,9 +253,9 @@
   margin: 0 0 18px;
   font-size: 17px;
   font-weight: 600;
-  color: var(--text-primary, #1f2937);
+  color: var(--fg);
   padding-bottom: 12px;
-  border-bottom: 1px solid var(--border-color, #e5e7eb);
+  border-bottom: 1px solid var(--border);
 }
 
 .device-list__modal label {
@@ -268,12 +269,12 @@
   gap: 6px;
   font-size: 12px;
   font-weight: 500;
-  color: var(--text-secondary, #4b5563);
+  color: var(--fg-secondary);
   margin-bottom: 6px;
 }
 
 .device-list__modal label > span em {
-  color: #ef4444;
+  color: var(--danger);
   font-style: normal;
   font-weight: 600;
 }
@@ -284,12 +285,12 @@
   width: 100%;
   height: 34px;
   padding: 0 10px;
-  border: 1px solid var(--border-color, #e5e7eb);
+  border: 1px solid var(--border);
   border-radius: 6px;
   font-size: 13px;
   font-family: var(--font-sans, inherit);
-  background: var(--bg-surface, #fff);
-  color: var(--text-primary, #1f2937);
+  background: var(--surface);
+  color: var(--fg);
   box-sizing: border-box;
   transition: border-color 0.15s, box-shadow 0.15s;
 }
@@ -297,15 +298,15 @@
 .device-list__modal input:hover,
 .device-list__modal select:hover,
 .device-list__modal textarea:hover {
-  border-color: #9ca3af;
+  border-color: var(--fg-tertiary);
 }
 
 .device-list__modal input:focus,
 .device-list__modal select:focus,
 .device-list__modal textarea:focus {
   outline: none;
-  border-color: var(--primary, #3b82f6);
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--accent-subtle);
 }
 
 .device-list__modal textarea {
@@ -322,9 +323,9 @@
    advanced configuration at a glance. */
 .device-list__ssh-section {
   margin: 8px 0 18px;
-  border: 1px solid #e0e7ff;
-  border-radius: 8px;
-  background: linear-gradient(180deg, #f5f7ff 0%, #fafbff 100%);
+  border: 1px solid var(--accent-subtle);
+  border-radius: var(--radius-md, 8px);
+  background: var(--accent-subtle);
   overflow: hidden;
 }
 
@@ -335,27 +336,27 @@
   gap: 8px;
   padding: 11px 14px;
   background: transparent;
-  border: 0;
+  border: none;
   border-bottom: 1px solid transparent;
   font-size: 13px;
   font-weight: 600;
-  color: #1e40af;
+  color: var(--accent);
   text-align: left;
   cursor: pointer;
   transition: background 0.12s;
 }
 .device-list__ssh-toggle:hover {
-  background: rgba(99, 102, 241, 0.06);
+  background: var(--accent-subtle);
 }
 .device-list__ssh-toggle[aria-expanded="true"] {
-  border-bottom-color: #e0e7ff;
+  border-bottom-color: var(--accent-subtle);
 }
 
 .device-list__ssh-toggle-arrow {
   display: inline-block;
   width: 10px;
   font-size: 10px;
-  color: #6366f1;
+  color: var(--accent);
   transition: transform 0.15s;
 }
 .device-list__ssh-toggle-arrow--open {
@@ -366,8 +367,8 @@
   margin-left: auto;
   font-size: 11px;
   font-weight: 500;
-  color: #6366f1;
-  background: rgba(99, 102, 241, 0.12);
+  color: var(--accent);
+  background: var(--accent-subtle);
   padding: 2px 8px;
   border-radius: 10px;
 }
@@ -391,12 +392,12 @@
 .device-list__hint {
   display: block;
   font-size: 11px;
-  color: var(--text-secondary, #6b7280);
+  color: var(--fg-tertiary);
   margin: 4px 2px 12px;
   line-height: 1.5;
 }
 .device-list__hint--warn {
-  color: #b45309;
+  color: var(--warning, #b45309);
 }
 
 .device-list__modal-actions {
@@ -410,28 +411,24 @@
   height: 32px;
   padding: 0 14px;
   border-radius: 6px;
-  border: 1px solid var(--border-color, #e5e7eb);
-  background: var(--bg-surface, #fff);
+  border: 1px solid var(--border);
+  background: var(--surface);
   cursor: pointer;
   font-size: 13px;
-  color: var(--text-primary, #1f2937);
+  color: var(--fg);
 }
 
 .device-list__modal-actions button:hover {
-  background: var(--bg-hover, #f9fafb);
+  background: var(--surface-raised);
 }
 
 .device-list__modal-actions .device-list__btn--primary {
-  background: var(--primary, #3b82f6);
+  background: var(--primary);
   color: #fff;
   border-color: transparent;
 }
 
 .device-list__modal-actions .device-list__btn--primary:hover {
-  /* 2026-06-07: keep the blue background on hover — without this, the
-     generic `.device-list__modal-actions button:hover` rule (specificity
-     0,2,1) wins over `.device-list__btn--primary` (0,2,0) and overrides
-     the background to near-white, leaving white text invisible. */
-  background: var(--primary, #3b82f6);
+  background: var(--primary);
   opacity: 0.9;
 }

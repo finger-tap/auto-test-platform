@@ -17,15 +17,37 @@
 
 import { Router, type Request, type Response } from 'express';
 import { agentAuthMiddleware } from '../auth/middleware.js';
-import { updateAgentHeartbeat, markAgentOffline, getRequiredAgentVersion, setNeedsUpgrade } from '../db/devices.js';
+import { updateAgentHeartbeat, markAgentOffline, getRequiredAgentVersion, setNeedsUpgrade, updateAgentDeviceMetadata } from '../db/devices.js';
 
 export const agentRoutes = Router();
 
 // All routes under /api/agents use the agent-bearer auth, not human JWT.
 agentRoutes.use(agentAuthMiddleware);
 
+/**
+ * 2026-06-08: 解析并校验请求体里的 agent_kind。
+ * - 'web' / 'mobile' / 'pc' → 接受
+ * - 缺失                  → 默认 'web'(旧版 web-agent 不发这个字段,保持兼容)
+ * - 其它值                → 拒
+ *
+ * 然后跟 device.test_type 对一下:web 设备只能跑 web-agent,mobile 设备只能跑
+ * mobile-agent,pc 设备只能跑 pc-agent。如果不一致返回 400,让 agent 进程退出
+ * — 这是配置错乱(用户把 web-agent 推到了 mobile 设备上),重来比修好。
+ */
+function parseAgentKind(raw: unknown, device: { test_type?: string | null }): { kind: 'web' | 'mobile' | 'pc' } | { error: string } {
+  let kind: 'web' | 'mobile' | 'pc' = 'web';
+  if (typeof raw === 'string' && raw.length > 0) {
+    if (raw !== 'web' && raw !== 'mobile' && raw !== 'pc') return { error: `agent_kind must be 'web', 'mobile' or 'pc', got ${raw}` };
+    kind = raw;
+  }
+  const deviceType = device.test_type ?? 'web';
+  if (deviceType !== 'web' && deviceType !== 'mobile' && deviceType !== 'pc') return { error: `device.test_type=${deviceType} is not a known agent kind` };
+  if (kind !== deviceType) return { error: `agent_kind=${kind} does not match device.test_type=${deviceType}` };
+  return { kind };
+}
+
 // POST /api/agents/register
-// Body: { agentEndpoint: "http://192.168.1.50:4001", version: "0.1.0" }
+// Body: { agentEndpoint: "http://192.168.1.50:4001", version: "0.1.0", agentKind?: "web"|"mobile" }
 // Idempotent — safe to call on every agent startup, or on re-registration
 // after the agent's IP changes. Updates the device's endpoint / version
 // and flips status to online.
@@ -34,9 +56,11 @@ agentRoutes.use(agentAuthMiddleware);
 // version, return 401. The agent process sees 401, prints an upgrade
 // prompt, and exits. The device row is marked needs_upgrade=1 (not online)
 // so the UI's "重连/升级" button is visible.
+//
+// 2026-06-08: 加 agent_kind 校验(见 parseAgentKind 上面)。
 agentRoutes.post('/register', (req: Request, res: Response) => {
   const device = req.agent!.device;
-  const { agentEndpoint, version } = req.body || {};
+  const { agentEndpoint, version, agentKind } = req.body || {};
   if (typeof agentEndpoint !== 'string' || !agentEndpoint.trim()) {
     res.status(400).json({ code: 400, message: 'agentEndpoint is required' });
     return;
@@ -44,6 +68,11 @@ agentRoutes.post('/register', (req: Request, res: Response) => {
   // Light validation: must look like a URL. We don't enforce HTTPS in dev.
   if (!/^https?:\/\//.test(agentEndpoint)) {
     res.status(400).json({ code: 400, message: 'agentEndpoint must start with http(s)://' });
+    return;
+  }
+  const kindResult = parseAgentKind(agentKind, device);
+  if ('error' in kindResult) {
+    res.status(400).json({ code: 400, message: kindResult.error });
     return;
   }
   const v = typeof version === 'string' ? version : 'unknown';
@@ -60,12 +89,17 @@ agentRoutes.post('/register', (req: Request, res: Response) => {
   }
 
   updateAgentHeartbeat(device.id, agentEndpoint.trim(), v);
-  console.log(`[agent-routes] registered device=${device.id} name="${device.name}" endpoint=${agentEndpoint} version=${v}`);
+  console.log(`[agent-routes] registered device=${device.id} name="${device.name}" kind=${kindResult.kind} endpoint=${agentEndpoint} version=${v}`);
+  // 2026-06-09: 注册成功后 fire-and-forget 拉一次本机设备列表(仅 mobile),
+  // 写到 devices.metadata,给 merge.ts 读。失败不阻塞 register。
+  if (device.test_type === 'mobile') {
+    void fetchAndPersistDeviceList(device.id, device.agent_token, agentEndpoint.trim());
+  }
   res.json({ code: 200, message: 'ok', data: { deviceId: device.id, status: 'online' } });
 });
 
 // POST /api/agents/heartbeat
-// Body: { agentEndpoint?: string, version?: string } — both optional. The
+// Body: { agentEndpoint?: string, version?: string, agentKind?: "web"|"mobile" } — both optional. The
 // endpoint and version are only persisted if supplied, so a bare heartbeat
 // (sent every 30s) can omit them to keep the payload tiny.
 //
@@ -75,7 +109,12 @@ agentRoutes.post('/register', (req: Request, res: Response) => {
 // waiting for the next re-registration cycle.
 agentRoutes.post('/heartbeat', (req: Request, res: Response) => {
   const device = req.agent!.device;
-  const { agentEndpoint, version } = req.body || {};
+  const { agentEndpoint, version, agentKind } = req.body || {};
+  const kindResult = parseAgentKind(agentKind, device);
+  if ('error' in kindResult) {
+    res.status(400).json({ code: 400, message: kindResult.error });
+    return;
+  }
   const incomingVersion = typeof version === 'string' ? version : null;
   const required = getRequiredAgentVersion();
   if (incomingVersion && incomingVersion !== required) {
@@ -96,6 +135,11 @@ agentRoutes.post('/heartbeat', (req: Request, res: Response) => {
     typeof agentEndpoint === 'string' && agentEndpoint.trim() ? agentEndpoint.trim() : (device.agent_endpoint ?? ''),
     incomingVersion ?? (device.agent_version ?? 'unknown')
   );
+  // 2026-06-09: heartbeat 同样拉一次设备列表(仅 mobile),30s 一次,
+  // 30s 缓存窗口刚好覆盖。失败不阻塞 heartbeat。
+  if (device.test_type === 'mobile' && device.agent_token && device.agent_endpoint) {
+    void fetchAndPersistDeviceList(device.id, device.agent_token, device.agent_endpoint);
+  }
   res.json({ code: 200, message: 'ok' });
 });
 
@@ -107,3 +151,46 @@ agentRoutes.post('/shutdown', (req: Request, res: Response) => {
   console.log(`[agent-routes] graceful shutdown device=${device.id} name="${device.name}"`);
   res.json({ code: 200, message: 'ok' });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 2026-06-09: mobile-agent 设备列表拉取
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Fire-and-forget:拉 agent 端的 POST /devices,持久化到 devices.metadata。
+ * - 4s 超时 — agent 偶尔 hang 也不能拖住 server
+ * - 失败/超时/非 200 → log 但不 throw,caller 拿不到错误(也不关心)
+ * - 返回的 items 是 MobileDeviceRow[];server 端 merge.ts 读 metadata 解析成
+ *   RichInfo,跟本地 adb/hdc 信息合并
+ */
+async function fetchAndPersistDeviceList(
+  deviceId: number,
+  agentToken: string | null,
+  agentEndpoint: string
+): Promise<void> {
+  if (!agentToken) return;
+  const url = `${agentEndpoint.replace(/\/$/, '')}/devices`;
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${agentToken}`,
+        'content-type': 'application/json',
+      },
+      body: '{}',
+      signal: AbortSignal.timeout(4_000),
+    });
+    if (!res.ok) {
+      // 404 是老 agent 没这个端点,正常;其它状态码也 log 但不抛
+      console.log(`[agent-routes] /devices fetch from ${url} returned ${res.status}`);
+      return;
+    }
+    const json = await res.json() as { data?: { items?: unknown[] } };
+    const items = Array.isArray(json?.data?.items) ? json!.data!.items : [];
+    if (items.length === 0) return;
+    updateAgentDeviceMetadata(deviceId, items);
+    console.log(`[agent-routes] persisted ${items.length} device(s) from agent=${url} to device=${deviceId}`);
+  } catch (e) {
+    console.log(`[agent-routes] /devices fetch from ${url} failed: ${e instanceof Error ? e.message : String(e)}`);
+  }
+}

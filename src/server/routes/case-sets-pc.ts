@@ -44,6 +44,8 @@ caseSetRoutes.get('/', (req: Request, res: Response) => {
     name: req.query.name as string | undefined,
     tags: req.query.tags as string | undefined,
     status: req.query.status as string | undefined,
+    dateFrom: req.query.dateFrom as string | undefined,
+    dateTo: req.query.dateTo as string | undefined,
   };
   const result = findSetsByUserIdPaginated(req.user!.userId, page, pageSize, filters, sort, order);
   res.json({ code: 200, message: 'ok', data: result });
@@ -101,8 +103,10 @@ caseSetRoutes.post('/:id/execute', async (req: Request, res: Response) => {
     filterCaseIds = (req.body.case_ids as unknown[]).map((v) => Number(v)).filter((n) => Number.isFinite(n));
   }
 
+  const environmentId = typeof req.body?.environmentId === 'number' ? req.body.environmentId : undefined;
+
   try {
-    const result = await runCaseSet(set.id, 'pc', executor, filterCaseIds);
+    const result = await runCaseSet(set.id, 'pc', executor, filterCaseIds, environmentId);
     res.json({
       code: 200,
       message: 'ok',

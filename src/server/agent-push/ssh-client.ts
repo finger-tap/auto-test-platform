@@ -146,3 +146,67 @@ export function execCommand(conn: Client, command: string, label = 'exec'): Prom
     });
   });
 }
+
+/**
+ * 2026-06-08: SSH LocalForward — 在 server 端开一个 127.0.0.1:<localPort> 端口,
+ * 把所有流量通过已建立的 SSH 通道转发到 remote 端的 127.0.0.1:<remotePort>。
+ * 用于让 server 端 adb client 把远端 mobile-agent 所在机器的 adb-server 当本地 adb 用。
+ *
+ * 实现方式:在 server 端起一个 net.Server,每个新 TCP 连接走一次
+ * conn.forwardOut(127.0.0.1, localPort, 127.0.0.1, remotePort) 拿一个 SSH Channel,
+ * socket ↔ channel 双向 pipe。这是 "TCP proxy over SSH" 的标准模式 — 每次
+ * 转发都是新 channel,长期 keepalive 不会因长时间没流量被 sshd 杀。
+ *
+ * 注意:
+ *   - 需要先 connectSsh 拿到一个可用的 conn(同一份长连接可以承载多个 forward)
+ *   - `localPort` 必须本机空闲;传 0 让 OS 分配
+ *   - end() 关闭本机 listener;SSH 通道由调用方决定是否也 end() 整 conn
+ */
+import net from 'node:net';
+
+export interface LocalForward {
+  localHost: string;
+  localPort: number;
+  end: () => void;
+}
+
+export function openLocalForward(
+  conn: Client,
+  remotePort: number,
+  localPort: number = 0,
+): Promise<LocalForward> {
+  return new Promise((resolve, reject) => {
+    const server = net.createServer((socket) => {
+      // 对每个新 TCP 客户端开一个新 SSH Channel
+      conn.forwardOut('127.0.0.1', 0, '127.0.0.1', remotePort, (err, channel) => {
+        if (err) {
+          console.log(`[agent-push:ssh] forwardOut failed: ${err.message}`);
+          socket.destroy();
+          return;
+        }
+        // 双向桥接
+        socket.pipe(channel as unknown as NodeJS.WritableStream);
+        (channel as unknown as NodeJS.ReadableStream).pipe(socket);
+        socket.on('error', () => { try { channel.end(); } catch { /* */ } });
+        channel.on('error', () => { try { socket.destroy(); } catch { /* */ } });
+        socket.on('close', () => { try { channel.end(); } catch { /* */ } });
+        channel.on('close', () => { try { socket.destroy(); } catch { /* */ } });
+      });
+    });
+    server.on('error', (e) => reject(e));
+    server.listen(localPort, '127.0.0.1', () => {
+      const addr = server.address();
+      if (!addr || typeof addr === 'string') {
+        reject(new Error('failed to bind local forward'));
+        return;
+      }
+      const port = addr.port;
+      console.log(`[agent-push:ssh] local forward listening on 127.0.0.1:${port} → remote 127.0.0.1:${remotePort}`);
+      resolve({
+        localHost: '127.0.0.1',
+        localPort: port,
+        end: () => { server.close(); },
+      });
+    });
+  });
+}

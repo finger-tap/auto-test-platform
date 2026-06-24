@@ -1,29 +1,30 @@
-// PC test executor - Midscene PlaywrightAgent.
+// PC test executor — Midscene ComputerAgent (native desktop automation).
 //
-// DEVIATION FROM PLAN (2026-06-03):
-//   The plan calls for `@midscene/computer` (native desktop automation via
-//   libnut + screenshot-desktop). The native deps are platform-specific
-//   binaries and may break the build in environments without matching toolchain
-//   (per the plan's own risk register: "MEDIUM — @midscene/computer 在 Linux/Win
-//   上 agent 行为差异"). To honour the user constraint "最核心的一点,不能造成
-//   功能不可用!", Phase 3 keeps the browser-based PlaywrightAgent flow and
-//   introduces a `pickDevice(deviceId)` shim that records the selected device
-//   without actually binding a native adapter. A follow-up phase can install
-//   the native package and switch the agent to ComputerAgent behind the same
-//   executor API.
+// 2026-06-14: Replaced the PlaywrightAgent (headless browser) flow with
+// @midscene/computer's ComputerAgent. ComputerAgent drives the real desktop
+// via libnut (native keyboard/mouse) + screenshot-desktop, so it can test
+// ANY desktop application — not just web pages. This matches Midscene's
+// `agentForComputer()` API.
 //
-// As of 2026-06-04: cases are no longer a list of typed NL steps. The
-// `case_content` + `case_content_type` columns hold either text (→ aiAct) or
-// YAML (→ runYaml). Preconditions + checkpoints remain in their own columns.
+// The execution model (precondition → case content → checkpoints → report)
+// is unchanged from the Playwright era — ComputerAgent inherits the same
+// aiAct / aiAssert / runYaml API from @midscene/core's Agent base class,
+// so the surrounding orchestration is identical.
 //
-// As of 2026-06-05: share a single Playwright Browser across PC cases in the
-// same process. Each case uses a fresh BrowserContext. The shared Browser is
-// only torn down when the case has `close_browser_after_execution = 1` (or
-// admin forces a close). Avoids the ~2-3s Chromium cold-start per case.
+// 2026-06-15: Remote execution (device.test_type==='pc' && agent_endpoint)
+// routes to a pc-agent service over HTTP. The agent runs the whole case
+// locally with @midscene/computer, then the server fetches the report tar.gz.
 
-import { chromium, firefox, webkit, Browser, BrowserContext, Page, BrowserType } from 'playwright';
-import { PlaywrightAgent } from '@midscene/web/playwright';
 import { promises as fs } from 'node:fs';
+import path from 'node:path';
+import { tmpdir } from 'node:os';
+import {
+  ComputerAgent,
+  agentForComputer,
+  checkComputerEnvironment,
+  checkScreenRecordingPermission,
+  checkAccessibilityPermission,
+} from '@midscene/computer';
 import type { PcCaseRow } from '../db/pc-cases.js';
 import { getDevice, type DeviceRow } from '../db/devices.js';
 import {
@@ -32,10 +33,27 @@ import {
   reportFileName,
   type TestType,
 } from './report-paths.js';
-import { parseNLSteps, resolveCaseContent, resolvePreconditionText, type NLStep } from './nl-steps.js';
-import { applyUserMidsceneConfig } from './midscene-config.js';
+import { parseNLSteps, resolveCaseContent, resolvePreconditionText, nlStepsToText, type NLStep } from './nl-steps.js';
+import { applyUserMidsceneConfig, getAgentOptOverrides } from './midscene-config.js';
+import {
+  executeOnPcAgent,
+  downloadPcReport,
+  type PcAgentExecuteRequest,
+} from './agent-client.js';
+import { substituteVars } from './vars.js';
 
 export { parseNLSteps, resolveCaseContent, nlStepsToText } from './nl-steps.js';
+
+/** Wrap a promise with a wall-clock timeout. Rejects if the promise doesn't settle in time. */
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  let timer: NodeJS.Timeout;
+  return Promise.race([
+    promise.finally(() => clearTimeout(timer)),
+    new Promise<T>((_, reject) => {
+      timer = setTimeout(() => reject(new Error(`Timeout after ${ms}ms: ${label}`)), ms);
+    }),
+  ]);
+}
 
 export interface StepResult {
   index: number;
@@ -65,13 +83,16 @@ export interface ExecuteOptions {
   // The owning user's id — used to load that user's Midscene model config
   // before each case so model / API key changes take effect immediately.
   userId?: number;
+  /** Environment variables for ${varName} substitution in content/preconditions/checkpoints. */
+  envVars?: Record<string, string>;
 }
 
 /**
  * Look up the requested device. Returns null if deviceId is not provided,
  * or if the device does not exist / does not belong to the PC test type.
- * Currently informational only (the browser flow ignores platform). When
- * ComputerAgent is wired in, this function's result drives adapter selection.
+ * A null result means "run locally on this server's desktop".
+ * A non-null result with agent_endpoint means "run on a remote pc-agent"
+ * (Phase 2 — currently throws a not-implemented error).
  */
 export function pickDevice(deviceId?: number): DeviceRow | null {
   if (!deviceId) return null;
@@ -81,171 +102,209 @@ export function pickDevice(deviceId?: number): DeviceRow | null {
   return device;
 }
 
-// Module-level singleton. PC server-side automation currently always uses
-// headless Chromium, but we still key by all launch params so a future
-// change (e.g. picking a real PC browser type) can flow through unchanged.
-interface SharedBrowserState {
-  browser: Browser;
-  key: string; // identifies the launch params (browserName|headless|driverPath)
-  launchedAt: number;
-  launches: number; // for log readability only
-}
-let _sharedBrowser: SharedBrowserState | null = null;
-let _sharedBrowserClosing: Promise<void> | null = null;
-
-function browserLaunchKey(browserName: string, headless: boolean, driverPath: string | null): string {
-  return `${browserName}|${headless ? '1' : '0'}|${driverPath?.trim() || ''}`;
-}
-
-async function launchBrowser(
-  browserName: string,
-  headless: boolean,
-  driverPath: string | null
-): Promise<Browser> {
-  // Map the request to the matching Playwright BrowserType. Midscene's
-  // PlaywrightAgent does not provide its own launcher, so we drive
-  // Playwright directly. Drivers are managed by Playwright (npx playwright
-  // install) — set PLAYWRIGHT_BROWSERS_PATH to override the default location.
-  const launcher: BrowserType =
-    browserName === 'firefox' ? firefox
-    : browserName === 'webkit' ? webkit
-    : chromium;
-
-  // Honour a per-case driver override. The index.ts default sets
-  // PLAYWRIGHT_BROWSERS_PATH to the bundled ./drivers dir; if the case
-  // supplies its own path, swap it in for the duration of the launch and
-  // restore the original value afterwards.
-  const previousBrowsersPath = process.env.PLAYWRIGHT_BROWSERS_PATH;
-  console.log(`[executor:pc] launchBrowser: browserName=${browserName} headless=${headless} driverPath=${driverPath ?? '(null)'} env.PLAYWRIGHT_BROWSERS_PATH=${process.env.PLAYWRIGHT_BROWSERS_PATH ?? '(unset)'}`);
-  if (driverPath && driverPath.trim()) {
-    process.env.PLAYWRIGHT_BROWSERS_PATH = driverPath.trim();
-  }
-
-  try {
-    console.log(`[executor:pc] launcher.launch headless=${headless} launcher=${browserName} PBP=${process.env.PLAYWRIGHT_BROWSERS_PATH ?? '(unset)'}`);
-    const browser = await launcher.launch({
-      headless,
-      // Force SwiftShader software rendering. Playwright 1.60 + Chromium
-      // 130+ "new headless" mode (default when `headless: true`) ships
-      // without a working software-GL fallback on macOS, so
-      // `page.screenshot()` and video frames come back blank. See
-      // .wolf/cerebrum.md bug-038 for the root cause.
-      args: [
-        '--use-gl=swiftshader',
-        '--enable-unsafe-swiftshader',
-        '--disable-gpu-sandbox',
-      ],
-    });
-    return browser;
-  } finally {
-    if (driverPath && driverPath.trim()) {
-      if (previousBrowsersPath === undefined) {
-        delete process.env.PLAYWRIGHT_BROWSERS_PATH;
-      } else {
-        process.env.PLAYWRIGHT_BROWSERS_PATH = previousBrowsersPath;
-      }
-    }
-  }
-}
-
-/**
- * Return the process-wide shared Browser, launching a new one if (a) none
- * exists yet, or (b) the launch params differ from the current one. Each
- * case still gets a fresh BrowserContext from the shared Browser.
- */
-async function getSharedBrowser(
-  browserName: string,
-  headless: boolean,
-  driverPath: string | null
-): Promise<Browser> {
-  const key = browserLaunchKey(browserName, headless, driverPath);
-
-  if (_sharedBrowserClosing) {
-    await _sharedBrowserClosing.catch(() => {});
-  }
-
-  if (_sharedBrowser && _sharedBrowser.key === key) {
-    _sharedBrowser.launches += 1;
-    console.log(`[executor:pc] reuse shared browser id=${_sharedBrowser.browser.browserType().name()} launches=${_sharedBrowser.launches} uptimeMs=${Date.now() - _sharedBrowser.launchedAt}`);
-    return _sharedBrowser.browser;
-  }
-
-  if (_sharedBrowser) {
-    console.log(`[executor:pc] shared browser params changed (old=${_sharedBrowser.key} new=${key}), closing old`);
-    const old = _sharedBrowser;
-    _sharedBrowser = null;
-    _sharedBrowserClosing = old.browser.close().catch((e) => {
-      console.log(`[executor:pc] old shared browser close error: ${e instanceof Error ? e.message : String(e)}`);
-    }).finally(() => { _sharedBrowserClosing = null; });
-    await _sharedBrowserClosing;
-  }
-
-  const browser = await launchBrowser(browserName, headless, driverPath);
-  _sharedBrowser = { browser, key, launchedAt: Date.now(), launches: 1 };
-  console.log(`[executor:pc] new shared browser launched id=${browser.browserType().name()} key=${key}`);
-  return browser;
-}
-
-/**
- * Force-close the shared browser. Safe to call multiple times concurrently.
- * Used by the admin "close shared browser" endpoint and by the per-case
- * `close_browser_after_execution` flag.
- */
-export async function closeSharedBrowser(): Promise<void> {
-  if (!_sharedBrowser && !_sharedBrowserClosing) {
-    console.log(`[executor:pc] closeSharedBrowser: no shared browser to close`);
-    return;
-  }
-  if (_sharedBrowser) {
-    const old = _sharedBrowser;
-    _sharedBrowser = null;
-    _sharedBrowserClosing = old.browser.close().catch((e) => {
-      console.log(`[executor:pc] shared browser close error: ${e instanceof Error ? e.message : String(e)}`);
-    }).finally(() => { _sharedBrowserClosing = null; });
-  }
-  if (_sharedBrowserClosing) {
-    await _sharedBrowserClosing.catch(() => {});
-  }
-  console.log(`[executor:pc] shared browser closed`);
-}
-
-/** Diagnostic helper for the admin endpoint. */
-export function getSharedBrowserInfo(): { key: string; launches: number; uptimeMs: number } | null {
-  if (!_sharedBrowser) return null;
-  return {
-    key: _sharedBrowser.key,
-    launches: _sharedBrowser.launches,
-    uptimeMs: Date.now() - _sharedBrowser.launchedAt,
-  };
-}
-
-async function setupBrowser(
-  browserName: string,
-  windowSize: string,
-  headless: boolean,
-  driverPath: string | null
-): Promise<{ browser: Browser; context: BrowserContext; page: Page; reused: boolean }> {
-  const browser = await getSharedBrowser(browserName, headless, driverPath);
-
-  const [width, height] = windowSize.split('x').map(Number);
-  const context = await browser.newContext({
-    viewport: { width: width || 1920, height: height || 1080 },
-  });
-  const page = await context.newPage();
-  return { browser, context, page, reused: _sharedBrowser ? _sharedBrowser.launches > 1 : false };
-}
-
 async function copyMidsceneReport(
   sourcePath: string | null | undefined,
   targetPath: string
 ): Promise<string | undefined> {
   if (!sourcePath) return undefined;
   try {
+    // sourcePath is the index.html inside the report directory.
+    // With html-and-external-assets format, the companion screenshots/
+    // directory lives in the same parent. Copy the whole tree so the
+    // report can resolve relative refs like ./screenshots/<uuid>.png.
+    const sourceDir = path.dirname(sourcePath);
+    const targetDir = path.dirname(targetPath);
     await ensureReportDir(targetPath);
-    await fs.copyFile(sourcePath, targetPath);
+    await fs.cp(sourceDir, targetDir, { recursive: true, force: true });
     return targetPath;
-  } catch {
+  } catch (e) {
+    console.log(`[executor:pc] copyMidsceneReport failed: ${e instanceof Error ? e.message : String(e)}`);
     return undefined;
+  }
+}
+
+/**
+ * Build ComputerDeviceOpt overrides from the case row. Only non-null fields
+ * are passed; ComputerAgent falls back to its defaults for the rest.
+ */
+function buildComputerDeviceOpt(testCase: PcCaseRow) {
+  const opt: {
+    displayId?: string;
+    keyboardDriver?: 'applescript' | 'libnut';
+    headless?: boolean;
+    xvfbResolution?: string;
+  } = {};
+  if (testCase.display_id && testCase.display_id.trim()) {
+    opt.displayId = testCase.display_id.trim();
+  }
+  if (testCase.keyboard_driver === 'applescript' || testCase.keyboard_driver === 'libnut') {
+    opt.keyboardDriver = testCase.keyboard_driver;
+  }
+  if (testCase.headless === 1) {
+    opt.headless = true;
+  }
+  if (testCase.xvfb_resolution && testCase.xvfb_resolution.trim()) {
+    opt.xvfbResolution = testCase.xvfb_resolution.trim();
+  }
+  return opt;
+}
+
+/**
+ * Remote execution: POST the whole case to pc-agent, wait for result,
+ * then download the report tarball and extract it to the standard path.
+ */
+async function executePcCaseRemotely(
+  testCase: PcCaseRow,
+  opts: ExecuteOptions,
+  device: DeviceRow,
+  content: string,
+  contentType: 'text' | 'yaml',
+  checkpoints: NLStep[],
+  preconditionText: string | undefined,
+  testType: TestType,
+  globalStart: number,
+): Promise<ExecuteResult> {
+  const agentEndpoint = device.agent_endpoint!;
+  const agentToken = device.agent_token!;
+  const finalReportPath = generateReportPath(testType, opts.caseId, opts.execId, opts.userId);
+  const reportName = reportFileName(testType, opts.caseId, opts.execId);
+  const deviceOpt = buildComputerDeviceOpt(testCase);
+
+  // Map NLStep[] → plain objects for JSON serialization
+  const checkpointPayload = checkpoints.map(cp => ({
+    description: cp.description,
+    expect: cp.expect || undefined,
+  }));
+
+  const request: PcAgentExecuteRequest = {
+    groupName: testCase.name,
+    groupDescription: testCase.description || undefined,
+    reportName,
+    content,
+    contentType,
+    preconditionText: preconditionText || undefined,
+    checkpoints: checkpointPayload,
+    deviceOpt: deviceOpt as Record<string, unknown>,
+  };
+
+  console.log(`[executor:pc] case=${opts.caseId} exec=${opts.execId} REMOTE agent=${agentEndpoint} name="${testCase.name}" checkpoints=${checkpoints.length}`);
+
+  try {
+    // Push Midscene config before executing remotely. Note: the agent uses
+    // its own Midscene config from env vars / default. If we want per-user
+    // config propagation to agents, that's a future enhancement.
+    // For now, we just send the case and let the agent use its local config.
+    const agentResult = await executeOnPcAgent(agentEndpoint, agentToken, request);
+    const totalMs = Date.now() - globalStart;
+
+    console.log(`[executor:pc] case=${opts.caseId} exec=${opts.execId} REMOTE done sessionId=${agentResult.sessionId} status=${agentResult.result.status} duration=${agentResult.result.duration_ms}ms`);
+
+    // Download and extract report tarball
+    let reportPath: string | undefined;
+    if (agentResult.sessionId) {
+      try {
+        const tarball = await downloadPcReport(agentEndpoint, agentToken, agentResult.sessionId);
+        // Extract the tarball to a temp dir, then copy the HTML report
+        const tmpExtractDir = path.join(tmpdir(), `pc-report-${opts.caseId}-${opts.execId}`);
+        await fs.mkdir(tmpExtractDir, { recursive: true });
+        // Write tarball to temp file, then use tar to extract
+        const tmpTarPath = path.join(tmpdir(), `pc-report-${opts.caseId}-${opts.execId}.tar.gz`);
+        await fs.writeFile(tmpTarPath, tarball);
+        const { execFile } = await import('node:child_process');
+        await new Promise<void>((resolve, reject) => {
+          execFile('tar', ['xzf', tmpTarPath, '-C', tmpExtractDir], (err) => {
+            err ? reject(err) : resolve();
+          });
+        });
+        // Cleanup tarball temp file
+        await fs.unlink(tmpTarPath).catch(() => {});
+        // Find the HTML report in the extracted dir (recursively)
+        const htmlFiles = await findFilesRecursive(tmpExtractDir, '.html');
+        if (htmlFiles.length > 0) {
+          // Copy the entire report dir to the final path
+          await ensureReportDir(finalReportPath);
+          // The report dir is the parent of the HTML file
+          const reportDir = path.dirname(htmlFiles[0]);
+          await copyDirRecursive(reportDir, path.dirname(finalReportPath));
+          reportPath = finalReportPath;
+        } else {
+          console.log(`[executor:pc] case=${opts.caseId} REMOTE no HTML report found in tarball`);
+        }
+        // Cleanup temp dir
+        await fs.rm(tmpExtractDir, { recursive: true, force: true }).catch(() => {});
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        console.log(`[executor:pc] case=${opts.caseId} REMOTE report download/extract failed: ${msg}`);
+      }
+    }
+
+    // Map agent result steps to local StepResult format
+    const steps: StepResult[] = (agentResult.result.steps || []).map((s, i) => ({
+      index: i,
+      description: s.description,
+      expect: s.expect,
+      status: s.status,
+      duration_ms: s.duration_ms,
+      error: s.error,
+    }));
+
+    return {
+      status: agentResult.result.status === 'success' ? 'success'
+        : agentResult.result.status === 'failed' ? 'failed'
+        : 'error',
+      duration_ms: totalMs,
+      steps,
+      error_message: agentResult.result.error_message,
+      report_path: reportPath,
+      device,
+    };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    const totalMs = Date.now() - globalStart;
+    console.log(`[executor:pc] case=${opts.caseId} exec=${opts.execId} REMOTE ERROR ${totalMs}ms: ${msg}`);
+    return {
+      status: 'error',
+      duration_ms: totalMs,
+      steps: [],
+      error_message: `Remote pc-agent execution failed: ${msg}`,
+      device,
+    };
+  }
+}
+
+/**
+ * Recursively find files with a given extension in a directory.
+ */
+async function findFilesRecursive(dir: string, ext: string): Promise<string[]> {
+  const results: string[] = [];
+  try {
+    const entries = await fs.readdir(dir, { withFileTypes: true });
+    for (const e of entries) {
+      const full = path.join(dir, e.name);
+      if (e.isDirectory()) {
+        results.push(...await findFilesRecursive(full, ext));
+      } else if (e.name.endsWith(ext)) {
+        results.push(full);
+      }
+    }
+  } catch { /* ignore */ }
+  return results;
+}
+
+/**
+ * Recursively copy a directory's contents to a target directory.
+ */
+async function copyDirRecursive(src: string, dest: string): Promise<void> {
+  await fs.mkdir(dest, { recursive: true });
+  const entries = await fs.readdir(src, { withFileTypes: true });
+  for (const e of entries) {
+    const srcPath = path.join(src, e.name);
+    const destPath = path.join(dest, e.name);
+    if (e.isDirectory()) {
+      await copyDirRecursive(srcPath, destPath);
+    } else if (e.isFile()) {
+      await fs.copyFile(srcPath, destPath);
+    }
   }
 }
 
@@ -254,25 +313,28 @@ export async function executePcCase(
   opts: ExecuteOptions
 ): Promise<ExecuteResult> {
   const globalStart = Date.now();
-  const { content, type } = resolveCaseContent(
+  const { content: rawContent, type } = resolveCaseContent(
     testCase.case_content,
     testCase.case_content_type,
     testCase.steps
   );
-  const checkpoints = parseNLSteps(testCase.check_points);
-  // Preconditions: a single natural-language task passed to Midscene's
-  // `aiAct` (action). Old rows may still hold a JSON NLStep[] from the
-  // legacy assertion-shaped format — resolvePreconditionText flattens
-  // those into a single string so existing rows still execute.
-  const preconditionText = resolvePreconditionText(testCase.preconditions);
-  // Phase 3.5: browser/headless_mode/base_url fields removed from pc_test_cases.
-  // Server-side PC automation always uses headless Chromium; baseUrl navigation
-  // is encoded into the first NL step when needed.
-  const headless = true;
-  const browser = 'chromium';
-  const windowSize = testCase.window_size || '1920x1080';
+  const rawCheckpoints = parseNLSteps(testCase.check_points);
+  const rawPreconditionText = resolvePreconditionText(testCase.preconditions);
   const testType: TestType = opts.testType || 'computer';
+
+  // Substitute ${varName} placeholders with environment variable values
+  const vars = opts.envVars || {};
+  const content = substituteVars(rawContent, vars);
+  const preconditionText = substituteVars(rawPreconditionText, vars);
+  const checkpoints = rawCheckpoints.map(cp => ({
+    ...cp,
+    description: substituteVars(cp.description, vars),
+    ...(cp.expect ? { expect: substituteVars(cp.expect, vars) } : {}),
+  }));
   const device = pickDevice(opts.deviceId);
+  if (Object.keys(vars).length > 0) {
+    console.log(`[executor:pc] case=${opts.caseId} exec=${opts.execId} envVars=${Object.keys(vars).length} keys=${Object.keys(vars).join(',')}`);
+  }
 
   if (!content && checkpoints.length === 0 && !preconditionText) {
     return {
@@ -284,19 +346,30 @@ export async function executePcCase(
     };
   }
 
+  // ── Remote execution via pc-agent ──
+  // The agent runs the whole case locally (ComputerDevice is bound to physical
+  // hardware and can't be serialized). We send the case content, wait for the
+  // result, then fetch the report tarball.
+  if (device && device.status !== 'online') {
+    return {
+      status: 'error',
+      duration_ms: Date.now() - globalStart,
+      steps: [],
+      error_message: `设备 ${device.name} 当前状态为 ${device.status}，无法远程执行（需要 agent 在线）`,
+      device,
+    };
+  }
+  if (device && device.agent_endpoint && device.agent_token) {
+    return executePcCaseRemotely(testCase, opts, device, content, type, checkpoints, preconditionText, testType, globalStart);
+  }
+
   const results: StepResult[] = [];
-  let browserInstance: Browser | null = null;
-  let contextInstance: BrowserContext | null = null;
   let reportPath: string | undefined;
   const finalReportPath = generateReportPath(testType, opts.caseId, opts.execId, opts.userId);
   console.log(`[executor:pc] case=${opts.caseId} exec=${opts.execId} report path resolved: ${finalReportPath} (userRoot=${opts.userId ? 'per-user' : 'default'})`);
   const reportName = reportFileName(testType, opts.caseId, opts.execId);
-  // close_browser_after_execution=1 → tear down the shared Browser after
-  // this case. Default 0 → keep it for the next case (avoids ~2-3s cold
-  // start per case). The per-case BrowserContext is closed regardless.
-  const closeBrowserAfter = testCase.close_browser_after_execution === 1;
 
-  console.log(`[executor:pc] case=${opts.caseId} exec=${opts.execId} start name="${testCase.name}" type=${type} hasContent=${!!content} hasPrecondition=${!!preconditionText} checkpoints=${checkpoints.length} window=${windowSize} headless=${headless} device=${device?.id ?? '(none)'} closeBrowserAfter=${closeBrowserAfter}`);
+  console.log(`[executor:pc] case=${opts.caseId} exec=${opts.execId} start name="${testCase.name}" type=${type} hasContent=${!!content} hasPrecondition=${!!preconditionText} checkpoints=${checkpoints.length} device=${device?.id ?? '(local)'} displayId=${testCase.display_id ?? '(main)'} keyboardDriver=${testCase.keyboard_driver ?? '(default)'} headless=${testCase.headless ?? 0}`);
 
   // Push the owning user's Midscene model config into the live runtime
   // before any agent action. Best-effort: a failure here will surface
@@ -309,22 +382,84 @@ export async function executePcCase(
     }
   }
 
+  let agent: ComputerAgent | null = null;
   try {
-    const { browser: b, context, page, reused } = await setupBrowser(browser, windowSize, headless, testCase.driver_path);
-    browserInstance = b;
-    contextInstance = context;
-    console.log(`[executor:pc] case=${opts.caseId} exec=${opts.execId} browser ready url=${page.url()} reusedBrowser=${reused}`);
+    // Environment pre-check: HARD FAIL if critical permissions are missing.
+    // Without Screen Recording permission, screenshots are black → reports
+    // are useless. Without Accessibility, keyboard/mouse input won't work.
+    const envCheck = await checkComputerEnvironment();
+    if (!envCheck.available) {
+      return {
+        status: 'error',
+        duration_ms: Date.now() - globalStart,
+        steps: [],
+        error_message: `Computer environment check failed: ${envCheck.error || 'unknown'} (platform=${envCheck.platform} displays=${envCheck.displays})`,
+        device,
+      };
+    }
+    console.log(`[executor:pc] case=${opts.caseId} env OK platform=${envCheck.platform} displays=${envCheck.displays}`);
 
-    const agent = new PlaywrightAgent(page, {
-      generateReport: true,
-      outputFormat: 'html-and-external-assets',
-      reportFileName: reportName,
-      groupName: testCase.name,
-      groupDescription: testCase.description || undefined,
-    });
-    console.log(`[executor:pc] case=${opts.caseId} exec=${opts.execId} PlaywrightAgent ready report=${reportName}`);
+    // macOS: explicitly check Screen Recording + Accessibility permissions.
+    // These are independent TCC permissions — granting one doesn't grant the other.
+    if (process.platform === 'darwin') {
+      const screenPerm = checkScreenRecordingPermission(false);
+      if (!screenPerm.hasPermission) {
+        return {
+          status: 'error',
+          duration_ms: Date.now() - globalStart,
+          steps: [],
+          error_message: `Screen Recording permission required — screenshots will be black without it.\n\n${screenPerm.error}`,
+          device,
+        };
+      }
+      const accessPerm = checkAccessibilityPermission(false);
+      if (!accessPerm.hasPermission) {
+        return {
+          status: 'error',
+          duration_ms: Date.now() - globalStart,
+          steps: [],
+          error_message: `Accessibility permission required — keyboard/mouse input won't work without it.\n\n${accessPerm.error}`,
+          device,
+        };
+      }
+      console.log(`[executor:pc] case=${opts.caseId} macOS permissions OK (Screen Recording + Accessibility)`);
+    }
+
+    const deviceOpt = buildComputerDeviceOpt(testCase);
+    const agentInitStart = Date.now();
+    console.log(`[executor:pc] case=${opts.caseId} exec=${opts.execId} agentForComputer starting...`);
+    try {
+      agent = await withTimeout(
+        agentForComputer({
+          ...deviceOpt,
+          generateReport: true,
+          outputFormat: 'html-and-external-assets',
+          reportFileName: reportName,
+          groupName: testCase.name,
+          groupDescription: testCase.description || undefined,
+          ...getAgentOptOverrides(opts.userId),
+        }),
+        60_000,
+        'agentForComputer init',
+      );
+    } catch (initErr) {
+      const ms = Date.now() - agentInitStart;
+      const msg = initErr instanceof Error ? initErr.message : String(initErr);
+      console.log(`[executor:pc] case=${opts.caseId} exec=${opts.execId} agentForComputer FAILED ${ms}ms: ${msg}`);
+      return {
+        status: 'error',
+        duration_ms: Date.now() - globalStart,
+        steps: [],
+        error_message: `ComputerAgent 初始化失败: ${msg}`,
+        device,
+      };
+    }
+    console.log(`[executor:pc] case=${opts.caseId} exec=${opts.execId} ComputerAgent ready ${Date.now() - agentInitStart}ms report=${reportName}`);
 
     let stepIndex = 0;
+
+    // Use the case's timeout setting (default 5 min) to prevent infinite hangs.
+    const caseTimeoutMs = (testCase.timeout && testCase.timeout > 0) ? testCase.timeout : 300_000;
 
     const runAssert = async (s: NLStep, idx: number): Promise<StepResult> => {
       const start = Date.now();
@@ -333,7 +468,7 @@ export async function executePcCase(
       console.log(`[executor:pc] case=${opts.caseId} exec=${opts.execId} checkpoint[${idx}] start expect="${expectText.slice(0, 100)}"`);
       try {
         if (expectText) {
-          const result = await agent.aiAssert(expectText);
+          const result = await withTimeout(agent!.aiAssert(expectText), caseTimeoutMs, `checkpoint[${idx}]`);
           const ms = Date.now() - start;
           if (!result?.pass) {
             console.log(`[executor:pc] case=${opts.caseId} exec=${opts.execId} checkpoint[${idx}] FAILED ${ms}ms reason="${result?.message || 'Assertion failed'}"`);
@@ -370,14 +505,26 @@ export async function executePcCase(
       }
     };
 
+    // Helper: destroy agent + copy its report to the target path. Returns
+    // the copied path (or undefined). Must be called before nulling `agent`.
+    // We capture reportFile BEFORE destroy() because destroy() finalizes
+    // the report path and we don't want a use-after-free on agent.reportFile.
+    const finalize = async (): Promise<string | undefined> => {
+      if (!agent) return undefined;
+      const reportFile = agent.reportFile;
+      await agent.destroy().catch(() => {});
+      agent = null;
+      return copyMidsceneReport(reportFile, finalReportPath);
+    };
+
     // Precondition: a single natural-language action handed to Midscene's
     // `aiAct` so the user can describe the desired starting state
-    // ("打开 /login,等待 3 秒" etc.) without picking a step type.
+    // ("打开计算器"、"启动 VS Code" etc.) without picking a step type.
     if (preconditionText) {
       const start = Date.now();
       console.log(`[executor:pc] case=${opts.caseId} exec=${opts.execId} precondition start text="${preconditionText.slice(0, 120)}"`);
       try {
-        await agent.aiAct(preconditionText);
+        await withTimeout(agent.aiAct(preconditionText), caseTimeoutMs, 'precondition');
         const ms = Date.now() - start;
         console.log(`[executor:pc] case=${opts.caseId} exec=${opts.execId} precondition OK ${ms}ms`);
         results.push({
@@ -397,12 +544,13 @@ export async function executePcCase(
           duration_ms: ms,
           error: errorMsg,
         });
-        await agent.destroy().catch(() => {});
+        reportPath = await finalize();
         return {
           status: 'failed',
           duration_ms: Date.now() - globalStart,
           steps: results,
           error_message: `Precondition failed: ${errorMsg}`,
+          report_path: reportPath,
           device,
         };
       }
@@ -413,12 +561,12 @@ export async function executePcCase(
       const start = Date.now();
       const label = type === 'yaml' ? 'YAML 流程' : '用例内容';
       const preview = content.slice(0, 120);
-      console.log(`[executor:pc] case=${opts.caseId} exec=${opts.execId} content start type=${type} method=${type === 'yaml' ? 'runYaml' : 'aiAct'} preview="${preview}"`);
+      console.log(`[executor:pc] case=${opts.caseId} exec=${opts.execId} content start type=${type} method=${type === 'yaml' ? 'runYaml' : 'aiAct'} timeout=${caseTimeoutMs}ms preview="${preview}"`);
       try {
         if (type === 'yaml') {
-          await agent.runYaml(content);
+          await withTimeout(agent.runYaml(content), caseTimeoutMs, 'runYaml');
         } else {
-          await agent.aiAct(content);
+          await withTimeout(agent.aiAct(content), caseTimeoutMs, 'aiAct');
         }
         const ms = Date.now() - start;
         console.log(`[executor:pc] case=${opts.caseId} exec=${opts.execId} content OK ${ms}ms`);
@@ -439,12 +587,13 @@ export async function executePcCase(
           duration_ms: ms,
           error: errorMsg,
         });
-        await agent.destroy().catch(() => {});
+        reportPath = await finalize();
         return {
           status: 'failed',
           duration_ms: Date.now() - globalStart,
           steps: results,
           error_message: `Case failed: ${errorMsg}`,
+          report_path: reportPath,
           device,
         };
       }
@@ -457,23 +606,20 @@ export async function executePcCase(
       const r = await runAssert(cp, i);
       results.push(r);
       if (r.status === 'failed') {
-        await agent.destroy().catch(() => {});
+        reportPath = await finalize();
         return {
           status: 'failed',
           duration_ms: Date.now() - globalStart,
           steps: results,
           error_message: `Checkpoint failed: ${r.error}`,
+          report_path: reportPath,
           device,
         };
       }
     }
     console.log(`[executor:pc] case=${opts.caseId} exec=${opts.execId} checkpoints OK`);
 
-    await agent.destroy().catch(() => {});
-    const copied = await copyMidsceneReport(agent.reportFile, finalReportPath);
-    if (copied) {
-      reportPath = copied;
-    }
+    reportPath = await finalize();
 
     const totalMs = Date.now() - globalStart;
     console.log(`[executor:pc] case=${opts.caseId} exec=${opts.execId} done SUCCESS ${totalMs}ms steps=${results.length} report=${reportPath ?? '(none)'}`);
@@ -488,6 +634,13 @@ export async function executePcCase(
     const totalMs = Date.now() - globalStart;
     const errorMsg = err instanceof Error ? err.message : 'Unknown error';
     console.log(`[executor:pc] case=${opts.caseId} exec=${opts.execId} done ERROR ${totalMs}ms err="${errorMsg}"`);
+    // Best-effort: still try to copy whatever report Midscene wrote before the crash.
+    if (agent) {
+      const reportFile = agent.reportFile;
+      await agent.destroy().catch(() => {});
+      agent = null;
+      reportPath = await copyMidsceneReport(reportFile, finalReportPath);
+    }
     return {
       status: 'error',
       duration_ms: totalMs,
@@ -496,21 +649,5 @@ export async function executePcCase(
       report_path: reportPath,
       device,
     };
-  } finally {
-    // Always close the per-case BrowserContext (cookies/storage cleanup).
-    // The shared Browser is only torn down if the case opted in via
-    // `close_browser_after_execution=1` — otherwise the next case reuses
-    // it. browserInstance is the same object as the shared one in both
-    // branches; closeSharedBrowser() nulls out the singleton so the next
-    // case launches a fresh one.
-    if (contextInstance) {
-      await contextInstance.close().catch((e) => {
-        console.log(`[executor:pc] case=${opts.caseId} exec=${opts.execId} context close error: ${e instanceof Error ? e.message : String(e)}`);
-      });
-    }
-    if (closeBrowserAfter && browserInstance) {
-      console.log(`[executor:pc] case=${opts.caseId} exec=${opts.execId} closeBrowserAfter=1, tearing down shared browser`);
-      await closeSharedBrowser();
-    }
   }
 }

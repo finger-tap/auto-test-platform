@@ -19,6 +19,8 @@
 // mark the unit failed, and the user must click "重连/升级" in the UI
 // to push a fresh bundle.
 
+import os from 'node:os';
+
 const HEARTBEAT_INTERVAL_MS = 30_000;   // 30s
 const REGISTER_EVERY_MS = 10 * 60_000; // re-register every 10 min
 
@@ -31,8 +33,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-// src/agent/heartbeat.ts → 2 levels up = project root (3 from compiled
-// dist/agent/heartbeat.js). Use the relative path that works for both.
+// src/agent-web/heartbeat.ts → 2 levels up = project root (3 from compiled
+// dist/agent-web/heartbeat.js). Use the relative path that works for both.
 const PKG_VERSION = (() => {
   try {
     const req = createRequire(import.meta.url);
@@ -53,8 +55,25 @@ export interface HeartbeatDeps {
   agentPort: number;
 }
 
+/**
+ * Detect the first non-internal IPv4 address. Falls back to 127.0.0.1.
+ * Override with AGENT_HOST env var if auto-detection doesn't fit (e.g. NAT).
+ */
+function detectHost(): string {
+  const override = process.env.AGENT_HOST;
+  if (override) return override;
+  const ifaces = os.networkInterfaces();
+  for (const entries of Object.values(ifaces)) {
+    if (!entries) continue;
+    for (const e of entries) {
+      if (e.family === 'IPv4' && !e.internal) return e.address;
+    }
+  }
+  return '127.0.0.1';
+}
+
 function buildEndpoint(deps: HeartbeatDeps): string {
-  return `http://127.0.0.1:${deps.agentPort}`;
+  return `http://${detectHost()}:${deps.agentPort}`;
 }
 
 async function postJson(url: string, token: string, body: unknown): Promise<{ ok: boolean; status: number; text: string }> {

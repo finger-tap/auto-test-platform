@@ -11,7 +11,9 @@ import {
   DeviceStatus,
 } from '../db/devices.js';
 import { encryptColumn, isPushEnabled, serializeBlob } from '../agent-push/crypto.js';
-import { pushAgent, stopAgent } from '../agent-push/push.js';
+import { pushAgent, stopAgent, pushMobileAgent, stopMobileAgent, pushPcAgent, stopPcAgent } from '../agent-push/push.js';
+import { listMergedMobileDevices, invalidateMergedCache } from '../devices/merge.js';
+import { healthCheckAgent } from '../engine/agent-client.js';
 
 export const deviceRoutes = Router();
 deviceRoutes.use(authMiddleware);
@@ -19,7 +21,7 @@ deviceRoutes.use(authMiddleware);
 const VALID_TEST_TYPES: DeviceTestType[] = ['web', 'pc', 'mobile'];
 const VALID_STATUSES: DeviceStatus[] = ['online', 'offline', 'unknown'];
 const VALID_SSH_AUTH: Array<'password' | 'private_key'> = ['password', 'private_key'];
-const VALID_OS_TYPES: string[] = ['linux'];   // only Linux supported for push
+const VALID_OS_TYPES: string[] = ['linux', 'macos'];   // linux + macos supported for push
 
 /**
  * Encrypt SSH credentials (password / private key) before they hit SQLite.
@@ -59,7 +61,7 @@ function scrubDevice<T extends { ssh_password: unknown; ssh_private_key: unknown
 }
 
 // GET /api/devices
-deviceRoutes.get('/', (req: Request, res: Response) => {
+deviceRoutes.get('/', async (req: Request, res: Response) => {
   const testType = req.query.test_type as string | undefined;
   const status = req.query.status as string | undefined;
   const keyword = req.query.keyword as string | undefined;
@@ -78,7 +80,105 @@ deviceRoutes.get('/', (req: Request, res: Response) => {
     status: status as DeviceStatus | undefined,
     keyword: keyword || undefined,
   });
-  res.json({ code: 200, message: 'ok', data: { items: items.map(scrubDevice) } });
+
+  // 2026-06-20: 批量查 busy 状态（web/pc/mobile 三种执行表）
+  const deviceIds = items.map(d => d.id);
+  let busySet = new Set<number>();
+  if (deviceIds.length > 0) {
+    try {
+      const { findRunningWebExecutionsByDeviceIds } = await import('../db/web-cases.js');
+      const { findRunningPcExecutionsByDeviceIds } = await import('../db/pc-cases.js');
+      const { findRunningExecutionsByDeviceIds } = await import('../db/mobile-tests.js');
+      const webBusy = findRunningWebExecutionsByDeviceIds(deviceIds);
+      const pcBusy = findRunningPcExecutionsByDeviceIds(deviceIds);
+      const mobileBusy = findRunningExecutionsByDeviceIds(deviceIds);
+      for (const id of deviceIds) {
+        if (webBusy.has(id) || pcBusy.has(id) || mobileBusy.has(id)) busySet.add(id);
+      }
+    } catch (e) {
+      console.log(`[routes:devices] busy lookup failed (non-fatal): ${e instanceof Error ? e.message : String(e)}`);
+    }
+  }
+
+  res.json({
+    code: 200, message: 'ok',
+    data: { items: items.map(d => ({ ...scrubDevice(d), busy: busySet.has(d.id) })) },
+  });
+});
+
+// Returns a single list combining locally-enumerated devices (adb/hdc/idevice)
+// with the user's remote mobile-agent-reported rows from the devices table.
+// Front-end uses this directly to render the device picker modal for
+// mobile-test execution. Cached 30s server-side; UI can force refresh with
+// POST /api/devices/merged/refresh?test_type=mobile.
+//
+// NOTE: 2026-06-09 这些路由必须注册在 /:id 之前,否则 Express 会把 "merged"
+// 当成 :id 参数 → 400 "Invalid id"(已经在 user 那边复现)。/merged/refresh 同理
+// 会被 /:id/refresh 吞掉。
+
+/**
+ * GET /api/devices/merged?test_type=mobile
+ * Body: (none) — query param `test_type` is required and currently only
+ * `mobile` is supported (web/pc don't need merging — they're either
+ * local or remote, not both).
+ */
+deviceRoutes.get('/merged', async (req: Request, res: Response) => {
+  const testType = (req.query.test_type as string) || '';
+  if (!['mobile', 'web', 'pc'].includes(testType)) {
+    res.status(400).json({ code: 400, message: `Invalid test_type for /merged: ${testType || '∅'}` });
+    return;
+  }
+  try {
+    if (testType === 'mobile') {
+      const items = await listMergedMobileDevices(req.user!.userId);
+      res.json({ code: 200, message: 'ok', data: { items } });
+      return;
+    }
+    // web / pc: 不需要 local+remote 合并，直接从 devices 表查 + 计算 busy
+    const items = listDevices(req.user!.userId, { test_type: testType as DeviceTestType });
+    const deviceIds = items.map(d => d.id);
+    let busySet = new Set<number>();
+    if (deviceIds.length > 0) {
+      if (testType === 'web') {
+        const { findRunningWebExecutionsByDeviceIds } = await import('../db/web-cases.js');
+        const m = findRunningWebExecutionsByDeviceIds(deviceIds);
+        for (const id of deviceIds) if (m.has(id)) busySet.add(id);
+      } else {
+        const { findRunningPcExecutionsByDeviceIds } = await import('../db/pc-cases.js');
+        const m = findRunningPcExecutionsByDeviceIds(deviceIds);
+        for (const id of deviceIds) if (m.has(id)) busySet.add(id);
+      }
+    }
+    const enriched = items.map(d => ({
+      ...scrubDevice(d),
+      busy: busySet.has(d.id),
+      source: 'remote' as const,
+    }));
+    res.json({ code: 200, message: 'ok', data: { items: enriched } });
+  } catch (e) {
+    res.status(500).json({
+      code: 500,
+      message: `Failed to enumerate devices: ${e instanceof Error ? e.message : String(e)}`,
+    });
+  }
+});
+
+/**
+ * POST /api/devices/merged/refresh?test_type=mobile|web|pc
+ * Body: (none) — invalidates the in-process cache for this user so the next
+ * GET re-enumerates. For web/pc this is a no-op (no cache), but the frontend
+ * can call it uniformly.
+ */
+deviceRoutes.post('/merged/refresh', (req: Request, res: Response) => {
+  const testType = (req.query.test_type as string) || '';
+  if (!['mobile', 'web', 'pc'].includes(testType)) {
+    res.status(400).json({ code: 400, message: `Invalid test_type: ${testType || '∅'}` });
+    return;
+  }
+  if (testType === 'mobile') {
+    invalidateMergedCache(req.user!.userId);
+  }
+  res.json({ code: 200, message: 'Cache invalidated' });
 });
 
 // GET /api/devices/:id
@@ -459,3 +559,183 @@ deviceRoutes.post('/:id/stop-agent', async (req: Request, res: Response) => {
   }
   res.json({ code: 200, message: 'Agent stopped' });
 });
+
+/**
+ * POST /api/devices/:id/push-mobile-agent
+ * 2026-06-08: 跟 push-agent 平行,推 mobile-agent bundle 到 mobile 设备。
+ * systemd unit 名是 auto-test-mobile-agent.service,入口是
+ * mobile-agent-src/index.js,听 4002 端口。
+ */
+deviceRoutes.post('/:id/push-mobile-agent', async (req: Request, res: Response) => {
+  const device = requireOwnedDevice(req, res);
+  if (!device) return;
+  if (device.test_type !== 'mobile') {
+    res.status(400).json({ code: 400, message: 'Only mobile devices support push-mobile-agent' });
+    return;
+  }
+  if (!isPushEnabled()) {
+    res.status(503).json({
+      code: 503,
+      message: 'Server has no AGENT_SSH_KEY_SECRET configured; SSH push is disabled. Set the env var on the central server and restart.',
+    });
+    return;
+  }
+  if (!device.ssh_host || !device.ssh_user || !device.ssh_auth_type) {
+    res.status(400).json({ code: 400, message: 'SSH host / user / auth type not configured for this device' });
+    return;
+  }
+
+  const result = await pushMobileAgent(device);
+  if (!result.ok) {
+    res.status(500).json({
+      code: 500,
+      message: result.error || 'push-mobile-agent failed',
+      data: result,
+    });
+    return;
+  }
+  res.json({
+    code: 200,
+    message: 'Mobile agent pushed and restarted',
+    data: result,
+  });
+});
+
+/**
+ * POST /api/devices/:id/stop-mobile-agent
+ * 2026-06-08: 跟 stop-agent 平行,停 auto-test-mobile-agent.service。
+ */
+deviceRoutes.post('/:id/stop-mobile-agent', async (req: Request, res: Response) => {
+  const device = requireOwnedDevice(req, res);
+  if (!device) return;
+  if (device.test_type !== 'mobile') {
+    res.status(400).json({ code: 400, message: 'Only mobile devices support stop-mobile-agent' });
+    return;
+  }
+  if (!isPushEnabled()) {
+    res.status(503).json({ code: 503, message: 'Server has no AGENT_SSH_KEY_SECRET configured' });
+    return;
+  }
+  if (!device.ssh_host || !device.ssh_user || !device.ssh_auth_type) {
+    res.status(400).json({ code: 400, message: 'SSH host / user / auth type not configured for this device' });
+    return;
+  }
+  const result = await stopMobileAgent(device);
+  if (!result.ok) {
+    res.status(500).json({ code: 500, message: result.error || 'stop-mobile-agent failed' });
+    return;
+  }
+  res.json({ code: 200, message: 'Mobile agent stopped' });
+});
+
+/**
+ * POST /api/devices/:id/push-pc-agent
+ * 2026-06-15: 跟 push-agent/push-mobile-agent 平行,推 pc-agent bundle 到 PC 设备。
+ * systemd unit 名是 auto-test-pc-agent.service,入口是 pc-agent-src/index.js,
+ * 听 4003 端口。pc-agent 使用 @midscene/computer 驱动原生桌面。
+ */
+deviceRoutes.post('/:id/push-pc-agent', async (req: Request, res: Response) => {
+  const device = requireOwnedDevice(req, res);
+  if (!device) return;
+  if (device.test_type !== 'pc') {
+    res.status(400).json({ code: 400, message: 'Only PC devices support push-pc-agent' });
+    return;
+  }
+  if (!isPushEnabled()) {
+    res.status(503).json({
+      code: 503,
+      message: 'Server has no AGENT_SSH_KEY_SECRET configured; SSH push is disabled. Set the env var on the central server and restart.',
+    });
+    return;
+  }
+  if (!device.ssh_host || !device.ssh_user || !device.ssh_auth_type) {
+    res.status(400).json({ code: 400, message: 'SSH host / user / auth type not configured for this device' });
+    return;
+  }
+
+  const result = await pushPcAgent(device);
+  if (!result.ok) {
+    res.status(500).json({
+      code: 500,
+      message: result.error || 'push-pc-agent failed',
+      data: result,
+    });
+    return;
+  }
+  res.json({
+    code: 200,
+    message: 'PC agent pushed and restarted',
+    data: result,
+  });
+});
+
+/**
+ * POST /api/devices/:id/stop-pc-agent
+ * 2026-06-15: 跟 stop-agent/stop-mobile-agent 平行,停 auto-test-pc-agent.service。
+ */
+deviceRoutes.post('/:id/stop-pc-agent', async (req: Request, res: Response) => {
+  const device = requireOwnedDevice(req, res);
+  if (!device) return;
+  if (device.test_type !== 'pc') {
+    res.status(400).json({ code: 400, message: 'Only PC devices support stop-pc-agent' });
+    return;
+  }
+  if (!isPushEnabled()) {
+    res.status(503).json({ code: 503, message: 'Server has no AGENT_SSH_KEY_SECRET configured' });
+    return;
+  }
+  if (!device.ssh_host || !device.ssh_user || !device.ssh_auth_type) {
+    res.status(400).json({ code: 400, message: 'SSH host / user / auth type not configured for this device' });
+    return;
+  }
+  const result = await stopPcAgent(device);
+  if (!result.ok) {
+    res.status(500).json({ code: 500, message: result.error || 'stop-pc-agent failed' });
+    return;
+  }
+  res.json({ code: 200, message: 'PC agent stopped' });
+});
+
+// ── Agent health check (2026-06-20) ──
+// GET /api/devices/:id/health — ping the agent's /healthz endpoint and
+// return { ok, version, latency_ms } or { ok: false, error }.
+// Used by the frontend DevicePicker to show real-time agent reachability.
+deviceRoutes.get('/:id/health', async (req: Request, res: Response) => {
+  const id = Number(req.params.id);
+  if (!id) {
+    res.status(400).json({ code: 400, message: 'Invalid id' });
+    return;
+  }
+  const device = getDevice(id);
+  if (!device) {
+    res.status(404).json({ code: 404, message: 'Device not found' });
+    return;
+  }
+  if (device.user_id !== req.user!.userId) {
+    res.status(403).json({ code: 403, message: 'Forbidden' });
+    return;
+  }
+  if (!device.agent_endpoint) {
+    res.json({ code: 200, message: 'ok', data: { ok: false, error: 'Agent endpoint not configured' } });
+    return;
+  }
+  const start = Date.now();
+  try {
+    const result = await healthCheckAgent(device.agent_endpoint);
+    const latency = Date.now() - start;
+    res.json({
+      code: 200,
+      message: 'ok',
+      data: { ok: result.ok, version: result.version ?? null, latency_ms: latency },
+    });
+  } catch (e) {
+    res.json({
+      code: 200,
+      message: 'ok',
+      data: { ok: false, error: e instanceof Error ? e.message : 'Connection failed' },
+    });
+  }
+});
+
+// ── Merged device list (2026-06-08) ──
+//

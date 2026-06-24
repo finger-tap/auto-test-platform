@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import FormSelect from '../../components/FormSelect';
 import { apiFetch } from '../../utils/api';
 import notification from '../../utils/notification';
 import './DeviceList.css';
@@ -133,7 +134,7 @@ export default function DeviceList() {
     }).finally(() => setLoading(false));
   };
 
-  useEffect(() => { fetchDevices(); }, [filterType, filterStatus]);
+  useEffect(() => { fetchDevices(); }, []);
 
   const openCreate = () => {
     setEditing(null);
@@ -253,7 +254,8 @@ export default function DeviceList() {
   };
 
   const handleDelete = async (device: DeviceRow) => {
-    if (!confirm(`确定删除设备「${device.name}」？该操作不可恢复。`)) return;
+    const ok = await notification.confirm(`确定删除设备「${device.name}」？该操作不可恢复。`);
+    if (!ok) return;
     try {
       const res = await apiFetch<{ changes: number }>(`/devices/${device.id}`, { method: 'DELETE' });
       if (res.code === 200) {
@@ -269,7 +271,7 @@ export default function DeviceList() {
 
   const handlePush = async (device: DeviceRow) => {
     // 2026-06-07: SSH config is now validated at click time, not at render
-    // time, so the button stays visible for every web device. If the user
+    // time, so the button stays visible for every pushable device. If the user
     // hasn't filled in SSH info yet, nudge them to the edit form instead
     // of silently failing.
     if (!hasSshConfig(device)) {
@@ -278,11 +280,23 @@ export default function DeviceList() {
       setShowSshSection(true);
       return;
     }
-    if (!confirm(`将向 ${device.ssh_user}@${device.ssh_host} 推送最新 agent 并通过 systemd 启动,可能需要 1-2 分钟。是否继续?`)) return;
+    // 2026-06-09: 端点按 test_type 选 — web 走 /push-agent,mobile 走
+    // /push-mobile-agent,pc 走 /push-pc-agent。Server 端 push.ts 内部按
+    // kind 决定 systemd vs launchd,wda vs adb 区别。
+    // 2026-06-15: 加入 pc 分支。
+    const endpoint = device.test_type === 'mobile' ? 'push-mobile-agent'
+      : device.test_type === 'pc' ? 'push-pc-agent'
+      : 'push-agent';
+    const agentLabel = device.test_type === 'mobile' ? 'mobile-agent'
+      : device.test_type === 'pc' ? 'pc-agent'
+      : 'web-agent';
+    const serviceMgr = device.os_type === 'macos' ? 'launchd' : 'systemd';
+    const ok = await notification.confirm(`将向 ${device.ssh_user}@${device.ssh_host} 推送最新 ${agentLabel} 并通过 ${serviceMgr} 启动,可能需要 1-2 分钟。是否继续?`);
+    if (!ok) return;
     setPushingId(device.id);
     try {
       const res = await apiFetch<{ version?: string; took_ms?: number; bytes_uploaded?: number; error?: string }>(
-        `/devices/${device.id}/push-agent`,
+        `/devices/${device.id}/${endpoint}`,
         { method: 'POST' }
       );
       if (res.code === 200) {
@@ -302,7 +316,7 @@ export default function DeviceList() {
 
   const handleStop = async (device: DeviceRow) => {
     // 2026-06-07: same validation-at-click pattern as handlePush — the
-    // stop button is visible for every online web device, but we still
+    // stop button is visible for every online pushable device, but we still
     // bail to the edit form if SSH isn't configured.
     if (!hasSshConfig(device)) {
       notification.warning('该设备尚未配置 SSH 推送信息,请先编辑');
@@ -310,10 +324,15 @@ export default function DeviceList() {
       setShowSshSection(true);
       return;
     }
-    if (!confirm(`将通过 SSH 停止 ${device.name} 上的 agent (systemctl stop)。是否继续?`)) return;
+    const endpoint = device.test_type === 'mobile' ? 'stop-mobile-agent'
+      : device.test_type === 'pc' ? 'stop-pc-agent'
+      : 'stop-agent';
+    const stopCmd = device.os_type === 'macos' ? 'launchctl unload' : 'systemctl stop';
+    const ok = await notification.confirm(`将通过 SSH 停止 ${device.name} 上的 agent (${stopCmd})。是否继续?`);
+    if (!ok) return;
     setStoppingId(device.id);
     try {
-      const res = await apiFetch<unknown>(`/devices/${device.id}/stop-agent`, { method: 'POST' });
+      const res = await apiFetch<unknown>(`/devices/${device.id}/${endpoint}`, { method: 'POST' });
       if (res.code === 200) {
         notification.success('已下线');
         fetchDevices();
@@ -334,7 +353,7 @@ export default function DeviceList() {
     !!(d.ssh_host && d.ssh_user && d.ssh_auth_type);
 
   return (
-    <div className="device-list">
+    <div className="device-list page-enter">
       <div className="device-list__header">
         <h2>设备库</h2>
         <p className="device-list__desc">管理 Web / PC / 移动端测试所需的设备与浏览器实例</p>
@@ -342,18 +361,8 @@ export default function DeviceList() {
 
       <div className="device-list__toolbar">
         <div className="device-list__filters">
-          <select value={filterType} onChange={e => setFilterType(e.target.value as DeviceTestType | '')}>
-            <option value="">全部类型</option>
-            {TEST_TYPE_OPTIONS.map(t => (
-              <option key={t.value} value={t.value}>{t.label}</option>
-            ))}
-          </select>
-          <select value={filterStatus} onChange={e => setFilterStatus(e.target.value as DeviceStatus | '')}>
-            <option value="">全部状态</option>
-            {STATUS_OPTIONS.map(s => (
-              <option key={s.value} value={s.value}>{s.label}</option>
-            ))}
-          </select>
+          <FormSelect value={filterType} options={[{ value: '', label: '全部类型' }, ...TEST_TYPE_OPTIONS]} onChange={v => setFilterType(v as DeviceTestType | '')} size="sm" />
+          <FormSelect value={filterStatus} options={[{ value: '', label: '全部状态' }, ...STATUS_OPTIONS.map(s => ({ value: s.value, label: s.label }))]} onChange={v => setFilterStatus(v as DeviceStatus | '')} size="sm" />
           <input
             type="text"
             placeholder="搜索名称 / 序列号 / 地址"
@@ -386,12 +395,12 @@ export default function DeviceList() {
             </tr>
           </thead>
           <tbody>
-            {devices.map(device => {
+            {devices.map((device, index) => {
               const s = statusInfo(device.status);
               const isPushing = pushingId === device.id;
               const isStopping = stoppingId === device.id;
               return (
-                <tr key={device.id}>
+                <tr key={device.id} className="row-enter" style={{ '--delay': `${index * 30}ms` } as React.CSSProperties}>
                   <td className="device-list__name">
                     {device.name}
                     {device.needs_upgrade === 1 && (
@@ -410,13 +419,13 @@ export default function DeviceList() {
                   <td>{device.last_seen_at ? formatDate(device.last_seen_at) : formatDate(device.last_heartbeat)}</td>
                   <td>{formatDate(device.updated_at)}</td>
                   <td className="device-list__actions">
-                    {device.test_type === 'web' && (
+                    {(device.test_type === 'web' || device.test_type === 'mobile' || device.test_type === 'pc') && (
                       device.status === 'online' ? (
                         <button
                           onClick={() => handleStop(device)}
                           disabled={isPushing || isStopping}
                           className="device-list__btn--online"
-                          title={hasSshConfig(device) ? '通过 SSH 停止 agent (systemctl stop)' : '尚未配置 SSH,点击去编辑'}
+                          title={hasSshConfig(device) ? `通过 SSH 停止 agent (${device.os_type === 'macos' ? 'launchctl unload' : 'systemctl stop'})` : '尚未配置 SSH,点击去编辑'}
                         >
                           {isStopping ? '下线中…' : '下线'}
                         </button>
@@ -425,7 +434,7 @@ export default function DeviceList() {
                           onClick={() => handlePush(device)}
                           disabled={isPushing || isStopping}
                           className="device-list__btn--offline"
-                          title={hasSshConfig(device) ? '通过 SSH 推送最新 agent + 启动 (需要 1-2 分钟)' : '尚未配置 SSH,点击去编辑'}
+                          title={hasSshConfig(device) ? `通过 SSH 推送最新 ${device.test_type === 'mobile' ? 'mobile-' : device.test_type === 'pc' ? 'pc-' : ''}agent + 启动 (需要 1-2 分钟)` : '尚未配置 SSH,点击去编辑'}
                         >
                           {isPushing ? '上线中…' : (device.needs_upgrade === 1 ? '升级上线' : '上线')}
                         </button>
@@ -457,18 +466,15 @@ export default function DeviceList() {
               </label>
               <label>
                 <span>测试类型 <em>*</em></span>
-                <select
+                <FormSelect
                   value={form.test_type}
-                  onChange={e => {
-                    const t = e.target.value as DeviceTestType;
+                  options={TEST_TYPE_OPTIONS}
+                  onChange={v => {
+                    const t = v as DeviceTestType;
                     const presets = PLATFORM_PRESETS[t];
                     setForm({ ...form, test_type: t, platform: presets[0] });
                   }}
-                >
-                  {TEST_TYPE_OPTIONS.map(t => (
-                    <option key={t.value} value={t.value}>{t.label}</option>
-                  ))}
-                </select>
+                />
               </label>
               <label>
                 <span>平台 <em>*</em></span>
@@ -504,18 +510,14 @@ export default function DeviceList() {
               </label>
               <label>
                 <span>状态</span>
-                <select
+                <FormSelect
                   value={form.status}
-                  onChange={e => setForm({ ...form, status: e.target.value as DeviceStatus })}
-                >
-                  {STATUS_OPTIONS.map(s => (
-                    <option key={s.value} value={s.value}>{s.label}</option>
-                  ))}
-                </select>
+                  options={STATUS_OPTIONS.map(s => ({ value: s.value, label: s.label }))}
+                  onChange={v => setForm({ ...form, status: v as DeviceStatus })}
+                />
               </label>
 
-              {form.test_type === 'web' && (
-                <div className="device-list__ssh-section">
+              <div className="device-list__ssh-section">
                   <button
                     type="button"
                     className="device-list__ssh-toggle"
@@ -529,8 +531,8 @@ export default function DeviceList() {
                   {showSshSection && (
                     <div className="device-list__ssh-body">
                       <p className="device-list__hint">
-                        填入 SSH 凭据后,可在列表点击"重连/升级"一键推送最新 agent 并通过 systemd 重启。
-                        当前仅支持 Linux + systemd 的远程机器。
+                        填入 SSH 凭据后,可在列表点击"上线"一键推送最新 agent 并重启服务。
+                        支持 Linux(systemd) 和 macOS(launchd) 远程机器。
                       </p>
                       <div className="device-list__ssh-grid">
                         <label>
@@ -563,14 +565,15 @@ export default function DeviceList() {
                         </label>
                         <label>
                           <span>认证方式</span>
-                          <select
+                          <FormSelect
                             value={form.ssh_auth_type}
-                            onChange={e => setForm({ ...form, ssh_auth_type: e.target.value as SshAuthType | '' })}
-                          >
-                            <option value="">不启用</option>
-                            <option value="password">密码</option>
-                            <option value="private_key">私钥</option>
-                          </select>
+                            options={[
+                              { value: '', label: '不启用' },
+                              { value: 'password', label: '密码' },
+                              { value: 'private_key', label: '私钥' },
+                            ]}
+                            onChange={v => setForm({ ...form, ssh_auth_type: v as SshAuthType | '' })}
+                          />
                         </label>
                       </div>
                       {form.ssh_auth_type === 'password' && (
@@ -599,18 +602,19 @@ export default function DeviceList() {
                       )}
                       <label>
                         <span>操作系统类型</span>
-                        <select
+                        <FormSelect
                           value={form.os_type}
-                          onChange={e => setForm({ ...form, os_type: e.target.value })}
-                        >
-                          <option value="linux">Linux (systemd)</option>
-                        </select>
-                        <small className="device-list__hint device-list__hint--warn">macOS / Windows 暂不支持 SSH 推送</small>
+                          options={[
+                            { value: 'linux', label: 'Linux (systemd)' },
+                            { value: 'macos', label: 'macOS (launchd)' },
+                          ]}
+                          onChange={v => setForm({ ...form, os_type: v })}
+                        />
+                        <small className="device-list__hint">macOS 用于部署 iOS 测试 agent(Mac 上跑 WDA 接真机/模拟器)</small>
                       </label>
                     </div>
                   )}
                 </div>
-              )}
 
               <div className="device-list__modal-actions">
                 <button type="button" onClick={closeForm} disabled={saving}>取消</button>

@@ -19,6 +19,7 @@
 
 import type { Request, Response, NextFunction, RequestHandler } from 'express';
 import path from 'node:path';
+import fs from 'node:fs';
 import db from './db/index.js';
 import { REPORTS_ROOT } from './engine/report-paths.js';
 
@@ -117,29 +118,67 @@ export const serveMidsceneReport: RequestHandler = (req: Request, res: Response,
   const isCacheHit = pathCache.has(cacheKeyStr) && Date.now() - (pathCache.get(cacheKeyStr)!.ts) < CACHE_TTL_MS;
 
   console.log(`[static:midscene] resolved execId=${execId} fsPath=${fsPath} (cache ${isCacheHit ? 'hit' : 'miss'})`);
-  res.sendFile(fsPath, (err) => {
-    if (err) {
-      // sendFile sets the response only if headers haven't been sent. If
-      // the file is missing, fall through to the next middleware (404).
+  // Use streaming (chunked transfer) instead of sendFile to avoid
+  // ERR_CONTENT_LENGTH_MISMATCH when the report file is still being
+  // written by the executor. sendFile sets Content-Length from fs.stat()
+  // at request time, but the file may grow as the executor continues
+  // writing — causing the browser to see fewer bytes than promised.
+  try {
+    const stat = fs.statSync(fsPath);
+    if (!stat.isFile()) return res.status(404).send('报告文件不存在或已被删除');
+    const ext = path.extname(fsPath).toLowerCase();
+    const contentType: Record<string, string> = {
+      '.html': 'text/html; charset=utf-8',
+      '.js': 'application/javascript; charset=utf-8',
+      '.css': 'text/css; charset=utf-8',
+      '.json': 'application/json; charset=utf-8',
+      '.png': 'image/png',
+      '.jpg': 'image/jpeg',
+      '.jpeg': 'image/jpeg',
+      '.gif': 'image/gif',
+      '.svg': 'image/svg+xml',
+      '.ico': 'image/x-icon',
+      '.woff': 'font/woff',
+      '.woff2': 'font/woff2',
+      '.ttf': 'font/ttf',
+      '.map': 'application/json',
+    };
+    if (contentType[ext]) res.setHeader('Content-Type', contentType[ext]);
+    res.setHeader('Transfer-Encoding', 'chunked');
+    const stream = fs.createReadStream(fsPath);
+    stream.on('error', (streamErr) => {
+      console.log(`[static:midscene] stream error for ${fsPath}: ${(streamErr as NodeJS.ErrnoException).code}`);
       if (!res.headersSent) {
-        const errnoCode = (err as NodeJS.ErrnoException).code;
-        if (errnoCode === 'ENOENT') {
-          // Last-ditch fallback: try the default REPORTS_ROOT location.
-          const fallback = fallbackPath(testType, caseId, execId);
-          if (fallback !== fsPath) {
-            console.log(`[static:midscene] primary not found, retrying fallback=${fallback}`);
-            res.sendFile(fallback, (err2) => {
-              if (err2 && !res.headersSent) next();
-            });
-            return;
+        res.status(404).send('报告文件不存在或已被删除');
+      }
+    });
+    stream.pipe(res);
+  } catch (e) {
+    const errnoCode = (e as NodeJS.ErrnoException).code;
+    console.log(`[static:midscene] stat error for ${fsPath}: ${errnoCode}`);
+    if (errnoCode === 'ENOENT') {
+      const fallback = fallbackPath(testType, caseId, execId);
+      if (fallback !== fsPath) {
+        console.log(`[static:midscene] primary not found, retrying fallback=${fallback}`);
+        try {
+          const stat2 = fs.statSync(fallback);
+          if (!stat2.isFile()) {
+            return res.status(404).send('报告文件不存在或已被删除');
           }
-          next();
-        } else {
-          next();
-        }
+          res.setHeader('Content-Type', 'text/html; charset=utf-8');
+          res.setHeader('Transfer-Encoding', 'chunked');
+          fs.createReadStream(fallback).pipe(res);
+          return;
+        } catch { /* fall through to 404 */ }
       }
     }
-  });
+    // Never fall through to next() (Vite SPA) — always return an error
+    // response so the iframe doesn't show the project home page.
+    if (errnoCode === 'EACCES' || errnoCode === 'EPERM') {
+      return res.status(403).send('Permission denied — cannot read report file. Check server logs.');
+    }
+    return res.status(404).send('报告文件不存在或已被删除');
+  }
 };
 
 export function clearMidsceneReportPathCache(): void {

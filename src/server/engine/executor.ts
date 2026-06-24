@@ -227,12 +227,20 @@ export async function executeScenario(
   // Load environment
   const envContext: Record<string, string> = {};
   let envSSL: { cert?: string; key?: string; timeout?: number } = {};
+  // Store full certs array for per-API cert selection
+  let envCerts: Array<{ name: string; cert: string; key: string }> = [];
   if (environmentId) {
-    const { findEnvById, envToMap } = await import('../db/environments.js');
+    const { findEnvById, envToMap, envToSslCerts } = await import('../db/environments.js');
     const env = findEnvById(environmentId, scenario.user_id);
     if (env) {
       Object.assign(envContext, envToMap(env));
-      if (env.ssl_cert || env.ssl_key) envSSL = { cert: env.ssl_cert || undefined, key: env.ssl_key || undefined };
+      envCerts = envToSslCerts(env);
+      // Default: use first cert (will be overridden per API node if ssl_cert_name is set)
+      if (envCerts.length > 0) {
+        envSSL = { cert: envCerts[0].cert, key: envCerts[0].key };
+      } else if (env.ssl_cert || env.ssl_key) {
+        envSSL = { cert: env.ssl_cert || undefined, key: env.ssl_key || undefined };
+      }
       if (env.timeout) envSSL.timeout = env.timeout;
     }
   }
@@ -365,10 +373,22 @@ export async function executeScenario(
             }
           }
 
+          // Resolve SSL cert for this API node (per-API selection or default)
+          let nodeSslCert = envSSL.cert;
+          let nodeSslKey = envSSL.key;
+          if (envCerts.length > 0) {
+            const { findApiById } = await import('../db/apis.js');
+            const apiRow = findApiById(config.api_id);
+            if (apiRow?.ssl_cert_name) {
+              const match = envCerts.find(c => c.name === apiRow.ssl_cert_name);
+              if (match) { nodeSslCert = match.cert; nodeSslKey = match.key; }
+            }
+          }
+
           // Execute API with scenario execution context
           const apiResults = await executeApi(config.api_id, context, config.override_headers, config.override_body, {
-            sslCert: envSSL.cert,
-            sslKey: envSSL.key,
+            sslCert: nodeSslCert,
+            sslKey: nodeSslKey,
             timeout: envSSL.timeout,
             scenarioExecutionId: currentExecutionId,
             scenarioId,

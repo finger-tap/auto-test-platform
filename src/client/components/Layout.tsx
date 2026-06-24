@@ -1,4 +1,6 @@
+import { useEffect } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
+import { useEnvironment } from '../contexts/EnvironmentContext';
 import SysHeader from './SysHeader';
 import './Layout.css';
 
@@ -114,6 +116,9 @@ export default function Layout() {
     : 'api-test';
   const sections = MENUS_BY_TYPE[testType] || MENUS_BY_TYPE['api-test'];
   const brand = BRAND_CONFIG[testType] || BRAND_CONFIG['api-test'];
+
+  const { setCurrentTestType } = useEnvironment();
+  useEffect(() => { setCurrentTestType(testType); }, [testType, setCurrentTestType]);
 
   const isActive = (path: string) => {
     // 仪表盘是根路径，必须精确匹配，否则所有子页面都会命中

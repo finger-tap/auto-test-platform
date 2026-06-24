@@ -1,0 +1,45 @@
+/* ── Unified Filter Bar ── */
+
+.alist-filter {
+  padding: 16px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.alist-filter-row {
+  display: flex;
+  gap: 12px;
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+.alist-filter-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.alist-filter-item label {
+  font-size: 12px;
+  color: var(--fg-secondary);
+  font-weight: 500;
+}
+.alist-filter-item input,
+.alist-filter-item select {
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  background: var(--surface);
+  color: var(--fg);
+  outline: none;
+  transition: border-color 0.15s;
+}
+.alist-filter-item input:focus,
+.alist-filter-item select:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-subtle);
+}
+.alist-filter-actions {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+  margin-left: auto;
+}

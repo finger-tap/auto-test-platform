@@ -15,6 +15,7 @@ import {
 import { findUserById } from '../db/users.js';
 import { executePcCase } from '../engine/pc-executor.js';
 import { relativeReportUrl } from '../engine/report-paths.js';
+import { findEnvById, envToMap } from '../db/environments.js';
 
 export const pcCaseRoutes = Router();
 pcCaseRoutes.use(authMiddleware);
@@ -23,13 +24,17 @@ pcCaseRoutes.use(authMiddleware);
 pcCaseRoutes.get('/', (req: Request, res: Response) => {
   const page = Math.max(1, Number(req.query.page) || 1);
   const pageSize = Math.min(100, Math.max(1, Number(req.query.pageSize) || 10));
-  const sortField = (req.query.sortField as string) || 'updated_at';
-  const sortOrder = (req.query.sortOrder as string) || 'DESC';
+  const sortField = (req.query.sort as string) || 'updated_at';
+  const sortOrder = (req.query.order as string) || 'DESC';
 
   const filters = {
     name: req.query.name as string | undefined,
+    description: req.query.description as string | undefined,
     status: req.query.status as string | undefined,
     tag: req.query.tag as string | undefined,
+    platform: req.query.platform as string | undefined,
+    dateFrom: req.query.dateFrom as string | undefined,
+    dateTo: req.query.dateTo as string | undefined,
   };
 
   const result = listPcCases(req.user!.userId, page, pageSize, sortField, sortOrder, filters);
@@ -43,6 +48,7 @@ pcCaseRoutes.post('/', (req: Request, res: Response) => {
     description,
     tags,
     status,
+    platform,
     steps,
     check_points,
     data_drive,
@@ -53,6 +59,10 @@ pcCaseRoutes.post('/', (req: Request, res: Response) => {
     case_content_type,
     driver_path,
     close_browser_after_execution,
+    display_id,
+    keyboard_driver,
+    xvfb_resolution,
+    headless,
   } = req.body;
 
   if (!name || typeof name !== 'string' || !name.trim()) {
@@ -70,6 +80,7 @@ pcCaseRoutes.post('/', (req: Request, res: Response) => {
     description,
     tags,
     status,
+    platform,
     steps: stepsJson || undefined,
     check_points: checkPointsJson || undefined,
     data_drive: dataDriveJson || undefined,
@@ -80,6 +91,10 @@ pcCaseRoutes.post('/', (req: Request, res: Response) => {
     case_content_type: case_content_type === 'yaml' ? 'yaml' : 'text',
     driver_path: typeof driver_path === 'string' && driver_path.trim() ? driver_path.trim() : null,
     close_browser_after_execution: close_browser_after_execution === 1 || close_browser_after_execution === true ? 1 : 0,
+    display_id: typeof display_id === 'string' && display_id.trim() ? display_id.trim() : null,
+    keyboard_driver: keyboard_driver === 'applescript' || keyboard_driver === 'libnut' ? keyboard_driver : null,
+    xvfb_resolution: typeof xvfb_resolution === 'string' && xvfb_resolution.trim() ? xvfb_resolution.trim() : null,
+    headless: headless === 1 || headless === true ? 1 : 0,
   });
   res.status(201).json({ code: 201, message: 'Created', data: { id } });
 });
@@ -120,6 +135,7 @@ pcCaseRoutes.put('/:id', (req: Request, res: Response) => {
     description,
     tags,
     status,
+    platform,
     steps,
     check_points,
     data_drive,
@@ -130,6 +146,10 @@ pcCaseRoutes.put('/:id', (req: Request, res: Response) => {
     case_content_type,
     driver_path,
     close_browser_after_execution,
+    display_id,
+    keyboard_driver,
+    xvfb_resolution,
+    headless,
   } = req.body;
 
   const stepsJson = typeof steps === 'string' ? steps : (Array.isArray(steps) ? JSON.stringify(steps) : undefined);
@@ -154,6 +174,7 @@ pcCaseRoutes.put('/:id', (req: Request, res: Response) => {
     description,
     tags,
     status,
+    platform,
     steps: stepsJson,
     check_points: checkPointsJson,
     data_drive: dataDriveJson,
@@ -164,6 +185,10 @@ pcCaseRoutes.put('/:id', (req: Request, res: Response) => {
     case_content_type: case_content_type === 'yaml' || case_content_type === 'text' ? case_content_type : undefined,
     driver_path: driverPathUpdate,
     close_browser_after_execution: closeBrowserUpdate,
+    display_id: typeof display_id === 'string' ? (display_id.trim() || null) : (display_id === null ? null : undefined),
+    keyboard_driver: keyboard_driver === 'applescript' || keyboard_driver === 'libnut' ? keyboard_driver : (keyboard_driver === null ? null : undefined),
+    xvfb_resolution: typeof xvfb_resolution === 'string' ? (xvfb_resolution.trim() || null) : (xvfb_resolution === null ? null : undefined),
+    headless: headless === 1 || headless === true ? 1 : headless === 0 || headless === false ? 0 : undefined,
   });
   res.json({ code: 200, message: 'Updated' });
 });
@@ -185,20 +210,59 @@ pcCaseRoutes.post('/:id/execute', async (req: Request, res: Response) => {
   const executedBy = executor?.nickname || executor?.account || 'unknown';
   const deviceId = Number(req.query.deviceId) || undefined;
 
+  // 2026-06-20: busy 锁 — 远程设备必须空闲才能执行
+  if (deviceId) {
+    const { findRunningPcExecutionByDevice } = await import('../db/pc-cases.js');
+    const running = findRunningPcExecutionByDevice(deviceId);
+    if (running) {
+      res.status(409).json({ code: 409, message: '该设备正在执行其他任务，请稍后再试' });
+      return;
+    }
+  }
+
   // Phase 3: write a normalized pc_case_executions row first.
   const startedAt = new Date().toISOString();
   const execId = createPcCaseExecution(pcCase.id, req.user!.userId, {
     started_at: startedAt,
     executed_by: executedBy,
+    device_id: deviceId ?? null,
   });
 
-  const result = await executePcCase(pcCase, {
-    executedBy,
-    caseId: pcCase.id,
-    execId,
-    deviceId,
-    userId: req.user!.userId,
-  });
+  // Environment variable substitution: load env vars from the selected environment.
+  let envVars: Record<string, string> | undefined;
+  const environmentId = typeof req.body?.environmentId === 'number' ? req.body.environmentId : undefined;
+  if (environmentId) {
+    const env = findEnvById(environmentId, req.user!.userId);
+    if (env) {
+      envVars = envToMap(env);
+      console.log(`[routes:pc-cases] case=${pcCase.id} envId=${environmentId} envVars=${Object.keys(envVars).length} keys=${Object.keys(envVars).join(',')}`);
+    }
+  }
+
+  let result: Awaited<ReturnType<typeof executePcCase>>;
+  try {
+    result = await executePcCase(pcCase, {
+      executedBy,
+      caseId: pcCase.id,
+      execId,
+      deviceId,
+      userId: req.user!.userId,
+      envVars,
+    });
+  } catch (err) {
+    const finishedAt = new Date().toISOString();
+    console.error(`[routes:pc-cases] executor threw for case=${pcCase.id} execId=${execId}`, err);
+    finishPcCaseExecution(execId, {
+      status: 'failed',
+      finished_at: finishedAt,
+      duration_ms: Date.now() - new Date(startedAt).getTime(),
+      report_path: null,
+      report_type: null,
+      error_message: err instanceof Error ? err.message : String(err),
+    });
+    res.status(500).json({ code: 500, message: '执行异常', data: { error_message: err instanceof Error ? err.message : String(err) } });
+    return;
+  }
 
   const finishedAt = new Date().toISOString();
   finishPcCaseExecution(execId, {

@@ -10,7 +10,7 @@
 
 /* ── Filter Area ── */
 .alist-filter {
-  background: #fff;
+  background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 8px;
   padding: 0.875rem 1rem;
@@ -67,7 +67,7 @@
   font-size: 0.8125rem;
   cursor: pointer;
   border: 1px solid var(--border);
-  background: #fff;
+  background: var(--surface);
   color: var(--fg);
   transition: all 0.15s;
 }
@@ -90,7 +90,7 @@
 
 /* ── Table Wrapper ── */
 .alist-table-wrap {
-  background: #fff;
+  background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 8px;
   overflow: hidden;
@@ -167,7 +167,7 @@
   padding: 2px 8px;
   border-radius: 4px;
   font-size: 0.75rem;
-  border: 1px solid;
+  border: 1px solid var(--border);
   cursor: pointer;
   transition: all 0.15s;
   white-space: nowrap;
@@ -216,7 +216,7 @@
 .alist-empty {
   text-align: center;
   padding: 3rem 1rem;
-  background: #fff;
+  background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 8px;
 }
@@ -243,7 +243,7 @@
 }
 
 .page-btn {
-  background: #fff;
+  background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 4px;
   padding: 0.25rem 0.75rem;
@@ -270,7 +270,7 @@
 }
 
 .page-size-select {
-  background: #fff;
+  background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 4px;
   padding: 0.25rem 0.5rem;
@@ -279,9 +279,8 @@
 }
 
 /* ── Row Actions ── */
-.row-actions { display: none; gap: 4px; }
-.alist-table tbody tr:hover .row-actions { display: inline-flex; }
-.row-action-btn { width: 26px; height: 26px; border: none; border-radius: var(--radius-sm); font-size: 12px; cursor: pointer; transition: background 0.12s; background: none; color: var(--fg-secondary); display: inline-flex; align-items: center; justify-content: center; }
+.row-actions { display: flex; gap: 4px; justify-content: flex-end; white-space: nowrap; }
+.row-action-btn { height: 26px; padding: 0 8px; border: none; border-radius: var(--radius-sm); font-size: 12px; cursor: pointer; transition: background 0.12s, color 0.12s; background: none; color: var(--fg-secondary); display: inline-flex; align-items: center; gap: 3px; white-space: nowrap; }
 .row-action-btn:hover { background: var(--accent-subtle); color: var(--accent); }
 .row-action-del:hover { background: var(--danger-subtle); color: var(--danger); }
 
@@ -289,7 +288,7 @@
 .alist-float {
   position: fixed;
   z-index: 1000;
-  background: #fff;
+  background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 8px;
   box-shadow: var(--shadow-lg);

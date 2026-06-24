@@ -1,0 +1,30 @@
+/* ── Unified Pagination ── */
+
+.alist-pagination {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--border-subtle);
+}
+.page-info {
+  font-size: 12px;
+  color: var(--fg-secondary);
+  margin-right: auto;
+}
+/* Pagination buttons — explicit color for dark mode visibility */
+.alist-pagination .btn {
+  color: var(--fg);
+  border-color: var(--border);
+  background: var(--surface);
+}
+.alist-pagination .btn:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.alist-pagination .btn:disabled {
+  color: var(--fg-tertiary);
+  border-color: var(--border);
+  background: var(--bg);
+  opacity: 1;
+}

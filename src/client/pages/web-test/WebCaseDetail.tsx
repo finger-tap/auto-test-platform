@@ -2,10 +2,13 @@ import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { InlineText, InlineSelect } from '../../components/InlineEdit';
 import TagInput from '../../components/TagInput';
+import FormSelect from '../../components/FormSelect';
+import DevicePickerModal from '../../components/DevicePickerModal';
 import LogTab, { type ExecRecord } from '../../components/tabs/LogTab';
 import { CaseContentEditor, type CaseContentType } from '../../components/CaseContentEditor';
 import { apiFetch } from '../../utils/api';
-import { formatDateTime } from '../../utils/datetime';
+import { useEnvironment } from '../../contexts/EnvironmentContext';
+import { formatDateTime, formatDuration } from '../../utils/datetime';
 import notification from '../../utils/notification';
 import type { NLStep } from '../../types';
 import './WebCaseDetail.css';
@@ -83,14 +86,15 @@ function renderDesc(desc: string) {
 export default function WebCaseDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { activeEnv } = useEnvironment();
   const isNew = !id || id === 'new';
   const [loading, setLoading] = useState(false);
   const [executing, setExecuting] = useState(false);
   const [saving, setSaving] = useState(false);
-  // 2026-06-06: target device for execution. null = local in-process
-  // browser (default). The picker only lists the user's web devices.
-  const [availableDevices, setAvailableDevices] = useState<Array<{ id: number; name: string; status: string; last_seen_at: string | null }>>([]);
+  // 2026-06-21: 统一设备选择弹窗。null = 本机执行。
   const [selectedDeviceId, setSelectedDeviceId] = useState<number | null>(null);
+  const [selectedDeviceName, setSelectedDeviceName] = useState<string | null>(null);
+  const [devicePickerOpen, setDevicePickerOpen] = useState(false);
 
 
   const [activeTab, setActiveTab] = useState('detail');
@@ -133,7 +137,6 @@ export default function WebCaseDetail() {
 
   const [execRecords, setExecRecords] = useState<ExecRecord[]>([]);
   const [latestReportUrl, setLatestReportUrl] = useState<string | null>(null);
-  const [toast, setToast] = useState<{ type: 'success' | 'error' | 'info'; msg: string } | null>(null);
 
   // Compute dirty by JSON-encoding every relevant field. Compared to the
   // original snapshot taken at load time (or right after a successful save).
@@ -266,36 +269,28 @@ export default function WebCaseDetail() {
       .finally(() => setLoading(false));
   }, [id, isNew]);
 
-  // Load execution logs
+  // Load executions (has report_url) and build execRecords from them
   useEffect(() => {
     if (isNew || !id) return;
-    apiFetch<any>(`/web-cases/${id}/logs?limit=10`).then(res => {
-      if (res.code === 200 && res.data) {
-        setExecRecords(res.data.map((log: any) => ({
-          id: log.id,
-          time: formatDateTime(log.executed_at),
-          status: log.status as 'success' | 'failed' | 'running',
-          duration: log.duration_ms ? `${log.duration_ms}ms` : '-',
-          executor: log.executed_by || '-',
-          passRate: '-',
-        })));
-      }
-    });
-  }, [id, isNew]);
-
-  // Phase 5: load latest execution with a Midscene report (if any)
-  useEffect(() => {
-    if (isNew || !id) return;
-    apiFetch<any>(`/web-cases/${id}/executions?limit=1`).then(res => {
+    apiFetch<any>(`/web-cases/${id}/executions?limit=20`).then(res => {
       if (res.code === 200 && res.data && res.data.length > 0) {
-        const exec = res.data[0];
-        setLatestReportUrl(exec.report_url || null);
-        // Fill `passed` on each checkpoint by index, based on the latest
-        // execution's per-checkpoint result. Tolerates any shape mismatch
-        // (older executions, errors, etc.) — just leave the previous value.
-        const result = typeof exec.result === 'string'
-          ? (() => { try { return JSON.parse(exec.result); } catch { return null; } })()
-          : exec.result;
+        const execs = res.data;
+        setExecRecords(execs.map((e: any) => ({
+          id: e.id,
+          time: formatDateTime(e.started_at),
+          status: (e.status === 'success' || e.status === 'failed' || e.status === 'error') ? e.status : 'running',
+          duration: formatDuration(e.duration_ms),
+          executor: '-',
+          passRate: '-',
+          reportUrl: e.report_url,
+          errorMessage: e.error_message,
+        })));
+        const latest = execs[0];
+        setLatestReportUrl(latest.report_url || null);
+        // Fill `passed` on each checkpoint by index from latest execution
+        const result = typeof latest.result === 'string'
+          ? (() => { try { return JSON.parse(latest.result); } catch { return null; } })()
+          : latest.result;
         const flags: unknown = result && typeof result === 'object' ? (result as any).checkpoints : null;
         if (Array.isArray(flags)) {
           setCheckpoints(prev => prev.map((cp, i) => ({
@@ -307,44 +302,34 @@ export default function WebCaseDetail() {
         setLatestReportUrl(null);
       }
     }).catch(() => setLatestReportUrl(null));
-  }, [id, isNew, execRecords.length]);
-
-  // 2026-06-06: load the user's web devices for the execution picker.
-  // Backend route /devices supports ?test_type=web. We just grab the
-  // id/name/status/last_seen_at for the dropdown — no need to pull
-  // agent_token here (that's in the DeviceList modal).
-  useEffect(() => {
-    apiFetch<{ items: Array<{ id: number; name: string; status: string; last_seen_at: string | null }> }>(`/devices?test_type=web`)
-      .then(res => {
-        if (res.code === 200 && res.data) {
-          setAvailableDevices(res.data.items);
-        } else {
-          setAvailableDevices([]);
-        }
-      })
-      .catch(() => setAvailableDevices([]));
-  }, []);
+  }, [id, isNew]);
 
   const handleExecute = async () => {
     if (!id || isNew) { notification.error('请先保存用例'); return; }
     setExecuting(true);
     try {
-      const res = await apiFetch(`/web-cases/${id}/execute`, {
+      const qs = new URLSearchParams();
+      if (selectedDeviceId != null) qs.set('deviceId', String(selectedDeviceId));
+      const url = `/web-cases/${id}/execute${qs.toString() ? '?' + qs : ''}`;
+      const res = await apiFetch(url, {
         method: 'POST',
-        body: JSON.stringify({ deviceId: selectedDeviceId }),
+        body: JSON.stringify({ environmentId: activeEnv?.id }),
       });
       if (res.code === 200) {
         notification.success('执行完成');
-        const logsRes = await apiFetch<any>(`/web-cases/${id}/logs?limit=10`);
-        if (logsRes.code === 200 && logsRes.data) {
-          setExecRecords(logsRes.data.map((log: any) => ({
-            id: log.id,
-            time: formatDateTime(log.executed_at),
-            status: log.status as 'success' | 'failed' | 'running',
-            duration: log.duration_ms ? `${log.duration_ms}ms` : '-',
-            executor: log.executed_by || '-',
+        const execRes = await apiFetch<any>(`/web-cases/${id}/executions?limit=20`);
+        if (execRes.code === 200 && execRes.data) {
+          setExecRecords(execRes.data.map((e: any) => ({
+            id: e.id,
+            time: formatDateTime(e.started_at),
+            status: (e.status === 'success' || e.status === 'failed' || e.status === 'error') ? e.status : 'running',
+            duration: formatDuration(e.duration_ms),
+            executor: '-',
             passRate: '-',
+            reportUrl: e.report_url,
+            errorMessage: e.error_message,
           })));
+          if (execRes.data[0]?.report_url) setLatestReportUrl(execRes.data[0].report_url);
           setActiveTab('logs');
         }
       } else {
@@ -470,8 +455,8 @@ export default function WebCaseDetail() {
   // ── Tab Renderers ──
 
   const renderDetailTab = () => (
-    <div className="tab-content-wrapper tab-detail-wrapper">
-      <div className="ad-section ad-section-fill">
+    <div className="tab-content-wrapper">
+      <div className="ad-section">
         <div className="api-detail-row">
           <div className="field">
             <label>用例名称</label>
@@ -605,13 +590,13 @@ export default function WebCaseDetail() {
                     />
                   )}
                 </th>
-                <th className="param-th-del"></th>
                 {dataHeaders.map((h, ci) => (
                   <th key={ci}>
                     <span>{h}</span>
                     <button className="param-col-del" onClick={() => removeDataCol(ci)} title="删除此列">✕</button>
                   </th>
                 ))}
+                <th className="param-th-del"></th>
               </tr>
             </thead>
             <tbody>
@@ -622,9 +607,6 @@ export default function WebCaseDetail() {
                       <input type="checkbox" checked={dataEnabled[ri]} onChange={() => toggleDataRow(ri)} />
                     </label>
                   </td>
-                  <td>
-                    <button className="param-row-del" onClick={() => removeDataRow(ri)} title="删除此行">✕</button>
-                  </td>
                   {row.map((cell, ci) => (
                     <td key={ci}>
                       <input
@@ -634,6 +616,9 @@ export default function WebCaseDetail() {
                       />
                     </td>
                   ))}
+                  <td>
+                    <button className="param-row-del" onClick={() => removeDataRow(ri)} title="删除此行">✕</button>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -657,21 +642,19 @@ export default function WebCaseDetail() {
         <div className="api-detail-row">
           <div className="field">
             <label>浏览器</label>
-            <select
+            <FormSelect
               value={envConfig.browser}
-              onChange={e => setEnvConfig(c => ({ ...c, browser: e.target.value }))}
-            >
-              {BROWSER_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-            </select>
+              options={BROWSER_OPTIONS}
+              onChange={v => setEnvConfig(c => ({ ...c, browser: v }))}
+            />
           </div>
           <div className="field">
             <label>窗口大小</label>
-            <select
+            <FormSelect
               value={envConfig.windowSize}
-              onChange={e => setEnvConfig(c => ({ ...c, windowSize: e.target.value }))}
-            >
-              {WINDOW_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-            </select>
+              options={WINDOW_OPTIONS}
+              onChange={v => setEnvConfig(c => ({ ...c, windowSize: v }))}
+            />
           </div>
         </div>
         <div className="api-detail-row">
@@ -687,7 +670,7 @@ export default function WebCaseDetail() {
           <div className="field">
             <label>无头模式</label>
             <div className="web-env-headless">
-              <label className="rule-switch">
+              <label className="rule-switch rule-switch--labeled">
                 <input
                   type="checkbox"
                   checked={envConfig.headless}
@@ -725,13 +708,43 @@ export default function WebCaseDetail() {
   );
 
   return (
-    <div className="web-case-detail">
+    <div className="api-detail page-enter">
       <div className="api-detail-header">
-        <button className="api-detail-back" onClick={() => navigate('/web-test/case')}>← 返回列表</button>
-        <span className="api-detail-page-title">{form.name || '新建 Web 用例'}</span>
-        <span className={`status-badge web-status-badge status-${form.status}`}>
-          {STATUS_OPTIONS.find(o => o.value === form.status)?.label || form.status}
-        </span>
+        <div className="api-detail-breadcrumb">
+          <button className="api-detail-back" onClick={() => navigate('/web-test/case')}>用例列表</button>
+          <span className="api-detail-breadcrumb-sep">/</span>
+          <input
+            className="api-detail-name-input"
+            value={form.name}
+            onChange={e => setForm(prev => ({ ...prev, name: e.target.value }))}
+            placeholder="新建 Web 用例"
+          />
+        </div>
+        <div className="api-detail-meta">
+          {!isNew && (
+            <span className={`status-badge-light ${form.status}`}>
+              {STATUS_OPTIONS.find(o => o.value === form.status)?.label || form.status}
+            </span>
+          )}
+          {form.updated_at && (
+            <span className="meta-time">更新于 {formatDateTime(form.updated_at)}</span>
+          )}
+        </div>
+        <div className="api-detail-actions">
+          <button
+            type="button"
+            className="scenario-btn"
+            onClick={() => setDevicePickerOpen(true)}
+            disabled={executing}
+            title="选择执行设备"
+          >
+            {selectedDeviceName || '本机'}
+          </button>
+          <button className={`scenario-btn ${dirty ? 'dirty' : ''}`} onClick={handleSave} disabled={saving}>{saving ? '保存中...' : '保存'}</button>
+          <button className="sset-btn sset-btn-primary" onClick={handleExecute} disabled={executing || isNew}>
+            {executing ? '执行中...' : '执行'}
+          </button>
+        </div>
       </div>
       <div className="api-detail-content">
         <div className="api-detail-card" style={{ padding: 0 }}>
@@ -755,38 +768,23 @@ export default function WebCaseDetail() {
             {activeTab === 'data' && renderDataTab()}
             {activeTab === 'logs' && renderLogsTab()}
           </div>
-          {activeTab !== 'logs' && (
-            <div className="detail-action-bar">
-              <button className={`scenario-btn ${dirty ? 'dirty' : ''}`} onClick={handleSave} disabled={saving}>{saving ? '保存中...' : '保存'}</button>
-              {availableDevices.length > 0 && (
-                <select
-                  className="web-case-device-picker"
-                  value={selectedDeviceId ?? ''}
-                  onChange={e => setSelectedDeviceId(e.target.value ? Number(e.target.value) : null)}
-                  title="选择执行设备。留空=本机浏览器"
-                  disabled={executing}
-                >
-                  <option value="">本机 (local)</option>
-                  {availableDevices.map(d => {
-                    const statusLabel = d.status === 'online' ? '🟢' : d.status === 'offline' ? '⚫' : '⚪';
-                    return (
-                      <option key={d.id} value={d.id}>
-                        {statusLabel} {d.name}
-                      </option>
-                    );
-                  })}
-                </select>
-              )}
-              <button className="sset-btn sset-btn-primary" onClick={handleExecute} disabled={executing || isNew}>
-                {executing ? '执行中...' : '执行'}
-              </button>
-            </div>
-          )}
         </div>
       </div>
-      {toast && (
-        <div className={`toast toast-${toast.type}`}>{toast.msg}</div>
-      )}
+      <DevicePickerModal
+        open={devicePickerOpen}
+        testType="web"
+        onClose={() => setDevicePickerOpen(false)}
+        onLocalExecute={() => {
+          setSelectedDeviceId(null);
+          setSelectedDeviceName(null);
+          setDevicePickerOpen(false);
+        }}
+        onSelect={(device) => {
+          setSelectedDeviceId(device.id as number);
+          setSelectedDeviceName(device.name);
+          setDevicePickerOpen(false);
+        }}
+      />
     </div>
   );
 }

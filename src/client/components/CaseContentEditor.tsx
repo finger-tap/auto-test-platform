@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
-import CodeMirror from '@uiw/react-codemirror';
 import type { Extension } from '@codemirror/state';
+import ThemedCodeMirror from './ThemedCodeMirror';
 
 export type CaseContentType = 'text' | 'yaml';
 
@@ -83,14 +83,14 @@ export function CaseContentEditor({
             YAML 流程
           </button>
         </div>
-        <div style={{ color: '#888', fontSize: 12 }}>
+        <div style={{ color: 'var(--fg-tertiary)', fontSize: 12 }}>
           {type === 'yaml'
             ? '执行时调用 Midscene runYaml()'
             : '执行时调用 Midscene aiAct() — 整段文本由 AI 解读执行'}
         </div>
       </div>
 
-      <CodeMirror
+      <ThemedCodeMirror
         value={isEmpty ? '' : value}
         height={height}
         placeholder={placeholder}
@@ -112,9 +112,9 @@ function tabBtnStyle(active: boolean, disabled: boolean): React.CSSProperties {
   return {
     padding: '6px 14px',
     borderRadius: 6,
-    border: `1px solid ${active ? '#1677ff' : '#d9d9d9'}`,
-    background: active ? '#1677ff' : '#fff',
-    color: active ? '#fff' : '#333',
+    border: `1px solid ${active ? 'var(--accent)' : 'var(--border)'}`,
+    background: active ? 'var(--accent)' : 'var(--surface)',
+    color: active ? '#fff' : 'var(--fg)',
     cursor: disabled ? 'not-allowed' : 'pointer',
     opacity: disabled ? 0.6 : 1,
     fontSize: 13,

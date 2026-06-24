@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import FormSelect from '../../components/FormSelect';
 import { apiFetch } from '../../utils/api';
 import { useEnvironment } from '../../contexts/EnvironmentContext';
-import type { Environment, EnvVariable } from '../../types';
+import type { Environment, EnvVariable, SslCertEntry } from '../../types';
 import notification from '../../utils/notification';
 import './EnvironmentDetail.css';
 
@@ -26,8 +27,7 @@ export default function EnvironmentDetail({ basePath = '/api-test' }: { basePath
   const [name, setName] = useState('');
   const [reqTimeout, setReqTimeout] = useState(30000);
   const [isDefault, setIsDefault] = useState(false);
-  const [sslCert, setSslCert] = useState('');
-  const [sslKey, setSslKey] = useState('');
+  const [sslCerts, setSslCerts] = useState<SslCertEntry[]>([]);
   const [vars, setVars] = useState<EnvVariable[]>([]);
   // Multiple databases
   const [dbs, setDbs] = useState<DbEntry[]>([]);
@@ -47,8 +47,19 @@ export default function EnvironmentDetail({ basePath = '/api-test' }: { basePath
           setName(e.name || '');
           setReqTimeout(e.timeout || 30000);
           setIsDefault(e.is_default === 1);
-          setSslCert(e.ssl_cert || '');
-          setSslKey(e.ssl_key || '');
+          // Parse ssl_certs JSON array; fall back to legacy single cert
+          if (e.ssl_certs) {
+            try {
+              const parsed = JSON.parse(e.ssl_certs);
+              setSslCerts(Array.isArray(parsed) && parsed.length > 0 ? parsed : []);
+            } catch {
+              setSslCerts([]);
+            }
+          } else if (e.ssl_cert) {
+            setSslCerts([{ name: '默认证书', cert: e.ssl_cert, key: e.ssl_key || '' }]);
+          } else {
+            setSslCerts([]);
+          }
           // e.variables may be: (1) JSON string, (2) array of objects, (3) array of JSON strings
           let varsArr: EnvVariable[] = [];
           if (typeof e.variables === 'string') {
@@ -118,6 +129,36 @@ export default function EnvironmentDetail({ basePath = '/api-test' }: { basePath
     setDirty(true);
   }
 
+  // ── SSL cert helpers ──
+  function addSslCert() {
+    setSslCerts([...sslCerts, { name: '', cert: '', key: '' }]);
+    setDirty(true);
+  }
+
+  function removeSslCert(i: number) {
+    setSslCerts(sslCerts.filter((_, idx) => idx !== i));
+    setDirty(true);
+  }
+
+  function updateSslCert(i: number, field: keyof SslCertEntry, value: string) {
+    const updated = [...sslCerts];
+    updated[i] = { ...updated[i], [field]: value };
+    setSslCerts(updated);
+    setDirty(true);
+  }
+
+  function handleCertFileUpload(i: number, field: 'cert' | 'key', e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const text = ev.target?.result as string;
+      updateSslCert(i, field, text);
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  }
+
   async function testDbConn(entry: DbEntry) {
     if (!entry.host) {
       setConnTestMsg('请先填写主机地址');
@@ -155,13 +196,14 @@ export default function EnvironmentDetail({ basePath = '/api-test' }: { basePath
     const cleanVars = vars.filter(v => v.key.trim());
     // Filter out empty db entries
     const cleanDbs = dbs.filter(d => d.name.trim() && d.host.trim());
+    // Filter out empty SSL cert entries
+    const cleanSslCerts = sslCerts.filter(c => c.cert.trim());
     setSaving(true);
     try {
       const payload = {
         name: name.trim(),
         variables: cleanVars,
-        ssl_cert: sslCert,
-        ssl_key: sslKey,
+        ssl_certs: cleanSslCerts,
         timeout: reqTimeout,
         is_default: isDefault,
         databases: cleanDbs,
@@ -199,65 +241,117 @@ export default function EnvironmentDetail({ basePath = '/api-test' }: { basePath
   }
 
   if (loading) {
-    return <div className="envdt-loading">加载中...</div>;
+    return <div className="api-empty">加载中...</div>;
   }
 
   return (
-    <div className="envdt">
-      <div className="envdt-head">
-        <button className="envdt-back" onClick={() => navigate(`${basePath}/environment`)}>← 返回列表</button>
-        <h2>{isNew ? '新建环境' : '编辑环境'}</h2>
+    <div className="api-detail env-detail-page page-enter">
+      <div className="api-detail-header">
+        <div className="api-detail-breadcrumb">
+          <button className="api-detail-back" onClick={() => navigate(`${basePath}/environment`)}>环境列表</button>
+          <span className="api-detail-breadcrumb-sep">/</span>
+          <input className="api-detail-name-input" value={name} onChange={e => { setName(e.target.value); setDirty(true); }} placeholder="输入环境名称" />
+        </div>
+        <div className="api-detail-actions">
+          <button className={`scenario-btn${dirty ? ' dirty' : ''}`} onClick={doSave} disabled={saving}>{saving ? '保存中...' : '保存'}</button>
+        </div>
       </div>
 
-      <div className="envdt-form">
-        {/* Basic Info Card */}
-        <div className="envdt-card">
-          <div className="envdt-card-title">基本信息</div>
-          <div className="envdt-fields">
-            <div className="envdt-field">
-              <label>环境名称 <span className="required">*</span></label>
-              <input type="text" value={name} onChange={e => { setName(e.target.value); setDirty(true); }} placeholder="如：测试环境、生产环境" />
+      <div className="api-detail-content">
+        <div className="envdt-form">
+          {/* Basic Info Card */}
+          <div className="ad-section">
+            <div className="ad-section-head"><label>基本信息</label></div>
+            <div className="api-detail-row">
+              <div className="field">
+                <label>环境名称 <span className="required">*</span></label>
+                <input type="text" value={name} onChange={e => { setName(e.target.value); setDirty(true); }} placeholder="如：测试环境、生产环境" />
+              </div>
             </div>
-            <div className="envdt-field envdt-field-row">
-              <div className="envdt-field">
+            <div className="api-detail-row">
+              <div className="field">
                 <label>超时时间（毫秒）</label>
                 <input type="number" value={reqTimeout} onChange={e => { setReqTimeout(Number(e.target.value)); setDirty(true); }} />
               </div>
-              <div className="envdt-field">
+              <div className="field">
                 <label>默认环境</label>
-                <label className="envdt-checkbox">
-                  <input type="checkbox" checked={isDefault} onChange={e => { setIsDefault(e.target.checked); setDirty(true); }} />
-                  设为默认
-                </label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingBottom: 8 }}>
+                  <label className="rule-switch">
+                    <input type="checkbox" checked={isDefault} onChange={e => { setIsDefault(e.target.checked); setDirty(true); }} />
+                    <span className="rule-switch-slider" />
+                  </label>
+                  <span style={{ fontSize: 13, color: 'var(--fg)' }}>{isDefault ? '已设为默认' : '设为默认'}</span>
+                </div>
               </div>
             </div>
           </div>
-        </div>
 
-        {/* SSL Card */}
-        <div className="envdt-card">
-          <div className="envdt-card-title">SSL 客户端证书（可选）</div>
-          <div className="envdt-card-desc">
-            当目标接口使用双向 TLS（mTLS）或其他需要客户端证书的 HTTPS 服务时，配置此处的证书内容。
-          </div>
-          <div className="envdt-fields">
-            <div className="envdt-field">
-              <label>SSL 证书（.pem）</label>
-              <textarea value={sslCert} onChange={e => { setSslCert(e.target.value); setDirty(true); }} placeholder="粘贴 .pem 证书内容或证书链" rows={4} />
+          {/* SSL Card */}
+          <div className="ad-section">
+            <div className="ad-section-head"><label>SSL 客户端证书（可选）</label></div>
+            <div className="envdt-card-desc">
+              当目标接口使用双向 TLS（mTLS）认证时，需要上传客户端证书（.pem/.crt）和对应的私钥（.key）。可配置多组证书，在 API 详情页按名称选择使用哪组。
             </div>
-            <div className="envdt-field">
-              <label>SSL 私钥（.key）</label>
-              <textarea value={sslKey} onChange={e => { setSslKey(e.target.value); setDirty(true); }} placeholder="粘贴 .key 私钥内容" rows={4} />
-            </div>
-          </div>
-        </div>
 
-        {/* Variables Card */}
-        <div className="envdt-card">
-          <div className="envdt-card-title">环境变量</div>
-          <div className="envdt-card-desc">
-            变量可在接口请求的 URL、请求头、请求体中使用，语法为 <code>{'{{variable_name}}'}</code>。
+            {/* SSL cert list */}
+            {sslCerts.length > 0 && (
+              <div className="envdt-db-list">
+                {sslCerts.map((cert, i) => (
+                  <div key={i} className="envdt-db-card">
+                    <div className="envdt-db-card-header">
+                      <input
+                        className="envdt-db-name"
+                        placeholder="证书别名，如：测试证书、生产证书"
+                        value={cert.name}
+                        onChange={e => updateSslCert(i, 'name', e.target.value)}
+                      />
+                      <button className="envdt-db-del" onClick={() => removeSslCert(i)}>✕</button>
+                    </div>
+                    <div className="envdt-db-fields">
+                      <div className="envdt-field">
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <label>SSL 证书（.pem）</label>
+                          <label className="envdt-upload-btn">
+                            上传文件
+                            <input type="file" accept=".pem,.crt,.cer" style={{ display: 'none' }} onChange={e => handleCertFileUpload(i, 'cert', e)} />
+                          </label>
+                        </div>
+                        <textarea
+                          value={cert.cert}
+                          onChange={e => updateSslCert(i, 'cert', e.target.value)}
+                          placeholder="粘贴 .pem 证书内容或证书链"
+                          rows={3}
+                        />
+                      </div>
+                      <div className="envdt-field">
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <label>SSL 私钥（.key）</label>
+                          <label className="envdt-upload-btn">
+                            上传文件
+                            <input type="file" accept=".pem,.key" style={{ display: 'none' }} onChange={e => handleCertFileUpload(i, 'key', e)} />
+                          </label>
+                        </div>
+                        <textarea
+                          value={cert.key}
+                          onChange={e => updateSslCert(i, 'key', e.target.value)}
+                          placeholder="粘贴 .key 私钥内容"
+                          rows={3}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            <button className="ad-btn ad-btn-sm" onClick={addSslCert}>+ 添加证书</button>
           </div>
+
+          {/* Variables Card */}
+          <div className="ad-section">
+            <div className="ad-section-head"><label>环境变量</label></div>
+            <div className="envdt-card-desc">
+              变量可在接口请求的 URL、请求头、请求体中使用，语法为 <code>{'{{variable_name}}'}</code>。
+            </div>
           {vars.length > 0 && (
             <div className="envdt-var-head">
               <span>变量名</span>
@@ -276,12 +370,12 @@ export default function EnvironmentDetail({ basePath = '/api-test' }: { basePath
               </div>
             ))}
           </div>
-          <button className="envdt-add-var" onClick={addVar}>+ 添加变量</button>
+          <button className="ad-btn ad-btn-sm" onClick={addVar}>+ 添加变量</button>
         </div>
 
         {/* Database Card */}
-        <div className="envdt-card">
-          <div className="envdt-card-title">数据库连接（可选）</div>
+        <div className="ad-section">
+          <div className="ad-section-head"><label>数据库连接（可选）</label></div>
           <div className="envdt-card-desc">
             配置数据库连接后，前置/后置动作中可选择该数据库并填写 SQL，自动查询数据传入执行上下文。
           </div>
@@ -304,10 +398,14 @@ export default function EnvironmentDetail({ basePath = '/api-test' }: { basePath
                     <div className="envdt-field envdt-field-row">
                       <div className="envdt-field" style={{ flex: 0, width: 120 }}>
                         <label>类型</label>
-                        <select value={db.type} onChange={e => updateDb(i, 'type', e.target.value)}>
-                          <option value="mysql">MySQL</option>
-                          <option value="postgres">PostgreSQL</option>
-                        </select>
+                        <FormSelect
+                          value={db.type}
+                          options={[
+                            { value: 'mysql', label: 'MySQL' },
+                            { value: 'postgres', label: 'PostgreSQL' },
+                          ]}
+                          onChange={v => updateDb(i, 'type', v)}
+                        />
                       </div>
                       <div className="envdt-field" style={{ flex: 2 }}>
                         <label>主机</label>
@@ -349,19 +447,12 @@ export default function EnvironmentDetail({ basePath = '/api-test' }: { basePath
               ))}
             </div>
           )}
-          <button className="envdt-add-db" onClick={addDb}>+ 添加数据库</button>
+          <button className="ad-btn ad-btn-sm" onClick={addDb}>+ 添加数据库</button>
         </div>
       </div>
 
-      {/* Footer */}
-      <div className="envdt-foot">
-        <button className="scenario-btn" onClick={() => navigate(`${basePath}/environment`)}>取消</button>
-        <button className={`scenario-btn ${dirty ? 'dirty' : ''}`} onClick={doSave} disabled={saving}>
-          {saving ? '保存中...' : '保存'}
-        </button>
-      </div>
 
-      
+      </div>
     </div>
   );
 }

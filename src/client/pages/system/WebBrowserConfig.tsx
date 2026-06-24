@@ -104,10 +104,10 @@ export default function WebBrowserConfig() {
     }
   };
 
-  const handleReset = () => {
-    if (confirm('确认放弃未保存的修改并重新加载当前配置？')) {
-      fetchConfig();
-    }
+  const handleReset = async () => {
+    const ok = await notification.confirm('确认放弃未保存的修改并重新加载当前配置？');
+    if (!ok) return;
+    fetchConfig();
   };
 
   if (!loaded) {

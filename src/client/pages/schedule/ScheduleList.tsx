@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { apiFetch } from '../../utils/api';
 import { formatDateTime } from '../../utils/datetime';
+import notification from '../../utils/notification';
 import FormSelect from '../../components/FormSelect';
 import './ScheduleList.css';
 
@@ -200,31 +201,31 @@ function InlineScheduleConfig({ item, onClose, onUpdated }: {
   return (
     <>
       <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 500, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={onClose}>
-        <div style={{ background: '#fff', borderRadius: 12, padding: 28, width: 640, maxWidth: '95vw', boxShadow: '0 8px 32px rgba(0,0,0,0.2)', maxHeight: '90vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
+        <div style={{ background: 'var(--surface)', borderRadius: 12, padding: 28, width: 640, maxWidth: '95vw', boxShadow: '0 8px 32px rgba(0,0,0,0.2)', maxHeight: '90vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-            <h3 style={{ margin: 0, fontSize: 16, color: '#1a1a1a' }}>配置定时任务</h3>
-            <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: '#999' }}>✕</button>
+            <h3 style={{ margin: 0, fontSize: 16, color: 'var(--fg)' }}>配置定时任务</h3>
+            <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: 'var(--fg-tertiary)' }}>✕</button>
           </div>
 
-          <div style={{ background: '#fafafa', borderRadius: 8, padding: '12px 16px', marginBottom: 20, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-            <div><span style={{ fontSize: 12, color: '#999' }}>{item.testType === 'api' ? '场景集' : '用例集'}</span><div style={{ fontSize: 14, marginTop: 2 }}>{item.setName}</div></div>
-            <div><span style={{ fontSize: 12, color: '#999' }}>{item.testType === 'api' ? '场景数' : '用例数'}</span><div style={{ fontSize: 14, marginTop: 2 }}>{item.setCount}</div></div>
+          <div style={{ background: 'var(--surface-raised)', borderRadius: 8, padding: '12px 16px', marginBottom: 20, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+            <div><span style={{ fontSize: 12, color: 'var(--fg-tertiary)' }}>{item.testType === 'api' ? '场景集' : '用例集'}</span><div style={{ fontSize: 14, marginTop: 2 }}>{item.setName}</div></div>
+            <div><span style={{ fontSize: 12, color: 'var(--fg-tertiary)' }}>{item.testType === 'api' ? '场景数' : '用例数'}</span><div style={{ fontSize: 14, marginTop: 2 }}>{item.setCount}</div></div>
           </div>
 
           <div style={{ marginBottom: 16 }}>
-            <div style={{ fontSize: 13, color: '#666', marginBottom: 8, fontWeight: 500 }}>常用时间</div>
+            <div style={{ fontSize: 13, color: 'var(--fg-secondary)', marginBottom: 8, fontWeight: 500 }}>常用时间</div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
               {CRON_PRESETS.map(p => (
                 <button key={p.value} onClick={() => applyPreset(p.value)}
-                  style={{ padding: '4px 12px', borderRadius: 16, border: `1px solid ${cronExpr === p.value ? '#1677ff' : '#d9d9d9'}`, background: cronExpr === p.value ? '#1677ff' : '#fff', color: cronExpr === p.value ? '#fff' : '#333', cursor: 'pointer', fontSize: 13 }}>
+                  style={{ padding: '4px 12px', borderRadius: 16, border: `1px solid ${cronExpr === p.value ? 'var(--accent)' : '#d9d9d9'}`, background: cronExpr === p.value ? 'var(--accent)' : 'var(--surface)', color: cronExpr === p.value ? 'var(--surface)' : 'var(--fg)', cursor: 'pointer', fontSize: 13 }}>
                   {p.label}
                 </button>
               ))}
             </div>
           </div>
 
-          <div style={{ background: '#f5f5f5', borderRadius: 8, padding: 16, marginBottom: 16 }}>
-            <div style={{ fontSize: 13, color: '#666', marginBottom: 10, fontWeight: 500 }}>自定义时间</div>
+          <div style={{ background: 'var(--surface-raised)', borderRadius: 8, padding: 16, marginBottom: 16 }}>
+            <div style={{ fontSize: 13, color: 'var(--fg-secondary)', marginBottom: 10, fontWeight: 500 }}>自定义时间</div>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: 10 }}>
               {[
                 { label: '分', opts: MIN_OPTS, val: minute, set: setMinute },
@@ -234,26 +235,32 @@ function InlineScheduleConfig({ item, onClose, onUpdated }: {
                 { label: '周', opts: DOW_OPTS, val: dow, set: setDow },
               ].map(f => (
                 <div key={f.label} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                  <span style={{ fontSize: 12, color: '#666' }}>{f.label}</span>
-                  <select value={f.val} onChange={e => f.set(e.target.value)}
-                    style={{ padding: '5px 8px', border: '1px solid #d9d9d9', borderRadius: 6, minWidth: f.label === '分' ? 80 : 70 }}>
-                    {f.opts.map(o => <option key={o} value={o}>{o === '*' ? `每${f.label}` : (f.label === '周' ? DOW_LABELS[o] || o : o)}</option>)}
-                  </select>
+                  <span style={{ fontSize: 12, color: 'var(--fg-secondary)' }}>{f.label}</span>
+                  <FormSelect
+                    value={f.val}
+                    options={f.opts.map(o => ({
+                      value: o,
+                      label: o === '*' ? `每${f.label}` : (f.label === '周' ? DOW_LABELS[o] || o : o),
+                    }))}
+                    onChange={f.set}
+                    size="compact"
+                    style={{ minWidth: f.label === '分' ? 90 : 76 }}
+                  />
                 </div>
               ))}
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', background: '#fff', borderRadius: 6, border: '1px solid #e8e8e8' }}>
-              <span style={{ fontSize: 12, color: '#999' }}>表达式</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', background: 'var(--surface)', borderRadius: 6, border: '1px solid #e8e8e8' }}>
+              <span style={{ fontSize: 12, color: 'var(--fg-tertiary)' }}>表达式</span>
               <input
                 value={cronExpr}
                 onChange={handleExprChange}
-                style={{ flex: 1, border: 'none', outline: 'none', fontSize: 13, fontFamily: 'Courier New', color: '#1677ff', background: 'transparent' }}
+                style={{ flex: 1, border: 'none', outline: 'none', fontSize: 13, fontFamily: 'Courier New', color: 'var(--accent)', background: 'transparent' }}
               />
             </div>
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
-            <span style={{ fontSize: 14, color: '#333' }}>任务状态</span>
+            <span style={{ fontSize: 14, color: 'var(--fg)' }}>任务状态</span>
             <FormSelect
               value={status}
               options={[{value:'none',label:'未设置'},{value:'paused',label:'暂停'},{value:'active',label:'正常'}]}
@@ -275,9 +282,9 @@ function InlineScheduleConfig({ item, onClose, onUpdated }: {
         <div style={{
           position: 'fixed', top: 24, left: '50%', transform: 'translateX(-50%)',
           padding: '10px 24px', borderRadius: 6, fontSize: 14, zIndex: 2000,
-          background: modalType === 'success' ? '#f6ffed' : '#fff2f0',
-          color: modalType === 'success' ? '#52c41a' : '#ff4d4f',
-          border: `1px solid ${modalType === 'success' ? '#b7eb8f' : '#ffccc7'}`,
+          background: modalType === 'success' ? 'var(--success-subtle)' : 'var(--danger-subtle)',
+          color: modalType === 'success' ? 'var(--success)' : 'var(--danger)',
+          border: `1px solid ${modalType === 'success' ? 'var(--success)' : 'var(--danger)'}`,
         }}>
           {modalMsg}
         </div>
@@ -290,8 +297,8 @@ export default function ScheduleList({ basePath = '/api-test' }: { basePath?: st
   const navigate = useNavigate();
   const testType = resolveType(basePath);
   const ep = endpointFor(testType);
-  // 2026-06-06 (#78): API endpoints use /scene-set/{id}; web/pc/mobile use /case-set/{id}
-  const setPath = testType === 'api' ? 'scene-set' : 'case-set';
+  // 统一为 /{testType}/case-set
+  const setPath = 'case-set';
   const [list, setList] = useState<ScheduleSetItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
@@ -303,6 +310,9 @@ export default function ScheduleList({ basePath = '/api-test' }: { basePath?: st
   const [nameFilter, setNameFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [creatorFilter, setCreatorFilter] = useState('');
+  const [appliedName, setAppliedName] = useState('');
+  const [appliedStatus, setAppliedStatus] = useState('');
+  const [appliedCreator, setAppliedCreator] = useState('');
 
   const fetchList = async (pageNum = 1, pageSz = pageSize) => {
     setLoading(true);
@@ -336,15 +346,16 @@ export default function ScheduleList({ basePath = '/api-test' }: { basePath?: st
 
   const handleRemove = async (item: ScheduleSetItem) => {
     if (item.id <= 0) return;
-    if (!confirm(`确认移除「${item.setName}」的定时配置？`)) return;
+    const ok = await notification.confirm(`确认移除「${item.setName}」的定时配置？`);
+    if (!ok) return;
     await apiFetch(`${ep}/${item.id}/remove`, { method: 'POST' });
     fetchList(page);
   };
 
   const filtered = list.filter(item => {
-    if (nameFilter && !(item.setName || '').includes(nameFilter)) return false;
-    if (statusFilter && item.status !== statusFilter) return false;
-    if (creatorFilter && !(item.creator_name || '').includes(creatorFilter)) return false;
+    if (appliedName && !(item.setName || '').includes(appliedName)) return false;
+    if (appliedStatus && item.status !== appliedStatus) return false;
+    if (appliedCreator && !(item.creator_name || '').includes(appliedCreator)) return false;
     return true;
   });
 
@@ -354,10 +365,24 @@ export default function ScheduleList({ basePath = '/api-test' }: { basePath?: st
     return 'schedule-status-badge status-none';
   };
 
-  const handleReset = () => { setNameFilter(''); setStatusFilter(''); setCreatorFilter(''); fetchList(1); };
+  const handleQuery = () => {
+    setAppliedName(nameFilter);
+    setAppliedStatus(statusFilter);
+    setAppliedCreator(creatorFilter);
+  };
+
+  const handleReset = () => {
+    setNameFilter('');
+    setStatusFilter('');
+    setCreatorFilter('');
+    setAppliedName('');
+    setAppliedStatus('');
+    setAppliedCreator('');
+    fetchList(1);
+  };
 
   return (
-    <div className="alist">
+    <div className="alist page-enter">
       {/* Filter bar */}
       <div className="alist-filter">
         <div className="alist-filter-row">
@@ -374,6 +399,7 @@ export default function ScheduleList({ basePath = '/api-test' }: { basePath?: st
             <FormSelect value={statusFilter} options={[{value:"",label:"全部状态"},{value:"none",label:"未设置"},{value:"paused",label:"暂停"},{value:"active",label:"正常"}]} onChange={val => setStatusFilter(val)} />
           </div>
           <div className="alist-filter-actions">
+            <button className="btn btn-primary" onClick={handleQuery}>查询</button>
             <button className="btn btn-default" onClick={handleReset}>重置</button>
           </div>
         </div>
@@ -395,12 +421,12 @@ export default function ScheduleList({ basePath = '/api-test' }: { basePath?: st
                 <th>任务状态</th>
                 <th>下次执行时间</th>
                 <th>最近执行</th>
-                <th style={{ width: 80 }}></th>
+                <th>操作</th>
               </tr>
             </thead>
             <tbody>
-              {filtered.map(item => (
-                <tr key={item.setId}>
+              {filtered.map((item, index) => (
+                <tr key={item.setId} className="row-enter" style={{ '--delay': `${index * 30}ms` } as React.CSSProperties}>
                   <td>{item.setName}</td>
                   <td>{item.setCount}</td>
                   <td>{item.creator_name}</td>
@@ -408,18 +434,12 @@ export default function ScheduleList({ basePath = '/api-test' }: { basePath?: st
                   <td className="td-next-run">{item.status === 'active' && item.next_run_at ? formatDateTime(item.next_run_at) : '—'}</td>
                   <td className="td-next-run">{item.last_run_at ? formatDateTime(item.last_run_at) : '—'}</td>
                   <td>
-                    <div className="row-actions" style={{ gap: 4, flexWrap: 'wrap' }}>
-                      <button className="btn btn-sm" onClick={() => navigate(`${basePath}/${setPath}/${item.setId}`)}>进入</button>
-                      <button className="btn btn-sm btn-default" onClick={() => setConfigItem(item)}>配置</button>
-                      {item.status === 'active' && (
-                        <button className="btn btn-sm" onClick={() => handlePause(item)}>暂停</button>
-                      )}
-                      {item.status === 'paused' && (
-                        <button className="btn btn-sm" onClick={() => handleResume(item)}>启用</button>
-                      )}
-                      {item.id > 0 && (
-                        <button className="btn btn-sm btn-danger" onClick={() => handleRemove(item)}>移除</button>
-                      )}
+                    <div className="row-actions">
+                      <button className="row-action-btn" onClick={() => navigate(`${basePath}/${setPath}/${item.setId}`)}>进入</button>
+                      <button className="row-action-btn" onClick={() => setConfigItem(item)}>配置</button>
+                      <button className="row-action-btn" disabled={item.status !== 'active'} onClick={() => handlePause(item)}>暂停</button>
+                      <button className="row-action-btn" disabled={item.status !== 'paused'} onClick={() => handleResume(item)}>启用</button>
+                      <button className="row-action-btn row-action-del" disabled={item.id <= 0} onClick={() => handleRemove(item)}>移除</button>
                     </div>
                   </td>
                 </tr>
