@@ -6,7 +6,7 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const dataDir = path.resolve(__dirname, '../../../data');
+const dataDir = process.env.DATA_DIR || path.resolve(__dirname, '../../../data');
 if (!fs.existsSync(dataDir)) {
   fs.mkdirSync(dataDir, { recursive: true });
 }
@@ -182,18 +182,6 @@ const tableMigrations: { table: string; columns: { name: string; sql: string }[]
     { name: 'updated_by', sql: 'TEXT' },
   ]},
   { table: 'mock_endpoints_api', columns: [
-    { name: 'created_by', sql: 'TEXT' },
-    { name: 'updated_by', sql: 'TEXT' },
-  ]},
-  { table: 'mock_endpoints_web', columns: [
-    { name: 'created_by', sql: 'TEXT' },
-    { name: 'updated_by', sql: 'TEXT' },
-  ]},
-  { table: 'mock_endpoints_pc', columns: [
-    { name: 'created_by', sql: 'TEXT' },
-    { name: 'updated_by', sql: 'TEXT' },
-  ]},
-  { table: 'mock_endpoints_mobile', columns: [
     { name: 'created_by', sql: 'TEXT' },
     { name: 'updated_by', sql: 'TEXT' },
   ]},
@@ -524,6 +512,16 @@ db.exec(`
     model_family TEXT,
     model_timeout INTEGER,
     model_temperature REAL,
+    -- 2026-06-14: extended per-intent model options (mirror MIDSCENE_*_MODEL_* env)
+    model_retry_count INTEGER,
+    model_retry_interval INTEGER,
+    model_http_proxy TEXT,
+    model_socks_proxy TEXT,
+    model_extra_body_json TEXT,
+    model_init_config_json TEXT,
+    model_reasoning_enabled INTEGER,
+    model_reasoning_effort TEXT,
+    model_reasoning_budget INTEGER,
     -- Insight intent (element localization / assertion)
     insight_model_name TEXT,
     insight_model_api_key TEXT,
@@ -531,6 +529,15 @@ db.exec(`
     insight_model_family TEXT,
     insight_model_timeout INTEGER,
     insight_model_temperature REAL,
+    insight_model_retry_count INTEGER,
+    insight_model_retry_interval INTEGER,
+    insight_model_http_proxy TEXT,
+    insight_model_socks_proxy TEXT,
+    insight_model_extra_body_json TEXT,
+    insight_model_init_config_json TEXT,
+    insight_model_reasoning_enabled INTEGER,
+    insight_model_reasoning_effort TEXT,
+    insight_model_reasoning_budget INTEGER,
     -- Planning intent (action decomposition)
     planning_model_name TEXT,
     planning_model_api_key TEXT,
@@ -538,8 +545,24 @@ db.exec(`
     planning_model_family TEXT,
     planning_model_timeout INTEGER,
     planning_model_temperature REAL,
+    planning_model_retry_count INTEGER,
+    planning_model_retry_interval INTEGER,
+    planning_model_http_proxy TEXT,
+    planning_model_socks_proxy TEXT,
+    planning_model_extra_body_json TEXT,
+    planning_model_init_config_json TEXT,
+    planning_model_reasoning_enabled INTEGER,
+    planning_model_reasoning_effort TEXT,
+    planning_model_reasoning_budget INTEGER,
     -- Preferences
     preferred_language TEXT,
+    -- 2026-06-14: execution behavior overrides (global, not per-intent).
+    -- replanning_cycle_limit maps to MIDSCENE_REPLANNING_CYCLE_LIMIT env AND
+    -- AgentOpt.replanningCycleLimit; wait_after_action / screenshot_shrink_factor
+    -- map to AgentOpt.waitAfterAction / screenshotShrinkFactor. null = default.
+    replanning_cycle_limit INTEGER,
+    wait_after_action INTEGER,
+    screenshot_shrink_factor INTEGER,
     -- 2026-06-06: per-user Midscene report storage path. null = use the
     -- default REPORTS_ROOT (data/midscene-reports). Absolute path on disk.
     -- Read by src/server/engine/report-paths.ts:generateReportPath() and
@@ -561,6 +584,48 @@ if (!mscCols.some((col) => col.name === 'report_storage_path')) {
   db.exec("ALTER TABLE midscene_config ADD COLUMN report_storage_path TEXT");
   console.log('[DB Migration] Added midscene_config.report_storage_path column');
 }
+// 2026-06-14: extended per-intent + execution-behavior columns. Idempotent:
+// each guard checks PRAGMA before ALTER so re-runs on fresh DBs (where CREATE
+// TABLE already has the columns) are a no-op.
+const mscAddCol = (name: string, type: string) => {
+  if (!mscCols.some((col) => col.name === name)) {
+    db.exec(`ALTER TABLE midscene_config ADD COLUMN ${name} ${type}`);
+  }
+};
+// Per-intent extension (default prefix empty)
+mscAddCol('model_retry_count', 'INTEGER');
+mscAddCol('model_retry_interval', 'INTEGER');
+mscAddCol('model_http_proxy', 'TEXT');
+mscAddCol('model_socks_proxy', 'TEXT');
+mscAddCol('model_extra_body_json', 'TEXT');
+mscAddCol('model_init_config_json', 'TEXT');
+mscAddCol('model_reasoning_enabled', 'INTEGER');
+mscAddCol('model_reasoning_effort', 'TEXT');
+mscAddCol('model_reasoning_budget', 'INTEGER');
+// Per-intent extension (insight)
+mscAddCol('insight_model_retry_count', 'INTEGER');
+mscAddCol('insight_model_retry_interval', 'INTEGER');
+mscAddCol('insight_model_http_proxy', 'TEXT');
+mscAddCol('insight_model_socks_proxy', 'TEXT');
+mscAddCol('insight_model_extra_body_json', 'TEXT');
+mscAddCol('insight_model_init_config_json', 'TEXT');
+mscAddCol('insight_model_reasoning_enabled', 'INTEGER');
+mscAddCol('insight_model_reasoning_effort', 'TEXT');
+mscAddCol('insight_model_reasoning_budget', 'INTEGER');
+// Per-intent extension (planning)
+mscAddCol('planning_model_retry_count', 'INTEGER');
+mscAddCol('planning_model_retry_interval', 'INTEGER');
+mscAddCol('planning_model_http_proxy', 'TEXT');
+mscAddCol('planning_model_socks_proxy', 'TEXT');
+mscAddCol('planning_model_extra_body_json', 'TEXT');
+mscAddCol('planning_model_init_config_json', 'TEXT');
+mscAddCol('planning_model_reasoning_enabled', 'INTEGER');
+mscAddCol('planning_model_reasoning_effort', 'TEXT');
+mscAddCol('planning_model_reasoning_budget', 'INTEGER');
+// Execution behavior (global)
+mscAddCol('replanning_cycle_limit', 'INTEGER');
+mscAddCol('wait_after_action', 'INTEGER');
+mscAddCol('screenshot_shrink_factor', 'INTEGER');
 
 db.exec(`
   -- Per-user Web browser configuration. Replaces the per-case driver_path /
@@ -686,6 +751,12 @@ db.exec(`
     case_content TEXT,
     case_content_type TEXT DEFAULT 'text',
     driver_path TEXT,
+    -- 2026-06-14: ComputerAgent (native desktop) options. Replace the old
+    -- Playwright browser fields. These map directly to ComputerDeviceOpt.
+    display_id TEXT,
+    keyboard_driver TEXT,
+    xvfb_resolution TEXT,
+    headless INTEGER DEFAULT 0,
     created_at TEXT NOT NULL DEFAULT (datetime('now', '+8 hours')),
     updated_at TEXT NOT NULL DEFAULT (datetime('now', '+8 hours')),
     created_by TEXT,
@@ -765,6 +836,22 @@ for (const { ddl } of driverPathAlter) {
   try { db.exec(ddl); } catch { /* column already exists — ignore */ }
 }
 
+// 2026-06-14: ComputerAgent native-desktop options. Idempotent ALTERs for
+// existing pc_test_cases tables. These replace the old Playwright browser
+// config (browser/headless_mode/base_url are unused by ComputerAgent).
+const pcDesktopAlter: Array<{ ddl: string }> = [
+  { ddl: 'ALTER TABLE pc_test_cases ADD COLUMN display_id TEXT' },
+  { ddl: 'ALTER TABLE pc_test_cases ADD COLUMN keyboard_driver TEXT' },
+  { ddl: 'ALTER TABLE pc_test_cases ADD COLUMN xvfb_resolution TEXT' },
+  { ddl: 'ALTER TABLE pc_test_cases ADD COLUMN headless INTEGER DEFAULT 0' },
+];
+for (const { ddl } of pcDesktopAlter) {
+  try { db.exec(ddl); } catch { /* column already exists — ignore */ }
+}
+
+// 2026-06-16: pc_test_cases.platform — 平台筛选(mac/linux/windows)
+try { db.exec("ALTER TABLE pc_test_cases ADD COLUMN platform TEXT DEFAULT 'windows'"); } catch { /* exists */ }
+
 // ── Devices table（Web/PC/Mobile 设备/浏览器统一管理）──
 // test_type: 'web' | 'pc' | 'mobile' —— 设备所属测试类型
 // platform:  web=chromium/firefox/webkit；pc=win/mac/linux；mobile=android/ios/harmony
@@ -836,6 +923,20 @@ for (const { ddl } of devicePushCols) {
   try { db.exec(ddl); } catch { /* column already exists — ignore */ }
 }
 
+// 2026-06-08: Mobile 屏幕预览字段。preview_kind 决定走 scrcpy / mjpeg / screenshot 哪条
+// relay 路径;last_rich_info_at 标记上次从 adb / hdc / xcrun 查到完整 rich info 的时间,
+// 30s 内 merge.ts 不会重跑慢查询;ssh_tunnel_port 是 server 端 SSH LocalForward 占用的
+// 127.0.0.1 端口,避免多 agent 端口冲突;mobile_agent_port 跟 web agent 区分(4002 vs 4001)。
+const devicePreviewCols: { col: string; ddl: string }[] = [
+  { col: 'preview_kind', ddl: "ALTER TABLE devices ADD COLUMN preview_kind TEXT" },
+  { col: 'last_rich_info_at', ddl: 'ALTER TABLE devices ADD COLUMN last_rich_info_at TEXT' },
+  { col: 'ssh_tunnel_port', ddl: 'ALTER TABLE devices ADD COLUMN ssh_tunnel_port INTEGER' },
+  { col: 'mobile_agent_port', ddl: 'ALTER TABLE devices ADD COLUMN mobile_agent_port INTEGER DEFAULT 4002' },
+];
+for (const { ddl } of devicePreviewCols) {
+  try { db.exec(ddl); } catch { /* column already exists — ignore */ }
+}
+
 db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_devices_agent_token ON devices(agent_token);`);
 
 // ── Web case execution 表（标准化 + Midscene 报告）──
@@ -858,6 +959,19 @@ db.exec(`
   );
   CREATE INDEX IF NOT EXISTS idx_web_case_executions_case_id ON web_case_executions(case_id);
   CREATE INDEX IF NOT EXISTS idx_web_case_executions_user_id ON web_case_executions(user_id);
+`);
+
+// 2026-06-20: web_case_executions 加 device_id 列 + busy 锁 UNIQUE INDEX
+{
+  const cols = db.prepare("PRAGMA table_info(web_case_executions)").all() as { name: string }[];
+  if (!cols.some(c => c.name === 'device_id')) {
+    db.exec(`ALTER TABLE web_case_executions ADD COLUMN device_id INTEGER DEFAULT NULL REFERENCES devices(id) ON DELETE SET NULL`);
+    console.log('[db] added device_id column to web_case_executions');
+  }
+}
+db.exec(`
+  CREATE UNIQUE INDEX IF NOT EXISTS idx_web_case_executions_running_per_device
+    ON web_case_executions(device_id) WHERE status = 'running' AND device_id IS NOT NULL;
 `);
 
 // ── Web case log 表（兼容现有 createWebCaseLog 接口）──
@@ -896,6 +1010,19 @@ db.exec(`
   );
   CREATE INDEX IF NOT EXISTS idx_pc_case_executions_case_id ON pc_case_executions(case_id);
   CREATE INDEX IF NOT EXISTS idx_pc_case_executions_user_id ON pc_case_executions(user_id);
+`);
+
+// 2026-06-20: pc_case_executions 加 device_id 列 + busy 锁 UNIQUE INDEX
+{
+  const cols = db.prepare("PRAGMA table_info(pc_case_executions)").all() as { name: string }[];
+  if (!cols.some(c => c.name === 'device_id')) {
+    db.exec(`ALTER TABLE pc_case_executions ADD COLUMN device_id INTEGER DEFAULT NULL REFERENCES devices(id) ON DELETE SET NULL`);
+    console.log('[db] added device_id column to pc_case_executions');
+  }
+}
+db.exec(`
+  CREATE UNIQUE INDEX IF NOT EXISTS idx_pc_case_executions_running_per_device
+    ON pc_case_executions(device_id) WHERE status = 'running' AND device_id IS NOT NULL;
 `);
 
 // ── PC case log 表（兼容现有 createPcCaseLog 接口）──
@@ -938,6 +1065,33 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_mobile_case_executions_user_id ON mobile_case_executions(user_id);
 `);
 
+// 2026-06-10: 设备级执行 busy 锁 — partial UNIQUE INDEX 兜底多进程/未来多 server 场景。
+// 单进程内由 routes/mobile-tests.ts 的 in-memory mutex + findRunningExecutionByDevice
+// 查询主导,这条 UNIQUE INDEX 是 defense-in-depth:即使 mutex 因故失败,DB 层也会拒绝
+// 第二个 running 行落入同 device_id。
+// 注意:SQLite partial index 的 WHERE 子句必须是确定性表达式;`status='running'` 在
+// row update 触发 index re-eval 时会让 old running row 退出索引,所以历史 finished
+// 行不会无限累积索引项。
+db.exec(`
+  CREATE UNIQUE INDEX IF NOT EXISTS idx_mobile_case_executions_running_per_device
+    ON mobile_case_executions(device_id) WHERE status = 'running' AND device_id IS NOT NULL;
+`);
+
+// 2026-06-11: 本地设备 busy 锁 — local_device_key 存 `local:android:<serial>` 等字符串,
+// 远程设备用 device_id(integer)。两列互斥,各管各的 UNIQUE INDEX。
+// PRAGMA + ALTER 迁移:已有表加列,不破坏数据。
+{
+  const cols = db.prepare("PRAGMA table_info(mobile_case_executions)").all() as { name: string }[];
+  if (!cols.some(c => c.name === 'local_device_key')) {
+    db.exec(`ALTER TABLE mobile_case_executions ADD COLUMN local_device_key TEXT DEFAULT NULL`);
+    console.log('[db] added local_device_key column to mobile_case_executions');
+  }
+}
+db.exec(`
+  CREATE UNIQUE INDEX IF NOT EXISTS idx_mobile_case_executions_running_per_local_device
+    ON mobile_case_executions(local_device_key) WHERE status = 'running' AND local_device_key IS NOT NULL;
+`);
+
 // ── Mobile test log 表（兼容现有 createMobileTestLog 接口）──
 db.exec(`
   CREATE TABLE IF NOT EXISTS mobile_test_logs (
@@ -953,6 +1107,26 @@ db.exec(`
     FOREIGN KEY (test_case_id) REFERENCES mobile_test_cases(id) ON DELETE CASCADE
   );
   CREATE INDEX IF NOT EXISTS idx_mobile_test_logs_case_id ON mobile_test_logs(test_case_id);
+`);
+
+// ── Mobile case preview session 表 (2026-06-08) ──
+// 跟 mobile_case_executions 1:1,记录本次执行开启的预览会话:
+//   preview_kind  决定用 scrcpy(H.264) / mjpeg / screenshot(SSE-JPEG) 哪条中转
+//   session_id    server 端 preview-manager 内部的会话 id,client 拿它开 WebSocket
+//   started_at / stopped_at  排错用
+//   total_frames  累计接收的视频帧 / 截图数,远端断流时通过它判断卡顿
+//   last_frame_at 最后收到一帧的时间,排错用
+db.exec(`
+  CREATE TABLE IF NOT EXISTS mobile_case_execution_preview (
+    case_execution_id INTEGER PRIMARY KEY,
+    preview_kind TEXT NOT NULL,
+    session_id TEXT,
+    started_at TEXT NOT NULL,
+    stopped_at TEXT,
+    total_frames INTEGER NOT NULL DEFAULT 0,
+    last_frame_at TEXT,
+    FOREIGN KEY (case_execution_id) REFERENCES mobile_case_executions(id) ON DELETE CASCADE
+  );
 `);
 
 export default db;
@@ -1141,6 +1315,17 @@ db.exec(`
   );
   CREATE INDEX IF NOT EXISTS idx_schedule_sets_api_ssid ON schedule_sets_api(scenario_set_id);
   CREATE INDEX IF NOT EXISTS idx_schedule_sets_api_status ON schedule_sets_api(status, next_run_at);
+
+  CREATE TABLE IF NOT EXISTS pending_items (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    title TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'pending',
+    created_at TEXT NOT NULL DEFAULT (datetime('now', '+8 hours')),
+    completed_at TEXT,
+    FOREIGN KEY (user_id) REFERENCES users(id)
+  );
+  CREATE INDEX IF NOT EXISTS idx_pending_items_user ON pending_items(user_id);
 `);
 
 // ── 表重建工具函数（保留 PK/NOT NULL/DEFAULT 约束）──
@@ -1420,3 +1605,28 @@ try {
 // 因为这是不可逆的用户数据丢失。前端 step 编辑器 NL 化通过 case_content
 // /case_content_type 列和 resolveCaseContent 兜底处理(见 engine/nl-steps.ts),
 // 不需要清空历史 case。
+
+// ── 2026-06-23: Mobile apps table — APK/IPA/HAP 包管理 ──
+db.exec(`
+  CREATE TABLE IF NOT EXISTS mobile_apps (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    platform TEXT NOT NULL DEFAULT 'android',
+    package_name TEXT,
+    versions TEXT NOT NULL DEFAULT '[]',
+    latest_version TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now', '+8 hours')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now', '+8 hours')),
+    FOREIGN KEY (user_id) REFERENCES users(id)
+  );
+`);
+
+// mobile_test_cases 加 app_id / app_version 列（关联 mobile_apps）
+const mobileAppAlter: Array<{ ddl: string }> = [
+  { ddl: 'ALTER TABLE mobile_test_cases ADD COLUMN app_id INTEGER' },
+  { ddl: 'ALTER TABLE mobile_test_cases ADD COLUMN app_version TEXT' },
+];
+for (const { ddl } of mobileAppAlter) {
+  try { db.exec(ddl); } catch { /* column already exists — ignore */ }
+}

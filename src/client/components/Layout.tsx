@@ -1,7 +1,5 @@
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
-import { useState, useRef, useEffect } from 'react';
-import { useAuth } from '../contexts/AuthContext';
-import { useEnvironment } from '../contexts/EnvironmentContext';
+import SysHeader from './SysHeader';
 import './Layout.css';
 
 // SVG icons for nav items
@@ -15,12 +13,11 @@ const icons: Record<string, React.ReactNode> = {
   chat: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>,
   env: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 01-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9"/></svg>,
   tag: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z"/><circle cx="7" cy="7" r="1"/></svg>,
-  mobile: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="7" y="2" width="10" height="20" rx="2"/><circle cx="12" cy="18" r="1"/></svg>,
+  mobile: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="7" y="2" width="10" height="20" rx="2"/><circle cx="12" y="18" r="1"/></svg>,
   lightning: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" strokeLinecap="round" strokeLinejoin="round"/></svg>,
   globe: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>,
   monitor: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>,
-  device: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12" y2="18"/></svg>,
-  brain: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2a4 4 0 00-4 4v0a3 3 0 00-3 3v0a3 3 0 00.5 1.7A3 3 0 005 12.5 3 3 0 008 15v1a3 3 0 003 3 3 3 0 003-3v-1a3 3 0 003-2.5 3 3 0 00-.5-1.7A3 3 0 0016 9v0a3 3 0 00-3-3v0a4 4 0 00-1-3z" strokeLinecap="round" strokeLinejoin="round"/><path d="M12 6v14M9 9l3 3 3-3" strokeLinecap="round" strokeLinejoin="round"/></svg>,
+  package: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M16.5 9.4l-9-5.19M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/><path d="M3.27 6.96L12 12.01l8.73-5.05M12 22.08V12"/></svg>,
 };
 
 interface NavItem {
@@ -34,13 +31,16 @@ interface NavSection {
   items: NavItem[];
 }
 
+// 2026-06-08: 设备库 / 模型配置 / 浏览器配置 都是 per-user 资源,
+// 不属于任何测试类型,已搬到独立的 /settings/* 路由(见 SettingsLayout)。
+// 这里只留项目级 / 测试类型级的资源:Mock / 环境 / 标签。
 const MENUS_BY_TYPE: Record<string, NavSection[]> = {
   'api-test': [
     { section: '概览', items: [{ label: '仪表盘', path: '/api-test', icon: 'dashboard' }] },
-    { section: '测试用例', items: [{ label: '用例列表', path: '/api-test/api-case', icon: 'doc' }] },
+    { section: '测试用例', items: [{ label: '用例列表', path: '/api-test/case', icon: 'doc' }] },
     { section: '场景编排', items: [
-      { label: '场景列表', path: '/api-test/scene-case', icon: 'check' },
-      { label: '场景集', path: '/api-test/scene-set', icon: 'folder' },
+      { label: '场景列表', path: '/api-test/scene', icon: 'check' },
+      { label: '场景集', path: '/api-test/case-set', icon: 'folder' },
     ]},
     { section: '执行管理', items: [
       { label: '定时任务', path: '/api-test/schedule', icon: 'clock' },
@@ -49,13 +49,11 @@ const MENUS_BY_TYPE: Record<string, NavSection[]> = {
       { label: 'Mock 服务', path: '/api-test/mock', icon: 'chat' },
       { label: '环境管理', path: '/api-test/environment', icon: 'env' },
       { label: '标签管理', path: '/api-test/system-config', icon: 'tag' },
-      { label: '设备库', path: '/api-test/devices', icon: 'device' },
-      { label: '模型配置', path: '/api-test/midscene-config', icon: 'brain' },
     ]},
   ],
   'mobile-test': [
     { section: '概览', items: [{ label: '仪表盘', path: '/mobile-test', icon: 'dashboard' }] },
-    { section: '测试用例', items: [{ label: '用例列表', path: '/mobile-test/test-case', icon: 'mobile' }] },
+    { section: '测试用例', items: [{ label: '用例列表', path: '/mobile-test/case', icon: 'mobile' }] },
     { section: '用例集', items: [
       { label: '用例集', path: '/mobile-test/case-set', icon: 'folder' },
     ]},
@@ -63,11 +61,9 @@ const MENUS_BY_TYPE: Record<string, NavSection[]> = {
       { label: '定时任务', path: '/mobile-test/schedule', icon: 'clock' },
     ]},
     { section: '辅助功能', items: [
-      { label: 'Mock 服务', path: '/mobile-test/mock', icon: 'chat' },
+      { label: '应用管理', path: '/mobile-test/apps', icon: 'package' },
       { label: '环境管理', path: '/mobile-test/environment', icon: 'env' },
       { label: '标签管理', path: '/mobile-test/system-config', icon: 'tag' },
-      { label: '设备库', path: '/mobile-test/devices', icon: 'device' },
-      { label: '模型配置', path: '/mobile-test/midscene-config', icon: 'brain' },
     ]},
   ],
   'web-test': [
@@ -82,9 +78,6 @@ const MENUS_BY_TYPE: Record<string, NavSection[]> = {
     { section: '辅助功能', items: [
       { label: '环境管理', path: '/web-test/environment', icon: 'env' },
       { label: '标签管理', path: '/web-test/system-config', icon: 'tag' },
-      { label: '设备库', path: '/web-test/devices', icon: 'device' },
-      { label: '浏览器配置', path: '/web-test/browser-config', icon: 'env' },
-      { label: '模型配置', path: '/web-test/midscene-config', icon: 'brain' },
     ]},
   ],
   'pc-test': [
@@ -99,8 +92,6 @@ const MENUS_BY_TYPE: Record<string, NavSection[]> = {
     { section: '辅助功能', items: [
       { label: '环境管理', path: '/pc-test/environment', icon: 'env' },
       { label: '标签管理', path: '/pc-test/system-config', icon: 'tag' },
-      { label: '设备库', path: '/pc-test/devices', icon: 'device' },
-      { label: '模型配置', path: '/pc-test/midscene-config', icon: 'brain' },
     ]},
   ],
 };
@@ -115,22 +106,6 @@ const BRAND_CONFIG: Record<string, { name: string; color: string; icon: string }
 export default function Layout() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, logout } = useAuth();
-  const { environments, activeEnv, setActiveEnv } = useEnvironment();
-  const [envOpen, setEnvOpen] = useState(false);
-  const envRef = useRef<HTMLDivElement>(null);
-
-  const [userMenuOpen, setUserMenuOpen] = useState(false);
-  const userMenuRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (envRef.current && !envRef.current.contains(e.target as Node)) setEnvOpen(false);
-      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) setUserMenuOpen(false);
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, []);
 
   // Determine test type from path
   const testType = location.pathname.startsWith('/mobile-test') ? 'mobile-test'
@@ -140,15 +115,11 @@ export default function Layout() {
   const sections = MENUS_BY_TYPE[testType] || MENUS_BY_TYPE['api-test'];
   const brand = BRAND_CONFIG[testType] || BRAND_CONFIG['api-test'];
 
-  const isActive = (path: string) => location.pathname === path || location.pathname.startsWith(path + '/');
-
-  const displayName = user?.nickname || user?.account?.slice(0, 8) || 'User';
-  const firstChar = displayName.charAt(0).toUpperCase();
-  const avatarSrc = user?.avatar && !user.avatar.startsWith('data:') ? user.avatar : null;
-
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
+  const isActive = (path: string) => {
+    // 仪表盘是根路径，必须精确匹配，否则所有子页面都会命中
+    const segments = path.split('/').filter(Boolean);
+    if (segments.length <= 1) return location.pathname === path;
+    return location.pathname === path || location.pathname.startsWith(path + '/');
   };
 
   return (
@@ -183,61 +154,14 @@ export default function Layout() {
 
       {/* Main area */}
       <div className="sys-main">
-        <div className="sys-header">
-          <div className="sys-header-left">
-            <button className="sys-back" onClick={() => navigate('/')}>
-              ← 返回主页
-            </button>
-          </div>
-          <div className="sys-header-right">
-            {/* Environment switcher */}
-            {environments && environments.length > 0 && (
-              <div className="hdr-env-switcher" ref={envRef}>
-                <button className="hdr-env-btn" onClick={() => setEnvOpen(!envOpen)}>
-                  <span className="hdr-env-dot" />
-                  {activeEnv ? activeEnv.name : '选择环境'}
-                  <span className="hdr-env-arrow">▾</span>
-                </button>
-                {envOpen && (
-                  <div className="hdr-env-dropdown">
-                    {environments.map((env: any) => (
-                      <button key={env.id} className={`hdr-env-item ${activeEnv?.id === env.id ? 'active' : ''}`}
-                        onClick={() => { setActiveEnv(env); setEnvOpen(false); }}>
-                        <span className="hdr-env-dot" />
-                        <span>{env.name}</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-            {/* User menu */}
-            <div className="hdr-user-menu" ref={userMenuRef}>
-              <button className="hdr-user-btn" onClick={() => setUserMenuOpen(o => !o)}>
-                <div className="hdr-user-avatar">
-                  {avatarSrc ? <img src={avatarSrc} alt="" /> : firstChar}
-                </div>
-                <span className="hdr-user-name">{displayName}</span>
-                <span className="hdr-user-arrow">▾</span>
-              </button>
-              {userMenuOpen && (
-                <div className="hdr-user-dropdown">
-                  <div className="hdr-user-dropdown-info">
-                    <div className="hdr-user-dropdown-name">{displayName}</div>
-                    <div className="hdr-user-dropdown-account">{user?.account || ''}</div>
-                  </div>
-                  <div className="hdr-user-dropdown-divider" />
-                  <button className="hdr-user-dropdown-item" onClick={() => navigate('/profile')}>修改资料</button>
-                  <button className="hdr-user-dropdown-item" onClick={() => navigate('/change-password')}>修改密码</button>
-                  <div className="hdr-user-dropdown-divider" />
-                  <button className="hdr-user-dropdown-item danger" onClick={handleLogout}>退出登录</button>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
+        <SysHeader />
         <div className="sys-content">
           <Outlet />
+        </div>
+        <div className="sys-footer">
+          <span className="sys-footer-name">OpenAutoTest</span>
+          <span className="sys-footer-sep">·</span>
+          <span className="sys-footer-ver">v1.0.0</span>
         </div>
       </div>
     </div>

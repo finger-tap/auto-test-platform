@@ -22,6 +22,7 @@ import { startScheduler } from './scheduler/scheduler.js';
 import { checkMock } from './mock-proxy.js';
 import { serveMidsceneReport } from './midscene-reports-static.js';
 import { isPushEnabled } from './agent-push/crypto.js';
+import { attachScrcpyWebSocket } from './routes/mobile-preview.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -76,7 +77,7 @@ app.use(express.json());
 
 // Serve avatar files (with content-type hardening to prevent XSS via
 // malicious uploads bypassing mimetype checks)
-const dataDir = path.resolve(__dirname, '../../data');
+const dataDir = process.env.DATA_DIR || path.resolve(__dirname, '../../data');
 app.use(
   '/avatars',
   (_req, res, next) => {
@@ -129,10 +130,23 @@ if (isDev) {
   });
 }
 
-app.listen(PORT, () => {
-  const url = `http://localhost:${PORT}`;
+const httpServer = app.listen(PORT, () => {
+  const addr = httpServer.address();
+  const actualPort = typeof addr === 'object' && addr ? addr.port : PORT;
+  const url = `http://localhost:${actualPort}`;
   console.log(`\n  ➜  Local:   ${url}\n`);
+  // Notify Electron parent process that the server is ready
+  if (process.send) {
+    process.send({ type: 'ready', port: actualPort });
+  }
 });
+httpServer.on('error', (err) => {
+  console.error(`[server] listen error: ${err.message}`);
+});
+// 2026-06-08: 注册 scrcpy WebSocket upgrade handler — 跟 mobile-preview 路由
+// 走同一个 HTTP server,只是路径不经过 express。attachScrcpyWebSocket 内部
+// 用 noServer 模式的 WebSocketServer,自己监听 upgrade 事件并校验 token。
+attachScrcpyWebSocket(httpServer);
 
 // Start background scheduler
 startScheduler();

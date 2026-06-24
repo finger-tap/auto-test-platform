@@ -1,8 +1,10 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useEnvironment } from '../contexts/EnvironmentContext';
 import { apiFetch } from '../utils/api';
+import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
+import SettingsDrawer from '../components/SettingsDrawer';
 import './Home.css';
 
 const LogoSvg = () => (
@@ -15,23 +17,46 @@ const LogoSvg = () => (
 
 interface TestTypeStats {
   cases: number;
-  scenarios: number;
   sets: number;
-  rate: number;
+  passRate: number;
 }
 
-interface Activity {
-  color: string;
-  text: string;
-  time: string;
+interface TrendPoint {
+  date: string;
+  passRate: number;
+  count: number;
+  passed: number;
+  failed: number;
 }
 
-interface PaginatedResponse {
-  items: any[];
+interface TrendSummary {
   total: number;
-  page: number;
-  pageSize: number;
+  passed: number;
+  failed: number;
 }
+
+interface PendingItem {
+  id: number;
+  title: string;
+  status: 'pending' | 'completed';
+  created_at: string;
+  completed_at: string | null;
+}
+
+
+const formatTime = (iso: string) => {
+  if (!iso) return '-';
+  const d = new Date(iso);
+  const now = new Date();
+  const diffMs = now.getTime() - d.getTime();
+  const diffMin = Math.floor(diffMs / 60000);
+  if (diffMin < 1) return '刚刚';
+  if (diffMin < 60) return `${diffMin} 分钟前`;
+  const diffHr = Math.floor(diffMin / 60);
+  if (diffHr < 24) return `${diffHr} 小时前`;
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+};
 
 const testTypes = [
   {
@@ -41,8 +66,9 @@ const testTypes = [
     color: 'oklch(95% 0.04 250)',
     stroke: 'oklch(55% 0.2 250)',
     icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" strokeLinecap="round" strokeLinejoin="round"/></svg>,
-    stats: { cases: 0, scenarios: 0, sets: 0, rate: 0 },
     path: '/api-test',
+    casesLabel: '用例',
+    setsLabel: '场景集',
   },
   {
     key: 'web-test',
@@ -51,8 +77,9 @@ const testTypes = [
     color: 'oklch(95% 0.04 145)',
     stroke: 'oklch(55% 0.16 145)',
     icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>,
-    stats: { cases: 0, scenarios: 0, sets: 0, rate: 0 },
     path: '/web-test',
+    casesLabel: '用例',
+    setsLabel: '用例集',
   },
   {
     key: 'mobile-test',
@@ -61,8 +88,9 @@ const testTypes = [
     color: 'oklch(95% 0.04 75)',
     stroke: 'oklch(60% 0.15 75)',
     icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="7" y="2" width="10" height="20" rx="2"/><circle cx="12" cy="18" r="1"/></svg>,
-    stats: { cases: 0, scenarios: 0, sets: 0, rate: 0 },
     path: '/mobile-test',
+    casesLabel: '用例',
+    setsLabel: '用例集',
   },
   {
     key: 'pc-test',
@@ -71,18 +99,10 @@ const testTypes = [
     color: 'oklch(95% 0.04 300)',
     stroke: 'oklch(55% 0.15 300)',
     icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>,
-    stats: { cases: 0, scenarios: 0, sets: 0, rate: 0 },
     path: '/pc-test',
+    casesLabel: '用例',
+    setsLabel: '用例集',
   },
-];
-
-const shortcuts = [
-  { label: '新建用例', path: '/api-test/api-case/new' },
-  { label: '新建场景', path: '/api-test/scene' },
-  { label: '定时任务', path: '/api-test/schedule' },
-  { label: '场景集', path: '/api-test/scenario-set' },
-  { label: 'Mock 服务', path: '/api-test/mock' },
-  { label: '环境管理', path: '/api-test/environment' },
 ];
 
 export default function Home() {
@@ -91,64 +111,53 @@ export default function Home() {
   const { environments, activeEnv, setActiveEnv } = useEnvironment();
   const [envOpen, setEnvOpen] = useState(false);
   const envRef = useRef<HTMLDivElement>(null);
+  const [userDropdownOpen, setUserDropdownOpen] = useState(false);
+  const userDropdownRef = useRef<HTMLDivElement>(null);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [newTodoTitle, setNewTodoTitle] = useState('');
+  const [addingTodo, setAddingTodo] = useState(false);
+  const [todoInputOpen, setTodoInputOpen] = useState(false);
   const [stats, setStats] = useState<Record<string, TestTypeStats>>({});
-  const [activities, setActivities] = useState<Activity[]>([]);
+  const [trend, setTrend] = useState<TrendPoint[]>([]);
+  const [trendSummary, setTrendSummary] = useState<TrendSummary>({ total: 0, passed: 0, failed: 0 });
+  const [pending, setPending] = useState<PendingItem[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Theme toggle (same logic as SysHeader)
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    const stored = localStorage.getItem('theme');
+    if (stored === 'dark' || stored === 'light') return stored;
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  });
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    localStorage.setItem('theme', theme);
+  }, [theme]);
+  const toggleTheme = useCallback(() => setTheme(t => t === 'dark' ? 'light' : 'dark'), []);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (envRef.current && !envRef.current.contains(e.target as Node)) setEnvOpen(false);
+      if (userDropdownRef.current && !userDropdownRef.current.contains(e.target as Node)) setUserDropdownOpen(false);
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  // Load real stats from API
   useEffect(() => {
     Promise.all([
-      apiFetch<PaginatedResponse>('/apis?page=1&pageSize=1'),
-      apiFetch<PaginatedResponse>('/scenarios?page=1&pageSize=1'),
-      apiFetch<PaginatedResponse>('/scenario-sets?page=1&pageSize=1'),
-      apiFetch<PaginatedResponse>('/web-cases?page=1&pageSize=1'),
-      apiFetch<PaginatedResponse>('/case-sets-web?page=1&pageSize=1'),
-      apiFetch<PaginatedResponse>('/case-sets-mobile?page=1&pageSize=1'),
-      apiFetch<PaginatedResponse>('/mobile-tests?page=1&pageSize=1'),
-      apiFetch<PaginatedResponse>('/pc-cases?page=1&pageSize=1'),
-      apiFetch<PaginatedResponse>('/case-sets-pc?page=1&pageSize=1'),
-    ]).then(([apiCasesRes, apiScenesRes, apiSetsRes, webCasesRes, webSetsRes, mobileSetsRes, mobileCasesRes, pcCasesRes, pcSetsRes]) => {
-      console.log('API stats response:', apiCasesRes, apiScenesRes, apiSetsRes);
-      setStats({
-        'api-test': {
-          cases: apiCasesRes.data?.total || 0,
-          scenarios: apiScenesRes.data?.total || 0,
-          sets: apiSetsRes.data?.total || 0,
-          rate: 0,
-        },
-        'web-test': {
-          cases: webCasesRes.data?.total || 0,
-          scenarios: 0,
-          sets: webSetsRes.data?.total || 0,
-          rate: 0,
-        },
-        'mobile-test': {
-          cases: mobileCasesRes.data?.total || 0,
-          scenarios: 0,
-          sets: mobileSetsRes.data?.total || 0,
-          rate: 0,
-        },
-        'pc-test': {
-          cases: pcCasesRes.data?.total || 0,
-          scenarios: 0,
-          sets: pcSetsRes.data?.total || 0,
-          rate: 0,
-        },
-      });
-      setActivities([
-        { color: 'var(--accent)', text: '数据已加载', time: '刚刚' },
-      ]);
-    }).catch(() => {
-      setActivities([]);
-    }).finally(() => setLoading(false));
+      apiFetch<Record<string, TestTypeStats>>('/dashboard/stats'),
+      apiFetch<{ trend: TrendPoint[]; summary: TrendSummary }>('/dashboard/trend?days=14'),
+      apiFetch<PendingItem[]>('/dashboard/pending'),
+    ])
+      .then(([statsRes, trendRes, pendingRes]) => {
+        setStats(statsRes.data || {});
+        setTrend(trendRes.data?.trend || []);
+        setTrendSummary(trendRes.data?.summary || { total: 0, passed: 0, failed: 0 });
+        setPending(pendingRes.data || []);
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
   }, []);
 
   const displayName = user?.nickname || user?.account?.slice(0, 8) || '管理员';
@@ -157,19 +166,21 @@ export default function Home() {
   const today = new Date();
   const dateStr = `${today.getFullYear()}年${today.getMonth() + 1}月${today.getDate()}日`;
 
-  const updateStats = (typeStats: typeof testTypes) => typeStats.map(t => ({
-    ...t,
-    stats: stats[t.key] || { cases: 0, scenarios: 0, sets: 0, rate: 0 },
-  }));
-
   return (
-    <div className="home-shell">
+    <div className="home-shell page-enter">
       <div className="home-header">
         <div className="home-header-title">
           <LogoSvg />
           <span>Auto Test Platform</span>
         </div>
         <div className="home-header-actions">
+          <button className="hdr-theme-btn" onClick={toggleTheme} title={theme === 'dark' ? '切换亮色' : '切换暗色'}>
+            {theme === 'dark' ? (
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+            ) : (
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+            )}
+          </button>
           {environments.length > 0 && (
             <div className="hdr-env-switcher" ref={envRef}>
               <button className="hdr-env-btn" onClick={() => setEnvOpen(!envOpen)}>
@@ -190,77 +201,222 @@ export default function Home() {
               )}
             </div>
           )}
-          <button className="home-user-btn" onClick={() => navigate('/profile')}>
-            <div className="home-user-avatar">
-              {avatarSrc ? <img src={avatarSrc} alt="" /> : firstChar}
-            </div>
-          </button>
+          <div className="home-user-dropdown" ref={userDropdownRef}>
+            <button className="home-user-btn" onClick={() => setUserDropdownOpen(!userDropdownOpen)}>
+              <div className="home-user-avatar">
+                {avatarSrc ? <img src={avatarSrc} alt="" /> : firstChar}
+              </div>
+            </button>
+            {userDropdownOpen && (
+              <div className="home-user-menu">
+                <div className="home-user-menu-info">
+                  <div className="home-user-menu-name">{displayName}</div>
+                  <div className="home-user-menu-account">{user?.account || ''}</div>
+                </div>
+                <div className="home-user-menu-divider" />
+                <button className="home-user-menu-item" onClick={() => { setUserDropdownOpen(false); setSettingsOpen(true); }}>
+                  账号与设置
+                </button>
+                <div className="home-user-menu-divider" />
+                <button className="home-user-menu-item home-user-menu-item--danger" onClick={() => { logout(); setUserDropdownOpen(false); }}>
+                  退出登录
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
+
+      <SettingsDrawer open={settingsOpen} onClose={() => setSettingsOpen(false)} />
 
       <div className="home-body">
         <div className="home-welcome">欢迎回来，{displayName}</div>
         <div className="home-subtitle">平台概览 — {dateStr}</div>
 
         <div className="kanban-grid">
-          {updateStats(testTypes).map(t => {
-            const isApi = t.key === 'api-test';
-            const setsLabel = isApi ? '场景集' : '用例集';
-            const scenariosLabel = isApi ? '场景' : '用例集';
+          {testTypes.map(t => {
+            const s = stats[t.key] || { cases: 0, sets: 0, passRate: 0 };
+            const rateColor = s.passRate >= 90 ? 'var(--success)' : s.passRate > 0 ? 'var(--warning)' : 'var(--fg-tertiary)';
             return (
             <div key={t.key} className="kanban-card" onClick={() => navigate(t.path)}>
-              <div className="kanban-enter">
-                <button className="kanban-enter-btn" onClick={(e) => { e.stopPropagation(); navigate(t.path); }}>进入系统 →</button>
-              </div>
               <div className="kanban-icon" style={{ background: t.color, color: t.stroke }}>
                 {t.icon}
               </div>
               <div className="kanban-name">{t.name}</div>
               <div className="kanban-desc">{t.desc}</div>
               <div className="kanban-stats">
-                <div><div className="kanban-stat-val">{loading ? '-' : t.stats.cases}</div><div className="kanban-stat-label">用例总数</div></div>
-                {isApi && (<div><div className="kanban-stat-val">{loading ? '-' : t.stats.scenarios}</div><div className="kanban-stat-label">{scenariosLabel}</div></div>)}
-                <div><div className="kanban-stat-val">{loading ? '-' : t.stats.sets}</div><div className="kanban-stat-label">{setsLabel}</div></div>
+                <div><div className="kanban-stat-val">{loading ? '-' : s.cases}</div><div className="kanban-stat-label">{t.casesLabel}</div></div>
+                <div><div className="kanban-stat-val">{loading ? '-' : s.sets}</div><div className="kanban-stat-label">{t.setsLabel}</div></div>
               </div>
               <div className="kanban-rate">
                 <div className="kanban-rate-bar">
-                  <div className="kanban-rate-fill" style={{ width: `${t.stats.rate}%`, background: t.stats.rate >= 90 ? 'var(--success)' : 'var(--success)' }} />
+                  <div className="kanban-rate-fill" style={{ width: `${s.passRate}%`, background: rateColor }} />
                 </div>
-                <div className="kanban-rate-val" style={{ color: t.stats.rate >= 90 ? 'var(--success)' : 'var(--success)' }}>{t.stats.rate}%</div>
+                <div className="kanban-rate-val" style={{ color: rateColor }}>{loading ? '-' : `${s.passRate}%`}</div>
               </div>
             </div>
             );
           })}
         </div>
 
-        <div className="home-bottom">
-          <div className="home-panel">
-            <div className="home-panel-head">最近活动</div>
-            <div className="home-panel-body">
-              {activities.length === 0 && !loading ? (
-                <div className="activity-item">
-                  <div className="activity-text" style={{ color: 'var(--fg-tertiary)' }}>暂无活动记录</div>
+        <div className="home-bottom-grid">
+          <div className="home-panel home-panel-chart">
+            <div className="home-panel-head">执行趋势 <span className="home-panel-sub">近 14 天</span></div>
+            <div className="trend-summary-row">
+              <div className="trend-summary-card">
+                <div className="trend-summary-val">{loading ? '-' : trendSummary.total}</div>
+                <div className="trend-summary-label">执行总次数</div>
+              </div>
+              <div className="trend-summary-card">
+                <div className="trend-summary-val" style={{ color: 'var(--success)' }}>{loading ? '-' : trendSummary.passed}</div>
+                <div className="trend-summary-label">成功</div>
+              </div>
+              <div className="trend-summary-card">
+                <div className="trend-summary-val" style={{ color: 'var(--danger)' }}>{loading ? '-' : trendSummary.failed}</div>
+                <div className="trend-summary-label">失败</div>
+              </div>
+              <div className="trend-summary-card">
+                <div className="trend-summary-val" style={{ color: 'var(--accent)' }}>{loading ? '-' : (trendSummary.total > 0 ? `${Math.round((trendSummary.passed / (trendSummary.passed + trendSummary.failed)) * 100)}%` : '-')}</div>
+                <div className="trend-summary-label">通过率</div>
+              </div>
+            </div>
+            {trend.length === 0 && !loading ? (
+              <div className="home-empty">暂无执行数据</div>
+            ) : (
+              <div className="chart-wrap">
+                <ResponsiveContainer width="100%" height={200}>
+                  <AreaChart data={trend} margin={{ top: 8, right: 8, left: -20, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="gradRate" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="var(--accent)" stopOpacity={0.2} />
+                        <stop offset="95%" stopColor="var(--accent)" stopOpacity={0} />
+                      </linearGradient>
+                      <linearGradient id="gradCount" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="var(--success)" stopOpacity={0.2} />
+                        <stop offset="95%" stopColor="var(--success)" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" />
+                    <XAxis dataKey="date" tick={{ fontSize: 11, fill: 'var(--fg-tertiary)' }} tickLine={false} axisLine={false} />
+                    <YAxis yAxisId="left" domain={[0, 100]} tick={{ fontSize: 11, fill: 'var(--fg-tertiary)' }} tickLine={false} axisLine={false} tickFormatter={v => `${v}%`} />
+                    <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 11, fill: 'var(--fg-tertiary)' }} tickLine={false} axisLine={false} />
+                    <Tooltip
+                      contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', fontSize: 12 }}
+                      formatter={(value: number, name: string) => {
+                        if (name === 'passRate') return [`${value}%`, '通过率'];
+                        return [value, '执行次数'];
+                      }}
+                      labelFormatter={label => label}
+                    />
+                    <Area yAxisId="left" type="monotone" dataKey="passRate" stroke="var(--accent)" strokeWidth={2} fill="url(#gradRate)" dot={false} />
+                    <Area yAxisId="right" type="monotone" dataKey="count" stroke="var(--success)" strokeWidth={2} fill="url(#gradCount)" dot={false} />
+                  </AreaChart>
+                </ResponsiveContainer>
+                <div className="chart-legend">
+                  <span className="chart-legend-item"><span className="chart-legend-dot" style={{ background: 'var(--accent)' }} />通过率</span>
+                  <span className="chart-legend-item"><span className="chart-legend-dot" style={{ background: 'var(--success)' }} />执行次数</span>
                 </div>
-              ) : (
-                activities.map((a, i) => (
-                  <div key={i} className="activity-item">
-                    <div className="activity-dot" style={{ background: a.color }} />
-                    <div className="activity-text">{a.text}</div>
-                    <div className="activity-time">{a.time}</div>
-                  </div>
-                ))
+              </div>
+            )}
+          </div>
+
+          <div className="home-panel home-panel-pending">
+            <div className="home-panel-head">
+              待办事项
+              {!todoInputOpen && (
+                <button
+                  className="pending-add-toggle"
+                  title="添加待办"
+                  onClick={() => setTodoInputOpen(true)}
+                >+</button>
               )}
             </div>
-          </div>
-          <div className="home-panel">
-            <div className="home-panel-head">快捷操作</div>
-            <div className="shortcut-grid">
-              {shortcuts.map((s, i) => (
-                <button key={i} className="shortcut-btn" onClick={() => navigate(s.path)}>
-                  {s.label}
-                </button>
-              ))}
-            </div>
+            {todoInputOpen && (
+              <div className="pending-add-row">
+                <input
+                  autoFocus
+                  className="pending-add-input"
+                  placeholder="输入待办事项，回车添加"
+                  value={newTodoTitle}
+                  onChange={(e) => setNewTodoTitle(e.target.value)}
+                  onBlur={() => { if (!newTodoTitle.trim()) setTodoInputOpen(false); }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Escape') { setNewTodoTitle(''); setTodoInputOpen(false); }
+                    if (e.key === 'Enter' && newTodoTitle.trim() && !addingTodo) {
+                      setAddingTodo(true);
+                      apiFetch<{ id: number; title: string; status: string }>('/dashboard/pending', {
+                        method: 'POST',
+                        body: JSON.stringify({ title: newTodoTitle.trim() }),
+                      }).then((res) => {
+                        if (res.data) {
+                          setPending(prev => [{
+                            id: res.data!.id,
+                            title: res.data!.title,
+                            status: 'pending',
+                            created_at: new Date().toISOString(),
+                            completed_at: null,
+                          }, ...prev]);
+                          setNewTodoTitle('');
+                          setTodoInputOpen(false);
+                        }
+                      }).finally(() => setAddingTodo(false));
+                    }
+                  }}
+                />
+              </div>
+            )}
+            {pending.length === 0 && !loading ? (
+              <div className="home-empty">暂无待办事项</div>
+            ) : (
+              <div className="pending-list">
+                {pending.map((p) => {
+                  const isCompleted = p.status === 'completed';
+                  return (
+                    <div
+                      key={p.id}
+                      className={`pending-item ${isCompleted ? 'pending-item--done' : ''}`}
+                    >
+                      <button
+                        className={`pending-check ${isCompleted ? 'pending-check--done' : ''}`}
+                        title={isCompleted ? '标记为未完成' : '标记为完成'}
+                        onClick={() => {
+                          apiFetch<{ id: number; status: string; completed_at: string | null }>(`/dashboard/pending/${p.id}/complete`, {
+                            method: 'PUT',
+                          }).then((res) => {
+                            if (res.data) {
+                              setPending(prev => prev.map(item =>
+                                item.id === p.id
+                                  ? { ...item, status: res.data!.status as 'pending' | 'completed', completed_at: res.data!.completed_at }
+                                  : item,
+                              ));
+                            }
+                          });
+                        }}
+                      >
+                        {isCompleted && (
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" width="12" height="12"><polyline points="20 6 9 17 4 12"/></svg>
+                        )}
+                      </button>
+                      <div className="pending-main">
+                        <div className="pending-title">{p.title}</div>
+                        <div className="pending-time">{formatTime(p.created_at)}</div>
+                      </div>
+                      <button
+                        className="pending-delete"
+                        title="删除"
+                        onClick={() => {
+                          apiFetch(`/dashboard/pending/${p.id}`, { method: 'DELETE' }).then(() => {
+                            setPending(prev => prev.filter(item => item.id !== p.id));
+                          });
+                        }}
+                      >
+                        &times;
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
       </div>

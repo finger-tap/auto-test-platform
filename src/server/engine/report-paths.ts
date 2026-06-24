@@ -13,13 +13,19 @@
 
 import path from 'node:path';
 import fs from 'node:fs/promises';
+import { fileURLToPath } from 'node:url';
 import { getMidsceneConfig } from '../db/midscene-config.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 export type TestType = 'web' | 'computer' | 'mobile';
 
 // Default root for users without a custom report_storage_path. Kept
 // module-level so it can be imported by cleanup / static middleware too.
-export const REPORTS_ROOT = path.resolve(process.cwd(), 'data/midscene-reports');
+export const REPORTS_ROOT = process.env.DATA_DIR
+  ? path.join(process.env.DATA_DIR, 'midscene-reports')
+  : path.resolve(__dirname, '../../../data/midscene-reports');
 
 // 60-second TTL cache: <userId, {root, expiresAt}>. User changes to the
 // MidsceneConfig page take up to 60s to be observed on the executor side,

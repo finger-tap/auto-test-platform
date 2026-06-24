@@ -40,7 +40,8 @@ export default function SystemConfig() {
   };
 
   const handleDeleteTag = async (tagName: string) => {
-    if (!confirm(`确定删除标签「${tagName}」？该标签将从所有用例和场景中移除。`)) return;
+    const ok = await notification.confirm(`确定删除标签「${tagName}」？该标签将从所有用例和场景中移除。`);
+    if (!ok) return;
     setDeleting(tagName);
     try {
       await apiFetch(`/tags/${encodeURIComponent(tagName)}`, { method: 'DELETE' });
@@ -87,10 +88,6 @@ export default function SystemConfig() {
 
   return (
     <div className="sys-root">
-      <div className="sys-head">
-        <h2>系统配置</h2>
-      </div>
-
       {/* Tag Management Module */}
       <div className="sys-card">
         <div className="sys-card-title">标签管理</div>
