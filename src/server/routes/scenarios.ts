@@ -4,6 +4,7 @@ import {
   findScenariosByUserIdPaginated,
   findScenariosByUserId,
   findScenarioById,
+  findScenarioByName,
   createScenario,
   updateScenario,
   deleteScenario,
@@ -58,7 +59,13 @@ scenarioRoutes.post('/', (req: Request, res: Response) => {
     return;
   }
 
-  const id = createScenario(req.user!.userId, { name: name.trim(), description, status, tags, parameters });
+  const trimmedName = name.trim();
+  if (findScenarioByName(req.user!.userId, trimmedName)) {
+    res.status(409).json({ code: 409, message: '已存在同名场景' });
+    return;
+  }
+
+  const id = createScenario(req.user!.userId, { name: trimmedName, description, status, tags, parameters });
 
   // Create default start and end nodes
   upsertNodes(id, [
@@ -90,6 +97,14 @@ scenarioRoutes.put('/:id', (req: Request, res: Response) => {
   if (!scenario) return;
 
   const { name, description, status, tags, parameters } = req.body;
+
+  const checkName = name && typeof name === 'string' ? name.trim() : scenario.name;
+  const existingScenario = findScenarioByName(req.user!.userId, checkName);
+  if (existingScenario && existingScenario.id !== scenario.id) {
+    res.status(409).json({ code: 409, message: '已存在同名场景' });
+    return;
+  }
+
   updateScenario(scenario.id, { name, description, status, tags, parameters });
   res.json({ code: 200, message: 'Updated' });
 });

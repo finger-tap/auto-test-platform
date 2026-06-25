@@ -50,7 +50,21 @@ export async function apiFetchJSON<T>(
   }
 
   const res = await fetch(`${API_BASE}${path}`, { ...options, headers });
-  return res.json() as Promise<ApiResponse<T>>;
+  if (res.status === 401) {
+    removeToken();
+    removeUserInfo();
+    window.location.href = '/login';
+    return Promise.reject(new Error('登录已过期，请重新登录'));
+  }
+
+  const body = await res.json().catch(() => null) as ApiResponse<T> | null;
+  if (!body) {
+    throw new Error('服务器响应异常');
+  }
+  if (!res.ok) {
+    throw new Error(body.message || `请求失败 (${res.status})`);
+  }
+  return body;
 }
 
 /**

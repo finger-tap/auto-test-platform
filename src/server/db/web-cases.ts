@@ -139,6 +139,10 @@ export function getWebCase(id: number): WebCaseRow | undefined {
   return db.prepare('SELECT * FROM web_test_cases WHERE id = ?').get(id) as WebCaseRow | undefined;
 }
 
+export function findWebCaseByName(userId: number, name: string): WebCaseRow | undefined {
+  return db.prepare('SELECT * FROM web_test_cases WHERE user_id = ? AND name = ?').get(userId, name) as WebCaseRow | undefined;
+}
+
 export function createWebCase(userId: number, data: CreateWebCaseInput): number {
   const result = db.prepare(
     `INSERT INTO web_test_cases (user_id, name, description, tags, status, steps, check_points, data_drive, preconditions, browser, window_size, timeout, headless_mode, base_url, case_content, case_content_type, driver_path, close_browser_after_execution, created_at, updated_at)

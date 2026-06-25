@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useEnvironment } from '../contexts/EnvironmentContext';
 import SysHeader from './SysHeader';
@@ -105,6 +105,14 @@ const BRAND_CONFIG: Record<string, { name: string; color: string; icon: string }
   'pc-test': { name: 'PC 测试', color: 'oklch(95% 0.04 300)', icon: 'monitor' },
 };
 
+// 侧边栏 brand 右侧"切换测试类型"下拉的可选项,顺序即下拉展示顺序
+const TEST_TYPE_ORDER: { key: string; label: string; path: string }[] = [
+  { key: 'api-test', label: '接口测试', path: '/api-test' },
+  { key: 'web-test', label: 'Web 测试', path: '/web-test' },
+  { key: 'pc-test', label: 'PC 测试', path: '/pc-test' },
+  { key: 'mobile-test', label: '移动端测试', path: '/mobile-test' },
+];
+
 export default function Layout() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -118,7 +126,23 @@ export default function Layout() {
   const brand = BRAND_CONFIG[testType] || BRAND_CONFIG['api-test'];
 
   const { setCurrentTestType } = useEnvironment();
-  useEffect(() => { setCurrentTestType(testType); }, [testType, setCurrentTestType]);
+  // 统一格式：'api-test' → 'api'，与 user_preferences 存储的 test_type 一致
+  const shortType = testType.replace('-test', '');
+  useEffect(() => { setCurrentTestType(shortType); }, [shortType, setCurrentTestType]);
+
+  // brand 右侧"切换测试类型"下拉
+  const [typeDropdownOpen, setTypeDropdownOpen] = useState(false);
+  const typeDropdownRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!typeDropdownOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (typeDropdownRef.current && !typeDropdownRef.current.contains(e.target as Node)) {
+        setTypeDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [typeDropdownOpen]);
 
   const isActive = (path: string) => {
     // 仪表盘是根路径，必须精确匹配，否则所有子页面都会命中
@@ -136,6 +160,50 @@ export default function Layout() {
             {icons[brand.icon]}
           </div>
           <div className="sys-brand-text">{brand.name}</div>
+          <div className="sys-brand-actions" ref={typeDropdownRef}>
+            <button
+              type="button"
+              className="sys-brand-icon-btn"
+              onClick={() => setTypeDropdownOpen(o => !o)}
+              title="切换测试类型"
+              aria-label="切换测试类型"
+              aria-haspopup="menu"
+              aria-expanded={typeDropdownOpen}
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <polyline points="7 10 12 5 17 10" />
+                <polyline points="7 14 12 19 17 14" />
+              </svg>
+            </button>
+            {typeDropdownOpen && (
+              <div className="sys-brand-dropdown" role="menu">
+                {TEST_TYPE_ORDER.map(t => (
+                  <button
+                    key={t.key}
+                    type="button"
+                    role="menuitem"
+                    className={`sys-brand-dropdown-item ${testType === t.key ? 'active' : ''}`}
+                    onClick={() => { setTypeDropdownOpen(false); navigate(t.path); }}
+                  >
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+            )}
+            <button
+              type="button"
+              className="sys-brand-icon-btn"
+              onClick={() => navigate('/')}
+              title="返回项目主页"
+              aria-label="返回项目主页"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M3 12l9-9 9 9" />
+                <path d="M5 10v10h14V10" />
+                <path d="M9 20v-6h6v6" />
+              </svg>
+            </button>
+          </div>
         </div>
         <nav className="sys-nav">
           {sections.map((sec) => (

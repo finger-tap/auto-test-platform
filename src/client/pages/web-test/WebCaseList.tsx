@@ -6,6 +6,7 @@ import notification from '../../utils/notification';
 import TagFilterSelect from '../../components/TagFilterSelect';
 import FormSelect from '../../components/FormSelect';
 import CollapsibleFilter, { FilterItem } from '../../components/CollapsibleFilter';
+import { useTagColors, tagBadgeStyle } from '../../hooks/useTagColors';
 import '../../pages/api-test/ApiList.css';
 
 interface CaseItem {
@@ -49,6 +50,7 @@ const statusLabel = (s: string) => {
 };
 
 export default function WebCaseList() {
+  const tagColors = useTagColors();
   const navigate = useNavigate();
   const [items, setItems] = useState<CaseItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -201,7 +203,7 @@ export default function WebCaseList() {
                   </td>
                   <td>
                     {c.tags ? c.tags.split(',').filter(Boolean).map(t => (
-                      <span key={t} className="tag-badge" data-tag={t.trim()}>{t.trim()}</span>
+                      <span key={t} className="tag-badge" style={tagBadgeStyle(tagColors.get(t.trim()) || '')}>{t.trim()}</span>
                     )) : '-'}
                   </td>
                   <td className="td-mono" style={{ fontFamily: 'var(--font-mono)' }}>{c.steps ?? 0}</td>

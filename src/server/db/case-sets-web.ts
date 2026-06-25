@@ -138,6 +138,10 @@ export function findSetById(id: number): CaseSetRow | undefined {
   return db.prepare('SELECT * FROM case_sets_web WHERE id = ?').get(id) as CaseSetRow | undefined;
 }
 
+export function findSetByName(userId: number, name: string): CaseSetRow | undefined {
+  return db.prepare('SELECT * FROM case_sets_web WHERE user_id = ? AND name = ?').get(userId, name) as CaseSetRow | undefined;
+}
+
 export function createSet(userId: number, name: string, description?: string, testCaseIds?: number[], tags?: string, status?: string): number {
   const now = new Date().toISOString();
   const result = db.prepare(

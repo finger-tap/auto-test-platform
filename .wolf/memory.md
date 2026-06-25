@@ -2,6 +2,13 @@
 
 > Auto-maintained by OpenWolf. Sessions in reverse chronological order.
 
+## Session: 2026-06-25
+
+| Time | Description | Files | Outcome | ~Tokens |
+|------|-------------|-------|---------|---------|
+| 10:00 | 统一错误提示为顶部toast | ScenarioDetail.tsx, ApiDetail.tsx, ScenarioSetDetail.tsx, CaseSetDetail.tsx | 场景/场景集保存执行出错改用notification.error，移除内联error div | ~5k |
+| 10:30 | 变量自动补全功能 | CodeMirrorHover.tsx, VariableAutocomplete.tsx, ApiDetail.tsx | CodeMirror {{/${ 自动补全 + URL输入框自定义下拉补全 | ~8k |
+
 ## Session: 2026-06-24
 
 | Time | Description | Files | Outcome | ~Tokens |
@@ -3145,3 +3152,288 @@ Task #122 (SSE 401) 和 Task #124 (scrcpy H.264) 主体代码已合,这一 sessi
 | 22:15 | Session end: 5 writes across 1 files (api-executor.ts) | 2 reads | ~9910 tok |
 | 22:16 | Edited src/server/engine/api-executor.ts | 7→7 lines | ~67 |
 | 22:16 | Session end: 6 writes across 1 files (api-executor.ts) | 2 reads | ~10004 tok |
+| 22:20 | Session end: 6 writes across 1 files (api-executor.ts) | 2 reads | ~10004 tok |
+| 19:55 | Edited src/client/components/Layout.tsx | 2→4 lines | ~73 |
+| 19:57 | Edited src/client/utils/api.ts | added 1 condition(s) | ~183 |
+| 19:57 | Session end: 8 writes across 3 files (api-executor.ts, Layout.tsx, api.ts) | 9 reads | ~19458 tok |
+| 20:02 | Session end: 8 writes across 3 files (api-executor.ts, Layout.tsx, api.ts) | 9 reads | ~19458 tok |
+| 20:07 | Edited src/server/db/apis.ts | modified findApiById() | ~100 |
+| 20:07 | Edited src/server/routes/apis.ts | inline fix | ~76 |
+| 20:08 | Edited src/server/routes/apis.ts | added 1 condition(s) | ~196 |
+| 20:08 | Edited src/server/routes/apis.ts | added 2 condition(s) | ~304 |
+| 20:08 | Session end: 12 writes across 4 files (api-executor.ts, Layout.tsx, api.ts, apis.ts) | 11 reads | ~28700 tok |
+| 20:12 | Edited src/server/db/web-cases.ts | modified getWebCase() | ~111 |
+| 20:12 | Edited src/server/db/pc-cases.ts | modified getPcCase() | ~109 |
+| 20:12 | Edited src/server/db/mobile-tests.ts | modified findMobileTestById() | ~124 |
+| 20:12 | Edited src/server/db/scenarios.ts | modified findScenarioById() | ~111 |
+| 20:12 | Edited src/server/db/environments.ts | modified findEnvById() | ~116 |
+| 20:12 | Edited src/server/db/scenario-sets.ts | modified findSetById() | ~114 |
+| 20:12 | Edited src/server/db/case-sets-web.ts | modified findSetById() | ~110 |
+| 20:12 | Edited src/server/db/case-sets-pc.ts | modified findSetById() | ~109 |
+| 20:12 | Edited src/server/db/case-sets-mobile.ts | modified findSetById() | ~111 |
+| 20:12 | Edited src/server/db/devices.ts | modified getDevice() | ~105 |
+| 20:13 | Edited src/server/routes/web-cases.ts | 12→13 lines | ~77 |
+| 20:13 | Edited src/server/routes/web-cases.ts | added 1 condition(s) | ~102 |
+| 20:13 | Edited src/server/routes/web-cases.ts | 2→2 lines | ~20 |
+| 20:13 | Edited src/server/routes/web-cases.ts | added 2 condition(s) | ~149 |
+| 20:14 | Edited src/server/routes/pc-cases.ts | 12→13 lines | ~73 |
+| 20:14 | Edited src/server/routes/pc-cases.ts | added 1 condition(s) | ~122 |
+| 20:14 | Edited src/server/routes/pc-cases.ts | 2→2 lines | ~20 |
+| 20:14 | Edited src/server/routes/pc-cases.ts | added 2 condition(s) | ~148 |
+| 20:14 | Edited src/server/routes/mobile-tests.ts | 15→16 lines | ~123 |
+| 20:14 | Edited src/server/routes/mobile-tests.ts | added 1 condition(s) | ~112 |
+| 20:14 | Edited src/server/routes/mobile-tests.ts | added 2 condition(s) | ~165 |
+| 20:15 | Edited src/server/routes/scenarios.ts | 14→15 lines | ~99 |
+| 20:15 | Edited src/server/routes/scenarios.ts | added 1 condition(s) | ~122 |
+| 20:15 | Edited src/server/routes/scenarios.ts | added 2 condition(s) | ~139 |
+| 20:15 | Edited src/server/routes/scenario-sets.ts | 8→9 lines | ~46 |
+| 20:15 | Edited src/server/routes/scenario-sets.ts | added 1 condition(s) | ~138 |
+| 20:15 | Edited src/server/routes/scenario-sets.ts | added 2 condition(s) | ~137 |
+| 20:15 | Edited src/server/routes/case-sets-web.ts | 10→11 lines | ~64 |
+| 20:15 | Edited src/server/routes/case-sets-web.ts | added 1 condition(s) | ~118 |
+| 20:15 | Edited src/server/routes/case-sets-web.ts | added 2 condition(s) | ~139 |
+| 20:16 | Edited src/server/routes/case-sets-pc.ts | 10→11 lines | ~64 |
+| 20:16 | Edited src/server/routes/case-sets-pc.ts | added 1 condition(s) | ~148 |
+| 20:16 | Edited src/server/routes/case-sets-pc.ts | added 2 condition(s) | ~148 |
+| 20:16 | Edited src/server/routes/case-sets-mobile.ts | 10→11 lines | ~65 |
+| 20:16 | Edited src/server/routes/case-sets-mobile.ts | added 1 condition(s) | ~149 |
+| 20:16 | Edited src/server/routes/case-sets-mobile.ts | added 2 condition(s) | ~150 |
+| 20:16 | Edited src/server/routes/environments.ts | 8→9 lines | ~43 |
+| 20:16 | Edited src/server/routes/environments.ts | added 1 condition(s) | ~98 |
+| 20:16 | Edited src/server/routes/environments.ts | added 2 condition(s) | ~233 |
+| 20:17 | Edited src/server/routes/devices.ts | 10→11 lines | ~54 |
+| 20:17 | Edited src/server/routes/devices.ts | added 1 condition(s) | ~219 |
+| 20:17 | Edited src/server/routes/devices.ts | inline fix | ~7 |
+| 20:17 | Edited src/server/routes/devices.ts | added 2 condition(s) | ~99 |
+| 20:18 | Edited src/server/db/mobile-apps.ts | modified findMobileAppById() | ~131 |
+| 20:18 | Edited src/server/routes/mobile-apps.ts | 12→13 lines | ~85 |
+| 20:18 | Edited src/server/routes/mobile-apps.ts | added 1 condition(s) | ~93 |
+| 20:18 | Edited src/server/routes/mobile-apps.ts | inline fix | ~7 |
+| 20:18 | Edited src/server/routes/mobile-apps.ts | added 3 condition(s) | ~224 |
+| 20:18 | Session end: 60 writes across 15 files (api-executor.ts, Layout.tsx, api.ts, apis.ts, web-cases.ts) | 33 reads | ~97416 tok |
+| 20:19 | Session end: 60 writes across 15 files (api-executor.ts, Layout.tsx, api.ts, apis.ts, web-cases.ts) | 35 reads | ~101224 tok |
+| 20:21 | Edited src/server/db/index.ts | added 1 condition(s) | ~195 |
+| 20:21 | Edited src/server/db/tags.ts | 5→6 lines | ~41 |
+| 20:21 | Edited src/server/db/tags.ts | modified for() | ~134 |
+| 20:21 | Edited src/server/db/tags.ts | 3→3 lines | ~60 |
+| 20:21 | Edited src/server/db/tags.ts | 3→3 lines | ~62 |
+| 20:21 | Edited src/server/db/tags.ts | 3→3 lines | ~64 |
+| 20:21 | Edited src/server/db/tags.ts | 4→4 lines | ~59 |
+
+## Session: 2026-06-25 20:22
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+| 20:23 | Edited src/server/db/tags.ts | added 1 condition(s) | ~423 |
+| 20:23 | Edited src/server/db/tags.ts | added 1 condition(s) | ~307 |
+| 20:24 | Edited src/server/db/tags.ts | added error handling | ~333 |
+| 20:24 | Edited src/client/pages/system/SystemConfig.tsx | added optional chaining | ~2163 |
+| 20:25 | Edited src/client/pages/system/SystemConfig.css | expanded (+90 lines) | ~484 |
+| 20:25 | Edited src/client/components/TagInput.tsx | added 1 condition(s) | ~181 |
+| 20:25 | Edited src/client/components/TagInput.tsx | added optional chaining | ~108 |
+| 20:25 | Edited src/client/components/TagInput.tsx | 11→11 lines | ~140 |
+| 20:25 | Edited src/client/components/TagInput.css | removed 27 lines | ~23 |
+| 20:26 | Edited src/client/components/TagInput.css | removed 27 lines | ~24 |
+| 20:28 | Edited src/client/pages/api-test/ApiDetail.tsx | inline fix | ~36 |
+| 20:30 | Created src/client/hooks/useTagColors.ts | — | ~261 |
+| 20:31 | Edited src/client/pages/api-test/ApiList.tsx | added 1 import(s) | ~142 |
+| 20:31 | Edited src/client/pages/web-test/WebCaseList.tsx | added 1 import(s) | ~148 |
+| 20:31 | Edited src/client/pages/pc-test/PcCaseList.tsx | added 1 import(s) | ~148 |
+| 20:31 | Edited src/client/pages/mobile-test/MobileTestList.tsx | added 1 import(s) | ~148 |
+| 20:31 | Edited src/client/pages/scenario/ScenarioList.tsx | added 1 import(s) | ~137 |
+| 20:31 | Edited src/client/pages/scenario-set/ScenarioSetList.tsx | added 1 import(s) | ~134 |
+| 20:31 | Edited src/client/pages/case-set/CaseSetList.tsx | added 1 import(s) | ~132 |
+| 20:32 | Edited src/client/pages/api-test/ApiList.tsx | modified ApiList() | ~35 |
+| 20:32 | Edited src/client/pages/api-test/ApiList.tsx | 3→3 lines | ~69 |
+| 20:32 | Edited src/client/pages/web-test/WebCaseList.tsx | modified WebCaseList() | ~47 |
+| 20:32 | Edited src/client/pages/web-test/WebCaseList.tsx | 3→3 lines | ~67 |
+| 20:32 | Edited src/client/pages/pc-test/PcCaseList.tsx | modified PcCaseList() | ~47 |
+| 20:32 | Edited src/client/pages/pc-test/PcCaseList.tsx | 3→3 lines | ~67 |
+| 20:32 | Edited src/client/pages/mobile-test/MobileTestList.tsx | modified MobileTestList() | ~50 |
+| 20:32 | Edited src/client/pages/mobile-test/MobileTestList.tsx | 3→3 lines | ~67 |
+| 20:32 | Edited src/client/pages/scenario/ScenarioList.tsx | modified ScenarioList() | ~76 |
+| 20:32 | Edited src/client/pages/scenario/ScenarioList.tsx | 3→3 lines | ~68 |
+| 20:32 | Edited src/client/pages/scenario-set/ScenarioSetList.tsx | 1→2 lines | ~25 |
+| 20:32 | Edited src/client/pages/scenario-set/ScenarioSetList.tsx | inline fix | ~44 |
+| 20:32 | Edited src/client/pages/case-set/CaseSetList.tsx | 1→2 lines | ~25 |
+| 20:32 | Edited src/client/pages/case-set/CaseSetList.tsx | inline fix | ~44 |
+| 20:33 | Edited src/client/pages/api-test/ApiList.css | removed 36 lines | ~84 |
+| 20:34 | Session end: 34 writes across 15 files (tags.ts, SystemConfig.tsx, SystemConfig.css, TagInput.tsx, TagInput.css) | 22 reads | ~60975 tok |
+| 20:36 | Edited src/server/routes/apis.ts | modified trim() | ~76 |
+| 20:37 | Edited src/server/routes/scenarios.ts | modified trim() | ~86 |
+| 20:37 | Edited src/server/routes/scenario-sets.ts | modified trim() | ~78 |
+| 20:37 | Edited src/server/routes/web-cases.ts | modified trim() | ~82 |
+| 20:37 | Edited src/server/routes/pc-cases.ts | modified trim() | ~81 |
+| 20:37 | Edited src/server/routes/mobile-tests.ts | modified trim() | ~84 |
+| 20:37 | Edited src/server/routes/environments.ts | modified trim() | ~70 |
+| 20:37 | Edited src/server/routes/devices.ts | modified trim() | ~83 |
+| 20:37 | Edited src/server/routes/case-sets-web.ts | modified trim() | ~78 |
+| 20:37 | Edited src/server/routes/case-sets-pc.ts | modified trim() | ~78 |
+| 20:37 | Edited src/server/routes/case-sets-mobile.ts | modified trim() | ~78 |
+| 20:37 | Edited src/server/routes/mobile-apps.ts | modified if() | ~105 |
+| 20:38 | Session end: 46 writes across 27 files (tags.ts, SystemConfig.tsx, SystemConfig.css, TagInput.tsx, TagInput.css) | 30 reads | ~86521 tok |
+| 20:39 | Edited src/client/utils/api.ts | added 2 condition(s) | ~233 |
+| 20:39 | Session end: 47 writes across 28 files (tags.ts, SystemConfig.tsx, SystemConfig.css, TagInput.tsx, TagInput.css) | 30 reads | ~86754 tok |
+| 20:42 | Session end: 47 writes across 28 files (tags.ts, SystemConfig.tsx, SystemConfig.css, TagInput.tsx, TagInput.css) | 31 reads | ~95167 tok |
+| 20:44 | Edited src/server/engine/api-executor.ts | modified if() | ~208 |
+| 20:44 | Session end: 48 writes across 29 files (tags.ts, SystemConfig.tsx, SystemConfig.css, TagInput.tsx, TagInput.css) | 31 reads | ~95375 tok |
+| 20:46 | Edited src/server/routes/apis.ts | modified find() | ~64 |
+| 20:46 | Edited src/server/routes/apis.ts | modified if() | ~85 |
+| 20:46 | Session end: 50 writes across 29 files (tags.ts, SystemConfig.tsx, SystemConfig.css, TagInput.tsx, TagInput.css) | 31 reads | ~95567 tok |
+| 20:47 | Edited src/server/engine/api-executor.ts | modified catch() | ~178 |
+| 20:48 | Edited src/server/engine/api-executor.ts | modified catch() | ~129 |
+| 20:48 | Edited src/client/components/ApiExecutionTimeline.tsx | CSS: marginTop, fontSize, opacity | ~212 |
+| 20:49 | Edited src/client/styles/timeline.css | expanded (+16 lines) | ~155 |
+| 20:49 | Edited src/client/components/ScenarioExecutionTimeline.tsx | CSS: marginTop, fontSize, opacity | ~209 |
+| 20:49 | Edited src/server/engine/api-executor.ts | modified addStep() | ~140 |
+| 20:49 | Edited src/server/engine/api-executor.ts | modified addStep() | ~111 |
+| 20:49 | Edited src/client/components/ApiExecutionTimeline.tsx | 6→6 lines | ~127 |
+| 20:50 | Edited src/client/components/ScenarioExecutionTimeline.tsx | 6→6 lines | ~130 |
+| 20:51 | Session end: 59 writes across 32 files (tags.ts, SystemConfig.tsx, SystemConfig.css, TagInput.tsx, TagInput.css) | 34 reads | ~104608 tok |
+
+## Session: 2026-06-25 20:55
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+| 20:58 | Edited ../../.claude/plans/snoopy-enchanting-summit.md | added optional chaining | ~914 |
+| 21:00 | Edited src/client/pages/scenario/ScenarioDetail.tsx | 2→1 lines | ~14 |
+| 21:00 | Edited src/client/pages/scenario/ScenarioDetail.tsx | setError() → error() | ~26 |
+| 21:00 | Edited src/client/pages/scenario/ScenarioDetail.tsx | inline fix | ~10 |
+| 21:00 | Edited src/client/pages/scenario/ScenarioDetail.tsx | "Save failed" → "保存失败" | ~28 |
+| 21:00 | Edited src/client/pages/scenario/ScenarioDetail.tsx | inline fix | ~14 |
+| 21:00 | Edited src/client/pages/scenario/ScenarioDetail.tsx | "Execution failed" → "执行失败" | ~25 |
+| 21:01 | Edited src/client/pages/scenario/ScenarioDetail.tsx | removed 2 lines | ~3 |
+| 21:01 | Edited src/client/pages/api-test/ApiDetail.tsx | 3→2 lines | ~36 |
+| 21:01 | Edited src/client/pages/api-test/ApiDetail.tsx | "Execute failed" → "执行失败" | ~25 |
+| 21:01 | Edited src/client/pages/api-test/ApiDetail.tsx | 3→2 lines | ~14 |
+| 21:02 | Edited src/client/pages/api-test/ApiDetail.tsx | 2→1 lines | ~8 |
+| 21:02 | Edited src/client/components/CodeMirrorHover.tsx | added 1 import(s) | ~146 |
+| 21:03 | Edited src/client/components/CodeMirrorHover.tsx | modified names() | ~497 |
+| 21:03 | Edited src/client/components/CodeMirrorHover.tsx | added 2 condition(s) | ~562 |
+| 21:03 | Edited src/client/pages/api-test/ApiDetail.tsx | inline fix | ~104 |
+| 21:04 | Edited src/client/pages/api-test/ApiDetail.tsx | inline fix | ~108 |
+| 21:05 | Edited src/client/pages/scenario-set/ScenarioSetDetail.tsx | inline fix | ~34 |
+| 21:05 | Edited src/client/pages/scenario-set/ScenarioSetDetail.tsx | inline fix | ~34 |
+| 21:06 | Edited src/client/pages/case-set/CaseSetDetail.tsx | inline fix | ~34 |
+| 21:06 | Edited src/client/pages/case-set/CaseSetDetail.tsx | inline fix | ~34 |
+| 21:08 | Created src/client/components/VariableAutocomplete.tsx | — | ~1791 |
+| 21:09 | Created src/client/components/VariableAutocomplete.css | — | ~401 |
+| 21:09 | Edited src/client/pages/api-test/ApiDetail.tsx | added 1 import(s) | ~106 |
+| 21:09 | Edited src/client/pages/api-test/ApiDetail.tsx | expanded (+14 lines) | ~331 |
+| 21:09 | Edited src/client/pages/api-test/ApiDetail.tsx | added optional chaining | ~284 |
+| 21:10 | Session end: 26 writes across 8 files (snoopy-enchanting-summit.md, ScenarioDetail.tsx, ApiDetail.tsx, CodeMirrorHover.tsx, ScenarioSetDetail.tsx) | 9 reads | ~58732 tok |
+| 21:16 | Edited src/client/components/VariableAutocomplete.css | 4→3 lines | ~14 |
+| 21:16 | Edited src/client/components/VariableAutocomplete.tsx | added nullish coalescing | ~150 |
+| 21:16 | Edited src/client/components/VariableAutocomplete.tsx | 11→13 lines | ~127 |
+| 21:16 | Edited src/client/components/VariableAutocomplete.tsx | added 2 condition(s) | ~300 |
+| 21:17 | Session end: 30 writes across 8 files (snoopy-enchanting-summit.md, ScenarioDetail.tsx, ApiDetail.tsx, CodeMirrorHover.tsx, ScenarioSetDetail.tsx) | 11 reads | ~61562 tok |
+| 21:19 | Edited src/client/components/CodeMirrorHover.tsx | CSS: false | ~144 |
+| 21:19 | Edited src/client/components/CodeMirrorHover.tsx | 11→11 lines | ~72 |
+| 21:20 | Edited src/client/components/CodeMirrorHover.tsx | added 4 import(s) | ~311 |
+| 21:21 | Edited src/client/components/CodeMirrorHover.tsx | 13→10 lines | ~158 |
+| 21:21 | Edited src/client/components/CodeMirrorHover.tsx | CSS: baseEditorSetup, fallback | ~494 |
+| 21:21 | Edited src/client/components/CodeMirrorHover.tsx | 32→30 lines | ~212 |
+| 21:22 | Edited src/client/components/CodeMirrorHover.tsx | 13→13 lines | ~305 |
+| 21:23 | Session end: 37 writes across 8 files (snoopy-enchanting-summit.md, ScenarioDetail.tsx, ApiDetail.tsx, CodeMirrorHover.tsx, ScenarioSetDetail.tsx) | 12 reads | ~64590 tok |
+
+## Session: 2026-06-25 21:24
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+| 21:37 | Edited src/client/components/CodeMirrorHover.tsx | modified if() | ~520 |
+| 21:37 | Edited src/client/components/CodeMirrorHover.tsx | inline fix | ~44 |
+| 21:37 | Edited src/client/components/CodeMirrorHover.tsx | CSS: key, run | ~74 |
+| 21:37 | Edited src/client/components/VariableAutocomplete.tsx | CSS: recheckCursor | ~304 |
+| 21:37 | Edited src/client/components/VariableAutocomplete.tsx | 3→7 lines | ~102 |
+| 21:37 | Edited src/client/components/VariableAutocomplete.tsx | 13→13 lines | ~128 |
+| 21:39 | Edited src/client/pages/api-test/ApiDetail.tsx | 4→4 lines | ~59 |
+| 21:39 | Edited src/client/pages/api-test/ApiDetail.tsx | 1→2 lines | ~16 |
+| 21:40 | Edited src/client/pages/api-test/ApiDetail.tsx | 2→1 lines | ~7 |
+| 21:40 | Edited src/client/pages/api-test/ApiDetail.tsx | inline fix | ~5 |
+| 21:40 | Edited src/client/pages/api-test/ApiDetail.tsx | "scenario-btn" → "scenario-btn${isDirty ? " | ~30 |
+| 21:40 | Edited src/client/pages/scenario/ScenarioDetail.tsx | 4→4 lines | ~66 |
+| 21:40 | Edited src/client/pages/scenario/ScenarioDetail.tsx | inline fix | ~27 |
+| 21:40 | Edited src/client/pages/scenario/ScenarioDetail.tsx | inline fix | ~5 |
+| 21:40 | Edited src/client/pages/scenario/ScenarioDetail.tsx | "scenario-btn" → "scenario-btn${isDirty ? " | ~42 |
+| 21:43 | Edited src/client/pages/api-test/ApiDetail.tsx | CSS: headerDescs, headerDescs | ~96 |
+| 21:44 | Edited src/client/pages/api-test/ApiDetail.tsx | modified parse() | ~253 |
+| 21:44 | Edited src/client/pages/api-test/ApiDetail.tsx | inline fix | ~57 |
+| 21:44 | Edited src/client/pages/api-test/ApiDetail.tsx | CSS: headerDescs, headerDescs, val | ~332 |
+| 21:44 | Edited src/client/pages/api-test/ApiDetail.tsx | CSS: headerDescs | ~105 |
+| 21:44 | Edited src/client/pages/api-test/ApiDetail.tsx | expanded (+7 lines) | ~224 |
+| 21:45 | Edited src/client/components/CodeMirrorHover.tsx | CSS: name | ~298 |
+| 21:45 | Edited src/client/components/CodeMirrorHover.tsx | 13→13 lines | ~108 |
+| 21:45 | Edited src/client/components/CodeMirrorHover.tsx | modified if() | ~524 |
+| 21:46 | Edited src/client/components/CodeMirrorHover.tsx | added 4 condition(s) | ~718 |
+| 21:46 | Edited src/client/components/CodeMirrorHover.tsx | CSS: input, name | ~313 |
+| 21:46 | Edited src/client/components/CodeMirrorHover.tsx | 8→8 lines | ~72 |
+| 21:46 | Edited src/client/pages/api-test/ApiDetail.tsx | inline fix | ~24 |
+| 21:46 | Edited src/client/pages/api-test/ApiDetail.tsx | added nullish coalescing | ~193 |
+| 21:47 | Edited src/client/pages/api-test/ApiDetail.tsx | inline fix | ~7 |
+| 21:47 | Edited src/client/components/VariableAutocomplete.tsx | CSS: name, input, name | ~216 |
+| 21:47 | Edited src/client/components/VariableAutocomplete.tsx | modified VariableAutocomplete() | ~517 |
+| 21:48 | Edited src/client/styles/detail-components.css | expanded (+27 lines) | ~243 |
+| 21:48 | Edited src/client/pages/api-test/ApiDetail.css | CSS: border-left, border-left | ~155 |
+
+## Session: 2026-06-25 21:51
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+| 21:51 | Edited src/client/components/SysHeader.tsx | added 1 condition(s) | ~258 |
+| 21:51 | Edited src/client/components/SysHeader.tsx | added 1 condition(s) | ~363 |
+| 21:52 | Edited src/client/components/SysHeader.tsx | expanded (+55 lines) | ~692 |
+| 21:52 | Edited src/client/components/Layout.css | expanded (+108 lines) | ~625 |
+| 21:56 | Edited src/client/pages/api-test/ApiDetail.tsx | CSS: width, width, width | ~1166 |
+| 21:56 | Edited src/client/styles/detail-components.css | expanded (+49 lines) | ~805 |
+| 21:56 | Edited src/client/components/SysHeader.tsx | reduced (-16 lines) | ~92 |
+| 21:57 | Edited src/client/components/SysHeader.tsx | modified SysHeader() | ~256 |
+| 21:57 | Edited src/client/components/SysHeader.tsx | removed 62 lines | ~57 |
+| 21:57 | Edited src/client/components/Layout.css | removed 111 lines | ~16 |
+| 21:57 | Edited src/client/components/Layout.tsx | 5→5 lines | ~71 |
+| 21:57 | Edited src/client/components/Layout.tsx | expanded (+8 lines) | ~218 |
+| 21:57 | Edited src/client/components/Layout.tsx | CSS: e | ~368 |
+| 21:58 | Edited src/client/components/Layout.tsx | expanded (+44 lines) | ~608 |
+| 21:58 | Edited src/client/components/Layout.css | expanded (+79 lines) | ~471 |
+| 21:59 | Session end: 15 writes across 5 files (SysHeader.tsx, Layout.css, ApiDetail.tsx, detail-components.css, Layout.tsx) | 5 reads | ~35716 tok |
+| 22:02 | Edited src/client/components/CodeMirrorHover.tsx | modified if() | ~119 |
+| 22:02 | Edited src/client/components/SysHeader.tsx | 8→3 lines | ~24 |
+| 22:02 | Edited src/client/components/Layout.css | 10→10 lines | ~63 |
+| 22:02 | Edited src/client/components/Layout.css | 24→24 lines | ~130 |
+| 22:03 | Edited src/client/components/Layout.css | removed 26 lines | ~6 |
+| 22:03 | Session end: 20 writes across 6 files (SysHeader.tsx, Layout.css, ApiDetail.tsx, detail-components.css, Layout.tsx) | 6 reads | ~39622 tok |
+| 22:06 | Edited src/client/pages/api-test/ApiDetail.css | reduced (-9 lines) | ~108 |
+| 22:06 | Session end: 21 writes across 7 files (SysHeader.tsx, Layout.css, ApiDetail.tsx, detail-components.css, Layout.tsx) | 7 reads | ~45799 tok |
+| 22:09 | Edited src/client/components/VarHoverTip.tsx | added error handling | ~1221 |
+| 22:10 | Created src/client/utils/variableResolver.ts | — | ~789 |
+| 22:11 | Edited src/client/components/CodeMirrorHover.tsx | CSS: re-export | ~357 |
+| 22:11 | Edited src/client/components/CodeMirrorHover.tsx | modified extractVarNames() | ~490 |
+| 22:11 | Edited src/client/components/CodeMirrorHover.tsx | modified CodeMirrorHover() | ~126 |
+| 22:11 | Edited src/client/components/CodeMirrorHover.tsx | added 1 import(s) | ~74 |
+| 22:12 | Created src/client/components/VarHoverTip.tsx | — | ~781 |
+| 22:12 | Edited src/client/components/VariableAutocomplete.tsx | CSS: re-export | ~457 |
+| 22:12 | Edited src/client/pages/api-test/ApiList.tsx | inline fix | ~30 |
+| 22:13 | Session end: 30 writes across 11 files (SysHeader.tsx, Layout.css, ApiDetail.tsx, detail-components.css, Layout.tsx) | 9 reads | ~52926 tok |
+| 22:15 | Session end: 30 writes across 11 files (SysHeader.tsx, Layout.css, ApiDetail.tsx, detail-components.css, Layout.tsx) | 9 reads | ~53269 tok |
+| 22:19 | Edited src/client/utils/variableResolver.ts | modified parseParamVars() | ~92 |
+| 22:19 | Created src/client/components/VarHoverTip.tsx | — | ~997 |
+| 22:19 | Edited src/client/pages/api-test/ApiDetail.css | CSS: transform, transform, transform | ~169 |
+| 22:19 | Edited src/client/pages/api-test/ApiDetail.tsx | expanded (+8 lines) | ~243 |
+| 22:19 | Edited src/client/pages/api-test/ApiDetail.tsx | removed 2 lines | ~13 |
+| 22:20 | Edited src/client/pages/api-test/ApiDetail.tsx | inline fix | ~29 |
+| 22:20 | Session end: 36 writes across 11 files (SysHeader.tsx, Layout.css, ApiDetail.tsx, detail-components.css, Layout.tsx) | 9 reads | ~55546 tok |
+| 22:23 | Edited src/client/pages/api-test/ApiDetail.css | removed 40 lines | ~31 |
+| 22:23 | Edited src/client/styles/detail-components.css | expanded (+40 lines) | ~381 |
+| 22:24 | Session end: 38 writes across 11 files (SysHeader.tsx, Layout.css, ApiDetail.tsx, detail-components.css, Layout.tsx) | 9 reads | ~56338 tok |
+| 22:27 | Edited src/client/components/VarHoverTip.tsx | added 1 import(s) | ~84 |
+| 22:27 | Edited src/client/components/VarHoverTip.tsx | 9→10 lines | ~72 |
+| 22:28 | Session end: 40 writes across 11 files (SysHeader.tsx, Layout.css, ApiDetail.tsx, detail-components.css, Layout.tsx) | 11 reads | ~60511 tok |
+| 22:30 | Created ../../.claude/projects/-Users-dinghao----auto-test-platform/memory/feedback-row-enter-breaks-fixed.md | — | ~322 |
+| 22:30 | Created ../../.claude/projects/-Users-dinghao----auto-test-platform/memory/feedback-consistency-first.md | — | ~252 |
+| 22:30 | Created ../../.claude/projects/-Users-dinghao----auto-test-platform/memory/project-variable-resolver.md | — | ~340 |
+| 22:31 | Edited ../../.claude/projects/-Users-dinghao----auto-test-platform/memory/MEMORY.md | expanded (+34 lines) | ~617 |
+| 22:31 | Session end: 44 writes across 15 files (SysHeader.tsx, Layout.css, ApiDetail.tsx, detail-components.css, Layout.tsx) | 12 reads | ~62151 tok |
+
+## Session: 2026-06-25 22:37
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|

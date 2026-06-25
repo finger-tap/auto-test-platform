@@ -1,4 +1,4 @@
-import { useState, useEffect, Fragment, useCallback, useRef } from 'react';
+import { useState, useEffect, Fragment, useCallback, useRef, useMemo } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import CodeMirror from '@uiw/react-codemirror';
 import { json, jsonParseLinter } from '@codemirror/lang-json';
@@ -14,6 +14,7 @@ import { InlineText, InlineSelect } from '../../components/InlineEdit';
 import TagInput from '../../components/TagInput';
 import VarHoverTip from '../../components/VarHoverTip';
 import CodeMirrorHover from '../../components/CodeMirrorHover';
+import VariableAutocomplete from '../../components/VariableAutocomplete';
 import notification from '../../utils/notification';
 import SelectFunctionModal from '../../components/SelectFunctionModal';
 import type { ApiItem, ApiLog, AssertionRule, AssertionResult, DatabaseEntry, ApiExecution, ApiExecutionStep, SslCertEntry } from '../../types';
@@ -40,6 +41,20 @@ const CONTENT_TYPES = [
   { value: 'form', label: 'Form' },
   { value: 'xml', label: 'XML' },
   { value: 'raw', label: 'Raw' },
+];
+const BUILTIN_FUNCS = [
+  { name: 'upper', desc: '转大写' }, { name: 'lower', desc: '转小写' },
+  { name: 'trim', desc: '去空格' }, { name: 'concat', desc: '拼接' },
+  { name: 'substring', desc: '截取' }, { name: 'replace', desc: '替换' },
+  { name: 'split', desc: '分割' }, { name: 'length', desc: '长度' },
+  { name: 'now', desc: '当前时间' }, { name: 'timestamp', desc: '时间戳' },
+  { name: 'dateAdd', desc: '日期加减' }, { name: 'formatDate', desc: '格式化' },
+  { name: 'base64Encode', desc: 'Base64编码' }, { name: 'base64Decode', desc: 'Base64解码' },
+  { name: 'urlEncode', desc: 'URL编码' }, { name: 'urlDecode', desc: 'URL解码' },
+  { name: 'randomInt', desc: '随机整数' }, { name: 'randomString', desc: '随机字符串' },
+  { name: 'randomMobile', desc: '随机手机号' }, { name: 'randomEmail', desc: '随机邮箱' },
+  { name: 'randomUUID', desc: '随机UUID' }, { name: 'randomChoice', desc: '随机选择' },
+  { name: 'jsonGet', desc: 'JSON取值' }, { name: 'jsonStringify', desc: 'JSON序列化' },
 ];
 const ASSERTION_SOURCES = [
   { value: 'status', label: '状态码' },
@@ -110,10 +125,9 @@ export default function ApiDetail() {
   const [logs, setLogs] = useState<ApiLog[]>([]);
   const [executing, setExecuting] = useState(false);
   const [expandedLog, setExpandedLog] = useState<number | null>(null);
-  const [error, setError] = useState('');
   const autoExecRef = useRef(false);
   const realIdRef = useRef<string | null>(isNew ? null : id!);
-  const dirtyRef = useRef(false);
+  const [isDirty, setIsDirty] = useState(false);
   const [activeTab, setActiveTab] = useState('detail');
   const [fnModalOpen, setFnModalOpen] = useState(false);
   const [fnTarget, setFnTarget] = useState<'pre_script' | 'post_script' | null>(null);
@@ -153,9 +167,24 @@ export default function ApiDetail() {
   const [paramConfig, setParamConfig] = useState<{
     enabled: boolean;    // 全局开关
     headers: string[];
+    headerDescs: string[];  // 每列描述(可选),与 headers 同长度
     rows: string[][];
     enabledRows: boolean[];  // 每行是否启用
-  }>({ enabled: false, headers: [], rows: [], enabledRows: [] });
+  }>({ enabled: false, headers: [], headerDescs: [], rows: [], enabledRows: [] });
+  // 派生:补全弹窗 + hover tooltip 用的参数化变量(带描述 + 前几行样本值)
+  const paramVars = useMemo(() => paramConfig.headers.map((name, i) => ({
+    name,
+    desc: paramConfig.headerDescs[i] || '',
+    values: paramConfig.rows.map(row => row[i] ?? '').filter(v => v !== '').slice(0, 5),
+  })), [paramConfig.headers, paramConfig.headerDescs, paramConfig.rows]);
+  // 派生:parameters 列的 JSON 字符串,save payload 和 VarHoverTip 共用,保证调用方式一致
+  const parametersJson = useMemo(() => JSON.stringify({
+    enabled: paramConfig.enabled,
+    headers: paramConfig.headers,
+    headerDescs: paramConfig.headerDescs,
+    rows: paramConfig.rows,
+    enabledRows: paramConfig.enabledRows,
+  }), [paramConfig.enabled, paramConfig.headers, paramConfig.headerDescs, paramConfig.rows, paramConfig.enabledRows]);
   const [mainEditingRuleIdx, setMainEditingRuleIdx] = useState<number | null>(null);
   // 前置动作规则编辑状态
   const [preEditingRuleIdx, setPreEditingRuleIdx] = useState<number | null>(null);
@@ -242,7 +271,7 @@ export default function ApiDetail() {
         }
       }
       setActiveTab('logs');
-    } catch (err) { setError(err instanceof Error ? err.message : 'Execute failed'); }
+    } catch (err) { notification.error(err instanceof Error ? err.message : '执行失败'); }
     finally { setExecuting(false); }
   };
 
@@ -291,14 +320,20 @@ export default function ApiDetail() {
         try {
           const params = typeof d.parameters === 'string' ? JSON.parse(d.parameters) : d.parameters;
           if (params && typeof params === 'object') {
+            const hdrs: string[] = params.headers || [];
+            // 兼容老数据:headerDescs 缺失时按 headers 长度补空字符串
+            const descs: string[] = Array.isArray(params.headerDescs)
+              ? hdrs.map((_, i) => (params.headerDescs[i] as string) || '')
+              : hdrs.map(() => '');
             setParamConfig({
               enabled: params.enabled || false,
-              headers: params.headers || [],
+              headers: hdrs,
+              headerDescs: descs,
               rows: params.rows || [],
               enabledRows: params.enabledRows || params.rows?.map(() => true) || [],
             });
           }
-        } catch { setParamConfig({ enabled: false, headers: [], rows: [], enabledRows: [] }); }
+        } catch { setParamConfig({ enabled: false, headers: [], headerDescs: [], rows: [], enabledRows: [] }); }
         if (searchParams.get('exec') === '1' && !autoExecRef.current) { autoExecRef.current = true; handleExecute(); }
       }
     });
@@ -412,7 +447,6 @@ export default function ApiDetail() {
   
 
   const handleSave = async () => {
-    setError('');
     // 必填字段校验
     if (!form.name.trim()) {
       notification.warning('请输入接口名称');
@@ -432,12 +466,12 @@ export default function ApiDetail() {
         post_assertions: JSON.stringify([...postExtractionRules, ...postAssertionRules]),
         pre_actions: JSON.stringify(preActions),
         post_actions: JSON.stringify(postActions),
-        parameters: JSON.stringify({ enabled: paramConfig.enabled, headers: paramConfig.headers, rows: paramConfig.rows, enabledRows: paramConfig.enabledRows }),
+        parameters: parametersJson,
       };
       const res = await apiFetch(`/apis/${rid}`, { method: 'PUT', body: JSON.stringify(payload) }) as { code: number; message?: string };
       if (res.code !== 200) { notification.error(res.message || '保存失败'); return; }
       setApi({ ...api!, ...payload, updated_at: new Date().toISOString() } as ApiItem);
-      dirtyRef.current = false;
+      setIsDirty(false);
       notification.success('保存成功');
     } catch (err) { notification.error(err instanceof Error ? err.message : '保存失败'); }
   };
@@ -462,35 +496,35 @@ export default function ApiDetail() {
   const removeMainRule = (idx: number) => setMainRules(mainRules.filter((_, i) => i !== idx));
   const updateMainRule = (idx: number, field: keyof AssertionRule, value: string | boolean) => {
     const updated = [...mainRules]; updated[idx] = { ...updated[idx], [field]: value } as AssertionRule;
-    setMainRules(updated); dirtyRef.current = true;
+    setMainRules(updated); setIsDirty(true);
   };
   // Pre extraction helpers
   const addPreExtraction = () => setPreExtractionRules([...preExtractionRules, defaultRule(preExtractionRules.length + 1)]);
   const removePreExtraction = (idx: number) => setPreExtractionRules(preExtractionRules.filter((_, i) => i !== idx));
   const updatePreExtraction = (idx: number, field: keyof AssertionRule, value: string | boolean) => {
     const updated = [...preExtractionRules]; updated[idx] = { ...updated[idx], [field]: value } as AssertionRule;
-    setPreExtractionRules(updated); dirtyRef.current = true;
+    setPreExtractionRules(updated); setIsDirty(true);
   };
   // Pre assertion helpers
   const addPreRule = () => setPreAssertionRules([...preAssertionRules, defaultAssertion(preAssertionRules.length + 1)]);
   const removePreRule = (idx: number) => setPreAssertionRules(preAssertionRules.filter((_, i) => i !== idx));
   const updatePreRule = (idx: number, field: keyof AssertionRule, value: string | boolean) => {
     const updated = [...preAssertionRules]; updated[idx] = { ...updated[idx], [field]: value } as AssertionRule;
-    setPreAssertionRules(updated); dirtyRef.current = true;
+    setPreAssertionRules(updated); setIsDirty(true);
   };
   // Post extraction helpers
   const addPostExtraction = () => setPostExtractionRules([...postExtractionRules, defaultRule(postExtractionRules.length + 1)]);
   const removePostExtraction = (idx: number) => setPostExtractionRules(postExtractionRules.filter((_, i) => i !== idx));
   const updatePostExtraction = (idx: number, field: keyof AssertionRule, value: string | boolean) => {
     const updated = [...postExtractionRules]; updated[idx] = { ...updated[idx], [field]: value } as AssertionRule;
-    setPostExtractionRules(updated); dirtyRef.current = true;
+    setPostExtractionRules(updated); setIsDirty(true);
   };
   // Post assertion helpers
   const addPostRule = () => setPostAssertionRules([...postAssertionRules, defaultAssertion(postAssertionRules.length + 1)]);
   const removePostRule = (idx: number) => setPostAssertionRules(postAssertionRules.filter((_, i) => i !== idx));
   const updatePostRule = (idx: number, field: keyof AssertionRule, value: string | boolean) => {
     const updated = [...postAssertionRules]; updated[idx] = { ...updated[idx], [field]: value } as AssertionRule;
-    setPostAssertionRules(updated); dirtyRef.current = true;
+    setPostAssertionRules(updated); setIsDirty(true);
   };
   // 统一切换规则校验状态（与 PrePostActionItem.toggleAssert 完全一致）
   const toggleMainRule = (idx: number) => {
@@ -498,11 +532,11 @@ export default function ApiDetail() {
     if (rule.assert !== false) {
       const updated = [...mainRules];
       updated[idx] = { ...rule, assert: false, operator: 'equals', expected: '' };
-      setMainRules(updated); dirtyRef.current = true;
+      setMainRules(updated); setIsDirty(true);
     } else {
       const updated = [...mainRules];
       updated[idx] = { ...rule, assert: true };
-      setMainRules(updated); dirtyRef.current = true;
+      setMainRules(updated); setIsDirty(true);
     }
   };
 
@@ -554,7 +588,7 @@ export default function ApiDetail() {
   const handleInsertFunction = (text: string) => {
     if (!fnTarget) return;
     setForm(f => ({ ...f, [fnTarget]: f[fnTarget] + text }));
-    dirtyRef.current = true;
+    setIsDirty(true);
   };
 
   // ─── Tab: Detail ───
@@ -562,14 +596,14 @@ export default function ApiDetail() {
     <div className="tab-content-wrapper">
       <div className="ad-section">
         <div className="api-detail-row">
-          <div className="field"><label>接口名称 <span className="required">*</span></label><InlineText value={form.name} onChange={v => { setForm(f => ({ ...f, name: v })); dirtyRef.current = true; }} placeholder="点击输入接口名称" /></div>
+          <div className="field"><label>接口名称 <span className="required">*</span></label><InlineText value={form.name} onChange={v => { setForm(f => ({ ...f, name: v })); setIsDirty(true); }} placeholder="点击输入接口名称" /></div>
         </div>
         <div className="api-detail-row">
-          <div className="field"><label>描述</label><InlineText value={form.description} onChange={v => { setForm(f => ({ ...f, description: v })); dirtyRef.current = true; }} placeholder="点击输入描述" multiline /></div>
+          <div className="field"><label>描述</label><InlineText value={form.description} onChange={v => { setForm(f => ({ ...f, description: v })); setIsDirty(true); }} placeholder="点击输入描述" multiline /></div>
         </div>
         <div className="api-detail-row">
-          <div className="field"><label>标签</label><TagInput value={form.tags} onChange={v => { setForm(f => ({ ...f, tags: v })); dirtyRef.current = true; }} onDirty={() => { dirtyRef.current = true; }} placeholder="输入标签，回车确认" /></div>
-          <div className="field"><label>状态</label><InlineSelect value={form.status} options={STATUS_OPTIONS} onChange={v => { setForm(f => ({ ...f, status: v })); dirtyRef.current = true; }} renderDisplay={(v, label) => <span className={`status-text status-${v}`}>{label}</span>} /></div>
+          <div className="field"><label>标签</label><TagInput value={form.tags} onChange={v => { setForm(f => ({ ...f, tags: v })); setIsDirty(true); }} onDirty={() => { setIsDirty(true); }} placeholder="输入标签，回车确认" /></div>
+          <div className="field"><label>状态</label><InlineSelect value={form.status} options={STATUS_OPTIONS} onChange={v => { setForm(f => ({ ...f, status: v })); setIsDirty(true); }} renderDisplay={(v, label) => <span className={`status-text status-${v}`}>{label}</span>} /></div>
         </div>
         <div className="api-detail-row">
           <div className="field"><label>创建时间</label><span className="field-value">{toLocalDateTime(api.created_at)}</span></div>
@@ -586,8 +620,8 @@ export default function ApiDetail() {
         <div className="ad-section-head"><label>前置动作</label></div>
         <PrePostActionList
           actions={preActions}
-          onChange={(actions) => { setPreActions(actions); dirtyRef.current = true; }}
-          onDirty={() => { dirtyRef.current = true; }}
+          onChange={(actions) => { setPreActions(actions); setIsDirty(true); }}
+          onDirty={() => { setIsDirty(true); }}
           label="添加前置动作"
           databases={getDatabasesFromEnv(activeEnv)}
         />
@@ -601,8 +635,8 @@ export default function ApiDetail() {
       <div className="ad-section">
         <div className="ad-section-head"><label>请求配置</label></div>
         <div className="api-detail-row">
-          <div className="field"><label>请求方法</label><InlineSelect value={form.method} options={METHODS.map(m => ({ value: m, label: m }))} onChange={v => { setForm(f => ({ ...f, method: v })); dirtyRef.current = true; }} renderDisplay={(v) => <span className={`method-badge method-${v}`}>{v}</span>} /></div>
-          <div className="field"><label>协议</label><InlineSelect value={form.protocol} options={PROTOCOL_OPTIONS} onChange={v => { setForm(f => ({ ...f, protocol: v })); dirtyRef.current = true; }} /></div>
+          <div className="field"><label>请求方法</label><InlineSelect value={form.method} options={METHODS.map(m => ({ value: m, label: m }))} onChange={v => { setForm(f => ({ ...f, method: v })); setIsDirty(true); }} renderDisplay={(v) => <span className={`method-badge method-${v}`}>{v}</span>} /></div>
+          <div className="field"><label>协议</label><InlineSelect value={form.protocol} options={PROTOCOL_OPTIONS} onChange={v => { setForm(f => ({ ...f, protocol: v })); setIsDirty(true); }} /></div>
         </div>
         {form.protocol === 'https' && (() => {
           const certOptions: Array<{ value: string; label: string }> = [{ value: '', label: '请选择' }];
@@ -623,7 +657,7 @@ export default function ApiDetail() {
                 <InlineSelect
                   value={form.ssl_cert_name}
                   options={certOptions}
-                  onChange={v => { setForm(f => ({ ...f, ssl_cert_name: v })); dirtyRef.current = true; }}
+                  onChange={v => { setForm(f => ({ ...f, ssl_cert_name: v })); setIsDirty(true); }}
                 />
               </div>
             </div>
@@ -631,45 +665,48 @@ export default function ApiDetail() {
         })()}
         <div className="api-detail-row">
           <div className="field field-url"><label>请求地址 <span className="required">*</span></label>
-            <span className="ie-field ie-mono url-editable" onClick={() => setEditingUrl(true)}>
-              <VarHoverTip text={form.url} className="ie-url-display" />
+            <span className="ie-field ie-mono url-editable" onClick={() => { setDraftUrl(form.url); setEditingUrl(true); }}>
+              <VarHoverTip text={form.url} parameters={parametersJson} className="ie-url-display" />
               <span className="ie-icon">✎</span>
             </span>
             {editingUrl && (
-              <input
+              <VariableAutocomplete
                 className="ie-input url-input"
                 value={draftUrl}
-                onChange={e => { setDraftUrl(e.target.value); dirtyRef.current = true; }}
-                onBlur={() => { if (draftUrl !== form.url) { setForm(f => ({ ...f, url: draftUrl })); dirtyRef.current = true; } setEditingUrl(false); }}
+                onChange={(val) => { setDraftUrl(val); setIsDirty(true); }}
+                onBlur={() => { if (draftUrl !== form.url) { setForm(f => ({ ...f, url: draftUrl })); setIsDirty(true); } setEditingUrl(false); }}
                 onKeyDown={e => {
                   if (e.key === 'Enter') {
                     setForm(f => ({ ...f, url: draftUrl }));
-                    dirtyRef.current = true;
+                    setIsDirty(true);
                     setEditingUrl(false);
                   }
                   if (e.key === 'Escape') { setEditingUrl(false); setDraftUrl(form.url); }
                 }}
-                placeholder="点击输入请求地址"
+                placeholder="输入 {{ 引用变量，${ 引用函数"
                 autoFocus
+                envVars={activeEnv?.variables || []}
+                paramHeaders={paramVars}
+                builtinFuncs={BUILTIN_FUNCS}
               />
             )}
           </div>
         </div>
         <div className="ad-editor-section">
           <div className="ad-editor-label"><label>请求头</label><button type="button" className="ad-btn ad-btn-sm" onClick={() => handleFormat('headers')}>格式化</button></div>
-          <CodeMirrorHover value={form.headers} height="120px" extensions={[json(), linter(jsonParseLinter())]} onChange={(val) => { setForm({ ...form, headers: val }); dirtyRef.current = true; }} placeholder={HEADER_HINT} basicSetup={{ lineNumbers: true, foldGutter: true, highlightActiveLine: true, bracketMatching: true }} />
+          <CodeMirrorHover value={form.headers} height="120px" extensions={[json(), linter(jsonParseLinter())]} onChange={(val) => { setForm({ ...form, headers: val }); setIsDirty(true); }} placeholder={HEADER_HINT} basicSetup={{ lineNumbers: true, foldGutter: true, highlightActiveLine: true, bracketMatching: true }} paramHeaders={paramVars} />
         </div>
         <div className="api-detail-row" style={{ marginTop: 12 }}>
           <div className="field">
             <label>报文类型</label>
             <div className="ad-ct-row">
-              {CONTENT_TYPES.map((ct) => (<button key={ct.value} type="button" className={`ad-ct-btn ${form.content_type === ct.value ? 'active' : ''}`} onClick={() => { setForm({ ...form, content_type: ct.value }); dirtyRef.current = true; }}>{ct.label}</button>))}
+              {CONTENT_TYPES.map((ct) => (<button key={ct.value} type="button" className={`ad-ct-btn ${form.content_type === ct.value ? 'active' : ''}`} onClick={() => { setForm({ ...form, content_type: ct.value }); setIsDirty(true); }}>{ct.label}</button>))}
             </div>
           </div>
         </div>
         <div className="ad-editor-section">
           <div className="ad-editor-label"><label>请求体</label><button type="button" className="ad-btn ad-btn-sm" onClick={() => handleFormat('body')}>格式化</button></div>
-          <CodeMirrorHover value={form.body} height="200px" extensions={getEditorLang(form.content_type) || []} onChange={(val) => { setForm({ ...form, body: val }); dirtyRef.current = true; }} placeholder={BODY_HINTS[form.content_type]} basicSetup={{ lineNumbers: true, foldGutter: true, highlightActiveLine: true, bracketMatching: true }} />
+          <CodeMirrorHover value={form.body} height="200px" extensions={getEditorLang(form.content_type) || []} onChange={(val) => { setForm({ ...form, body: val }); setIsDirty(true); }} placeholder={BODY_HINTS[form.content_type]} basicSetup={{ lineNumbers: true, foldGutter: true, highlightActiveLine: true, bracketMatching: true }} paramHeaders={paramVars} />
         </div>
       </div>
 
@@ -688,7 +725,7 @@ export default function ApiDetail() {
                     autoFocus
                     value={rule.name || ''}
                     placeholder={`规则 ${idx + 1}`}
-                    onChange={(e) => { const u = [...mainRules]; u[idx] = { ...u[idx], name: e.target.value }; setMainRules(u); dirtyRef.current = true; }}
+                    onChange={(e) => { const u = [...mainRules]; u[idx] = { ...u[idx], name: e.target.value }; setMainRules(u); setIsDirty(true); }}
                     onBlur={() => setMainEditingRuleIdx(null)}
                     onKeyDown={(e) => { if (e.key === 'Enter') setMainEditingRuleIdx(null); }}
                   />
@@ -724,7 +761,7 @@ export default function ApiDetail() {
               <div style={{ fontSize: '0.75rem', color: 'var(--fg-tertiary)', marginBottom: 8 }}>暂无提取和断言规则</div>
             )}
           </div>
-          <button type="button" className="ad-btn ad-btn-sm" onClick={() => { addMainRule(); dirtyRef.current = true; }}>+ 添加规则</button>
+          <button type="button" className="ad-btn ad-btn-sm" onClick={() => { addMainRule(); setIsDirty(true); }}>+ 添加规则</button>
         </div>
     </div>
   );
@@ -736,8 +773,8 @@ export default function ApiDetail() {
         <div className="ad-section-head"><label>后置动作</label></div>
         <PrePostActionList
           actions={postActions}
-          onChange={(actions) => { setPostActions(actions); dirtyRef.current = true; }}
-          onDirty={() => { dirtyRef.current = true; }}
+          onChange={(actions) => { setPostActions(actions); setIsDirty(true); }}
+          onDirty={() => { setIsDirty(true); }}
           label="添加后置动作"
           databases={getDatabasesFromEnv(activeEnv)}
         />
@@ -855,7 +892,7 @@ export default function ApiDetail() {
     // 全局开关切换
     const toggleEnabled = () => {
       setParamConfig(p => ({ ...p, enabled: !p.enabled }));
-      dirtyRef.current = true;
+      setIsDirty(true);
     };
 
     // 添加新列
@@ -863,21 +900,34 @@ export default function ApiDetail() {
       setParamConfig(p => ({
         ...p,
         headers: [...p.headers, `col${p.headers.length + 1}`],
+        headerDescs: [...p.headerDescs, ''],
         rows: p.rows.map(row => [...row, '']),
         enabledRows: p.enabledRows.length < p.rows.length
           ? [...p.enabledRows, ...new Array(p.rows.length - p.enabledRows.length).fill(true)]
           : p.enabledRows,
       }));
-      dirtyRef.current = true;
+      setIsDirty(true);
     };
     // 删除列
     const removeColumn = (colIdx: number) => {
       setParamConfig(p => ({
         ...p,
         headers: p.headers.filter((_, i) => i !== colIdx),
+        headerDescs: p.headerDescs.filter((_, i) => i !== colIdx),
         rows: p.rows.map(row => row.filter((_, i) => i !== colIdx)),
       }));
-      dirtyRef.current = true;
+      setIsDirty(true);
+    };
+    // 修改列描述
+    const setHeaderDesc = (colIdx: number, val: string) => {
+      setParamConfig(p => {
+        const headerDescs = [...p.headerDescs];
+        // 兼容历史:长度不够时补齐
+        while (headerDescs.length < p.headers.length) headerDescs.push('');
+        headerDescs[colIdx] = val;
+        return { ...p, headerDescs };
+      });
+      setIsDirty(true);
     };
     // 添加行
     const addRow = () => {
@@ -886,7 +936,7 @@ export default function ApiDetail() {
         rows: [...p.rows, new Array(p.headers.length).fill('')],
         enabledRows: [...p.enabledRows, true],
       }));
-      dirtyRef.current = true;
+      setIsDirty(true);
     };
     // 删除行
     const removeRow = (rowIdx: number) => {
@@ -895,7 +945,7 @@ export default function ApiDetail() {
         rows: p.rows.filter((_, i) => i !== rowIdx),
         enabledRows: p.enabledRows.filter((_, i) => i !== rowIdx),
       }));
-      dirtyRef.current = true;
+      setIsDirty(true);
     };
     // 切换行启用状态
     const toggleRowEnabled = (rowIdx: number) => {
@@ -904,7 +954,7 @@ export default function ApiDetail() {
         enabledRows[rowIdx] = !enabledRows[rowIdx];
         return { ...p, enabledRows };
       });
-      dirtyRef.current = true;
+      setIsDirty(true);
     };
     // 全选 / 全不选
     const toggleAllRows = (checked: boolean) => {
@@ -912,7 +962,7 @@ export default function ApiDetail() {
         ...p,
         enabledRows: p.rows.map(() => checked),
       }));
-      dirtyRef.current = true;
+      setIsDirty(true);
     };
     // 修改列头
     const setHeader = (colIdx: number, val: string) => {
@@ -921,7 +971,7 @@ export default function ApiDetail() {
         headers[colIdx] = val;
         return { ...p, headers };
       });
-      dirtyRef.current = true;
+      setIsDirty(true);
     };
     // 修改单元格
     const setCell = (rowIdx: number, colIdx: number, val: string) => {
@@ -929,7 +979,7 @@ export default function ApiDetail() {
         const rows = p.rows.map((row, ri) => ri === rowIdx ? row.map((cell, ci) => ci === colIdx ? val : cell) : row);
         return { ...p, rows };
       });
-      dirtyRef.current = true;
+      setIsDirty(true);
     };
 
     // CSV 上传 + 与现有数据合并
@@ -977,9 +1027,11 @@ export default function ApiDetail() {
             mergedEnabled.push(i < p.enabledRows.length ? p.enabledRows[i] : true);
           }
           for (let i = p.enabledRows.length; i < maxRows; i++) mergedEnabled[i] = true;
-          return { ...p, headers: allHeaders, rows: mergedRows, enabledRows: mergedEnabled };
+          // 兼容历史 + 新列:headerDescs 跟 allHeaders 同长,新列填空
+          const mergedDescs = allHeaders.map((_, i) => (p.headerDescs[i] as string) || '');
+          return { ...p, headers: allHeaders, headerDescs: mergedDescs, rows: mergedRows, enabledRows: mergedEnabled };
         });
-        dirtyRef.current = true;
+        setIsDirty(true);
       };
       reader.readAsText(file);
       e.target.value = '';
@@ -1037,12 +1089,40 @@ export default function ApiDetail() {
                         />
                       )}
                     </th>
-                    {paramConfig.headers.map((h, ci) => (
-                      <th key={ci}>
-                        <input className="param-header-input" value={h} onChange={e => setHeader(ci, e.target.value)} placeholder="变量名" />
-                        <button className="param-col-del" onClick={() => removeColumn(ci)} title="删除此列">✕</button>
-                      </th>
-                    ))}
+                    {paramConfig.headers.map((h, ci) => {
+                      const descVal = paramConfig.headerDescs[ci] || '';
+                      // 列宽按变量名和描述中的较长者算,最小 6ch 保证可点击
+                      const headerCh = Math.max(h.length, descVal.length, 6);
+                      return (
+                        <th key={ci} className="param-th">
+                          <div className="param-th-inner">
+                            <input
+                              className="param-header-input"
+                              style={{ width: `${headerCh}ch` }}
+                              value={h}
+                              onChange={e => setHeader(ci, e.target.value)}
+                              placeholder="变量名"
+                            />
+                            <input
+                              className="param-header-desc-input"
+                              style={{ width: `${headerCh}ch` }}
+                              value={descVal}
+                              onChange={e => setHeaderDesc(ci, e.target.value)}
+                              placeholder="描述（可选）"
+                              title="列描述：在 {{var}} 补全/hover 时展示给使用者"
+                            />
+                            <button
+                              className="param-col-del"
+                              onClick={() => removeColumn(ci)}
+                              title="删除此列"
+                              aria-label="删除此列"
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        </th>
+                      );
+                    })}
                     <th className="param-th-del"></th>
                   </tr>
                 </thead>
@@ -1056,15 +1136,21 @@ export default function ApiDetail() {
                           <input type="checkbox" checked={paramConfig.enabledRows[ri] !== false} onChange={() => toggleRowEnabled(ri)} />
                         </label>
                       </td>
-                      {paramConfig.headers.map((_, ci) => (
-                        <td key={ci}>
-                          <input
-                            className="param-cell-input"
-                            value={row[ci] ?? ''}
-                            onChange={e => setCell(ri, ci, e.target.value)}
-                          />
-                        </td>
-                      ))}
+                      {paramConfig.headers.map((_, ci) => {
+                        // 同一列内单元格按自己内容算宽,保证不同行长短不一时视觉协调
+                        const cellVal = row[ci] ?? '';
+                        const cellCh = Math.max(cellVal.length, 4, 6);
+                        return (
+                          <td key={ci}>
+                            <input
+                              className="param-cell-input"
+                              style={{ width: `${cellCh}ch` }}
+                              value={cellVal}
+                              onChange={e => setCell(ri, ci, e.target.value)}
+                            />
+                          </td>
+                        );
+                      })}
                       <td><button className="param-row-del" onClick={() => removeRow(ri)} title="删除此行">✕</button></td>
                     </tr>
                   ))}
@@ -1153,14 +1239,14 @@ export default function ApiDetail() {
         <div className="api-detail-breadcrumb">
           <button className="api-detail-back" onClick={() => navigate('/api-test/case')}>用例列表</button>
           <span className="api-detail-breadcrumb-sep">/</span>
-          <input className="api-detail-name-input" value={form.name} onChange={e => { setForm({ ...form, name: e.target.value }); dirtyRef.current = true; }} placeholder="输入接口名称" />
+          <input className="api-detail-name-input" value={form.name} onChange={e => { setForm({ ...form, name: e.target.value }); setIsDirty(true); }} placeholder="输入接口名称" />
         </div>
         <div className="api-detail-meta">
           {!isNew && api && <span className={`status-badge-light ${form.status}`}>{STATUS_OPTIONS.find(o => o.value === form.status)?.label || form.status}</span>}
           {api?.updated_at && <span className="meta-time">更新于 {toLocalDateTime(api.updated_at)}</span>}
         </div>
         <div className="api-detail-actions">
-          <button className="scenario-btn" onClick={handleSave}>保存</button>
+          <button className={`scenario-btn${isDirty ? ' dirty' : ''}`} onClick={handleSave}>保存</button>
           <button className={`sset-btn sset-btn-primary${!realIdRef.current ? ' scenario-btn-disabled' : ''}`} onClick={handleExecute} disabled={executing}>{executing ? <><span className="ad-btn-loading">⟳</span> 执行中</> : '执行'}</button>
         </div>
       </div>
@@ -1177,7 +1263,6 @@ export default function ApiDetail() {
           </div>
         </div>
       </div>
-      {error && <div className="api-error">{error}</div>}
       <SelectFunctionModal
         open={fnModalOpen}
         onClose={() => setFnModalOpen(false)}

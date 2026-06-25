@@ -181,7 +181,7 @@ export default function CaseSetDetail({ basePath = '/api-test', testType = 'api'
         setIsDirty(false);
         notification.success('保存成功');
       }
-    } finally { setSaving(false); }
+    } catch (err) { notification.error(err instanceof Error ? err.message : '保存失败'); } finally { setSaving(false); }
   }
 
   async function doExecute(caseIdsToRun?: number[]) {
@@ -200,7 +200,7 @@ export default function CaseSetDetail({ basePath = '/api-test', testType = 'api'
           setSetExecutions(execRes.data);
         }
       }
-    } finally { setExecuting(false); }
+    } catch (err) { notification.error(err instanceof Error ? err.message : '执行失败'); } finally { setExecuting(false); }
   }
 
   function toggleCase(caseId: number) {

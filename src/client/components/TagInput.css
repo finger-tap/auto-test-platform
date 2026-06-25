@@ -22,28 +22,6 @@
   transform: translateY(-1px);
 }
 
-.tag-pill-display[data-tag="核心"] { background: #dcfce7; color: #166534; border-color: #bbf7d0; }
-.tag-pill-display[data-tag="认证"] { background: #eef2ff; color: #3730a3; border-color: #c7d2fe; }
-.tag-pill-display[data-tag="订单"] { background: #fef3c7; color: #92400e; border-color: #fde68a; }
-.tag-pill-display[data-tag="支付"] { background: #fef9c3; color: #78350f; border-color: #fde047; }
-.tag-pill-display[data-tag="回归"] { background: #e0e7ff; color: #3730a3; border-color: #a5b4fc; }
-.tag-pill-display[data-tag="冒烟"] { background: #fce7f3; color: #831843; border-color: #fbcfe8; }
-.tag-pill-display[data-tag="性能"] { background: #fef3c7; color: #78350f; border-color: #fde68a; }
-.tag-pill-display[data-tag="安全"] { background: #fef2f2; color: #881337; border-color: #fecaca; }
-.tag-pill-display[data-tag="用户管理"] { background: #fdf4ff; color: #6b21a8; border-color: #e9d5ff; }
-.tag-pill-display[data-tag="权限"] { background: #ecfdf5; color: oklch(35% 0.12 170); border-color: #a7f3d0; }
-
-[data-theme="dark"] .tag-pill-display[data-tag="核心"] { background: var(--success-subtle); color: var(--success); border-color: rgba(34,197,94,0.3); }
-[data-theme="dark"] .tag-pill-display[data-tag="认证"] { background: var(--info-subtle); color: var(--info); border-color: rgba(99,102,241,0.3); }
-[data-theme="dark"] .tag-pill-display[data-tag="订单"] { background: var(--warning-subtle); color: var(--warning); border-color: rgba(245,158,11,0.3); }
-[data-theme="dark"] .tag-pill-display[data-tag="支付"] { background: var(--warning-subtle); color: var(--warning); border-color: rgba(245,158,11,0.3); }
-[data-theme="dark"] .tag-pill-display[data-tag="回归"] { background: var(--accent-subtle); color: var(--accent); border-color: rgba(99,102,241,0.3); }
-[data-theme="dark"] .tag-pill-display[data-tag="冒烟"] { background: var(--danger-subtle); color: var(--danger); border-color: rgba(239,68,68,0.3); }
-[data-theme="dark"] .tag-pill-display[data-tag="性能"] { background: var(--warning-subtle); color: var(--warning); border-color: rgba(245,158,11,0.3); }
-[data-theme="dark"] .tag-pill-display[data-tag="安全"] { background: var(--danger-subtle); color: var(--danger); border-color: rgba(239,68,68,0.3); }
-[data-theme="dark"] .tag-pill-display[data-tag="用户管理"] { background: var(--info-subtle); color: var(--info); border-color: rgba(99,102,241,0.3); }
-[data-theme="dark"] .tag-pill-display[data-tag="权限"] { background: var(--success-subtle); color: var(--success); border-color: rgba(34,197,94,0.3); }
-
 /* ─── 下拉框样式 ─── */
 .tag-dropdown-overlay {
   position: fixed;
@@ -129,28 +107,6 @@
 .tag-dropdown-item.checked {
   border-color: var(--accent);
 }
-
-.tag-dropdown-item[data-tag="核心"] { background: #dcfce7; color: #166534; border-color: #bbf7d0; }
-.tag-dropdown-item[data-tag="认证"] { background: #eef2ff; color: #3730a3; border-color: #c7d2fe; }
-.tag-dropdown-item[data-tag="订单"] { background: #fef3c7; color: #92400e; border-color: #fde68a; }
-.tag-dropdown-item[data-tag="支付"] { background: #fef9c3; color: #78350f; border-color: #fde047; }
-.tag-dropdown-item[data-tag="回归"] { background: #e0e7ff; color: #3730a3; border-color: #a5b4fc; }
-.tag-dropdown-item[data-tag="冒烟"] { background: #fce7f3; color: #831843; border-color: #fbcfe8; }
-.tag-dropdown-item[data-tag="性能"] { background: #fef3c7; color: #78350f; border-color: #fde68a; }
-.tag-dropdown-item[data-tag="安全"] { background: #fef2f2; color: #881337; border-color: #fecaca; }
-.tag-dropdown-item[data-tag="用户管理"] { background: #fdf4ff; color: #6b21a8; border-color: #e9d5ff; }
-.tag-dropdown-item[data-tag="权限"] { background: #ecfdf5; color: oklch(35% 0.12 170); border-color: #a7f3d0; }
-
-[data-theme="dark"] .tag-dropdown-item[data-tag="核心"] { background: var(--success-subtle); color: var(--success); border-color: rgba(34,197,94,0.3); }
-[data-theme="dark"] .tag-dropdown-item[data-tag="认证"] { background: var(--info-subtle); color: var(--info); border-color: rgba(99,102,241,0.3); }
-[data-theme="dark"] .tag-dropdown-item[data-tag="订单"] { background: var(--warning-subtle); color: var(--warning); border-color: rgba(245,158,11,0.3); }
-[data-theme="dark"] .tag-dropdown-item[data-tag="支付"] { background: var(--warning-subtle); color: var(--warning); border-color: rgba(245,158,11,0.3); }
-[data-theme="dark"] .tag-dropdown-item[data-tag="回归"] { background: var(--accent-subtle); color: var(--accent); border-color: rgba(99,102,241,0.3); }
-[data-theme="dark"] .tag-dropdown-item[data-tag="冒烟"] { background: var(--danger-subtle); color: var(--danger); border-color: rgba(239,68,68,0.3); }
-[data-theme="dark"] .tag-dropdown-item[data-tag="性能"] { background: var(--warning-subtle); color: var(--warning); border-color: rgba(245,158,11,0.3); }
-[data-theme="dark"] .tag-dropdown-item[data-tag="安全"] { background: var(--danger-subtle); color: var(--danger); border-color: rgba(239,68,68,0.3); }
-[data-theme="dark"] .tag-dropdown-item[data-tag="用户管理"] { background: var(--info-subtle); color: var(--info); border-color: rgba(99,102,241,0.3); }
-[data-theme="dark"] .tag-dropdown-item[data-tag="权限"] { background: var(--success-subtle); color: var(--success); border-color: rgba(34,197,94,0.3); }
 
 .tag-dropdown-check {
   font-size: 11px;

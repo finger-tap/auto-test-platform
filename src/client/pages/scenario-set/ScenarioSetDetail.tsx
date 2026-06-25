@@ -163,7 +163,7 @@ export default function ScenarioSetDetail({ basePath = '/api-test', testType = '
         setIsDirty(false);
         notification.success('保存成功');
       }
-    } finally { setSaving(false); }
+    } catch (err) { notification.error(err instanceof Error ? err.message : '保存失败'); } finally { setSaving(false); }
   }
 
   async function doExecute(scenarioIdsToRun?: number[]) {
@@ -182,7 +182,7 @@ export default function ScenarioSetDetail({ basePath = '/api-test', testType = '
           setSetExecutions(execRes.data);
         }
       }
-    } finally { setExecuting(false); }
+    } catch (err) { notification.error(err instanceof Error ? err.message : '执行失败'); } finally { setExecuting(false); }
   }
 
   function toggleScenario(id: number) {

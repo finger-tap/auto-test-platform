@@ -1192,9 +1192,15 @@ if (!tagTableExists) {
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER NOT NULL,
     name TEXT NOT NULL,
+    color TEXT DEFAULT '',
     created_at TEXT NOT NULL,
     UNIQUE(user_id, name)
   )`);
+}
+// Migration: add color column if missing
+const tagCols = db.prepare("PRAGMA table_info(user_tags)").all() as { name: string }[];
+if (!tagCols.some(c => c.name === 'color')) {
+  db.exec("ALTER TABLE user_tags ADD COLUMN color TEXT DEFAULT ''");
 }
 
 // ── Test type isolation: 拆分 mock_endpoints / batch_reports 为 4 张独立表 ──

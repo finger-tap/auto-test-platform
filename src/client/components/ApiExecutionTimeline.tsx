@@ -215,6 +215,12 @@ export default function ApiExecutionTimeline({ execution, steps, assertionResult
                       <div className="step-section">
                         <div className="step-section-label" style={{ color: '#e53e3e' }}>错误</div>
                         <div className="step-error-msg">{String(logData.error)}</div>
+                        {logData.cause != null && Boolean(logData.cause) && (
+                          <div className="step-error-msg" style={{ marginTop: 4, fontSize: 12, opacity: 0.8 }}>原因: {String(logData.cause)}</div>
+                        )}
+                        {logData.stack != null && Boolean(logData.stack) && (
+                          <pre className="step-error-stack">{String(logData.stack)}</pre>
+                        )}
                       </div>
                     )}
                     {Boolean(logData.assertion_results) && Array.isArray(logData.assertion_results) && logData.assertion_results.length > 0 && (

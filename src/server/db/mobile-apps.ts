@@ -86,6 +86,12 @@ export function findMobileAppById(id: number, userId: number): MobileAppRow | un
   ).get(id, userId) as MobileAppRow | undefined;
 }
 
+export function findMobileAppByName(userId: number, name: string): MobileAppRow | undefined {
+  return db.prepare(
+    'SELECT * FROM mobile_apps WHERE user_id = ? AND name = ?',
+  ).get(userId, name) as MobileAppRow | undefined;
+}
+
 // ── Create ──
 
 export function createMobileApp(userId: number, data: CreateMobileAppInput): number {

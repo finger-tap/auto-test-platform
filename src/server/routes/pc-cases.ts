@@ -3,6 +3,7 @@ import { authMiddleware } from '../auth/middleware.js';
 import {
   listPcCases,
   getPcCase,
+  findPcCaseByName,
   createPcCase,
   updatePcCase,
   deletePcCase,
@@ -70,13 +71,19 @@ pcCaseRoutes.post('/', (req: Request, res: Response) => {
     return;
   }
 
+  const trimmedName = name.trim();
+  if (findPcCaseByName(req.user!.userId, trimmedName)) {
+    res.status(409).json({ code: 409, message: '已存在同名用例' });
+    return;
+  }
+
   const stepsJson = typeof steps === 'string' ? steps : (Array.isArray(steps) ? JSON.stringify(steps) : null);
   const checkPointsJson = typeof check_points === 'string' ? check_points : (Array.isArray(check_points) ? JSON.stringify(check_points) : null);
   const dataDriveJson = typeof data_drive === 'string' ? data_drive : (Array.isArray(data_drive) ? JSON.stringify(data_drive) : null);
   const preconditionsJson = typeof preconditions === 'string' ? preconditions : (Array.isArray(preconditions) ? JSON.stringify(preconditions) : null);
 
   const id = createPcCase(req.user!.userId, {
-    name: name.trim(),
+    name: trimmedName,
     description,
     tags,
     status,
@@ -156,6 +163,13 @@ pcCaseRoutes.put('/:id', (req: Request, res: Response) => {
   const checkPointsJson = typeof check_points === 'string' ? check_points : (Array.isArray(check_points) ? JSON.stringify(check_points) : undefined);
   const dataDriveJson = typeof data_drive === 'string' ? data_drive : (Array.isArray(data_drive) ? JSON.stringify(data_drive) : undefined);
   const preconditionsJson = typeof preconditions === 'string' ? preconditions : (Array.isArray(preconditions) ? JSON.stringify(preconditions) : undefined);
+
+  const checkName = name && typeof name === 'string' ? name.trim() : pcCase.name;
+  const existingCase = findPcCaseByName(req.user!.userId, checkName);
+  if (existingCase && existingCase.id !== pcCase.id) {
+    res.status(409).json({ code: 409, message: '已存在同名用例' });
+    return;
+  }
 
   // driver_path: string (trimmed) = set, null = clear, undefined = leave alone
   const driverPathUpdate =

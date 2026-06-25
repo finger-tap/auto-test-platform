@@ -63,6 +63,10 @@ export function findEnvById(id: number, userId: number): Environment | null {
   return db.prepare('SELECT * FROM environments WHERE id = ? AND user_id = ?').get(id, userId) as Environment | null;
 }
 
+export function findEnvByName(userId: number, name: string): Environment | null {
+  return db.prepare('SELECT * FROM environments WHERE user_id = ? AND name = ?').get(userId, name) as Environment | null;
+}
+
 export function findDefaultEnv(userId: number): Environment | null {
   return db.prepare('SELECT * FROM environments WHERE user_id = ? AND is_default = 1').get(userId) as Environment | null;
 }

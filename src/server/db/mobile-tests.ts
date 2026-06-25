@@ -148,6 +148,10 @@ export function findMobileTestById(id: number): MobileTestCaseRow | undefined {
   return db.prepare('SELECT * FROM mobile_test_cases WHERE id = ?').get(id) as MobileTestCaseRow | undefined;
 }
 
+export function findMobileTestByName(userId: number, name: string): MobileTestCaseRow | undefined {
+  return db.prepare('SELECT * FROM mobile_test_cases WHERE user_id = ? AND name = ?').get(userId, name) as MobileTestCaseRow | undefined;
+}
+
 export function createMobileTest(userId: number, data: CreateMobileTestInput): number {
   const result = db.prepare(
     `INSERT INTO mobile_test_cases (user_id, name, description, platform, device_name, platform_version, app_package, app_activity, bundle_id, appium_url, capabilities, test_script, assertions, preconditions, case_content, case_content_type, tags, status, app_id, app_version, created_at, updated_at)

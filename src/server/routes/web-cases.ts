@@ -3,6 +3,7 @@ import { authMiddleware } from '../auth/middleware.js';
 import {
   listWebCases,
   getWebCase,
+  findWebCaseByName,
   createWebCase,
   updateWebCase,
   deleteWebCase,
@@ -74,6 +75,12 @@ webCaseRoutes.post('/', (req: Request, res: Response) => {
     return;
   }
 
+  const trimmedName = name.trim();
+  if (findWebCaseByName(req.user!.userId, trimmedName)) {
+    res.status(409).json({ code: 409, message: '已存在同名用例' });
+    return;
+  }
+
   // Serialize JSON fields to strings
   const stepsJson = typeof steps === 'string' ? steps : (Array.isArray(steps) ? JSON.stringify(steps) : null);
   const checkPointsJson = typeof check_points === 'string' ? check_points : (Array.isArray(check_points) ? JSON.stringify(check_points) : null);
@@ -81,7 +88,7 @@ webCaseRoutes.post('/', (req: Request, res: Response) => {
   const preconditionsJson = typeof preconditions === 'string' ? preconditions : (Array.isArray(preconditions) ? JSON.stringify(preconditions) : null);
 
   const id = createWebCase(req.user!.userId, {
-    name: name.trim(),
+    name: trimmedName,
     description,
     tags,
     status,
@@ -158,6 +165,13 @@ webCaseRoutes.put('/:id', (req: Request, res: Response) => {
   const checkPointsJson = typeof check_points === 'string' ? check_points : (Array.isArray(check_points) ? JSON.stringify(check_points) : undefined);
   const dataDriveJson = typeof data_drive === 'string' ? data_drive : (Array.isArray(data_drive) ? JSON.stringify(data_drive) : undefined);
   const preconditionsJson = typeof preconditions === 'string' ? preconditions : (Array.isArray(preconditions) ? JSON.stringify(preconditions) : undefined);
+
+  const checkName = name && typeof name === 'string' ? name.trim() : webCase.name;
+  const existingCase = findWebCaseByName(req.user!.userId, checkName);
+  if (existingCase && existingCase.id !== webCase.id) {
+    res.status(409).json({ code: 409, message: '已存在同名用例' });
+    return;
+  }
 
   // driver_path: string (trimmed) = set, null = clear, undefined = leave alone
   const driverPathUpdate =

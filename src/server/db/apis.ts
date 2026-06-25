@@ -177,6 +177,10 @@ export function findApiById(id: number): ApiRow | undefined {
   return db.prepare('SELECT * FROM apis WHERE id = ?').get(id) as ApiRow | undefined;
 }
 
+export function findApiByName(userId: number, name: string): ApiRow | undefined {
+  return db.prepare('SELECT * FROM apis WHERE user_id = ? AND name = ?').get(userId, name) as ApiRow | undefined;
+}
+
 export function createApi(userId: number, data: CreateApiInput): number {
   const result = db.prepare(
     `INSERT INTO apis (user_id, name, method, url, protocol, headers, body, description, tags, status, content_type, assertions, pre_script, post_script, pre_db_name, pre_db_query, post_db_name, post_db_query, pre_assertions, post_assertions, final_assertions, ws_send, ws_expect, parameters, ssl_cert_name, created_at, updated_at)

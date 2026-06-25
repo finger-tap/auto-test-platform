@@ -3,6 +3,7 @@ import { authMiddleware } from '../auth/middleware.js';
 import {
   listDevices,
   getDevice,
+  findDeviceByName,
   createDevice,
   updateDevice,
   deleteDevice,
@@ -233,6 +234,12 @@ deviceRoutes.post('/', (req: Request, res: Response) => {
     return;
   }
 
+  const trimmedName = name.trim();
+  if (findDeviceByName(req.user!.userId, trimmedName)) {
+    res.status(409).json({ code: 409, message: '已存在同名设备' });
+    return;
+  }
+
   let encPassword: string | null = null;
   let encKey: string | null = null;
   try {
@@ -244,7 +251,7 @@ deviceRoutes.post('/', (req: Request, res: Response) => {
   }
 
   const id = createDevice(req.user!.userId, {
-    name: name.trim(),
+    name: trimmedName,
     test_type: test_type as DeviceTestType,
     platform: platform.trim(),
     serial: serial || undefined,
@@ -335,6 +342,13 @@ deviceRoutes.put('/:id', (req: Request, res: Response) => {
     }
   } catch (e) {
     res.status(503).json({ code: 503, message: e instanceof Error ? e.message : String(e) });
+    return;
+  }
+
+  const checkName = name && typeof name === 'string' ? name.trim() : device.name;
+  const existingDevice = findDeviceByName(req.user!.userId, checkName);
+  if (existingDevice && existingDevice.id !== device.id) {
+    res.status(409).json({ code: 409, message: '已存在同名设备' });
     return;
   }
 

@@ -4,6 +4,7 @@ import {
   findSetsByUserIdPaginated,
   findSetsByUserId,
   findSetById,
+  findSetByName,
   createSet,
   updateSet,
   deleteSet,
@@ -52,7 +53,12 @@ setRoutes.post('/', (req: Request, res: Response) => {
     res.status(400).json({ code: 400, message: 'Name is required' });
     return;
   }
-  const id = createSet(req.user!.userId, name.trim(), description, scenario_ids || [], tags, status);
+  const trimmedName = name.trim();
+  if (findSetByName(req.user!.userId, trimmedName)) {
+    res.status(409).json({ code: 409, message: '已存在同名场景集' });
+    return;
+  }
+  const id = createSet(req.user!.userId, trimmedName, description, scenario_ids || [], tags, status);
   res.status(201).json({ code: 201, message: 'Created', data: { id } });
 });
 
@@ -82,6 +88,14 @@ setRoutes.put('/:id', (req: Request, res: Response) => {
   if (!set) return;
 
   const { name, description, scenario_ids, tags, status } = req.body;
+
+  const checkName = name && typeof name === 'string' ? name.trim() : set.name;
+  const existingSet = findSetByName(req.user!.userId, checkName);
+  if (existingSet && existingSet.id !== set.id) {
+    res.status(409).json({ code: 409, message: '已存在同名场景集' });
+    return;
+  }
+
   updateSet(id, req.user!.userId, { name, description, scenario_ids, tags, status });
   res.json({ code: 200, message: 'Updated' });
 });

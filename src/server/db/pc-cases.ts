@@ -157,6 +157,10 @@ export function getPcCase(id: number): PcCaseRow | undefined {
   return db.prepare('SELECT * FROM pc_test_cases WHERE id = ?').get(id) as PcCaseRow | undefined;
 }
 
+export function findPcCaseByName(userId: number, name: string): PcCaseRow | undefined {
+  return db.prepare('SELECT * FROM pc_test_cases WHERE user_id = ? AND name = ?').get(userId, name) as PcCaseRow | undefined;
+}
+
 export function createPcCase(userId: number, data: CreatePcCaseInput): number {
   const result = db.prepare(
     `INSERT INTO pc_test_cases (user_id, name, description, tags, status, platform, steps, check_points, data_drive, preconditions, window_size, timeout, case_content, case_content_type, driver_path, close_browser_after_execution, display_id, keyboard_driver, xvfb_resolution, headless, created_at, updated_at)

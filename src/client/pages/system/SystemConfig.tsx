@@ -5,16 +5,26 @@ import './SystemConfig.css';
 
 interface TagInfo {
   name: string;
+  color: string;
   count: number;
   sources: { apis: number; scenarios: number; scenario_sets: number };
 }
+
+const PRESET_COLORS = [
+  '#22c55e', '#10b981', '#14b8a6', '#06b6d4', '#0ea5e9',
+  '#3b82f6', '#6366f1', '#8b5cf6', '#a855f7', '#d946ef',
+  '#ec4899', '#f43f5e', '#ef4444', '#f97316', '#f59e0b',
+  '#eab308', '#84cc16',
+];
 
 export default function SystemConfig() {
   const [tags, setTags] = useState<TagInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [newTag, setNewTag] = useState('');
+  const [newColor, setNewColor] = useState(PRESET_COLORS[0]);
   const [editingTag, setEditingTag] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
+  const [editColor, setEditColor] = useState('');
   const [deleting, setDeleting] = useState<string | null>(null);
 
   const fetchTags = () => {
@@ -30,7 +40,7 @@ export default function SystemConfig() {
     const name = newTag.trim();
     if (!name) return;
     try {
-      await apiFetch('/tags', { method: 'POST', body: JSON.stringify({ name }) });
+      await apiFetch('/tags', { method: 'POST', body: JSON.stringify({ name, color: newColor }) });
       setNewTag('');
       fetchTags();
       notification.success('标签添加成功');
@@ -56,33 +66,40 @@ export default function SystemConfig() {
 
   const handleRenameTag = async (oldName: string) => {
     const name = editName.trim();
-    if (!name || name === oldName) {
+    const colorChanged = editColor !== (tags.find(t => t.name === oldName)?.color || '');
+    if ((!name || name === oldName) && !colorChanged) {
       setEditingTag(null);
       return;
     }
     try {
       await apiFetch(`/tags/${encodeURIComponent(oldName)}/rename`, {
         method: 'PUT',
-        body: JSON.stringify({ newName: name })
+        body: JSON.stringify({ newName: name || oldName, color: editColor })
       });
       setEditingTag(null);
       fetchTags();
-      notification.success(`「${oldName}」已重命名为「${name}」`);
+      if (name && name !== oldName) {
+        notification.success(`「${oldName}」已重命名为「${name}」`);
+      } else {
+        notification.success('标签颜色已更新');
+      }
     } catch {
-      notification.error('重命名失败');
+      notification.error('保存失败');
     }
   };
 
-  const startEdit = (name: string, e: React.MouseEvent) => {
+  const startEdit = (tag: TagInfo, e: React.MouseEvent) => {
     e.stopPropagation();
-    setEditingTag(name);
-    setEditName(name);
+    setEditingTag(tag.name);
+    setEditName(tag.name);
+    setEditColor(tag.color || '#3b82f6');
   };
 
-  const startEditKeyDown = (name: string, e: React.KeyboardEvent) => {
+  const startEditKeyDown = (tag: TagInfo, e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
-      setEditingTag(name);
-      setEditName(name);
+      setEditingTag(tag.name);
+      setEditName(tag.name);
+      setEditColor(tag.color || '#3b82f6');
     }
   };
 
@@ -101,6 +118,16 @@ export default function SystemConfig() {
             onChange={e => setNewTag(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && handleAddTag()}
           />
+          <div className="sys-tag-color-row">
+            {PRESET_COLORS.map(c => (
+              <span
+                key={c}
+                className={`sys-tag-color-swatch ${newColor === c ? 'active' : ''}`}
+                style={{ background: c }}
+                onClick={() => setNewColor(c)}
+              />
+            ))}
+          </div>
           <button className="sys-tag-add-btn" onClick={handleAddTag}>添加</button>
         </div>
 
@@ -111,26 +138,53 @@ export default function SystemConfig() {
         ) : (
           <div className="sys-tag-list">
             {tags.map(tag => (
-              <div key={tag.name} className="sys-tag-item">
+              <div
+                key={tag.name}
+                className="sys-tag-item"
+                style={tag.color ? {
+                  background: `${tag.color}18`,
+                  borderColor: `${tag.color}40`,
+                } : undefined}
+              >
                 {editingTag === tag.name ? (
-                  <input
-                    className="sys-tag-edit-input"
-                    value={editName}
-                    onChange={e => setEditName(e.target.value)}
-                    onBlur={() => handleRenameTag(tag.name)}
-                    onKeyDown={e => {
-                      if (e.key === 'Enter') handleRenameTag(tag.name);
-                      if (e.key === 'Escape') setEditingTag(null);
-                    }}
-                    autoFocus
-                    onClick={e => e.stopPropagation()}
-                  />
+                  <div className="sys-tag-edit-wrap">
+                    <input
+                      className="sys-tag-edit-input"
+                      value={editName}
+                      onChange={e => setEditName(e.target.value)}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter') handleRenameTag(tag.name);
+                        if (e.key === 'Escape') setEditingTag(null);
+                      }}
+                      autoFocus
+                      onClick={e => e.stopPropagation()}
+                    />
+                    <div className="sys-tag-edit-colors">
+                      {PRESET_COLORS.map(c => (
+                        <span
+                          key={c}
+                          className={`sys-tag-color-swatch sm ${editColor === c ? 'active' : ''}`}
+                          style={{ background: c }}
+                          onClick={() => setEditColor(c)}
+                        />
+                      ))}
+                    </div>
+                    <div className="sys-tag-edit-actions">
+                      <button className="sys-tag-edit-save" onClick={() => handleRenameTag(tag.name)}>保存</button>
+                      <button className="sys-tag-edit-cancel" onClick={() => setEditingTag(null)}>取消</button>
+                    </div>
+                  </div>
                 ) : (
                   <>
                     <span
+                      className="sys-tag-color-dot"
+                      style={{ background: tag.color || '#94a3b8' }}
+                    />
+                    <span
                       className="sys-tag-name"
-                      onClick={e => startEdit(tag.name, e)}
-                      onKeyDown={e => startEditKeyDown(tag.name, e)}
+                      style={tag.color ? { color: tag.color } : undefined}
+                      onClick={e => startEdit(tag, e)}
+                      onKeyDown={e => startEditKeyDown(tag, e)}
                       tabIndex={0}
                       role="button"
                     >
@@ -140,7 +194,7 @@ export default function SystemConfig() {
                     <div className="sys-tag-actions">
                       <span
                         className="sys-tag-edit-icon"
-                        onClick={e => startEdit(tag.name, e)}
+                        onClick={e => startEdit(tag, e)}
                         title="编辑"
                       >✎</span>
                       <span

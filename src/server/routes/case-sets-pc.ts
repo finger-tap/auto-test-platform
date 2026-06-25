@@ -3,6 +3,7 @@ import { authMiddleware } from '../auth/middleware.js';
 import {
   findSetsByUserIdPaginated,
   findSetById,
+  findSetByName,
   createSet,
   updateSet,
   deleteSet,
@@ -60,7 +61,13 @@ caseSetRoutes.post('/', (req: Request, res: Response) => {
     return;
   }
 
-  const id = createSet(req.user!.userId, name.trim(), description, test_case_ids, tags, status);
+  const trimmedName = name.trim();
+  if (findSetByName(req.user!.userId, trimmedName)) {
+    res.status(409).json({ code: 409, message: '已存在同名用例集' });
+    return;
+  }
+
+  const id = createSet(req.user!.userId, trimmedName, description, test_case_ids, tags, status);
   res.status(201).json({ code: 201, message: 'Created', data: { id } });
 });
 
@@ -77,6 +84,14 @@ caseSetRoutes.put('/:id', (req: Request, res: Response) => {
   if (!set) return;
 
   const { name, description, test_case_ids, tags, status } = req.body;
+
+  const checkName = name && typeof name === 'string' ? name.trim() : set.name;
+  const existingSet = findSetByName(req.user!.userId, checkName);
+  if (existingSet && existingSet.id !== set.id) {
+    res.status(409).json({ code: 409, message: '已存在同名用例集' });
+    return;
+  }
+
   updateSet(set.id, req.user!.userId, { name, description, tags, status, test_case_ids });
   res.json({ code: 200, message: 'Updated' });
 });

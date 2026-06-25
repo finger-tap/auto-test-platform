@@ -1,0 +1,71 @@
+.var-autocomplete-wrap {
+  position: relative;
+}
+
+.var-autocomplete-list {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  max-height: 240px;
+  overflow-y: auto;
+  background: var(--surface-raised, #fff);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 6px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  margin-top: 2px;
+}
+
+.var-autocomplete-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.var-autocomplete-item:hover,
+.var-autocomplete-item.selected {
+  background: var(--surface-hover, rgba(59, 130, 246, 0.08));
+}
+
+.var-ac-icon {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.var-ac-icon.variable {
+  background: var(--info-subtle, rgba(59, 130, 246, 0.12));
+  color: var(--info, #3b82f6);
+}
+
+.var-ac-icon.function {
+  background: var(--warning-subtle, rgba(245, 158, 11, 0.12));
+  color: var(--warning, #f59e0b);
+}
+
+.var-ac-label {
+  font-family: var(--font-mono, monospace);
+  font-size: 12px;
+  color: var(--fg-primary);
+  flex-shrink: 0;
+}
+
+.var-ac-detail {
+  font-size: 11px;
+  color: var(--fg-tertiary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}

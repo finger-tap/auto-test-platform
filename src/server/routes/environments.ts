@@ -3,6 +3,7 @@ import { authMiddleware } from '../auth/middleware.js';
 import {
   findEnvsByUserId,
   findEnvById,
+  findEnvByName,
   findDefaultEnv,
   createEnv,
   updateEnv,
@@ -53,7 +54,13 @@ envRoutes.post('/', (req: Request, res: Response) => {
     return;
   }
 
-  const id = createEnv(req.user!.userId, name.trim(), variables || [], {
+  const trimmedName = name.trim();
+  if (findEnvByName(req.user!.userId, trimmedName)) {
+    res.status(409).json({ code: 409, message: '已存在同名环境' });
+    return;
+  }
+
+  const id = createEnv(req.user!.userId, trimmedName, variables || [], {
     ssl_cert, ssl_key, ssl_certs, timeout, is_default, databases,
   });
   const env = findEnvById(id, req.user!.userId);
@@ -79,6 +86,13 @@ envRoutes.put('/:id', (req: Request, res: Response) => {
     is_default?: boolean;
     databases?: Array<{ name: string; type: string; host: string; port: number; user: string; password: string; database: string }>;
   };
+
+  const checkName = name ? name.trim() : env.name;
+  const existingEnv = findEnvByName(req.user!.userId, checkName);
+  if (existingEnv && existingEnv.id !== env.id) {
+    res.status(409).json({ code: 409, message: '已存在同名环境' });
+    return;
+  }
 
   updateEnv(id, req.user!.userId, {
     name: name?.trim(),

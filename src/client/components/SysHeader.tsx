@@ -63,11 +63,6 @@ export default function SysHeader() {
 
   return (
     <div className="sys-header">
-      <div className="sys-header-left">
-        <button className="sys-back" onClick={() => navigate('/')}>
-          ← 返回主页
-        </button>
-      </div>
       <div className="sys-header-right">
         <button className="hdr-theme-btn" onClick={toggleTheme} title={theme === 'dark' ? '切换亮色' : '切换暗色'}>
           {theme === 'dark' ? (

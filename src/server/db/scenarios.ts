@@ -125,6 +125,10 @@ export function findScenarioById(id: number): ScenarioRow | undefined {
   return db.prepare('SELECT * FROM scenarios WHERE id = ?').get(id) as ScenarioRow | undefined;
 }
 
+export function findScenarioByName(userId: number, name: string): ScenarioRow | undefined {
+  return db.prepare('SELECT * FROM scenarios WHERE user_id = ? AND name = ?').get(userId, name) as ScenarioRow | undefined;
+}
+
 export function createScenario(userId: number, data: CreateScenarioInput): number {
   const result = db.prepare(
     `INSERT INTO scenarios (user_id, name, description, status, tags, parameters)

@@ -6,6 +6,7 @@ import notification from '../../utils/notification';
 import type { Scenario } from '../../types';
 import TagFilterSelect from '../../components/TagFilterSelect';
 import FormSelect from '../../components/FormSelect';
+import { useTagColors, tagBadgeStyle } from '../../hooks/useTagColors';
 import CollapsibleFilter, { FilterItem } from '../../components/CollapsibleFilter';
 import './ScenarioList.css';
 
@@ -33,6 +34,7 @@ const ROUTE_PATH_MAP: Record<string, { list: string; detail: string; create: str
 };
 
 export default function ScenarioList({ basePath = '/api-test', testType = 'api' }: { basePath?: string; testType?: string } = {}) {
+  const tagColors = useTagColors();
   const navigate = useNavigate();
   const [scenarios, setScenarios] = useState<Scenario[]>([]);
   const [loading, setLoading] = useState(true);
@@ -182,7 +184,7 @@ export default function ScenarioList({ basePath = '/api-test', testType = 'api' 
                   <td className="td-desc">{s.description || '-'}</td>
                   <td>
                     {s.tags ? s.tags.split(',').filter(Boolean).map((t) => (
-                      <span key={t} className="tag-badge">{t.trim()}</span>
+                      <span key={t} className="tag-badge" style={tagBadgeStyle(tagColors.get(t.trim()) || '')}>{t.trim()}</span>
                     )) : '-'}
                   </td>
                   <td><span className={`status-text status-${s.status}`}>{statusLabel(s.status)}</span></td>

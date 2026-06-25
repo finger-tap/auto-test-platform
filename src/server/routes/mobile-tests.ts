@@ -3,6 +3,7 @@ import { authMiddleware } from '../auth/middleware.js';
 import {
   findMobileTestsByUserIdPaginated,
   findMobileTestById,
+  findMobileTestByName,
   createMobileTest,
   updateMobileTest,
   deleteMobileTest,
@@ -82,8 +83,14 @@ mobileTestRoutes.post('/', (req: Request, res: Response) => {
     return;
   }
 
+  const trimmedName = name.trim();
+  if (findMobileTestByName(req.user!.userId, trimmedName)) {
+    res.status(409).json({ code: 409, message: '已存在同名用例' });
+    return;
+  }
+
   const id = createMobileTest(req.user!.userId, {
-    name: name.trim(), description, platform, device_name, platform_version,
+    name: trimmedName, description, platform, device_name, platform_version,
     app_package, app_activity, bundle_id, appium_url, capabilities,
     test_script, assertions, preconditions, tags, status,
     case_content: typeof case_content === 'string' ? case_content : null,
@@ -129,6 +136,14 @@ mobileTestRoutes.put('/:id', (req: Request, res: Response) => {
     test_script, assertions, preconditions, tags, status,
     case_content, case_content_type,
   } = req.body;
+
+  const checkName = name && typeof name === 'string' ? name.trim() : testCase.name;
+  const existingCase = findMobileTestByName(req.user!.userId, checkName);
+  if (existingCase && existingCase.id !== testCase.id) {
+    res.status(409).json({ code: 409, message: '已存在同名用例' });
+    return;
+  }
+
   updateMobileTest(testCase.id, {
     name, description, platform, device_name, platform_version,
     app_package, app_activity, bundle_id, appium_url, capabilities,

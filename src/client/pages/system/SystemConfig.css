@@ -72,10 +72,100 @@
   font-size: 13px;
   cursor: pointer;
   transition: background 0.2s;
+  align-self: flex-start;
 }
 
 .sys-tag-add-btn:hover {
   background: var(--accent-hover);
+}
+
+/* Color swatches */
+.sys-tag-color-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  align-items: center;
+}
+
+.sys-tag-color-swatch {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: transform 0.15s, border-color 0.15s;
+  flex-shrink: 0;
+}
+
+.sys-tag-color-swatch:hover {
+  transform: scale(1.2);
+}
+
+.sys-tag-color-swatch.active {
+  border-color: var(--fg);
+  transform: scale(1.2);
+}
+
+.sys-tag-color-swatch.sm {
+  width: 14px;
+  height: 14px;
+}
+
+/* Color dot on tag items */
+.sys-tag-color-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* Edit wrap */
+.sys-tag-edit-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 200px;
+}
+
+.sys-tag-edit-colors {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.sys-tag-edit-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.sys-tag-edit-save,
+.sys-tag-edit-cancel {
+  padding: 2px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  transition: all 0.15s;
+}
+
+.sys-tag-edit-save {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+
+.sys-tag-edit-save:hover {
+  background: var(--accent-hover);
+}
+
+.sys-tag-edit-cancel {
+  background: var(--surface);
+  color: var(--fg-secondary);
+}
+
+.sys-tag-edit-cancel:hover {
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
 .sys-tag-loading,

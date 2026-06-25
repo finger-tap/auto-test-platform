@@ -92,10 +92,9 @@ export default function ScenarioDetail({ basePath = '/api-test', testType = 'api
   const [selectedScenarioExecution, setSelectedScenarioExecution] = useState<ScenarioExecution | null>(null);
   const [apis, setApis] = useState<ApiItem[]>([]);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
   const autoExecRef = useRef(false);
   const realIdRef = useRef<string | null>(isNew ? null : id!);
-  const dirtyRef = useRef(false);
+  const [isDirty, setIsDirty] = useState(false);
   const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'detail');
   // 场景级参数化配置
   const [paramConfig, setParamConfig] = useState<{
@@ -283,7 +282,7 @@ export default function ScenarioDetail({ basePath = '/api-test', testType = 'api
       }
       return null;
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Create failed');
+      notification.error(err instanceof Error ? err.message : '创建失败');
       return null;
     }
   };
@@ -394,12 +393,12 @@ export default function ScenarioDetail({ basePath = '/api-test', testType = 'api
     const gap = 80;
     const position = { x: avgX + (nodeCount % 3) * 50 - nodeWidth / 2, y: maxY + nodeHeight + gap };
     setNodes((nds) => [...nds, { id: nodeId, type, position, data }]);
-    dirtyRef.current = true;
+    setIsDirty(true);
   }, [nodes, setNodes]);
 
   const updateNodeData = useCallback((nodeId: string, newData: Record<string, unknown>) => {
     setNodes((nds) => nds.map((n) => n.id === nodeId ? { ...n, data: { ...n.data, ...newData } } : n));
-    dirtyRef.current = true;
+    setIsDirty(true);
   }, [setNodes]);
 
   const deleteNode = useCallback((nodeId: string) => {
@@ -407,16 +406,16 @@ export default function ScenarioDetail({ basePath = '/api-test', testType = 'api
     setNodes((nds) => nds.filter((n) => n.id !== nodeId));
     setEdges((eds) => eds.filter((e) => e.source !== nodeId && e.target !== nodeId));
     setSelectedNode(null);
-    dirtyRef.current = true;
+    setIsDirty(true);
   }, [setNodes, setEdges]);
 
   const saveField = (field: string, value: string) => {
     setScenario((prev) => prev ? { ...prev, [field]: value } : null);
-    dirtyRef.current = true;
+    setIsDirty(true);
   };
 
   const handleSave = async () => {
-    setSaving(true); setError(''); let ok = true;
+    setSaving(true); let ok = true;
     const rid = await ensureCreated();
     if (!rid) { setSaving(false); return; }
     try {
@@ -447,13 +446,13 @@ export default function ScenarioDetail({ basePath = '/api-test', testType = 'api
       }));
       const flowRes = await apiFetch(`${apiPath.detail}/${rid}/flow`, { method: 'PUT', body: JSON.stringify({ nodes: dbNodes, edges: dbEdges }) });
       if (flowRes.code !== 200) { ok = false; throw new Error(flowRes.message || '保存流程图失败'); }
-    } catch (err) { ok = false; setError(err instanceof Error ? err.message : 'Save failed'); }
-    finally { setSaving(false); if (ok) { dirtyRef.current = false; notification.success('保存成功'); } }
+    } catch (err) { ok = false; notification.error(err instanceof Error ? err.message : '保存失败'); }
+    finally { setSaving(false); if (ok) { setIsDirty(false); notification.success('保存成功'); } }
   };
 
   const handleExecute = async () => {
     if (!realIdRef.current) { notification.warning('请先保存场景后再执行'); return; }
-    setExecuting(true); setExecutionResult(null); setError('');
+    setExecuting(true); setExecutionResult(null);
     try {
       const res = await apiFetch<ScenarioLog>(`${API_PATH_MAP[testType]?.detail || '/scenarios'}/${realIdRef.current}/execute`, { method: 'POST', body: JSON.stringify({ environmentId: activeEnv?.id }) });
       if (res.code === 200 && res.data) {
@@ -495,7 +494,7 @@ export default function ScenarioDetail({ basePath = '/api-test', testType = 'api
           });
         }
       }
-    } catch (err) { setError(err instanceof Error ? err.message : 'Execution failed'); }
+    } catch (err) { notification.error(err instanceof Error ? err.message : '执行失败'); }
     finally { setExecuting(false); }
   };
 
@@ -578,7 +577,7 @@ export default function ScenarioDetail({ basePath = '/api-test', testType = 'api
           ? [...p.enabledRows, ...new Array(p.rows.length - p.enabledRows.length).fill(true)]
           : p.enabledRows,
       }));
-      dirtyRef.current = true;
+      setIsDirty(true);
     };
     // 删除列
     const removeColumn = (colIdx: number) => {
@@ -587,7 +586,7 @@ export default function ScenarioDetail({ basePath = '/api-test', testType = 'api
         headers: p.headers.filter((_, i) => i !== colIdx),
         rows: p.rows.map(row => row.filter((_, i) => i !== colIdx)),
       }));
-      dirtyRef.current = true;
+      setIsDirty(true);
     };
     // 添加行
     const addRow = () => {
@@ -596,7 +595,7 @@ export default function ScenarioDetail({ basePath = '/api-test', testType = 'api
         rows: [...p.rows, new Array(p.headers.length).fill('')],
         enabledRows: [...p.enabledRows, true],
       }));
-      dirtyRef.current = true;
+      setIsDirty(true);
     };
     // 删除行
     const removeRow = (rowIdx: number) => {
@@ -605,7 +604,7 @@ export default function ScenarioDetail({ basePath = '/api-test', testType = 'api
         rows: p.rows.filter((_, i) => i !== rowIdx),
         enabledRows: p.enabledRows.filter((_, i) => i !== rowIdx),
       }));
-      dirtyRef.current = true;
+      setIsDirty(true);
     };
     // 切换行启用状态
     const toggleRowEnabled = (rowIdx: number) => {
@@ -614,7 +613,7 @@ export default function ScenarioDetail({ basePath = '/api-test', testType = 'api
         enabledRows[rowIdx] = !enabledRows[rowIdx];
         return { ...p, enabledRows };
       });
-      dirtyRef.current = true;
+      setIsDirty(true);
     };
     // 全选 / 全不选
     const toggleAllRows = (checked: boolean) => {
@@ -622,7 +621,7 @@ export default function ScenarioDetail({ basePath = '/api-test', testType = 'api
         ...p,
         enabledRows: p.rows.map(() => checked),
       }));
-      dirtyRef.current = true;
+      setIsDirty(true);
     };
     // 修改列头
     const setHeader = (colIdx: number, val: string) => {
@@ -631,7 +630,7 @@ export default function ScenarioDetail({ basePath = '/api-test', testType = 'api
         headers[colIdx] = val;
         return { ...p, headers };
       });
-      dirtyRef.current = true;
+      setIsDirty(true);
     };
     // 修改单元格
     const setCell = (rowIdx: number, colIdx: number, val: string) => {
@@ -639,7 +638,7 @@ export default function ScenarioDetail({ basePath = '/api-test', testType = 'api
         const rows = p.rows.map((row, ri) => ri === rowIdx ? row.map((cell, ci) => ci === colIdx ? val : cell) : row);
         return { ...p, rows };
       });
-      dirtyRef.current = true;
+      setIsDirty(true);
     };
 
     // CSV 上传 + 与现有数据合并
@@ -685,7 +684,7 @@ export default function ScenarioDetail({ basePath = '/api-test', testType = 'api
           for (let i = p.enabledRows.length; i < maxRows; i++) mergedEnabled[i] = true;
           return { ...p, headers: allHeaders, rows: mergedRows, enabledRows: mergedEnabled };
         });
-        dirtyRef.current = true;
+        setIsDirty(true);
       };
       reader.readAsText(file);
       e.target.value = '';
@@ -735,7 +734,7 @@ export default function ScenarioDetail({ basePath = '/api-test', testType = 'api
           : [];
         return { ...prev, headers: combinedHeaders, rows: rowsWithCorrectCols };
       });
-      dirtyRef.current = true;
+      setIsDirty(true);
     };
 
     return (
@@ -890,7 +889,7 @@ export default function ScenarioDetail({ basePath = '/api-test', testType = 'api
           {scenario?.updated_at && <span className="meta-time">更新于 {toLocalDateTime(scenario.updated_at)}</span>}
         </div>
         <div className="api-detail-actions">
-          <button className="scenario-btn" onClick={handleSave} disabled={saving}>{saving ? '保存中...' : '保存'}</button>
+          <button className={`scenario-btn${isDirty ? ' dirty' : ''}`} onClick={handleSave} disabled={saving}>{saving ? '保存中...' : '保存'}</button>
           <button className={`sset-btn sset-btn-primary${!realIdRef.current ? ' scenario-btn-disabled' : ''}`} onClick={handleExecute} disabled={executing}>{executing ? <><span className="ad-btn-loading">⟳</span> 执行中</> : '执行'}</button>
         </div>
       </div>
@@ -905,7 +904,6 @@ export default function ScenarioDetail({ basePath = '/api-test', testType = 'api
           </div>
         </div>
       </div>
-      {error && <div className="scenario-error">{error}</div>}
     </div>
   );
 }

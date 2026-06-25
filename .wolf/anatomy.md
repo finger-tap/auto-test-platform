@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-06-24T14:16:46.288Z
-> Files: 383 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-06-25T14:31:12.537Z
+> Files: 392 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ../../../../tmp/
 
@@ -25,20 +25,23 @@
 - `pure-wibbling-naur.md` — 设备级 scrcpy 共享 + 60s 空闲回收 + 设备级执行 busy 锁 (~3241 tok)
 - `shimmying-fluttering-eich.md` — 完整功能补全 + 隔离原则巩固 (~1053 tok)
 - `snoopy-cooking-harbor.md` — API 参数化执行 - 批量合并方案 (~516 tok)
-- `snoopy-enchanting-summit.md` — 用户偏好表：按测试类型存储环境选择 (~750 tok)
+- `snoopy-enchanting-summit.md` — 两个修复：场景保存错误提示位置 + 变量自动补全 (~857 tok)
 - `witty-sauteeing-lark.md` — 统一四种测试类型首页 (~196 tok)
 
 ## ../../.claude/projects/-Users-dinghao----auto-test-platform/memory/
 
 - `feedback-95-percent-confidence.md` (~103 tok)
 - `feedback-always-log-executor.md` (~190 tok)
+- `feedback-consistency-first.md` (~256 tok)
 - `feedback-css-centralization.md` (~192 tok)
 - `feedback-export-report.md` (~99 tok)
 - `feedback-no-self-dev-server.md` (~195 tok)
+- `feedback-row-enter-breaks-fixed.md` (~322 tok)
 - `feedback-test-file-org.md` — /_*.ts`, or alongside source files (~360 tok)
-- `MEMORY.md` — Auto Test Platform - Session Memory (~3461 tok)
+- `MEMORY.md` — Auto Test Platform - Session Memory (~4008 tok)
 - `project-mobile-ssh-tunnel.md` — Mobile 远端设备执行(2026-06-09 落地) (~892 tok)
 - `project-remote-agent-untested.md` — Declares check (~338 tok)
+- `project-variable-resolver.md` (~338 tok)
 
 ## ../../work/auto-test-platform/src/client/pages/api-test/
 
@@ -161,9 +164,9 @@
 
 ## src/client/components/
 
-- `ApiExecutionTimeline.tsx` — LOG_TYPE_LABELS (~3526 tok)
+- `ApiExecutionTimeline.tsx` — LOG_TYPE_LABELS (~3662 tok)
 - `CaseContentEditor.tsx` — TEXT_PLACEHOLDER (~940 tok)
-- `CodeMirrorHover.tsx` — 传递给 CodeMirror basicSetup (~1194 tok)
+- `CodeMirrorHover.tsx` — 传递给 CodeMirror basicSetup (~2781 tok)
 - `CollapsibleFilter.css` — Styles: 18 rules (~525 tok)
 - `CollapsibleFilter.tsx` — 主筛选行内容（常驻显示，建议 3-4 个筛选项） (~935 tok)
 - `ConfirmDialog.tsx` — 全局 confirm 替代，调用方式不变（返回 Promise） (~438 tok)
@@ -179,8 +182,8 @@
 - `HomeLayout.tsx` — HomeLayout (~55 tok)
 - `InlineEdit.css` — Styles: 19 rules (~676 tok)
 - `InlineEdit.tsx` — ── InlineText ── (~1060 tok)
-- `Layout.css` — Styles: 54 rules (~2066 tok)
-- `Layout.tsx` — SVG icons for nav items (~2545 tok)
+- `Layout.css` — Styles: 60 rules (~2363 tok)
+- `Layout.tsx` — SVG icons for nav items (~3360 tok)
 - `MessageModal.css` — Styles: 9 rules (~338 tok)
 - `MessageModal.tsx` — MessageModal (~204 tok)
 - `MidsceneReportViewer.css` — Styles: 12 rules (~446 tok)
@@ -192,19 +195,22 @@
 - `PcPreviewPanel.tsx` — 2026-06-15: PC 桌面实时预览面板,SSE 截图帧流,复用 MobilePreviewPanel CSS (~1374 tok)
 - `PrePostActionItem.tsx` — defaultAction — renders form (~3406 tok)
 - `ProtectedRoute.tsx` — ProtectedRoute (~114 tok)
-- `ScenarioExecutionTimeline.tsx` — When multiple scenario executions share the same timeline (e.g. in batch mode), (~2560 tok)
+- `ScenarioExecutionTimeline.tsx` — When multiple scenario executions share the same timeline (e.g. in batch mode), (~2689 tok)
 - `SelectFunctionModal.css` — Styles: 26 rules (~990 tok)
 - `SettingsDrawer.css` — Styles: 21 rules (~855 tok)
 - `SettingsDrawer.tsx` — 2026-06-11: 用户配置 Drawer — 右侧滑出,只覆盖 body 区域。 (~1467 tok)
 - `SettingsLayout.tsx` — SVG icons for the settings sidebar. (~1251 tok)
-- `SysHeader.tsx` — Shared top header: 返回主页 + 环境切换 + 用户菜单. (~1676 tok)
+- `SysHeader.tsx` — Shared top header: 返回主页 + 环境切换 + 用户菜单. (~1632 tok)
 - `TagFilterSelect.css` — Styles: 19 rules (~632 tok)
 - `TagFilterSelect.tsx` — TagFilterSelect (~868 tok)
-- `TagInput.css` — Styles: 44 rules (~2238 tok)
-- `TagInput.tsx` — 标签选择器：点击弹出下拉框选择标签 (~1570 tok)
+- `TagInput.css` — Styles: 24 rules (~818 tok)
+- `TagInput.tsx` — 根据主色生成浅色背景 + 深色文字的内联样式 (~1681 tok)
 - `TestTypeModal.css` — Styles: 11 rules (~367 tok)
 - `TestTypeModal.tsx` — TEST_TYPES — uses useNavigate (~411 tok)
 - `ThemedCodeMirror.tsx` — ThemedCodeMirror (~139 tok)
+- `VarHoverTip.tsx` — 参数化配置的 JSON 字符串(来自 apis.parameters 列);为空/解析失败则忽略 (~1019 tok)
+- `VariableAutocomplete.css` — Styles: 10 rules (~395 tok)
+- `VariableAutocomplete.tsx` — 类型 re-export:历史调用方仍从 VariableAutocomplete 导入 ParamVar (~2229 tok)
 
 ## src/client/components/ (new entry)
 
@@ -223,6 +229,7 @@
 
 - `usePreviewSession.ts` — 2026-06-11: 预览 session hook,caseExecutionId 不在 deps 中(避免执行完断开 scrcpy) (~3000 tok)
 - `useScrcpyDecoder.ts` — ScrcpyVideoCodecId.H264 (1748121140) / H265 / AV1 (~2122 tok)
+- `useTagColors.ts` — 获取用户所有标签的颜色映射（name → color） (~261 tok)
 - `useThemeMode.ts` — Exports useThemeMode (~215 tok)
 
 ## src/client/hooks/ (new entry)
@@ -246,10 +253,10 @@
 
 ## src/client/pages/api-test/
 
-- `ApiDetail.css` — Styles: 103 rules (~6012 tok)
-- `ApiDetail.tsx` — getDatabasesFromEnv (~17108 tok)
-- `ApiList.css` — Styles: 102 rules (~4315 tok)
-- `ApiList.tsx` — STATUSES — renders form, table (~2761 tok)
+- `ApiDetail.css` — Styles: 105 rules (~5860 tok)
+- `ApiDetail.tsx` — getDatabasesFromEnv (~18307 tok)
+- `ApiList.css` — Styles: 112 rules (~3664 tok)
+- `ApiList.tsx` — STATUSES — renders form, table (~2810 tok)
 - `BatchExecutionView.tsx` — Initial active row index (for jumping to specific member) (~381 tok)
 
 ## src/client/pages/batch-report/
@@ -262,9 +269,9 @@
 ## src/client/pages/case-set/
 
 - `CaseSetDetail.css` — Styles: 115 rules (~4350 tok)
-- `CaseSetDetail.tsx` — STATUS_OPTIONS (~7958 tok)
+- `CaseSetDetail.tsx` — STATUS_OPTIONS (~8004 tok)
 - `CaseSetList.css` — Styles: 18 rules (~663 tok)
-- `CaseSetList.tsx` — STATUS_MAP — renders form, table (~2739 tok)
+- `CaseSetList.tsx` — STATUS_MAP — renders form, table (~2785 tok)
 
 ## src/client/pages/environment/
 
@@ -284,7 +291,7 @@
 - `MobileTestHome.css` — Styles: 12 rules (~404 tok)
 - `MobileTestHome.tsx` — formatDuration — renders table (~1526 tok)
 - `MobileTestList.css` — Styles: 44 rules (~1324 tok)
-- `MobileTestList.tsx` — PLATFORMS — renders form, table (~2538 tok)
+- `MobileTestList.tsx` — PLATFORMS — renders form, table (~2579 tok)
 
 ## src/client/pages/mock/
 
@@ -302,16 +309,16 @@
 - `PcCaseDetail.css` — Styles: 56 rules (~2182 tok)
 - `PcCaseDetail.tsx` — STATUS_OPTIONS (~9085 tok)
 - `PcCaseList.css` — Stylesheet (~7 tok)
-- `PcCaseList.tsx` — STATUSES — renders form, table (~2525 tok)
+- `PcCaseList.tsx` — STATUSES — renders form, table (~2565 tok)
 - `PcTestHome.css` — Styles: 12 rules (~404 tok)
 - `PcTestHome.tsx` — formatDuration — renders table (~1511 tok)
 
 ## src/client/pages/scenario-set/
 
 - `ScenarioSetDetail.css` — Styles: 107 rules (~3216 tok)
-- `ScenarioSetDetail.tsx` — STATUS_OPTIONS (~7640 tok)
+- `ScenarioSetDetail.tsx` — STATUS_OPTIONS (~7687 tok)
 - `ScenarioSetList.css` — Styles: 16 rules (~594 tok)
-- `ScenarioSetList.tsx` — STATUS_MAP — renders form, table (~2681 tok)
+- `ScenarioSetList.tsx` — STATUS_MAP — renders form, table (~2727 tok)
 
 ## src/client/pages/scenario/
 
@@ -319,9 +326,9 @@
 - `NodeConfigPanel.tsx` — Rich variable info with source tracking (~4946 tok)
 - `ScenarioBatchExecutionView.tsx` — ScenarioBatchExecutionView (~366 tok)
 - `ScenarioDetail.css` — Styles: 102 rules, 16 vars (~4981 tok)
-- `ScenarioDetail.tsx` — nodeTypes (~11506 tok)
+- `ScenarioDetail.tsx` — nodeTypes (~11451 tok)
 - `ScenarioList.css` — Styles: 2 rules (~52 tok)
-- `ScenarioList.tsx` — STATUSES — renders form, table (~2550 tok)
+- `ScenarioList.tsx` — STATUSES — renders form, table (~2596 tok)
 
 ## src/client/pages/scenario/nodes/
 
@@ -344,8 +351,8 @@
 - `DeviceList.tsx` — TEST_TYPE_OPTIONS (~7249 tok)
 - `MidsceneConfig.css` — Styles: 34 rules (~1249 tok)
 - `MidsceneConfig.tsx` — Midscene v1.8.7 接受的 MIDSCENE_MODEL_FAMILY 取值。 (~7203 tok)
-- `SystemConfig.css` — Styles: 33 rules (~1011 tok)
-- `SystemConfig.tsx` — SystemConfig (~1502 tok)
+- `SystemConfig.css` — Styles: 48 rules (~1452 tok)
+- `SystemConfig.tsx` — PRESET_COLORS (~2163 tok)
 - `WebBrowserConfig.css` — WebBrowserConfig page — Playwright launch options for Web tests. (~4173 tok)
 - `WebBrowserConfig.tsx` — INITIAL — renders form (~2896 tok)
 
@@ -353,7 +360,7 @@
 
 - `WebCaseDetail.css` — Styles: 62 rules (~2353 tok)
 - `WebCaseDetail.tsx` — STATUS_OPTIONS (~8872 tok)
-- `WebCaseList.tsx` — STATUSES — renders form, table (~2533 tok)
+- `WebCaseList.tsx` — STATUSES — renders form, table (~2573 tok)
 - `WebReportDetail.css` — Styles: 32 rules (~940 tok)
 - `WebReportDetail.tsx` — MOCK_DETAIL — renders table (~1519 tok)
 - `WebScenarioDetail.css` — Styles: 30 rules (~900 tok)
@@ -372,7 +379,7 @@
 - `animations.css` — Styles: 15 rules (~481 tok)
 - `badges.css` — Styles: 12 rules (~332 tok)
 - `buttons.css` — Styles: 27 rules (~918 tok)
-- `detail-components.css` — Styles: 97 rules (~5268 tok)
+- `detail-components.css` — Styles: 86 rules (~6039 tok)
 - `empty.css` — Styles: 4 rules (~179 tok)
 - `filters.css` — Styles: 9 rules (~262 tok)
 - `forms.css` — Styles: 13 rules (~506 tok)
@@ -381,7 +388,7 @@
 - `pagination.css` — Styles: 5 rules (~193 tok)
 - `tables.css` — Styles: 24 rules (~722 tok)
 - `tabs.css` — Styles: 8 rules (~283 tok)
-- `timeline.css` — Styles: 46 rules (~1206 tok)
+- `timeline.css` — Styles: 47 rules (~1318 tok)
 
 ## src/client/types/
 
@@ -389,10 +396,11 @@
 
 ## src/client/utils/
 
-- `api.ts` — Exports getToken, setToken, removeToken, getUserInfo + 3 more (~346 tok)
+- `api.ts` — Standard JSON API call — always returns parsed JSON response. (~618 tok)
 - `datetime.ts` — Convert ISO datetime string to local Chinese format: "2026-05-30 17:13:14" (~502 tok)
 - `dialog.ts` — Modal/confirm dialog utilities (~400 tok)
 - `notification.ts` — 全局通知工具 - 使用DOM注入，无需React组件 (~2405 tok)
+- `variableResolver.ts` — 变量解析相关共享逻辑。 (~808 tok)
 
 ## src/server/
 
@@ -414,42 +422,43 @@
 
 ## src/server/db/
 
-- `apis.ts` — Exports ApiRow, ApiLogRow, AssertionRule, AssertionResult + 20 more (~3649 tok)
+- `apis.ts` — Exports ApiRow, ApiLogRow, AssertionRule, AssertionResult + 20 more (~3706 tok)
 - `batch-reports-all.ts` — Get all batch reports for a user across all scenario sets. (~680 tok)
 - `batch-reports-api.ts` — Exports BatchReportRow, BatchReportItem, findBatchReportsByUserIdPaginated, findBatchReportById + 3 (~926 tok)
 - `batch-reports-mobile.ts` — Exports BatchReportRow, BatchReportItem, findBatchReportsByUserIdPaginated, findBatchReportById + 3 (~926 tok)
 - `batch-reports-pc.ts` — Exports BatchReportRow, BatchReportItem, findBatchReportsByUserIdPaginated, findBatchReportById + 3 (~921 tok)
 - `batch-reports-web.ts` — Exports BatchReportRow, BatchReportItem, findBatchReportsByUserIdPaginated, findBatchReportById + 3 (~922 tok)
 - `batch-reports.ts` — Exports BatchLogRow, BatchReport, saveBatchReport, findReportsBySetId, findReportsByUserIdPaginated (~677 tok)
-- `case-sets-mobile.ts` — Exports CaseSetRow, CaseSetItem, findSetsByUserIdPaginated, findSetsByUserId + 13 more (~2896 tok)
-- `case-sets-pc.ts` — Exports CaseSetRow, CaseSetItem, findSetsByUserIdPaginated, findSetsByUserId + 13 more (~2877 tok)
-- `case-sets-web.ts` — Exports CaseSetRow, CaseSetItem, findSetsByUserIdPaginated, findSetsByUserId + 13 more (~3069 tok)
-- `devices.ts` — 2026-06-06: user-scoped variant — used by the executor before launching (~3848 tok)
-- `environments.ts` — Exports EnvVariable, Environment, DatabaseEntry, DbConfig + 12 more (~1965 tok)
-- `index.ts` — Declares __filename (~19014 tok)
+- `case-sets-mobile.ts` — Exports CaseSetRow, CaseSetItem, findSetsByUserIdPaginated, findSetsByUserId + 14 more (~2958 tok)
+- `case-sets-pc.ts` — Exports CaseSetRow, CaseSetItem, findSetsByUserIdPaginated, findSetsByUserId + 14 more (~2939 tok)
+- `case-sets-web.ts` — Exports CaseSetRow, CaseSetItem, findSetsByUserIdPaginated, findSetsByUserId + 14 more (~3130 tok)
+- `devices.ts` — 2026-06-06: user-scoped variant — used by the executor before launching (~3908 tok)
+- `environments.ts` — Exports EnvVariable, Environment, DatabaseEntry, DbConfig + 13 more (~2024 tok)
+- `index.ts` — Declares __filename (~19092 tok)
 - `midscene-config.ts` — Per-user Midscene model configuration. One row per user, with separate (~1445 tok)
-- `mobile-apps.ts` — 2026-06-23: Mobile apps DB — APK/IPA/HAP 包管理 (~1557 tok)
+- `mobile-apps.ts` — 2026-06-23: Mobile apps DB — APK/IPA/HAP 包管理 (~1623 tok)
 - `mobile-preview.ts` — 2026-06-08: mobile_case_execution_preview 表的 CRUD (~599 tok)
-- `mobile-tests.ts` — 批量查一批 deviceId 各自的 running execution(0 或 1 行/device)。 (~3294 tok)
+- `mobile-tests.ts` — 批量查一批 deviceId 各自的 running execution(0 或 1 行/device)。 (~3362 tok)
 - `mocks-api.ts` — Exports MockEndpointRow, findMocksByUserIdPaginated, findMockById, findMocksByUserId + 5 more (~1558 tok)
 - `mocks-mobile.ts` — Exports MockEndpointRow, findMocksByUserIdPaginated, findMockById, findMocksByUserId + 5 more (~1558 tok)
 - `mocks-pc.ts` — Exports MockEndpointRow, findMocksByUserIdPaginated, findMockById, findMocksByUserId + 5 more (~1557 tok)
 - `mocks-web.ts` — Exports MockEndpointRow, findMocksByUserIdPaginated, findMockById, findMocksByUserId + 5 more (~1558 tok)
 - `mocks.ts` — Get all mocks for a user (no pagination, for engine lookup). (~1860 tok)
-- `pc-cases.ts` — Exports PcCaseRow, CreatePcCaseInput, UpdatePcCaseInput, PcCaseLogRow + 15 more (~2922 tok)
+- `pc-cases.ts` — Exports PcCaseRow, CreatePcCaseInput, UpdatePcCaseInput, PcCaseLogRow + 16 more (~2984 tok)
 - `scenario-sets-web.ts` — Exports ScenarioSetRow, ScenarioSetItem, findSetsByUserIdPaginated, findSetsByUserId + 4 more (~1224 tok)
-- `scenario-sets.ts` — Exports ScenarioSetRow, ScenarioSetItem, findSetsByUserIdPaginated, findSetsByUserId + 4 more (~1645 tok)
+- `scenario-sets.ts` — Exports ScenarioSetRow, ScenarioSetItem, findSetsByUserIdPaginated, findSetsByUserId + 5 more (~1709 tok)
 - `scenarios-web.ts` — Exports ScenarioRow, ScenarioNodeRow, ScenarioEdgeRow, ScenarioLogRow + 12 more (~1869 tok)
-- `scenarios.ts` — ── Row interfaces ── (~4442 tok)
+- `scenarios.ts` — ── Row interfaces ── (~4504 tok)
 - `schedule-sets-api.ts` — schedule_sets_api — 调度 API 场景集 (~2082 tok)
 - `schedule-sets-mobile.ts` — schedule_sets_mobile — 调度 移动端 用例集 (~1543 tok)
 - `schedule-sets-pc.ts` — schedule_sets_pc — 调度 PC 用例集 (~1529 tok)
 - `schedule-sets-web.ts` — schedule_sets_web — 调度 web 用例集 (~1532 tok)
 - `schedules.ts` — ── Schedule interfaces ── (~3021 tok)
+- `tags.ts` — API routes: GET, DELETE, POST, PUT (5 endpoints) (~3025 tok)
 - `user-preferences.ts` — Exports UserPreference, getPreference, setPreference (~244 tok)
 - `users.ts` — Exports AccountType, UserRow, detectAccountType, findUserByAccount + 4 more (~660 tok)
 - `web-browser-config.ts` — Per-user Web browser configuration. One row per user. Stores the (~904 tok)
-- `web-cases.ts` — Exports WebCaseRow, CreateWebCaseInput, UpdateWebCaseInput, WebCaseListFilter + 15 more (~2805 tok)
+- `web-cases.ts` — Exports WebCaseRow, CreateWebCaseInput, UpdateWebCaseInput, WebCaseListFilter + 16 more (~2868 tok)
 
 ## src/server/db/scripts/
 
@@ -464,7 +473,7 @@
 
 - `_phase2_smoke.ts` — Phase 2-7 smoke test for pure functions: (~3086 tok)
 - `agent-client.ts` — POST /launch on the agent. Returns the wsEndpoint the central server (~1402 tok)
-- `api-executor.ts` — Scenario-level param row index (passed from scenario execution loop) (~8413 tok)
+- `api-executor.ts` — Scenario-level param row index (passed from scenario execution loop) (~8617 tok)
 - `app-installer.ts` — Install an app package on a device. (~1490 tok)
 - `batch-executor.ts` — Batch execution engine — runs multiple scenarios sequentially. (~1232 tok)
 - `case-set-executor.ts` — Case set executor — runs multiple test cases sequentially for web/pc/mobile. (~4022 tok)
@@ -499,38 +508,38 @@
 ## src/server/routes/
 
 - `agents.ts` — 2026-06-08: 解析并校验请求体里的 agent_kind。 (~2571 tok)
-- `apis.ts` — API routes: GET, POST, PUT, DELETE (6 endpoints) (~4917 tok)
+- `apis.ts` — API routes: GET, POST, PUT, DELETE (6 endpoints) (~5064 tok)
 - `auth.ts` — Validate uploaded file by magic bytes, rename to a UUID-based filename (~3021 tok)
 - `batch-reports-api.ts` — API routes: GET, DELETE (3 endpoints) (~436 tok)
 - `batch-reports-mobile.ts` — API routes: GET, DELETE (3 endpoints) (~440 tok)
 - `batch-reports-pc.ts` — API routes: GET, DELETE (3 endpoints) (~435 tok)
 - `batch-reports-web.ts` — API routes: GET, DELETE (3 endpoints) (~436 tok)
 - `batch-reports.ts` — API routes: GET (2 endpoints) (~603 tok)
-- `case-sets-mobile.ts` — API routes: GET, POST, PUT, DELETE (8 endpoints) (~1488 tok)
-- `case-sets-pc.ts` — API routes: GET, POST, PUT, DELETE (8 endpoints) (~1476 tok)
-- `case-sets-web.ts` — API routes: GET, POST, PUT, DELETE (8 endpoints) (~1492 tok)
+- `case-sets-mobile.ts` — API routes: GET, POST, PUT, DELETE (8 endpoints) (~1620 tok)
+- `case-sets-pc.ts` — API routes: GET, POST, PUT, DELETE (8 endpoints) (~1608 tok)
+- `case-sets-web.ts` — API routes: GET, POST, PUT, DELETE (8 endpoints) (~1623 tok)
 - `dashboard.ts` — API routes: GET (3 endpoints) (~5119 tok)
-- `devices.ts` — Encrypt SSH credentials (password / private key) before they hit SQLite. (~7874 tok)
-- `environments.ts` — API routes: GET, POST, PUT, DELETE (7 endpoints) (~1217 tok)
+- `devices.ts` — Encrypt SSH credentials (password / private key) before they hit SQLite. (~8011 tok)
+- `environments.ts` — API routes: GET, POST, PUT, DELETE (7 endpoints) (~1339 tok)
 - `index.ts` — API routes: GET, POST (4 endpoints) (~1832 tok)
 - `midscene-config.ts` — API routes: GET, PUT (2 endpoints) (~1772 tok)
-- `mobile-apps.ts` — 2026-06-23: Mobile apps API — APK/IPA/HAP 包管理 + 安装到设备 (~2339 tok)
+- `mobile-apps.ts` — 2026-06-23: Mobile apps API — APK/IPA/HAP 包管理 + 安装到设备 (~2512 tok)
 - `mobile-preview.ts` — 2026-06-10: SSE query-token 认证。 (~1993 tok)
-- `mobile-tests.ts` — 实际执行 case — 抽出来避免 withDeviceLock 嵌套 if 太多层。 (~3865 tok)
+- `mobile-tests.ts` — 实际执行 case — 抽出来避免 withDeviceLock 嵌套 if 太多层。 (~4006 tok)
 - `mocks-api.ts` — API routes: GET, POST, PUT, DELETE (6 endpoints) (~976 tok)
 - `mocks-mobile.ts` — API routes: GET, POST, PUT, DELETE (6 endpoints) (~982 tok)
 - `mocks-pc.ts` — API routes: GET, POST, PUT, DELETE (6 endpoints) (~974 tok)
 - `mocks-web.ts` — API routes: GET, POST, PUT, DELETE (6 endpoints) (~976 tok)
 - `mocks.ts` — API routes: GET, POST, PUT, DELETE (6 endpoints) (~1033 tok)
-- `pc-cases.ts` — API routes: GET, POST, PUT, DELETE (8 endpoints) (~3370 tok)
+- `pc-cases.ts` — API routes: GET, POST, PUT, DELETE (8 endpoints) (~3506 tok)
 - `pc-preview.ts` — 2026-06-15: PC 桌面预览路由 — start/stop/SSR stream (~500 tok)
 - `pc-preview.ts` — PC preview routes — start/stop desktop screenshot stream. (~813 tok)
 - `scenario-sets-web.ts` — API routes: GET, POST, PUT, DELETE (5 endpoints) (~802 tok)
-- `scenario-sets.ts` — API routes: GET, POST, PUT, DELETE (9 endpoints) (~5840 tok)
+- `scenario-sets.ts` — API routes: GET, POST, PUT, DELETE (9 endpoints) (~5971 tok)
 - `scenarios-mobile.ts` — API routes: GET, POST, PUT, DELETE (8 endpoints) (~1337 tok)
 - `scenarios-pc.ts` — API routes: GET, POST, PUT, DELETE (8 endpoints) (~1324 tok)
 - `scenarios-web.ts` — API routes: GET, POST, PUT, DELETE (8 endpoints) (~1328 tok)
-- `scenarios.ts` — API routes: GET, POST, PUT, DELETE (10 endpoints) (~1954 tok)
+- `scenarios.ts` — API routes: GET, POST, PUT, DELETE (10 endpoints) (~2096 tok)
 - `schedule-sets-api.ts` — /api/schedule-sets-api — 调度 API 场景集 (~1563 tok)
 - `schedule-sets-mobile.ts` — /api/schedule-sets-mobile — 调度 移动端 用例集 (~1577 tok)
 - `schedule-sets-pc.ts` — /api/schedule-sets-pc — 调度 PC 用例集 (~1547 tok)
@@ -539,7 +548,7 @@
 - `schedules.ts` — API routes: GET, PUT, POST (7 endpoints) (~1443 tok)
 - `user-preferences.ts` — API routes: GET, PUT (2 endpoints) (~256 tok)
 - `web-browser-config.ts` — API routes: GET, PUT (2 endpoints) (~735 tok)
-- `web-cases.ts` — API routes: GET, POST, PUT, DELETE (8 endpoints) (~3219 tok)
+- `web-cases.ts` — API routes: GET, POST, PUT, DELETE (8 endpoints) (~3356 tok)
 
 ## src/server/scheduler/
 

@@ -6,6 +6,7 @@ import notification from '../../utils/notification';
 import type { ApiItem } from '../../types';
 import VarHoverTip from '../../components/VarHoverTip';
 import TagFilterSelect from '../../components/TagFilterSelect';
+import { useTagColors, tagBadgeStyle } from '../../hooks/useTagColors';
 import FormSelect from '../../components/FormSelect';
 import CollapsibleFilter, { FilterItem } from '../../components/CollapsibleFilter';
 import OpenAPIImportModal from '../openapi/OpenAPIImportModal';
@@ -20,6 +21,7 @@ const STATUSES = [
 ];
 
 export default function ApiList() {
+  const tagColors = useTagColors();
   const [apis, setApis] = useState<ApiItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
@@ -201,10 +203,10 @@ export default function ApiList() {
                   </td>
                   <td>{api.name}</td>
                   <td><span className={`method-badge method-${api.method}`}>{api.method}</span></td>
-                  <td className="td-url"><VarHoverTip text={api.url} /></td>
+                  <td className="td-url"><VarHoverTip text={api.url} parameters={api.parameters} /></td>
                   <td>
                     {api.tags ? api.tags.split(',').filter(Boolean).map((t) => (
-                      <span key={t} className="tag-badge" data-tag={t.trim()}>{t.trim()}</span>
+                      <span key={t} className="tag-badge" style={tagBadgeStyle(tagColors.get(t.trim()) || '')}>{t.trim()}</span>
                     )) : '-'}
                   </td>
                   <td><span className={`status-text status-${api.status}`}>{statusLabel(api.status)}</span></td>

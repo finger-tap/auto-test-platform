@@ -5,6 +5,7 @@ import { formatDateTime } from '../../utils/datetime';
 import notification from '../../utils/notification';
 import TagFilterSelect from '../../components/TagFilterSelect';
 import FormSelect from '../../components/FormSelect';
+import { useTagColors, tagBadgeStyle } from '../../hooks/useTagColors';
 import './ScenarioSetList.css';
 
 interface SetItem {
@@ -46,6 +47,7 @@ const ROUTE_PATH_MAP: Record<string, { list: string; detail: string; create: str
 
 export default function ScenarioSetList({ basePath = '/api-test', testType = 'api' }: { basePath?: string; testType?: string } = {}) {
   const navigate = useNavigate();
+  const tagColors = useTagColors();
   const [sets, setSets] = useState<SetItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
@@ -179,7 +181,7 @@ export default function ScenarioSetList({ basePath = '/api-test', testType = 'ap
                     <td>{s.name}</td>
                     <td>
                       {tagList.length > 0 ? (
-                        tagList.map((t, i) => <span key={i} className="sslist-tag">{t.trim()}</span>)
+                        tagList.map((t, i) => <span key={i} className="sslist-tag" style={tagBadgeStyle(tagColors.get(t.trim()) || '')}>{t.trim()}</span>)
                       ) : '-'}
                     </td>
                     <td>

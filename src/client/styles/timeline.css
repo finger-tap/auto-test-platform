@@ -113,6 +113,22 @@
   background: var(--danger-subtle);
   border-radius: var(--radius-sm);
 }
+.step-error-stack {
+  font-size: 11px;
+  color: var(--fg-tertiary);
+  padding: 8px;
+  background: var(--surface-raised, var(--surface));
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  margin-top: 4px;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+  max-height: 200px;
+  overflow-y: auto;
+  font-family: var(--font-mono);
+  line-height: 1.5;
+}
 
 /* Step type colors */
 .step-start .step-dot { background: var(--accent); }

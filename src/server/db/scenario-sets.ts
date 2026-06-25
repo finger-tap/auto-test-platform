@@ -111,6 +111,10 @@ export function findSetById(id: number): ScenarioSetRow | undefined {
   return db.prepare('SELECT * FROM scenario_sets WHERE id = ?').get(id) as ScenarioSetRow | undefined;
 }
 
+export function findSetByName(userId: number, name: string): ScenarioSetRow | undefined {
+  return db.prepare('SELECT * FROM scenario_sets WHERE user_id = ? AND name = ?').get(userId, name) as ScenarioSetRow | undefined;
+}
+
 export function createSet(userId: number, name: string, description?: string, scenarioIds?: number[], tags?: string, status?: string): number {
   const now = new Date().toISOString();
   const result = db.prepare(

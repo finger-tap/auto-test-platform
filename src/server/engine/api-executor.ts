@@ -502,9 +502,16 @@ export async function executeApi(
         const urlObj = new URL(fullUrl);
         if (urlObj.protocol === 'https:') {
           const { Agent } = await import('undici');
-          const connectOptions: Record<string, unknown> = { rejectUnauthorized: false };
-          if (options?.sslCert) connectOptions.cert = options.sslCert;
-          if (options?.sslKey) connectOptions.key = options.sslKey;
+          const connectOptions: Record<string, unknown> = {};
+          if (options?.sslCert && options?.sslKey) {
+            // 用户提供了客户端证书 → 双向 TLS，跳过服务端证书验证
+            connectOptions.cert = options.sslCert;
+            connectOptions.key = options.sslKey;
+            connectOptions.rejectUnauthorized = false;
+          } else {
+            // 未提供证书 → 使用默认严格验证
+            connectOptions.rejectUnauthorized = true;
+          }
           fetchOptions.dispatcher = new Agent({ connect: connectOptions });
         }
 
@@ -532,8 +539,15 @@ export async function executeApi(
         const requestDuration = Date.now() - requestStart;
         errorMessage = err instanceof Error ? err.message : 'Unknown error';
         status = 'error';
+        const stack = err instanceof Error ? err.stack : undefined;
+        const cause = err instanceof Error ? (err as unknown as Record<string, unknown>).cause : undefined;
         console.error(`[api-executor] 请求失败: ${api.method} ${fullUrl} — ${errorMessage}`, err);
-        addStep('error', '请求错误', `请求失败: ${errorMessage}`, { error: errorMessage, duration_ms: requestDuration });
+        addStep('error', '请求错误', `请求失败: ${errorMessage}`, {
+          error: errorMessage,
+          stack,
+          cause: cause != null ? String(cause) : undefined,
+          duration_ms: requestDuration,
+        });
       }
 
       // Main assertions
@@ -669,8 +683,10 @@ export async function executeApi(
     } catch (err) {
       status = 'error';
       errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      const stack = err instanceof Error ? err.stack : undefined;
+      const cause = err instanceof Error ? (err as unknown as Record<string, unknown>).cause : undefined;
       console.error(`[api-executor] 执行异常: ${api.name} — ${errorMessage}`, err);
-      addStep('error', '错误', `执行异常: ${errorMessage}`, { error: errorMessage });
+      addStep('error', '错误', `执行异常: ${errorMessage}`, { error: errorMessage, stack, cause: cause != null ? String(cause) : undefined });
     }
 
     // Update execution record

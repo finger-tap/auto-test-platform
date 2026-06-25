@@ -122,6 +122,10 @@ export function getDevice(id: number): DeviceRow | undefined {
   return db.prepare('SELECT * FROM devices WHERE id = ?').get(id) as DeviceRow | undefined;
 }
 
+export function findDeviceByName(userId: number, name: string): DeviceRow | undefined {
+  return db.prepare('SELECT * FROM devices WHERE user_id = ? AND name = ?').get(userId, name) as DeviceRow | undefined;
+}
+
 /**
  * 2026-06-06: user-scoped variant — used by the executor before launching
  * a browser on someone else's device (we don't want to leak device rows

@@ -1,62 +1,12 @@
 {
-  "session_id": "session-2026-06-24-2211",
-  "started": "2026-06-24T14:11:45.998Z",
-  "files_read": {
-    "/Users/dinghao/工作/auto-test-platform/src/server/engine/api-executor.ts": {
-      "count": 8,
-      "tokens": 8411,
-      "first_read": "2026-06-24T14:11:52.872Z"
-    },
-    "/Users/dinghao/工作/auto-test-platform/test/https/https-test-server.ts": {
-      "count": 1,
-      "tokens": 858,
-      "first_read": "2026-06-24T14:11:52.995Z"
-    }
-  },
-  "files_written": [
-    {
-      "file": "/Users/dinghao/工作/auto-test-platform/src/server/engine/api-executor.ts",
-      "action": "edit",
-      "tokens": 115,
-      "at": "2026-06-24T14:12:15.007Z"
-    },
-    {
-      "file": "/Users/dinghao/工作/auto-test-platform/src/server/engine/api-executor.ts",
-      "action": "edit",
-      "tokens": 82,
-      "at": "2026-06-24T14:12:19.346Z"
-    },
-    {
-      "file": "/Users/dinghao/工作/auto-test-platform/src/server/engine/api-executor.ts",
-      "action": "edit",
-      "tokens": 261,
-      "at": "2026-06-24T14:12:50.299Z"
-    },
-    {
-      "file": "/Users/dinghao/工作/auto-test-platform/src/server/engine/api-executor.ts",
-      "action": "edit",
-      "tokens": 183,
-      "at": "2026-06-24T14:15:19.516Z"
-    },
-    {
-      "file": "/Users/dinghao/工作/auto-test-platform/src/server/engine/api-executor.ts",
-      "action": "edit",
-      "tokens": 27,
-      "at": "2026-06-24T14:15:40.573Z"
-    },
-    {
-      "file": "/Users/dinghao/工作/auto-test-platform/src/server/engine/api-executor.ts",
-      "action": "edit",
-      "tokens": 67,
-      "at": "2026-06-24T14:16:46.317Z"
-    }
-  ],
-  "edit_counts": {
-    "src/server/engine/api-executor.ts": 6
-  },
-  "anatomy_hits": 1,
+  "session_id": "session-2026-06-25-2237",
+  "started": "2026-06-25T14:37:45.626Z",
+  "files_read": {},
+  "files_written": [],
+  "edit_counts": {},
+  "anatomy_hits": 0,
   "anatomy_misses": 0,
-  "repeated_reads_warned": 7,
+  "repeated_reads_warned": 0,
   "cerebrum_warnings": 0,
-  "stop_count": 5
+  "stop_count": 0
 }

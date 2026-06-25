@@ -8,6 +8,7 @@ import { fileURLToPath } from 'url';
 import {
   findMobileAppsByUser,
   findMobileAppById,
+  findMobileAppByName,
   createMobileApp,
   updateMobileApp,
   deleteMobileApp,
@@ -74,8 +75,15 @@ mobileAppRoutes.post('/', (req: Request, res: Response) => {
     res.status(400).json({ code: 400, message: '应用名称不能为空' });
     return;
   }
+
+  const trimmedName = name.trim();
+  if (findMobileAppByName(req.user!.userId, trimmedName)) {
+    res.status(409).json({ code: 409, message: '已存在同名应用' });
+    return;
+  }
+
   const id = createMobileApp(req.user!.userId, {
-    name: name.trim(),
+    name: trimmedName,
     platform: platform || 'android',
     package_name,
   });
@@ -85,8 +93,22 @@ mobileAppRoutes.post('/', (req: Request, res: Response) => {
 // ── PUT /mobile-apps/:id ──
 mobileAppRoutes.put('/:id', (req: Request, res: Response) => {
   const id = Number(req.params.id);
+  const app = findMobileAppById(id, req.user!.userId);
+  if (!app) {
+    res.status(404).json({ code: 404, message: '应用不存在' });
+    return;
+  }
+
   const data: UpdateMobileAppInput = {};
-  if (req.body.name !== undefined) data.name = req.body.name;
+  if (req.body.name !== undefined) {
+    const checkName = req.body.name.trim();
+    const existingApp = findMobileAppByName(req.user!.userId, checkName);
+    if (existingApp && existingApp.id !== app.id) {
+      res.status(409).json({ code: 409, message: '已存在同名应用' });
+      return;
+    }
+    data.name = req.body.name;
+  }
   if (req.body.platform !== undefined) data.platform = req.body.platform;
   if (req.body.package_name !== undefined) data.package_name = req.body.package_name;
 
