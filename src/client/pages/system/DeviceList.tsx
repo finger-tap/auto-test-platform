@@ -45,6 +45,17 @@ interface DeviceRow {
   last_push_error?: string | null;
 }
 
+interface PushProgressState {
+  device_id: number;
+  active: boolean;
+  updated_at: string;
+  stage: 'bundling' | 'connecting' | 'uploading' | 'configuring' | 'deploying' | 'done' | 'error';
+  message: string;
+  percent?: number;
+  bytes_uploaded?: number;
+  total_bytes?: number;
+}
+
 interface DeviceFormData {
   name: string;
   test_type: DeviceTestType;
@@ -110,9 +121,12 @@ export default function DeviceList() {
   const [saving, setSaving] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [showSshSection, setShowSshSection] = useState(false);
+  const [testingSsh, setTestingSsh] = useState(false);
+  const [sshTestResult, setSshTestResult] = useState<{ ok: boolean; msg: string } | null>(null);
   // 2026-06-07: per-device push/stop loading state. Keyed by device id
   // so multiple buttons can show their own spinner.
   const [pushingId, setPushingId] = useState<number | null>(null);
+  const [pushProgress, setPushProgress] = useState<Record<number, PushProgressState | null>>({});
   const [stoppingId, setStoppingId] = useState<number | null>(null);
 
   const fetchDevices = () => {
@@ -140,6 +154,7 @@ export default function DeviceList() {
     setEditing(null);
     setForm(EMPTY_FORM);
     setShowSshSection(false);
+    setSshTestResult(null);
     setShowForm(true);
   };
 
@@ -165,14 +180,107 @@ export default function DeviceList() {
     // Auto-expand the SSH section if the device already has any SSH
     // field filled in — the user is most likely here to update creds.
     setShowSshSection(!!(device.ssh_host || device.ssh_user || device.ssh_auth_type));
+    setSshTestResult(null);
     setShowForm(true);
   };
 
   const closeForm = () => {
     setShowForm(false);
+    setSshTestResult(null);
     setEditing(null);
     setForm(EMPTY_FORM);
     setShowSshSection(false);
+  };
+
+  const pushEndpointFor = (deviceType: DeviceTestType) => deviceType === 'mobile' ? 'push-mobile-agent'
+    : deviceType === 'pc' ? 'push-pc-agent'
+    : 'push-agent';
+
+  const agentLabelFor = (deviceType: DeviceTestType) => deviceType === 'mobile' ? 'mobile-agent'
+    : deviceType === 'pc' ? 'pc-agent'
+    : 'web-agent';
+
+  const stopEndpointFor = (deviceType: DeviceTestType) => deviceType === 'mobile' ? 'stop-mobile-agent'
+    : deviceType === 'pc' ? 'stop-pc-agent'
+    : 'stop-agent';
+
+  const errorMessageOf = (err: unknown, fallback: string) => err instanceof Error && err.message ? err.message : fallback;
+
+  const fetchPushProgress = async (deviceId: number) => {
+    try {
+      const res = await apiFetch<PushProgressState | null>(`/devices/${deviceId}/push-progress`);
+      if (res.code === 200) {
+        setPushProgress(prev => ({ ...prev, [deviceId]: res.data ?? null }));
+      }
+    } catch (err) {
+      console.error('[device-push] progress fetch failed', { deviceId, error: err });
+    }
+  };
+
+  const isSshCredentialDecryptError = (message: string) => message.includes('无法解密') || message.includes('could not decrypt');
+
+  const hasSshCredentialForSubmit = (authType: SshAuthType | '', current?: DeviceRow | null) => {
+    if (authType === 'password') return !!form.ssh_password || !!current?.has_ssh_password;
+    if (authType === 'private_key') return !!form.ssh_private_key || !!current?.has_ssh_private_key;
+    return false;
+  };
+
+  const handleTestSsh = async () => {
+    if (editing) {
+      // 编辑模式：如果用户没改密码/私钥，用设备已存凭据
+      const hasNewCredential = (form.ssh_auth_type === 'password' && form.ssh_password)
+        || (form.ssh_auth_type === 'private_key' && form.ssh_private_key);
+      if (!hasNewCredential) {
+        setTestingSsh(true);
+        setSshTestResult(null);
+        try {
+          const res = await apiFetch<{ ok: boolean; error?: string; latency_ms?: number }>(`/devices/${editing.id}/test-ssh`, { method: 'POST' });
+          setSshTestResult(res.data?.ok
+            ? { ok: true, msg: `连接成功 (${res.data.latency_ms}ms)` }
+            : { ok: false, msg: res.data?.error || '连接失败' });
+        } catch (e) {
+          setSshTestResult({ ok: false, msg: e instanceof Error ? e.message : '请求失败' });
+        } finally {
+          setTestingSsh(false);
+        }
+        return;
+      }
+    }
+    // 新建模式 / 编辑模式有新凭据：用表单值
+    if (!form.ssh_host || !form.ssh_user || !form.ssh_auth_type) {
+      setSshTestResult({ ok: false, msg: '请先填写 SSH 主机、用户名和认证方式' });
+      return;
+    }
+    if (form.ssh_auth_type === 'password' && !form.ssh_password) {
+      setSshTestResult({ ok: false, msg: '请先填写 SSH 密码' });
+      return;
+    }
+    if (form.ssh_auth_type === 'private_key' && !form.ssh_private_key) {
+      setSshTestResult({ ok: false, msg: '请先填写 SSH 私钥' });
+      return;
+    }
+    setTestingSsh(true);
+    setSshTestResult(null);
+    try {
+      const res = await apiFetch<{ ok: boolean; error?: string; latency_ms?: number }>('/devices/test-ssh', {
+        method: 'POST',
+        body: JSON.stringify({
+          ssh_host: form.ssh_host,
+          ssh_port: form.ssh_port ? Number(form.ssh_port) : 22,
+          ssh_user: form.ssh_user,
+          ssh_auth_type: form.ssh_auth_type,
+          ssh_password: form.ssh_auth_type === 'password' ? form.ssh_password : undefined,
+          ssh_private_key: form.ssh_auth_type === 'private_key' ? form.ssh_private_key : undefined,
+        }),
+      });
+      setSshTestResult(res.data?.ok
+        ? { ok: true, msg: `连接成功 (${res.data.latency_ms}ms)` }
+        : { ok: false, msg: res.data?.error || '连接失败' });
+    } catch (e) {
+      setSshTestResult({ ok: false, msg: e instanceof Error ? e.message : '请求失败' });
+    } finally {
+      setTestingSsh(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -193,22 +301,26 @@ export default function DeviceList() {
       // send the form's value (empty string → null on the server).
       const sshHost = form.ssh_host.trim();
       const hasSshAuth = !!form.ssh_auth_type;
+      const sshUser = form.ssh_user.trim();
+      const platformServerUrl = form.host.trim();
+      const shouldPushOnSave = form.status === 'online';
+      const canPushOnSave = shouldPushOnSave && !!(platformServerUrl && sshHost && sshUser && hasSshAuth && hasSshCredentialForSubmit(form.ssh_auth_type, editing));
       const payload: Record<string, unknown> = {
         name: form.name.trim(),
         test_type: form.test_type,
         platform: form.platform.trim(),
         serial: form.serial.trim() || null,
-        host: form.host.trim() || null,
-        status: form.status,
+        host: platformServerUrl || null,
+        status: shouldPushOnSave ? 'offline' : form.status,
       };
       // SSH section
       if (sshHost || hasSshAuth || form.ssh_user.trim()) {
         payload.ssh_host = sshHost || null;
         payload.ssh_port = form.ssh_port ? Number(form.ssh_port) : 22;
-        payload.ssh_user = form.ssh_user.trim() || null;
+        payload.ssh_user = sshUser || null;
         payload.ssh_auth_type = form.ssh_auth_type || null;
-        payload.ssh_password = form.ssh_password || null;
-        payload.ssh_private_key = form.ssh_private_key || null;
+        if (!editing || form.ssh_password) payload.ssh_password = form.ssh_password || null;
+        if (!editing || form.ssh_private_key) payload.ssh_private_key = form.ssh_private_key || null;
         payload.os_type = form.os_type || 'linux';
       } else if (editing) {
         // Editing and the SSH section was empty — explicit clear so the
@@ -227,7 +339,33 @@ export default function DeviceList() {
           body: JSON.stringify(payload),
         });
         if (res.code === 200) {
-          notification.success('设备已更新');
+          if (canPushOnSave) {
+            const endpoint = pushEndpointFor(form.test_type);
+            const agentLabel = agentLabelFor(form.test_type);
+            notification.info(`设备已更新，开始推送 ${agentLabel}，请稍候...`, { duration: 5000 });
+            try {
+              const pushRes = await apiFetch<{ version?: string; took_ms?: number; bytes_uploaded?: number }>(
+                `/devices/${editing.id}/${endpoint}`,
+                { method: 'POST' }
+              );
+              notification.success(
+                `上线成功: v${pushRes.data?.version} (${(pushRes.data?.bytes_uploaded ?? 0) / 1024 / 1024 | 0}MB, ${((pushRes.data?.took_ms ?? 0) / 1000).toFixed(1)}s)`,
+                { duration: 5000 }
+              );
+            } catch (pushErr) {
+              const message = errorMessageOf(pushErr, '请检查 SSH 凭据/网络');
+              notification.error(
+                isSshCredentialDecryptError(message)
+                  ? '自动推送失败，设备已保存为离线：已保存的 SSH 凭据无法解密，请重新输入密码/私钥后再上线'
+                  : `自动推送失败，设备已保存为离线: ${message}`,
+                { duration: 8000 }
+              );
+            }
+          } else if (shouldPushOnSave) {
+            notification.warning('设备已保存为离线：上线需要填写平台回连地址，以及完整 SSH 主机、用户、认证方式和认证凭据', { duration: 7000 });
+          } else {
+            notification.success('设备已更新');
+          }
           closeForm();
           fetchDevices();
         } else {
@@ -239,7 +377,34 @@ export default function DeviceList() {
           body: JSON.stringify(payload),
         });
         if (res.code === 201) {
-          notification.success('设备已添加');
+          const createdId = res.data?.id;
+          if (canPushOnSave && createdId) {
+            const endpoint = pushEndpointFor(form.test_type);
+            const agentLabel = agentLabelFor(form.test_type);
+            notification.info(`设备已添加，开始推送 ${agentLabel}，请稍候...`, { duration: 5000 });
+            try {
+              const pushRes = await apiFetch<{ version?: string; took_ms?: number; bytes_uploaded?: number }>(
+                `/devices/${createdId}/${endpoint}`,
+                { method: 'POST' }
+              );
+              notification.success(
+                `上线成功: v${pushRes.data?.version} (${(pushRes.data?.bytes_uploaded ?? 0) / 1024 / 1024 | 0}MB, ${((pushRes.data?.took_ms ?? 0) / 1000).toFixed(1)}s)`,
+                { duration: 5000 }
+              );
+            } catch (pushErr) {
+              const message = errorMessageOf(pushErr, '请检查 SSH 凭据/网络');
+              notification.error(
+                isSshCredentialDecryptError(message)
+                  ? '自动推送失败，设备已保存为离线：已保存的 SSH 凭据无法解密，请重新输入密码/私钥后再上线'
+                  : `自动推送失败，设备已保存为离线: ${message}`,
+                { duration: 8000 }
+              );
+            }
+          } else if (shouldPushOnSave) {
+            notification.warning('设备已保存为离线：上线需要填写平台回连地址，以及完整 SSH 主机、用户、认证方式和认证凭据', { duration: 7000 });
+          } else {
+            notification.success('设备已添加');
+          }
           closeForm();
           fetchDevices();
         } else {
@@ -247,7 +412,7 @@ export default function DeviceList() {
         }
       }
     } catch (err) {
-      notification.error(editing ? '更新失败' : '添加失败');
+      notification.error(errorMessageOf(err, editing ? '更新失败' : '添加失败'));
     } finally {
       setSaving(false);
     }
@@ -274,6 +439,11 @@ export default function DeviceList() {
     // time, so the button stays visible for every pushable device. If the user
     // hasn't filled in SSH info yet, nudge them to the edit form instead
     // of silently failing.
+    if (!device.host) {
+      notification.warning('该设备尚未配置平台回连地址,请先编辑');
+      openEdit(device);
+      return;
+    }
     if (!hasSshConfig(device)) {
       notification.warning('该设备尚未配置 SSH 推送信息,请先编辑');
       openEdit(device);
@@ -284,16 +454,27 @@ export default function DeviceList() {
     // /push-mobile-agent,pc 走 /push-pc-agent。Server 端 push.ts 内部按
     // kind 决定 systemd vs launchd,wda vs adb 区别。
     // 2026-06-15: 加入 pc 分支。
-    const endpoint = device.test_type === 'mobile' ? 'push-mobile-agent'
-      : device.test_type === 'pc' ? 'push-pc-agent'
-      : 'push-agent';
-    const agentLabel = device.test_type === 'mobile' ? 'mobile-agent'
-      : device.test_type === 'pc' ? 'pc-agent'
-      : 'web-agent';
-    const serviceMgr = device.os_type === 'macos' ? 'launchd' : 'systemd';
-    const ok = await notification.confirm(`将向 ${device.ssh_user}@${device.ssh_host} 推送最新 ${agentLabel} 并通过 ${serviceMgr} 启动,可能需要 1-2 分钟。是否继续?`);
+    const endpoint = pushEndpointFor(device.test_type);
+    const agentLabel = agentLabelFor(device.test_type);
+    const serviceMgr = device.os_type === 'macos' ? 'launchd'
+      : device.os_type === 'windows' ? 'Windows Service'
+      : 'systemd';
+    const ok = await notification.confirm(`将向 ${device.ssh_user}@${device.ssh_host} 推送最新 ${agentLabel} 并通过 ${serviceMgr} 启动；agent 将回连 ${device.host}。包较大或网络较慢时可能需要数分钟。是否继续?`);
     if (!ok) return;
     setPushingId(device.id);
+    setPushProgress(prev => ({
+      ...prev,
+      [device.id]: {
+        device_id: device.id,
+        active: true,
+        updated_at: new Date().toISOString(),
+        stage: 'bundling',
+        message: '正在准备推送包',
+        percent: 1,
+      },
+    }));
+    const progressTimer = window.setInterval(() => { void fetchPushProgress(device.id); }, 1000);
+    void fetchPushProgress(device.id);
     try {
       const res = await apiFetch<{ version?: string; took_ms?: number; bytes_uploaded?: number; error?: string }>(
         `/devices/${device.id}/${endpoint}`,
@@ -305,11 +486,23 @@ export default function DeviceList() {
         );
         fetchDevices();
       } else {
-        notification.error(res.message || res.data?.error || '上线失败');
+        const message = res.message || res.data?.error || '上线失败';
+        console.error('[device-push] failed', { deviceId: device.id, endpoint, message, data: res.data });
+        notification.error(message, { duration: 8000 });
       }
-    } catch {
-      notification.error('上线失败,请检查 SSH 凭据/网络');
+    } catch (err) {
+      const message = errorMessageOf(err, '请检查 SSH 凭据/网络');
+      console.error('[device-push] request failed', { deviceId: device.id, endpoint, error: err, message });
+      if (isSshCredentialDecryptError(message)) {
+        notification.error('上线失败：已保存的 SSH 凭据无法解密，请编辑设备重新输入密码/私钥后再上线', { duration: 8000 });
+        openEdit(device);
+        setShowSshSection(true);
+      } else {
+        notification.error(`上线失败: ${message}`, { duration: 8000 });
+      }
     } finally {
+      window.clearInterval(progressTimer);
+      void fetchPushProgress(device.id);
       setPushingId(null);
     }
   };
@@ -324,10 +517,10 @@ export default function DeviceList() {
       setShowSshSection(true);
       return;
     }
-    const endpoint = device.test_type === 'mobile' ? 'stop-mobile-agent'
-      : device.test_type === 'pc' ? 'stop-pc-agent'
-      : 'stop-agent';
-    const stopCmd = device.os_type === 'macos' ? 'launchctl unload' : 'systemctl stop';
+    const endpoint = stopEndpointFor(device.test_type);
+    const stopCmd = device.os_type === 'macos' ? 'launchctl unload'
+      : device.os_type === 'windows' ? 'sc.exe stop'
+      : 'systemctl stop';
     const ok = await notification.confirm(`将通过 SSH 停止 ${device.name} 上的 agent (${stopCmd})。是否继续?`);
     if (!ok) return;
     setStoppingId(device.id);
@@ -339,8 +532,8 @@ export default function DeviceList() {
       } else {
         notification.error(res.message || '下线失败');
       }
-    } catch {
-      notification.error('下线失败');
+    } catch (err) {
+      notification.error(`下线失败: ${errorMessageOf(err, '请检查 SSH 凭据/网络')}`, { duration: 8000 });
     } finally {
       setStoppingId(null);
     }
@@ -399,6 +592,7 @@ export default function DeviceList() {
               const s = statusInfo(device.status);
               const isPushing = pushingId === device.id;
               const isStopping = stoppingId === device.id;
+              const progress = pushProgress[device.id];
               return (
                 <tr key={device.id} className="row-enter" style={{ '--delay': `${index * 30}ms` } as React.CSSProperties}>
                   <td className="device-list__name">
@@ -425,7 +619,7 @@ export default function DeviceList() {
                           onClick={() => handleStop(device)}
                           disabled={isPushing || isStopping}
                           className="device-list__btn--online"
-                          title={hasSshConfig(device) ? `通过 SSH 停止 agent (${device.os_type === 'macos' ? 'launchctl unload' : 'systemctl stop'})` : '尚未配置 SSH,点击去编辑'}
+                          title={hasSshConfig(device) ? `通过 SSH 停止 agent (${device.os_type === 'macos' ? 'launchctl unload' : device.os_type === 'windows' ? 'sc.exe stop' : 'systemctl stop'})` : '尚未配置 SSH,点击去编辑'}
                         >
                           {isStopping ? '下线中…' : '下线'}
                         </button>
@@ -434,7 +628,7 @@ export default function DeviceList() {
                           onClick={() => handlePush(device)}
                           disabled={isPushing || isStopping}
                           className="device-list__btn--offline"
-                          title={hasSshConfig(device) ? `通过 SSH 推送最新 ${device.test_type === 'mobile' ? 'mobile-' : device.test_type === 'pc' ? 'pc-' : ''}agent + 启动 (需要 1-2 分钟)` : '尚未配置 SSH,点击去编辑'}
+                          title={hasSshConfig(device) ? `通过 SSH 推送最新 ${device.test_type === 'mobile' ? 'mobile-' : device.test_type === 'pc' ? 'pc-' : ''}agent + 启动 (可能需要数分钟)` : '尚未配置 SSH,点击去编辑'}
                         >
                           {isPushing ? '上线中…' : (device.needs_upgrade === 1 ? '升级上线' : '上线')}
                         </button>
@@ -442,6 +636,14 @@ export default function DeviceList() {
                     )}
                     <button onClick={() => openEdit(device)}>编辑</button>
                     <button className="device-list__btn--danger" onClick={() => handleDelete(device)}>删除</button>
+                    {isPushing && progress && (
+                      <div className="device-list__push-progress" title={progress.message}>
+                        <div className="device-list__push-progress-track">
+                          <div className="device-list__push-progress-fill" style={{ width: `${Math.max(1, Math.min(progress.percent ?? 8, 100))}%` }} />
+                        </div>
+                        <span>{progress.message}{typeof progress.percent === 'number' ? ` · ${progress.percent}%` : ''}</span>
+                      </div>
+                    )}
                   </td>
                 </tr>
               );
@@ -472,7 +674,9 @@ export default function DeviceList() {
                   onChange={v => {
                     const t = v as DeviceTestType;
                     const presets = PLATFORM_PRESETS[t];
-                    setForm({ ...form, test_type: t, platform: presets[0] });
+                    // Web 测试目前仅支持 Linux
+                    const osType = t === 'web' ? 'linux' : form.os_type;
+                    setForm({ ...form, test_type: t, platform: presets[0], os_type: osType });
                   }}
                 />
               </label>
@@ -500,13 +704,14 @@ export default function DeviceList() {
                 />
               </label>
               <label>
-                <span>连接地址</span>
+                <span>平台回连地址（Host:Port）</span>
                 <input
                   type="text"
                   value={form.host}
                   onChange={e => setForm({ ...form, host: e.target.value })}
-                  placeholder="ADB/WDA 远程地址，如 192.168.1.10:5555"
+                  placeholder="如：http://192.168.127.1:3000"
                 />
+                <small>远程 agent 用这个 Host:Port 回连平台；不要填远端 Linux 的 SSH 地址。</small>
               </label>
               <label>
                 <span>状态</span>
@@ -531,7 +736,7 @@ export default function DeviceList() {
                   {showSshSection && (
                     <div className="device-list__ssh-body">
                       <p className="device-list__hint">
-                        填入 SSH 凭据后,可在列表点击"上线"一键推送最新 agent 并重启服务。
+                        填入 SSH 凭据后,可在列表点击"上线"一键推送最新 agent 并重启服务；agent 会使用上方平台回连地址访问本平台。
                         支持 Linux(systemd) 和 macOS(launchd) 远程机器。
                       </p>
                       <div className="device-list__ssh-grid">
@@ -602,16 +807,54 @@ export default function DeviceList() {
                       )}
                       <label>
                         <span>操作系统类型</span>
-                        <FormSelect
-                          value={form.os_type}
-                          options={[
-                            { value: 'linux', label: 'Linux (systemd)' },
-                            { value: 'macos', label: 'macOS (launchd)' },
-                          ]}
-                          onChange={v => setForm({ ...form, os_type: v })}
-                        />
-                        <small className="device-list__hint">macOS 用于部署 iOS 测试 agent(Mac 上跑 WDA 接真机/模拟器)</small>
+                        {form.test_type === 'web' ? (
+                          <>
+                            <FormSelect
+                              value="linux"
+                              options={[
+                                { value: 'linux', label: 'Linux (systemd)' },
+                              ]}
+                              onChange={() => {}}
+                              fixed
+                            />
+                            <small className="device-list__hint">Web 测试目前仅支持 Linux 系统</small>
+                          </>
+                        ) : (
+                          <>
+                            <FormSelect
+                              value={form.os_type}
+                              options={[
+                                { value: 'linux', label: 'Linux (systemd)' },
+                                { value: 'macos', label: 'macOS (launchd)' },
+                                { value: 'windows', label: 'Windows (sc.exe / Windows Service)' },
+                              ]}
+                              onChange={v => setForm({ ...form, os_type: v })}
+                              fixed
+                            />
+                            {form.test_type === 'mobile' && (
+                              <small className="device-list__hint">macOS 用于 iOS agent (WDA)</small>
+                            )}
+                            {form.test_type === 'pc' && (
+                              <small className="device-list__hint">Windows 用于 PC 桌面测试</small>
+                            )}
+                          </>
+                        )}
                       </label>
+                      <div className="device-list__ssh-test">
+                        <button
+                          type="button"
+                          className="device-list__btn--outline"
+                          disabled={testingSsh}
+                          onClick={handleTestSsh}
+                        >
+                          {testingSsh ? '测试中...' : '测试连接'}
+                        </button>
+                        {sshTestResult && (
+                          <span className={`device-list__ssh-test-result ${sshTestResult.ok ? 'device-list__ssh-test-result--ok' : 'device-list__ssh-test-result--fail'}`}>
+                            {sshTestResult.msg}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   )}
                 </div>
