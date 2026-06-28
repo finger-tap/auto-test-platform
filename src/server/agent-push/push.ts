@@ -503,9 +503,11 @@ async function pushAgentByKind(device: DeviceRow, kind: 'web' | 'mobile' | 'pc',
       // 2. Create bundle stream AFTER SSH is ready — the gzip output will
       //    be piped directly to SFTP, keeping the buffer drained.
       // browsers: 只有 web 类型需要 chromium，mobile/pc 不需要。
+      // adbRuntime: 只有 mobile 类型需要 adb。
       const bundle = createBundleStream(kind, {
         nodeRuntime: { os: targetOs, arch: targetArch, version: nodeVersion },
         browsers: kind === 'web' ? { os: targetOs, arch: targetArch } : undefined,
+        adbRuntime: kind === 'mobile' ? targetOs : undefined,
         onEnumerateProgress: ({ phase, files, dirs }) => {
           console.log(`[agent-push] bundler enumerate progress kind=${kind} device=${id} phase=${phase} files=${files} dirs=${dirs}`);
         },
@@ -824,6 +826,8 @@ function shellQuote(s: string): string {
 function systemdUnitContent(token: string, serverUrl: string, deviceName: string, entryPoint: string): string {
   // 2026-06-27: 用 bundle 内的 prebuilt node,不再要求远端预装 node。
   const nodeBin = nodeBinaryInstallPath('linux', '/opt/auto-test-agent');
+  // 2026-06-28: mobile agent 需要 adb,从 bundle 内的 adb-runtime 加载。
+  const adbPath = '/opt/auto-test-agent/adb-runtime/platform-tools';
   return `[Unit]
 Description=Auto Test Agent (${deviceName})
 After=network.target
@@ -834,6 +838,7 @@ Environment="AGENT_TOKEN=${token}"
 Environment="AGENT_SERVER_URL=${serverUrl}"
 Environment="AGENT_NAME=${deviceName.replace(/[^a-zA-Z0-9_-]/g, '-').slice(0, 32)}"
 Environment="AGENT_BROWSERS_PATH=/opt/auto-test-agent/browsers"
+Environment="PATH=${adbPath}:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 ExecStart=${nodeBin} /opt/auto-test-agent/${entryPoint}
 WorkingDirectory=/opt/auto-test-agent
 Restart=on-failure
@@ -866,6 +871,8 @@ function plistContent(args: PlistContentArgs): string {
   const safeName = args.deviceName.replace(/[^a-zA-Z0-9_-]/g, '-').slice(0, 32);
   // 2026-06-27: macOS 也走 bundle 内 node,跟 Linux 一致
   const nodeBin = nodeBinaryInstallPath('darwin', '/opt/auto-test-agent');
+  // 2026-06-28: mobile agent 需要 adb,从 bundle 内的 adb-runtime 加载。
+  const adbPath = '/opt/auto-test-agent/adb-runtime/platform-tools';
   const envDict = [
     `    <key>AGENT_TOKEN</key>`,
     `    <string>${args.token}</string>`,
@@ -877,6 +884,8 @@ function plistContent(args: PlistContentArgs): string {
     `    <string>${args.agentPort}</string>`,
     `    <key>AGENT_BROWSERS_PATH</key>`,
     `    <string>/opt/auto-test-agent/browsers</string>`,
+    `    <key>PATH</key>`,
+    `    <string>${adbPath}:/usr/local/bin:/usr/bin:/bin</string>`,
   ];
   if (args.kind === 'mobile') {
     envDict.push(`    <key>AGENT_MOBILE_PORT</key>`, `    <string>${args.agentPort}</string>`);
