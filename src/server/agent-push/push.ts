@@ -204,11 +204,11 @@ if [ -d /Library/LaunchDaemons ]; then
   # macOS: use launchctl
   echo "[deploy] launchd plists:"
   ls -la /Library/LaunchDaemons/com.auto-test.*.plist 2>&1 | head -10
-  for label in com.auto-test.agent com.auto-test.mobile-agent com.auto-test.pc-agent; do
-    plist="/Library/LaunchDaemons/${label}.plist"
-    if [ -f "$plist" ]; then
-      echo "[deploy] === ${label} ==="
-      launchctl list "$label" 2>&1 | head -5
+  for lbl in com.auto-test.agent com.auto-test.mobile-agent com.auto-test.pc-agent; do
+    plist="/Library/LaunchDaemons/\${lbl}.plist"
+    if [ -f "\$plist" ]; then
+      echo "[deploy] === \${lbl} ==="
+      launchctl list "\$lbl" 2>&1 | head -5
       echo "[deploy] recent logs:"
       tail -20 /var/log/auto-test-agent.log 2>&1 | tail -10
     fi
@@ -218,11 +218,11 @@ else
   echo "[deploy] auto-test-* units:"
   systemctl list-units --all 'auto-test-*' --no-pager --no-legend 2>&1 | head -10
   for u in auto-test-agent auto-test-mobile-agent auto-test-pc-agent; do
-    if systemctl cat "$u.service" >/dev/null 2>&1; then
-      echo "[deploy] === $u.service status ==="
-      systemctl status "$u.service" --no-pager -n 15 2>&1
-      echo "[deploy] === $u.service journal (last 25 lines) ==="
-      journalctl -u "$u.service" -n 25 --no-pager 2>&1 | tail -30
+    if systemctl cat "\$u.service" >/dev/null 2>&1; then
+      echo "[deploy] === \$u.service status ==="
+      systemctl status "\$u.service" --no-pager -n 15 2>&1
+      echo "[deploy] === \$u.service journal (last 25 lines) ==="
+      journalctl -u "\$u.service" -n 25 --no-pager 2>&1 | tail -30
     fi
   done
 fi
@@ -233,7 +233,7 @@ ls -la /opt/auto-test-agent/agent-src/index.js 2>&1
 ls -la /opt/auto-test-agent/mobile-agent-src/index.js 2>&1
 ls -la /opt/auto-test-agent/pc-agent-src/agent-pc/index.js 2>&1
 echo "[deploy] node --version:"
-/opt/auto-test-agent/node-runtime/bin/node --version 2>&1 || echo "[deploy] node binary execution failed (exit $?)"
+/opt/auto-test-agent/node-runtime/bin/node --version 2>&1 || echo "[deploy] node binary execution failed (exit \$?)"
 echo "[deploy] ---- end diagnostic ----"
 exit 1
 `;
