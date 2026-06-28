@@ -199,16 +199,33 @@ for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15; do
 done
 echo "[deploy] WARNING: agent did not respond to /healthz within 15s — marking deploy as FAILED"
 echo "[deploy] ---- diagnostic dump ----"
-echo "[deploy] auto-test-* units:"
-systemctl list-units --all 'auto-test-*' --no-pager --no-legend 2>&1 | head -10
-for u in auto-test-agent auto-test-mobile-agent auto-test-pc-agent; do
-  if systemctl cat "$u.service" >/dev/null 2>&1; then
-    echo "[deploy] === $u.service status ==="
-    systemctl status "$u.service" --no-pager -n 15 2>&1
-    echo "[deploy] === $u.service journal (last 25 lines) ==="
-    journalctl -u "$u.service" -n 25 --no-pager 2>&1 | tail -30
-  fi
-done
+# Detect OS for appropriate service manager
+if [ -d /Library/LaunchDaemons ]; then
+  # macOS: use launchctl
+  echo "[deploy] launchd plists:"
+  ls -la /Library/LaunchDaemons/com.auto-test.*.plist 2>&1 | head -10
+  for label in com.auto-test.agent com.auto-test.mobile-agent com.auto-test.pc-agent; do
+    plist="/Library/LaunchDaemons/${label}.plist"
+    if [ -f "$plist" ]; then
+      echo "[deploy] === ${label} ==="
+      launchctl list "$label" 2>&1 | head -5
+      echo "[deploy] recent logs:"
+      tail -20 /var/log/auto-test-agent.log 2>&1 | tail -10
+    fi
+  done
+else
+  # Linux: use systemctl
+  echo "[deploy] auto-test-* units:"
+  systemctl list-units --all 'auto-test-*' --no-pager --no-legend 2>&1 | head -10
+  for u in auto-test-agent auto-test-mobile-agent auto-test-pc-agent; do
+    if systemctl cat "$u.service" >/dev/null 2>&1; then
+      echo "[deploy] === $u.service status ==="
+      systemctl status "$u.service" --no-pager -n 15 2>&1
+      echo "[deploy] === $u.service journal (last 25 lines) ==="
+      journalctl -u "$u.service" -n 25 --no-pager 2>&1 | tail -30
+    fi
+  done
+fi
 echo "[deploy] node binary listing:"
 ls -la /opt/auto-test-agent/node-runtime/bin/ 2>&1 | head -10
 echo "[deploy] entry candidates:"
