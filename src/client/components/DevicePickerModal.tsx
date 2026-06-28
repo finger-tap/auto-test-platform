@@ -132,8 +132,17 @@ export default function DevicePickerModal({
   // 本机设备：使用第一个本地设备的 id 获取手机列表
   const handleSelectLocal = () => {
     const localDevice = items.find(d => d.source === 'local' || d.source === 'both');
-    if (localDevice && typeof localDevice.id === 'number') {
-      handleSelectAgent(localDevice);
+    if (localDevice) {
+      setSelectedAgent(localDevice);
+      setMobileStep('select-phone');
+      // 本地设备 id 可能是 string 或 number
+      const agentId = typeof localDevice.id === 'string' ? parseInt(localDevice.id, 10) : localDevice.id;
+      if (!isNaN(agentId)) {
+        fetchMobileDevices(agentId);
+      } else {
+        // 如果 id 无效，直接显示空列表
+        setMobileDevices([]);
+      }
     }
   };
 
