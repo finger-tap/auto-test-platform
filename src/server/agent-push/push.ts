@@ -213,7 +213,7 @@ echo "[deploy] node binary listing:"
 ls -la /opt/auto-test-agent/node-runtime/bin/ 2>&1 | head -10
 echo "[deploy] entry candidates:"
 ls -la /opt/auto-test-agent/agent-src/index.js 2>&1
-ls -la /opt/auto-test-agent/mobile-agent-src/agent-mobile/index.js 2>&1
+ls -la /opt/auto-test-agent/mobile-agent-src/index.js 2>&1
 ls -la /opt/auto-test-agent/pc-agent-src/agent-pc/index.js 2>&1
 echo "[deploy] node --version:"
 /opt/auto-test-agent/node-runtime/bin/node --version 2>&1 || echo "[deploy] node binary execution failed (exit $?)"
@@ -401,9 +401,10 @@ async function pushAgentByKind(device: DeviceRow, kind: 'web' | 'mobile' | 'pc',
   // 2026-06-27: web bundle is flat (tsconfig.agent.json rootDir=src/agent-web),
   // so agent-src/index.js lands at the top of the bundle. mobile/pc bundles
   // re-export from agent-web, so their tsconfigs use rootDir=src and the
-  // compiled output nests: dist/agent-X/agent-X/index.js + agent-X/agent-web/*.js.
-  // The bundler preserves that nesting, so ExecStart must point to the nested path.
-  const entryPoint = kind === 'mobile' ? 'mobile-agent-src/agent-mobile/index.js'
+  // compiled output nests: dist/agent-X/agent-X/index.js.
+  // 2026-06-28: bundler now points MOBILE_AGENT_DIST to the inner directory,
+  // so mobile-agent-src/index.js is at the top level (no nesting).
+  const entryPoint = kind === 'mobile' ? 'mobile-agent-src/index.js'
     : kind === 'pc' ? 'pc-agent-src/agent-pc/index.js'
     : 'agent-src/index.js';
 

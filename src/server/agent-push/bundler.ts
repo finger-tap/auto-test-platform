@@ -46,7 +46,9 @@ const MOBILE_AGENT_SRC = path.join(PROJECT_ROOT, 'src', 'agent-mobile');
 // `npm run build:agent` (web) or `build:agent-mobile` (mobile) — push.ts
 // does this automatically via ensureAgentBuild().
 const WEB_AGENT_DIST = path.join(PROJECT_ROOT, 'dist', 'agent-web');
-const MOBILE_AGENT_DIST = path.join(PROJECT_ROOT, 'dist', 'agent-mobile');
+// 2026-06-28: mobile-agent tsconfig 的 rootDir=src 导致输出嵌套一层:
+// dist/agent-mobile/agent-mobile/index.js。bundler 需要指向内层目录。
+const MOBILE_AGENT_DIST = path.join(PROJECT_ROOT, 'dist', 'agent-mobile', 'agent-mobile');
 // 2026-06-15: pc-agent is compiled (tsc) before bundling, so we package the
 // .js output from dist/agent-pc/ (which also includes the compiled
 // agent-web re-exports). The bundler walks this tree and maps it into the
@@ -284,31 +286,28 @@ async function enumerate(
   }
 
   // 3. browsers/ — chromium-* dirs from the cache matching the *remote* OS+arch.
-  // browsers arg is passed in when bundling for an actual remote deploy;
-  // when undefined (smoke tests / dev), fall back to the local PLAYWRIGHT_BROWSERS_PATH
-  // which is whatever's installed on the host (may be wrong OS, but only matters for prod pushes).
-  const browsersSource = browsers
-    ? await ensureBrowsersCache(browsers.os, browsers.arch)
-    : BROWSERS_DIR;
-  const brExists = await fs.access(browsersSource).then(() => true).catch(() => false);
-  if (brExists) {
-    const tBr = Date.now();
-    console.log(`[agent-push:bundler] walking browsers at ${browsersSource}${browsers ? ` (target ${browsers.os}-${browsers.arch})` : ''} ...`);
-    const all = await fs.readdir(browsersSource, { withFileTypes: true });
-    let included = 0;
-    for (const d of all) {
-      if (!d.isDirectory()) continue;
-      if (!d.name.startsWith('chromium')) continue;
-      const abs = path.join(browsersSource, d.name);
-      await walkDir(abs, `browsers/${d.name}`, files, dirs, undefined, onProgress);
-      included++;
-    }
-    console.log(`[agent-push:bundler] browsers done: ${included} chromium-* dirs, ${files.length} total files, took=${Date.now() - tBr}ms`);
-    if (included === 0) {
-      console.warn(`[agent-push:bundler] no chromium-* dirs found under ${browsersSource}; bundle will be missing chromium`);
+  // Only included when browsers option is set (web type). mobile/pc skip this.
+  if (browsers) {
+    const browsersSource = await ensureBrowsersCache(browsers.os, browsers.arch);
+    const brExists = await fs.access(browsersSource).then(() => true).catch(() => false);
+    if (brExists) {
+      const tBr = Date.now();
+      console.log(`[agent-push:bundler] walking browsers at ${browsersSource} (target ${browsers.os}-${browsers.arch}) ...`);
+      const all = await fs.readdir(browsersSource, { withFileTypes: true });
+      let included = 0;
+      for (const d of all) {
+        if (!d.isDirectory()) continue;
+        if (!d.name.startsWith('chromium')) continue;
+        const abs = path.join(browsersSource, d.name);
+        await walkDir(abs, `browsers/${d.name}`, files, dirs, undefined, onProgress);
+        included++;
+      }
+      console.log(`[agent-push:bundler] browsers done: ${included} chromium-* dirs, ${files.length} total files, took=${Date.now() - tBr}ms`);
+    } else {
+      console.warn(`[agent-push:bundler] browsers source ${browsersSource} not found; bundle will be missing chromium`);
     }
   } else {
-    console.warn(`[agent-push:bundler] browsers source ${browsersSource} not found; bundle will be missing chromium`);
+    console.log(`[agent-push:bundler] skipping browsers (not needed for this agent type)`);
   }
 
   // 3b. node-runtime/ — official prebuilt node matched to remote OS+arch.
