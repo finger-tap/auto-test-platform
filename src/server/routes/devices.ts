@@ -8,11 +8,15 @@ import {
   updateDevice,
   deleteDevice,
   refreshDeviceStatus,
+  markAgentOffline,
+  recordPushResult,
   DeviceTestType,
   DeviceStatus,
 } from '../db/devices.js';
-import { encryptColumn, isPushEnabled, serializeBlob } from '../agent-push/crypto.js';
-import { pushAgent, stopAgent, pushMobileAgent, stopMobileAgent, pushPcAgent, stopPcAgent } from '../agent-push/push.js';
+import { encryptColumn, decryptColumn, isPushEnabled, serializeBlob } from '../agent-push/crypto.js';
+import { pushAgent, stopAgent, pushMobileAgent, stopMobileAgent, pushPcAgent, stopPcAgent, serverUrlForDevice } from '../agent-push/push.js';
+import type { PushProgressEvent } from '../agent-push/push.js';
+import { connectSsh } from '../agent-push/ssh-client.js';
 import { listMergedMobileDevices, invalidateMergedCache } from '../devices/merge.js';
 import { healthCheckAgent } from '../engine/agent-client.js';
 
@@ -22,7 +26,36 @@ deviceRoutes.use(authMiddleware);
 const VALID_TEST_TYPES: DeviceTestType[] = ['web', 'pc', 'mobile'];
 const VALID_STATUSES: DeviceStatus[] = ['online', 'offline', 'unknown'];
 const VALID_SSH_AUTH: Array<'password' | 'private_key'> = ['password', 'private_key'];
-const VALID_OS_TYPES: string[] = ['linux', 'macos'];   // linux + macos supported for push
+const VALID_OS_TYPES: string[] = ['linux', 'macos', 'windows'];   // OS supported for remote agent push
+
+interface PushProgressState extends PushProgressEvent {
+  device_id: number;
+  active: boolean;
+  updated_at: string;
+}
+
+const pushProgressByDevice = new Map<number, PushProgressState>();
+
+function setPushProgress(deviceId: number, event: PushProgressEvent, active = true): void {
+  pushProgressByDevice.set(deviceId, {
+    ...event,
+    device_id: deviceId,
+    active,
+    updated_at: new Date().toISOString(),
+  });
+}
+
+function pushErrorResponse(res: Response, deviceId: number, context: string, err: unknown): void {
+  const message = err instanceof Error && err.message ? err.message : String(err || `${context} failed`);
+  console.error(`[devices:${context}] failed device=${deviceId}: ${message}`);
+  recordPushResult(deviceId, 'error', message);
+  setPushProgress(deviceId, { stage: 'error', message }, false);
+  res.status(500).json({
+    code: 500,
+    message,
+    data: { ok: false, error: message },
+  });
+}
 
 /**
  * Encrypt SSH credentials (password / private key) before they hit SQLite.
@@ -135,8 +168,11 @@ deviceRoutes.get('/merged', async (req: Request, res: Response) => {
       res.json({ code: 200, message: 'ok', data: { items } });
       return;
     }
-    // web / pc: 不需要 local+remote 合并，直接从 devices 表查 + 计算 busy
-    const items = listDevices(req.user!.userId, { test_type: testType as DeviceTestType });
+    // web / pc: 不需要 local+remote 合并，但只有 agent 真正上报过
+    // agent_endpoint/agent_token 且当前在线的设备才可作为远程执行目标。
+    // 仅手动把设备状态设为 online 不能代表 agent 已可调度。
+    const items = listDevices(req.user!.userId, { test_type: testType as DeviceTestType })
+      .filter(d => d.status === 'online' && !!d.agent_endpoint && !!d.agent_token);
     const deviceIds = items.map(d => d.id);
     let busySet = new Set<number>();
     if (deviceIds.length > 0) {
@@ -297,7 +333,7 @@ deviceRoutes.put('/:id', (req: Request, res: Response) => {
     return;
   }
 
-  const { name, platform, serial, host, status, metadata, agent_endpoint, ssh_host, ssh_port, ssh_user, ssh_auth_type, ssh_password, ssh_private_key, os_type } = req.body;
+  const { name, test_type, platform, serial, host, status, metadata, agent_endpoint, ssh_host, ssh_port, ssh_user, ssh_auth_type, ssh_password, ssh_private_key, os_type } = req.body;
   if (status && !VALID_STATUSES.includes(status)) {
     res.status(400).json({ code: 400, message: `Invalid status: ${status}` });
     return;
@@ -318,6 +354,10 @@ deviceRoutes.put('/:id', (req: Request, res: Response) => {
     res.status(400).json({ code: 400, message: `OS "${os_type}" is not supported (only ${VALID_OS_TYPES.join(', ')})` });
     return;
   }
+  if (test_type !== undefined && test_type !== null && !VALID_TEST_TYPES.includes(test_type)) {
+    res.status(400).json({ code: 400, message: `Invalid test_type: ${test_type}` });
+    return;
+  }
   if (ssh_port !== undefined && ssh_port !== null && (typeof ssh_port !== 'number' || ssh_port < 1 || ssh_port > 65535)) {
     res.status(400).json({ code: 400, message: 'ssh_port must be a number 1-65535' });
     return;
@@ -332,13 +372,11 @@ deviceRoutes.put('/:id', (req: Request, res: Response) => {
   try {
     if (ssh_password === null) encPassword = null;        // explicit clear
     else if (typeof ssh_password === 'string' && ssh_password) {
-      const blob = encryptColumn('ssh_password', ssh_password);
-      encPassword = blob ? serializeBlob(blob) : null;
+      encPassword = encryptSshField('ssh_password', ssh_password);
     }
     if (ssh_private_key === null) encKey = null;
     else if (typeof ssh_private_key === 'string' && ssh_private_key) {
-      const blob = encryptColumn('ssh_private_key', ssh_private_key);
-      encKey = blob ? serializeBlob(blob) : null;
+      encKey = encryptSshField('ssh_private_key', ssh_private_key);
     }
   } catch (e) {
     res.status(503).json({ code: 503, message: e instanceof Error ? e.message : String(e) });
@@ -354,6 +392,7 @@ deviceRoutes.put('/:id', (req: Request, res: Response) => {
 
   const changes = updateDevice(id, {
     name: name ?? undefined,
+    test_type: test_type as DeviceTestType | undefined,
     platform: platform ?? undefined,
     serial: serial ?? undefined,
     host: host ?? undefined,
@@ -444,8 +483,8 @@ deviceRoutes.get('/:id/agent-info', (req: Request, res: Response) => {
       has_ssh_private_key: !!device.ssh_private_key,
       // Convenience: pre-rendered one-line command to launch the agent
       // against this device. Useful for the "复制部署命令" button in UI.
-      deploy_command: device.agent_token
-        ? `AGENT_TOKEN=${device.agent_token} AGENT_SERVER_URL=${process.env.PUBLIC_SERVER_URL || 'http://localhost:3000'} npm run agent`
+      deploy_command: device.agent_token && serverUrlForDevice(device)
+        ? `AGENT_TOKEN=${device.agent_token} AGENT_SERVER_URL=${serverUrlForDevice(device)} npm run agent`
         : null,
     },
   });
@@ -500,6 +539,16 @@ function requireOwnedDevice(req: Request, res: Response): ReturnType<typeof getD
   return device;
 }
 
+deviceRoutes.get('/:id/push-progress', (req: Request, res: Response) => {
+  const device = requireOwnedDevice(req, res);
+  if (!device) return;
+  res.json({
+    code: 200,
+    message: 'ok',
+    data: pushProgressByDevice.get(device.id) ?? null,
+  });
+});
+
 /**
  * POST /api/devices/:id/push-agent
  * Body: (none) — uses the ssh_* fields saved on the device row.
@@ -510,14 +559,103 @@ function requireOwnedDevice(req: Request, res: Response): ReturnType<typeof getD
  * is the cleanest UX. If push times out, the device row is still
  * updated with `last_push_status='error'`.
  */
+/**
+ * POST /api/devices/test-ssh
+ * 测试 SSH 连接 — 用表单里填写的凭据直接连,不落库。
+ * Body: { ssh_host, ssh_port, ssh_user, ssh_auth_type, ssh_password?, ssh_private_key? }
+ */
+deviceRoutes.post('/test-ssh', async (req: Request, res: Response) => {
+  const { ssh_host, ssh_port, ssh_user, ssh_auth_type, ssh_password, ssh_private_key } = req.body;
+  if (!ssh_host || !ssh_user || !ssh_auth_type) {
+    res.status(400).json({ code: 400, message: '请填写 SSH 主机、用户名和认证方式' });
+    return;
+  }
+  if (ssh_auth_type === 'password' && !ssh_password) {
+    res.status(400).json({ code: 400, message: '请填写 SSH 密码' });
+    return;
+  }
+  if (ssh_auth_type === 'private_key' && !ssh_private_key) {
+    res.status(400).json({ code: 400, message: '请填写 SSH 私钥' });
+    return;
+  }
+
+  const port = typeof ssh_port === 'number' ? ssh_port : (ssh_port ? Number(ssh_port) : 22);
+  const t0 = Date.now();
+  console.log(`[routes:devices] test-ssh ${ssh_user}@${ssh_host}:${port} auth=${ssh_auth_type}`);
+  try {
+    const { conn, end } = await connectSsh({
+      host: ssh_host,
+      port,
+      username: ssh_user,
+      password: ssh_auth_type === 'password' ? ssh_password : undefined,
+      privateKey: ssh_auth_type === 'private_key' ? ssh_private_key : undefined,
+    });
+    end();
+    const ms = Date.now() - t0;
+    console.log(`[routes:devices] test-ssh OK ${ssh_user}@${ssh_host}:${port} ${ms}ms`);
+    res.json({ code: 200, message: 'ok', data: { ok: true, latency_ms: ms } });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    console.log(`[routes:devices] test-ssh FAIL ${ssh_user}@${ssh_host}:${port}: ${msg}`);
+    res.json({ code: 200, message: 'ok', data: { ok: false, error: msg } });
+  }
+});
+
+/**
+ * POST /api/devices/:id/test-ssh
+ * 用设备已存储的 SSH 凭据测试连接（编辑模式,密码/私钥未修改时用这个）。
+ */
+deviceRoutes.post('/:id/test-ssh', async (req: Request, res: Response) => {
+  const device = requireOwnedDevice(req, res);
+  if (!device) return;
+  if (!device.ssh_host || !device.ssh_user || !device.ssh_auth_type) {
+    res.json({ code: 200, message: 'ok', data: { ok: false, error: '设备未配置 SSH 信息' } });
+    return;
+  }
+
+  const plaintextPassword = device.ssh_auth_type === 'password' ? decryptColumn('ssh_password', device.ssh_password) : null;
+  const plaintextKey = device.ssh_auth_type === 'private_key' ? decryptColumn('ssh_private_key', device.ssh_private_key) : null;
+  if (device.ssh_auth_type === 'password' && !plaintextPassword) {
+    res.json({ code: 200, message: 'ok', data: { ok: false, error: 'SSH 密码无法解密，请重新输入密码' } });
+    return;
+  }
+  if (device.ssh_auth_type === 'private_key' && !plaintextKey) {
+    res.json({ code: 200, message: 'ok', data: { ok: false, error: 'SSH 私钥无法解密，请重新输入私钥' } });
+    return;
+  }
+
+  const t0 = Date.now();
+  console.log(`[routes:devices] test-ssh device=${device.id} ${device.ssh_user}@${device.ssh_host}:${device.ssh_port ?? 22}`);
+  try {
+    const { conn, end } = await connectSsh({
+      host: device.ssh_host,
+      port: device.ssh_port ?? 22,
+      username: device.ssh_user,
+      password: plaintextPassword ?? undefined,
+      privateKey: plaintextKey ?? undefined,
+    });
+    end();
+    const ms = Date.now() - t0;
+    console.log(`[routes:devices] test-ssh OK device=${device.id} ${ms}ms`);
+    res.json({ code: 200, message: 'ok', data: { ok: true, latency_ms: ms } });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    console.log(`[routes:devices] test-ssh FAIL device=${device.id}: ${msg}`);
+    res.json({ code: 200, message: 'ok', data: { ok: false, error: msg } });
+  }
+});
+
 deviceRoutes.post('/:id/push-agent', async (req: Request, res: Response) => {
+  console.log(`[routes:devices] POST /:id/push-agent id=${req.params.id}`);
   const device = requireOwnedDevice(req, res);
   if (!device) return;
   if (device.test_type !== 'web') {
+    console.log(`[routes:devices] push-agent rejected: test_type=${device.test_type} (expected web)`);
     res.status(400).json({ code: 400, message: 'Only web devices support SSH push' });
     return;
   }
   if (!isPushEnabled()) {
+    console.log(`[routes:devices] push-agent rejected: AGENT_SSH_KEY_SECRET not configured`);
     res.status(503).json({
       code: 503,
       message: 'Server has no AGENT_SSH_KEY_SECRET configured; SSH push is disabled. Set the env var on the central server and restart.',
@@ -525,24 +663,34 @@ deviceRoutes.post('/:id/push-agent', async (req: Request, res: Response) => {
     return;
   }
   if (!device.ssh_host || !device.ssh_user || !device.ssh_auth_type) {
+    console.log(`[routes:devices] push-agent rejected: SSH not configured (host=${device.ssh_host} user=${device.ssh_user} auth=${device.ssh_auth_type})`);
     res.status(400).json({ code: 400, message: 'SSH host / user / auth type not configured for this device' });
     return;
   }
 
-  const result = await pushAgent(device);
-  if (!result.ok) {
-    res.status(500).json({
-      code: 500,
-      message: result.error || 'push failed',
+  try {
+    setPushProgress(device.id, { stage: 'bundling', message: '正在准备推送包', percent: 1 });
+    console.log(`[routes:devices] push-agent starting device=${device.id} name="${device.name}" ssh=${device.ssh_user}@${device.ssh_host}:${device.ssh_port ?? 22}`);
+    const result = await pushAgent(device, { onProgress: event => setPushProgress(device.id, event, event.stage !== 'done' && event.stage !== 'error') });
+    if (!result.ok) {
+      console.log(`[routes:devices] push-agent FAILED device=${device.id}: ${result.error}`);
+      setPushProgress(device.id, { stage: 'error', message: result.error || 'push failed' }, false);
+      res.status(500).json({
+        code: 500,
+        message: result.error || 'push failed',
+        data: result,
+      });
+      return;
+    }
+    console.log(`[routes:devices] push-agent OK device=${device.id} version=${result.version} took=${result.took_ms}ms`);
+    res.json({
+      code: 200,
+      message: 'Agent pushed and restarted',
       data: result,
     });
-    return;
+  } catch (err) {
+    pushErrorResponse(res, device.id, 'push-agent', err);
   }
-  res.json({
-    code: 200,
-    message: 'Agent pushed and restarted',
-    data: result,
-  });
 });
 
 /**
@@ -568,9 +716,10 @@ deviceRoutes.post('/:id/stop-agent', async (req: Request, res: Response) => {
   }
   const result = await stopAgent(device);
   if (!result.ok) {
-    res.status(500).json({ code: 500, message: result.error || 'stop failed' });
+    res.status(500).json({ code: 500, message: result.error || 'stop failed', data: result });
     return;
   }
+  markAgentOffline(device.id);
   res.json({ code: 200, message: 'Agent stopped' });
 });
 
@@ -581,13 +730,16 @@ deviceRoutes.post('/:id/stop-agent', async (req: Request, res: Response) => {
  * mobile-agent-src/index.js,听 4002 端口。
  */
 deviceRoutes.post('/:id/push-mobile-agent', async (req: Request, res: Response) => {
+  console.log(`[routes:devices] POST /:id/push-mobile-agent id=${req.params.id}`);
   const device = requireOwnedDevice(req, res);
   if (!device) return;
   if (device.test_type !== 'mobile') {
+    console.log(`[routes:devices] push-mobile-agent rejected: test_type=${device.test_type} (expected mobile)`);
     res.status(400).json({ code: 400, message: 'Only mobile devices support push-mobile-agent' });
     return;
   }
   if (!isPushEnabled()) {
+    console.log(`[routes:devices] push-mobile-agent rejected: AGENT_SSH_KEY_SECRET not configured`);
     res.status(503).json({
       code: 503,
       message: 'Server has no AGENT_SSH_KEY_SECRET configured; SSH push is disabled. Set the env var on the central server and restart.',
@@ -595,24 +747,34 @@ deviceRoutes.post('/:id/push-mobile-agent', async (req: Request, res: Response) 
     return;
   }
   if (!device.ssh_host || !device.ssh_user || !device.ssh_auth_type) {
+    console.log(`[routes:devices] push-mobile-agent rejected: SSH not configured (host=${device.ssh_host} user=${device.ssh_user} auth=${device.ssh_auth_type})`);
     res.status(400).json({ code: 400, message: 'SSH host / user / auth type not configured for this device' });
     return;
   }
 
-  const result = await pushMobileAgent(device);
-  if (!result.ok) {
-    res.status(500).json({
-      code: 500,
-      message: result.error || 'push-mobile-agent failed',
+  try {
+    setPushProgress(device.id, { stage: 'bundling', message: '正在准备推送包', percent: 1 });
+    console.log(`[routes:devices] push-mobile-agent starting device=${device.id} name="${device.name}" ssh=${device.ssh_user}@${device.ssh_host}:${device.ssh_port ?? 22}`);
+    const result = await pushMobileAgent(device, { onProgress: event => setPushProgress(device.id, event, event.stage !== 'done' && event.stage !== 'error') });
+    if (!result.ok) {
+      console.log(`[routes:devices] push-mobile-agent FAILED device=${device.id}: ${result.error}`);
+      setPushProgress(device.id, { stage: 'error', message: result.error || 'push-mobile-agent failed' }, false);
+      res.status(500).json({
+        code: 500,
+        message: result.error || 'push-mobile-agent failed',
+        data: result,
+      });
+      return;
+    }
+    console.log(`[routes:devices] push-mobile-agent OK device=${device.id} version=${result.version} took=${result.took_ms}ms`);
+    res.json({
+      code: 200,
+      message: 'Mobile agent pushed and restarted',
       data: result,
     });
-    return;
+  } catch (err) {
+    pushErrorResponse(res, device.id, 'push-mobile-agent', err);
   }
-  res.json({
-    code: 200,
-    message: 'Mobile agent pushed and restarted',
-    data: result,
-  });
 });
 
 /**
@@ -636,9 +798,10 @@ deviceRoutes.post('/:id/stop-mobile-agent', async (req: Request, res: Response) 
   }
   const result = await stopMobileAgent(device);
   if (!result.ok) {
-    res.status(500).json({ code: 500, message: result.error || 'stop-mobile-agent failed' });
+    res.status(500).json({ code: 500, message: result.error || 'stop-mobile-agent failed', data: result });
     return;
   }
+  markAgentOffline(device.id);
   res.json({ code: 200, message: 'Mobile agent stopped' });
 });
 
@@ -649,13 +812,16 @@ deviceRoutes.post('/:id/stop-mobile-agent', async (req: Request, res: Response) 
  * 听 4003 端口。pc-agent 使用 @midscene/computer 驱动原生桌面。
  */
 deviceRoutes.post('/:id/push-pc-agent', async (req: Request, res: Response) => {
+  console.log(`[routes:devices] POST /:id/push-pc-agent id=${req.params.id}`);
   const device = requireOwnedDevice(req, res);
   if (!device) return;
   if (device.test_type !== 'pc') {
+    console.log(`[routes:devices] push-pc-agent rejected: test_type=${device.test_type} (expected pc)`);
     res.status(400).json({ code: 400, message: 'Only PC devices support push-pc-agent' });
     return;
   }
   if (!isPushEnabled()) {
+    console.log(`[routes:devices] push-pc-agent rejected: AGENT_SSH_KEY_SECRET not configured`);
     res.status(503).json({
       code: 503,
       message: 'Server has no AGENT_SSH_KEY_SECRET configured; SSH push is disabled. Set the env var on the central server and restart.',
@@ -663,24 +829,34 @@ deviceRoutes.post('/:id/push-pc-agent', async (req: Request, res: Response) => {
     return;
   }
   if (!device.ssh_host || !device.ssh_user || !device.ssh_auth_type) {
+    console.log(`[routes:devices] push-pc-agent rejected: SSH not configured (host=${device.ssh_host} user=${device.ssh_user} auth=${device.ssh_auth_type})`);
     res.status(400).json({ code: 400, message: 'SSH host / user / auth type not configured for this device' });
     return;
   }
 
-  const result = await pushPcAgent(device);
-  if (!result.ok) {
-    res.status(500).json({
-      code: 500,
-      message: result.error || 'push-pc-agent failed',
+  try {
+    setPushProgress(device.id, { stage: 'bundling', message: '正在准备推送包', percent: 1 });
+    console.log(`[routes:devices] push-pc-agent starting device=${device.id} name="${device.name}" ssh=${device.ssh_user}@${device.ssh_host}:${device.ssh_port ?? 22}`);
+    const result = await pushPcAgent(device, { onProgress: event => setPushProgress(device.id, event, event.stage !== 'done' && event.stage !== 'error') });
+    if (!result.ok) {
+      console.log(`[routes:devices] push-pc-agent FAILED device=${device.id}: ${result.error}`);
+      setPushProgress(device.id, { stage: 'error', message: result.error || 'push-pc-agent failed' }, false);
+      res.status(500).json({
+        code: 500,
+        message: result.error || 'push-pc-agent failed',
+        data: result,
+      });
+      return;
+    }
+    console.log(`[routes:devices] push-pc-agent OK device=${device.id} version=${result.version} took=${result.took_ms}ms`);
+    res.json({
+      code: 200,
+      message: 'PC agent pushed and restarted',
       data: result,
     });
-    return;
+  } catch (err) {
+    pushErrorResponse(res, device.id, 'push-pc-agent', err);
   }
-  res.json({
-    code: 200,
-    message: 'PC agent pushed and restarted',
-    data: result,
-  });
 });
 
 /**
@@ -704,9 +880,10 @@ deviceRoutes.post('/:id/stop-pc-agent', async (req: Request, res: Response) => {
   }
   const result = await stopPcAgent(device);
   if (!result.ok) {
-    res.status(500).json({ code: 500, message: result.error || 'stop-pc-agent failed' });
+    res.status(500).json({ code: 500, message: result.error || 'stop-pc-agent failed', data: result });
     return;
   }
+  markAgentOffline(device.id);
   res.json({ code: 200, message: 'PC agent stopped' });
 });
 

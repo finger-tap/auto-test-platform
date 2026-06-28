@@ -68,6 +68,7 @@ export interface CreateDeviceInput {
 
 export interface UpdateDeviceInput {
   name?: string;
+  test_type?: DeviceTestType;
   platform?: string;
   serial?: string;
   host?: string;
@@ -360,9 +361,10 @@ export function recordPushResult(
             -- required version; clear the needs_upgrade flag. A failed push
             -- doesn't change the flag (the version mismatch is still real).
             needs_upgrade = CASE WHEN ? = 'ok' THEN 0 ELSE needs_upgrade END,
+            status = CASE WHEN ? = 'ok' THEN 'online' ELSE 'offline' END,
             updated_at = datetime('now', '+8 hours')
       WHERE id = ?`
-  ).run(status, trimmed, status, id).changes;
+  ).run(status, trimmed, status, status, id).changes;
 }
 
 /**
