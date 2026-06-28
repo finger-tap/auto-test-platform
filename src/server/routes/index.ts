@@ -8,10 +8,6 @@ import { caseSetRoutes as caseSetRoutesWeb } from './case-sets-web.js';
 import { caseSetRoutes as caseSetRoutesPc } from './case-sets-pc.js';
 import { caseSetRoutes as caseSetRoutesMobile } from './case-sets-mobile.js';
 import { mockRoutes as mockRoutesApi } from './mocks-api.js';
-import { batchReportRoutes as batchReportRoutesApi } from './batch-reports-api.js';
-import { batchReportRoutes as batchReportRoutesWeb } from './batch-reports-web.js';
-import { batchReportRoutes as batchReportRoutesPc } from './batch-reports-pc.js';
-import { batchReportRoutes as batchReportRoutesMobile } from './batch-reports-mobile.js';
 import { openapiRoutes } from '../openapi/routes.js';
 import { tagRoutes } from '../db/tags.js';
 import { mobileTestRoutes } from './mobile-tests.js';
@@ -83,14 +79,6 @@ routes.use('/case-sets-pc', caseSetRoutesPc);
 routes.use('/case-sets-mobile', caseSetRoutesMobile);
 // 接口测试 Mock（独立表）
 routes.use('/mocks-api', mockRoutesApi);
-// 接口测试批量报告（独立表）
-routes.use('/batch-reports-api', batchReportRoutesApi);
-// Web测试批量报告（独立表）
-routes.use('/batch-reports-web', batchReportRoutesWeb);
-// PC测试批量报告（独立表）
-routes.use('/batch-reports-pc', batchReportRoutesPc);
-// 移动端测试批量报告（独立表）
-routes.use('/batch-reports-mobile', batchReportRoutesMobile);
 routes.use('/openapi', openapiRoutes);
 routes.use('/tags', tagRoutes);
 routes.use('/mobile-tests', mobileTestRoutes);

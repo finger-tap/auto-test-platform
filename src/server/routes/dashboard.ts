@@ -331,40 +331,20 @@ dashboardRoutes.get('/trend', (req: Request, res: Response) => {
      WHERE s.user_id = ? AND e.status NOT IN ('running')`,
   ].join(' UNION ALL ');
 
-  // ── 3. 批量报告 (兼容, 虽然目前数据为空) ──
-  const batchSql = [
-    `SELECT CASE WHEN failed=0 AND passed>0 THEN 1 ELSE 0 END AS is_success,
-            CASE WHEN failed>0 THEN 1 ELSE 0 END AS is_failure,
-            executed_at AS ts
-     FROM batch_reports_api br JOIN scenario_sets ss ON ss.id = br.set_id WHERE ss.user_id = ?`,
-    `SELECT CASE WHEN failed=0 AND passed>0 THEN 1 ELSE 0 END AS is_success,
-            CASE WHEN failed>0 THEN 1 ELSE 0 END AS is_failure,
-            executed_at AS ts
-     FROM batch_reports_web br JOIN case_sets_web ss ON ss.id = br.set_id WHERE ss.user_id = ?`,
-    `SELECT CASE WHEN failed=0 AND passed>0 THEN 1 ELSE 0 END AS is_success,
-            CASE WHEN failed>0 THEN 1 ELSE 0 END AS is_failure,
-            executed_at AS ts
-     FROM batch_reports_mobile br JOIN case_sets_mobile ss ON ss.id = br.set_id WHERE ss.user_id = ?`,
-    `SELECT CASE WHEN failed=0 AND passed>0 THEN 1 ELSE 0 END AS is_success,
-            CASE WHEN failed>0 THEN 1 ELSE 0 END AS is_failure,
-            executed_at AS ts
-     FROM batch_reports_pc br JOIN case_sets_pc ss ON ss.id = br.set_id WHERE ss.user_id = ?`,
-  ].join(' UNION ALL ');
-
   const allSql = `SELECT date(ts) AS day,
                          SUM(is_success) AS passed,
                          SUM(is_failure) AS failed,
                          COUNT(*) AS count
-                  FROM (${singleCaseSql} UNION ALL ${setExecSql} UNION ALL ${batchSql})
+                  FROM (${singleCaseSql} UNION ALL ${setExecSql})
                   WHERE ts IS NOT NULL
                     AND date(ts) >= date('now', '+8 hours', '-${days} days')
                   GROUP BY day
                   ORDER BY day`;
 
-  // 参数顺序: singleCase(userId×3) + setExec(userId×4) + batch(userId×4) = 11 params
+  // 参数顺序: singleCase(userId×3) + setExec(userId×4) = 7 params
   const rows = db
     .prepare(allSql)
-    .all(userId, userId, userId, userId, userId, userId, userId, userId, userId, userId, userId) as {
+    .all(userId, userId, userId, userId, userId, userId, userId) as {
     day: string;
     passed: number;
     failed: number;

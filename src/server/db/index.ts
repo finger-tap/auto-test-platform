@@ -179,10 +179,6 @@ const tableMigrations: { table: string; columns: { name: string; sql: string }[]
     { name: 'created_by', sql: 'TEXT' },
     { name: 'updated_by', sql: 'TEXT' },
   ]},
-  { table: 'mock_endpoints', columns: [
-    { name: 'created_by', sql: 'TEXT' },
-    { name: 'updated_by', sql: 'TEXT' },
-  ]},
   { table: 'mock_endpoints_api', columns: [
     { name: 'created_by', sql: 'TEXT' },
     { name: 'updated_by', sql: 'TEXT' },
@@ -693,44 +689,6 @@ db.exec(`
 
   CREATE INDEX IF NOT EXISTS idx_scenario_sets_user_id ON scenario_sets(user_id);
 
-  CREATE TABLE IF NOT EXISTS batch_reports (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    set_id INTEGER NOT NULL,
-    report TEXT NOT NULL,
-    passed INTEGER DEFAULT 0,
-    failed INTEGER DEFAULT 0,
-    total_duration_ms INTEGER DEFAULT 0,
-    executed_by TEXT,
-    executed_at TEXT NOT NULL DEFAULT (datetime('now', '+8 hours')),
-    FOREIGN KEY (set_id) REFERENCES scenario_sets(id) ON DELETE CASCADE
-  );
-
-  CREATE INDEX IF NOT EXISTS idx_batch_reports_set_id ON batch_reports(set_id);
-`);
-
-// ── Mock endpoints table ──
-db.exec(`
-  CREATE TABLE IF NOT EXISTS mock_endpoints (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER NOT NULL,
-    name TEXT NOT NULL,
-    method TEXT NOT NULL DEFAULT '*',
-    path_pattern TEXT NOT NULL,
-    description TEXT,
-    response_status INTEGER DEFAULT 200,
-    response_headers TEXT DEFAULT '{"Content-Type":"application/json"}',
-    response_body TEXT DEFAULT '{}',
-    response_delay_ms INTEGER DEFAULT 0,
-    conditions TEXT DEFAULT '[]',
-    match_mode TEXT NOT NULL DEFAULT 'exact',
-    enabled INTEGER NOT NULL DEFAULT 1,
-    hit_count INTEGER NOT NULL DEFAULT 0,
-    last_hit_at TEXT,
-    created_at TEXT NOT NULL DEFAULT (datetime('now', '+8 hours')),
-    updated_at TEXT NOT NULL DEFAULT (datetime('now', '+8 hours')),
-    FOREIGN KEY (user_id) REFERENCES users(id)
-  );
-  CREATE INDEX IF NOT EXISTS idx_mock_endpoints_user_id ON mock_endpoints(user_id);
 `);
 
 // ── Web test cases table ──
@@ -885,7 +843,7 @@ try { db.exec("ALTER TABLE pc_test_cases ADD COLUMN platform TEXT DEFAULT 'windo
 // test_type: 'web' | 'pc' | 'mobile' —— 设备所属测试类型
 // platform:  web=chromium/firefox/webkit；pc=win/mac/linux；mobile=android/ios/harmony
 // serial: 浏览器实例 id 或设备序列号 / udid
-// host: ADB/WDA 远程地址（如 192.168.1.10:5555）
+// host: 平台回连地址（如 http://192.168.127.1:3000），agent 用它连接 server
 // status: online / offline / unknown —— 由执行器 / 手动刷新 / agent 心跳写入
 // 2026-06-06: 加入 agent_* / last_seen_at 列,支持 agent 远程浏览器注册与心跳
 db.exec(`
@@ -1203,63 +1161,38 @@ if (!tagCols.some(c => c.name === 'color')) {
   db.exec("ALTER TABLE user_tags ADD COLUMN color TEXT DEFAULT ''");
 }
 
-// ── Test type isolation: 拆分 mock_endpoints / batch_reports 为 4 张独立表 ──
-const MOCK_TABLE_TYPES = ['api', 'web', 'pc', 'mobile'] as const;
-for (const t of MOCK_TABLE_TYPES) {
-  const tableName = `mock_endpoints_${t}`;
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS ${tableName} (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      user_id INTEGER NOT NULL,
-      name TEXT NOT NULL,
-      method TEXT NOT NULL DEFAULT '*',
-      path_pattern TEXT NOT NULL,
-      description TEXT,
-      tags TEXT,
-      status TEXT,
-      response_status INTEGER DEFAULT 200,
-      response_headers TEXT DEFAULT '{"Content-Type":"application/json"}',
-      response_body TEXT DEFAULT '{}',
-      response_delay_ms INTEGER DEFAULT 0,
-      conditions TEXT DEFAULT '[]',
-      match_mode TEXT NOT NULL DEFAULT 'exact',
-      enabled INTEGER NOT NULL DEFAULT 1,
-      hit_count INTEGER NOT NULL DEFAULT 0,
-      last_hit_at TEXT,
-      created_at TEXT NOT NULL DEFAULT (datetime('now', '+8 hours')),
-      updated_at TEXT NOT NULL DEFAULT (datetime('now', '+8 hours')),
-      FOREIGN KEY (user_id) REFERENCES users(id)
-    );
-    CREATE INDEX IF NOT EXISTS idx_${tableName}_user_id ON ${tableName}(user_id);
-  `);
-}
-
-for (const t of MOCK_TABLE_TYPES) {
-  const tableName = `batch_reports_${t}`;
-  // API 端的 batch_reports 仍 FK 指向 scenario_sets(id);web/pc/mobile 端
-  // 改 FK 指向 case_sets_${t}(id)(2026-06-05 重构:场景集 → 用例集)。
-  const fkTarget = t === 'api' ? 'scenario_sets(id)' : `case_sets_${t}(id)`;
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS ${tableName} (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      set_id INTEGER NOT NULL,
-      report TEXT NOT NULL,
-      passed INTEGER DEFAULT 0,
-      failed INTEGER DEFAULT 0,
-      total_duration_ms INTEGER DEFAULT 0,
-      executed_by TEXT,
-      executed_at TEXT NOT NULL DEFAULT (datetime('now', '+8 hours')),
-      FOREIGN KEY (set_id) REFERENCES ${fkTarget} ON DELETE CASCADE
-    );
-    CREATE INDEX IF NOT EXISTS idx_${tableName}_set_id ON ${tableName}(set_id);
-  `);
-}
+// ── mock_endpoints_api (仅 API 端使用 mock) ──
+db.exec(`
+  CREATE TABLE IF NOT EXISTS mock_endpoints_api (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    method TEXT NOT NULL DEFAULT '*',
+    path_pattern TEXT NOT NULL,
+    description TEXT,
+    tags TEXT,
+    status TEXT,
+    response_status INTEGER DEFAULT 200,
+    response_headers TEXT DEFAULT '{"Content-Type":"application/json"}',
+    response_body TEXT DEFAULT '{}',
+    response_delay_ms INTEGER DEFAULT 0,
+    conditions TEXT DEFAULT '[]',
+    match_mode TEXT NOT NULL DEFAULT 'exact',
+    enabled INTEGER NOT NULL DEFAULT 1,
+    hit_count INTEGER NOT NULL DEFAULT 0,
+    last_hit_at TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now', '+8 hours')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now', '+8 hours')),
+    FOREIGN KEY (user_id) REFERENCES users(id)
+  );
+  CREATE INDEX IF NOT EXISTS idx_mock_endpoints_api_user_id ON mock_endpoints_api(user_id);
+`);
 
 // ── 新建 case_sets / schedule_sets 分表 (2026-06-05 重构) ──
 // 用途: web/pc/mobile 移除 scenarios/scenario_sets 子树,改用 case_sets
 // 存 test_case_ids 引用;schedule_sets 也按测试类型拆 4 张。
 // API 端 schedule_sets 表名保持(由 schedule-sets-api.ts 用)。
-for (const t of MOCK_TABLE_TYPES) {
+for (const t of ['web', 'pc', 'mobile'] as const) {
   db.exec(`
     CREATE TABLE IF NOT EXISTS case_sets_${t} (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -1590,19 +1523,6 @@ function restoreTableConstraints(name: string): void {
 
 ['apis', 'scenarios', 'scenario_sets', 'web_test_cases', 'pc_test_cases', 'mobile_test_cases'].forEach(restoreTableConstraints);
 
-// batch_reports 已无代码引用,test_type 列单独移除(表有 0 行数据,直接 DROP)
-const batchReportHasTestType = (db.prepare("PRAGMA table_info(batch_reports)").all() as { name: string }[]).some(c => c.name === 'test_type');
-if (batchReportHasTestType) {
-  db.exec('DROP TABLE batch_reports');
-  console.log('[DB Migration] Dropped legacy batch_reports table (split into 4 per-type tables)');
-}
-
-// 旧的 mock_endpoints 表(0 行数据,只在新表都不存在时保留兼容)
-const mockEndpointsExists = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='mock_endpoints'").get();
-if (mockEndpointsExists) {
-  db.exec('DROP TABLE mock_endpoints');
-  console.log('[DB Migration] Dropped legacy mock_endpoints table (split into 4 per-type tables)');
-}
 
 // ── 2026-06-05: web/pc/mobile 移除 scenarios + scenario_sets,改用 case_sets ──
 // 用户已明确授权 DROP,不可恢复。API 端 scenarios/scenario_sets 不动。
@@ -1676,3 +1596,5 @@ db.exec(`
     UNIQUE(user_id, test_type)
   );
 `);
+// 2026-06-26: 加 value 列，用于存储非环境类偏好（如 theme）
+try { db.exec("ALTER TABLE user_preferences ADD COLUMN value TEXT"); } catch { /* column already exists */ }

@@ -1,6 +1,6 @@
 -- ============================================================================
 -- OpenAutoTest — 完整数据库建表 SQL (SQLite)
--- 导出时间: 2026-06-24
+-- 导出时间: 2026-06-28
 -- 数据库文件: data/app.db
 -- 模式: WAL journal, SQLite 3.x
 -- ============================================================================
@@ -575,20 +575,6 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_devices_agent_token ON devices(agent_token
 -- 8. 用例集 + 调度 (Web/PC/Mobile 共用模板)
 -- ============================================================================
 
--- API 端 batch_reports
-CREATE TABLE IF NOT EXISTS batch_reports_api (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  set_id INTEGER NOT NULL,
-  report TEXT NOT NULL,
-  passed INTEGER DEFAULT 0,
-  failed INTEGER DEFAULT 0,
-  total_duration_ms INTEGER DEFAULT 0,
-  executed_by TEXT,
-  executed_at TEXT NOT NULL DEFAULT (datetime('now', '+8 hours')),
-  FOREIGN KEY (set_id) REFERENCES scenario_sets(id) ON DELETE CASCADE
-);
-CREATE INDEX IF NOT EXISTS idx_batch_reports_api_set_id ON batch_reports_api(set_id);
-
 -- API 端 mock
 CREATE TABLE IF NOT EXISTS mock_endpoints_api (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -652,9 +638,6 @@ CREATE INDEX IF NOT EXISTS idx_schedule_sets_api_status ON schedule_sets_api(sta
 
 -- === schedule_sets_{type} ===
 -- web/pc/mobile 用 case_set_id FK; api 用 scenario_set_id FK (已上面建好)
-
--- === mock_endpoints_{type} ===
--- === batch_reports_{type} ===
 
 -- 下面用 SQL 生成 3 种类型的完整表:
 -- (SQLite 不支持 DO 块，以下手动展开)
@@ -723,45 +706,6 @@ CREATE TABLE IF NOT EXISTS schedule_sets_web (
 CREATE INDEX IF NOT EXISTS idx_schedule_sets_web_case_set_id ON schedule_sets_web(case_set_id);
 CREATE INDEX IF NOT EXISTS idx_schedule_sets_web_status ON schedule_sets_web(status, next_run_at);
 
-CREATE TABLE IF NOT EXISTS mock_endpoints_web (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  user_id INTEGER NOT NULL,
-  name TEXT NOT NULL,
-  method TEXT NOT NULL DEFAULT '*',
-  path_pattern TEXT NOT NULL,
-  description TEXT,
-  tags TEXT,
-  status TEXT,
-  response_status INTEGER DEFAULT 200,
-  response_headers TEXT DEFAULT '{"Content-Type":"application/json"}',
-  response_body TEXT DEFAULT '{}',
-  response_delay_ms INTEGER DEFAULT 0,
-  conditions TEXT DEFAULT '[]',
-  match_mode TEXT NOT NULL DEFAULT 'exact',
-  enabled INTEGER NOT NULL DEFAULT 1,
-  hit_count INTEGER NOT NULL DEFAULT 0,
-  last_hit_at TEXT,
-  created_by TEXT,
-  updated_by TEXT,
-  created_at TEXT NOT NULL DEFAULT (datetime('now', '+8 hours')),
-  updated_at TEXT NOT NULL DEFAULT (datetime('now', '+8 hours')),
-  FOREIGN KEY (user_id) REFERENCES users(id)
-);
-CREATE INDEX IF NOT EXISTS idx_mock_endpoints_web_user_id ON mock_endpoints_web(user_id);
-
-CREATE TABLE IF NOT EXISTS batch_reports_web (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  set_id INTEGER NOT NULL,
-  report TEXT NOT NULL,
-  passed INTEGER DEFAULT 0,
-  failed INTEGER DEFAULT 0,
-  total_duration_ms INTEGER DEFAULT 0,
-  executed_by TEXT,
-  executed_at TEXT NOT NULL DEFAULT (datetime('now', '+8 hours')),
-  FOREIGN KEY (set_id) REFERENCES case_sets_web(id) ON DELETE CASCADE
-);
-CREATE INDEX IF NOT EXISTS idx_batch_reports_web_set_id ON batch_reports_web(set_id);
-
 -- ── PC ──
 
 CREATE TABLE IF NOT EXISTS case_sets_pc (
@@ -826,45 +770,6 @@ CREATE TABLE IF NOT EXISTS schedule_sets_pc (
 CREATE INDEX IF NOT EXISTS idx_schedule_sets_pc_case_set_id ON schedule_sets_pc(case_set_id);
 CREATE INDEX IF NOT EXISTS idx_schedule_sets_pc_status ON schedule_sets_pc(status, next_run_at);
 
-CREATE TABLE IF NOT EXISTS mock_endpoints_pc (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  user_id INTEGER NOT NULL,
-  name TEXT NOT NULL,
-  method TEXT NOT NULL DEFAULT '*',
-  path_pattern TEXT NOT NULL,
-  description TEXT,
-  tags TEXT,
-  status TEXT,
-  response_status INTEGER DEFAULT 200,
-  response_headers TEXT DEFAULT '{"Content-Type":"application/json"}',
-  response_body TEXT DEFAULT '{}',
-  response_delay_ms INTEGER DEFAULT 0,
-  conditions TEXT DEFAULT '[]',
-  match_mode TEXT NOT NULL DEFAULT 'exact',
-  enabled INTEGER NOT NULL DEFAULT 1,
-  hit_count INTEGER NOT NULL DEFAULT 0,
-  last_hit_at TEXT,
-  created_by TEXT,
-  updated_by TEXT,
-  created_at TEXT NOT NULL DEFAULT (datetime('now', '+8 hours')),
-  updated_at TEXT NOT NULL DEFAULT (datetime('now', '+8 hours')),
-  FOREIGN KEY (user_id) REFERENCES users(id)
-);
-CREATE INDEX IF NOT EXISTS idx_mock_endpoints_pc_user_id ON mock_endpoints_pc(user_id);
-
-CREATE TABLE IF NOT EXISTS batch_reports_pc (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  set_id INTEGER NOT NULL,
-  report TEXT NOT NULL,
-  passed INTEGER DEFAULT 0,
-  failed INTEGER DEFAULT 0,
-  total_duration_ms INTEGER DEFAULT 0,
-  executed_by TEXT,
-  executed_at TEXT NOT NULL DEFAULT (datetime('now', '+8 hours')),
-  FOREIGN KEY (set_id) REFERENCES case_sets_pc(id) ON DELETE CASCADE
-);
-CREATE INDEX IF NOT EXISTS idx_batch_reports_pc_set_id ON batch_reports_pc(set_id);
-
 -- ── Mobile ──
 
 CREATE TABLE IF NOT EXISTS case_sets_mobile (
@@ -928,45 +833,6 @@ CREATE TABLE IF NOT EXISTS schedule_sets_mobile (
 );
 CREATE INDEX IF NOT EXISTS idx_schedule_sets_mobile_case_set_id ON schedule_sets_mobile(case_set_id);
 CREATE INDEX IF NOT EXISTS idx_schedule_sets_mobile_status ON schedule_sets_mobile(status, next_run_at);
-
-CREATE TABLE IF NOT EXISTS mock_endpoints_mobile (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  user_id INTEGER NOT NULL,
-  name TEXT NOT NULL,
-  method TEXT NOT NULL DEFAULT '*',
-  path_pattern TEXT NOT NULL,
-  description TEXT,
-  tags TEXT,
-  status TEXT,
-  response_status INTEGER DEFAULT 200,
-  response_headers TEXT DEFAULT '{"Content-Type":"application/json"}',
-  response_body TEXT DEFAULT '{}',
-  response_delay_ms INTEGER DEFAULT 0,
-  conditions TEXT DEFAULT '[]',
-  match_mode TEXT NOT NULL DEFAULT 'exact',
-  enabled INTEGER NOT NULL DEFAULT 1,
-  hit_count INTEGER NOT NULL DEFAULT 0,
-  last_hit_at TEXT,
-  created_by TEXT,
-  updated_by TEXT,
-  created_at TEXT NOT NULL DEFAULT (datetime('now', '+8 hours')),
-  updated_at TEXT NOT NULL DEFAULT (datetime('now', '+8 hours')),
-  FOREIGN KEY (user_id) REFERENCES users(id)
-);
-CREATE INDEX IF NOT EXISTS idx_mock_endpoints_mobile_user_id ON mock_endpoints_mobile(user_id);
-
-CREATE TABLE IF NOT EXISTS batch_reports_mobile (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  set_id INTEGER NOT NULL,
-  report TEXT NOT NULL,
-  passed INTEGER DEFAULT 0,
-  failed INTEGER DEFAULT 0,
-  total_duration_ms INTEGER DEFAULT 0,
-  executed_by TEXT,
-  executed_at TEXT NOT NULL DEFAULT (datetime('now', '+8 hours')),
-  FOREIGN KEY (set_id) REFERENCES case_sets_mobile(id) ON DELETE CASCADE
-);
-CREATE INDEX IF NOT EXISTS idx_batch_reports_mobile_set_id ON batch_reports_mobile(set_id);
 
 -- ============================================================================
 -- 9. 环境管理
@@ -1103,6 +969,5 @@ CREATE TABLE IF NOT EXISTS user_preferences (
 -- case_sets_{web,pc,mobile}, case_set_executions_{web,pc,mobile}
 -- case_set_execution_items_{web,pc,mobile}
 -- schedule_sets_{api,web,pc,mobile}
--- mock_endpoints_{api,web,pc,mobile}
--- batch_reports_{api,web,pc,mobile}
+-- mock_endpoints_api
 -- ============================================================================
