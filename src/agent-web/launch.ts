@@ -77,6 +77,9 @@ async function launchServerInProcess(p: LaunchParams): Promise<import('playwrigh
 
   const opts: Record<string, unknown> = {
     headless: p.headless,
+    // Bind to 0.0.0.0 so the central server can connect from another host.
+    // Playwright defaults to 127.0.0.1 which is unreachable remotely.
+    host: '0.0.0.0',
     // Match the central server's renderer-args — SwiftShader software
     // rendering to avoid blank screenshots in headless Chromium 130+.
     args: [
@@ -109,6 +112,8 @@ export async function getOrLaunch(
   let state = launchKeys.get(key);
   if (!state) {
     const server = await launchServerInProcess(params);
+
+    // Register state immediately so the close handler can find it.
     state = {
       browserServer: server,
       wsEndpoint: server.wsEndpoint(),
@@ -119,6 +124,27 @@ export async function getOrLaunch(
       activeSessions: new Map(),
     };
     launchKeys.set(key, state);
+
+    // Listen for browser process exit — if Chromium dies, remove stale state
+    // so the next request launches a fresh browser instead of returning a dead
+    // wsEndpoint.
+    server.on('close', () => {
+      const s = launchKeys.get(key);
+      if (s && s.browserServer === server) {
+        launchKeys.delete(key);
+        console.error(`[agent:launch] browser process exited unexpectedly key=${key} — stale state removed`);
+      }
+    });
+
+    // Give the browser process a moment to settle. If it crashes on startup
+    // (missing libs, bad flags, etc.) the 'close' handler above will fire and
+    // remove the entry from launchKeys before we return a dead wsEndpoint.
+    await new Promise<void>((resolve) => setTimeout(resolve, 500));
+    if (!launchKeys.has(key)) {
+      // The close handler already fired — browser died immediately.
+      throw new Error(`browser process crashed immediately after launch (key=${key}). Check agent logs for missing libraries or sandbox errors.`);
+    }
+
     console.log(`[agent:launch] new browser server key=${key} wsEndpoint=${state.wsEndpoint}`);
   } else {
     state.launches += 1;

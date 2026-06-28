@@ -662,22 +662,15 @@ async function extractTarGz(gzBuf: Buffer, destDir: string): Promise<void> {
 }
 
 /**
- * 2026-06-06: capture the Midscene report into the per-user report root.
- * In local mode that's `copyMidsceneReport` (file copy on this server).
- * In agent mode the report lives on the remote agent's machine and must
- * be pulled over HTTP and extracted. Both paths return the absolute
- * target path on success (or undefined on failure — caller logs and
- * continues without a report).
+ * Capture the Midscene report into the per-user report root.
+ * The PlaywrightAgent always runs on the central server (even in agent
+ * mode — it connects to the remote browser via WebSocket), so the report
+ * is always generated locally. Use copyMidsceneReport for both modes.
  */
 async function captureMidsceneReport(
   agentReportFile: string | null | undefined,
-  targetPath: string,
-  device: DeviceRow | null,
-  sessionId: string | undefined
+  targetPath: string
 ): Promise<string | undefined> {
-  if (device && sessionId) {
-    return extractAgentReport(device, sessionId, targetPath);
-  }
   return copyMidsceneReport(agentReportFile, targetPath);
 }
 
@@ -909,13 +902,10 @@ export async function executeWebCase(
         await agent.destroy().catch(() => {});
         // Failure path: still copy the partial Midscene report so the user
         // can open the report page and see WHERE the case failed (screenshots
-        // / video up to the failure point). In agent mode, captureMidsceneReport
-        // pulls the report from the remote agent's temp dir via HTTP.
+        // / video up to the failure point).
         const copied = await captureMidsceneReport(
           agent.reportFile,
-          finalReportPath,
-          _sharedBrowser?.device ?? null,
-          _sharedBrowser?.sessionId
+          finalReportPath
         );
         if (copied) reportPath = copied;
         return {
@@ -962,9 +952,7 @@ export async function executeWebCase(
         await agent.destroy().catch(() => {});
         const copied = await captureMidsceneReport(
           agent.reportFile,
-          finalReportPath,
-          _sharedBrowser?.device ?? null,
-          _sharedBrowser?.sessionId
+          finalReportPath
         );
         if (copied) reportPath = copied;
         return {
@@ -987,9 +975,7 @@ export async function executeWebCase(
         await agent.destroy().catch(() => {});
         const copied = await captureMidsceneReport(
           agent.reportFile,
-          finalReportPath,
-          _sharedBrowser?.device ?? null,
-          _sharedBrowser?.sessionId
+          finalReportPath
         );
         if (copied) reportPath = copied;
         return {
@@ -1006,9 +992,7 @@ export async function executeWebCase(
     await agent.destroy().catch(() => {});
     const copied = await captureMidsceneReport(
       agent.reportFile,
-      finalReportPath,
-      _sharedBrowser?.device ?? null,
-      _sharedBrowser?.sessionId
+      finalReportPath
     );
     if (copied) {
       reportPath = copied;
@@ -1043,9 +1027,21 @@ export async function executeWebCase(
       if (browserCfg.keep_context_alive) {
         console.log(`[executor:web] case=${opts.caseId} exec=${opts.execId} keep_context_alive=1, NOT closing context (will reuse for next case)`);
       } else {
-        await contextInstance.close().catch((e) => {
-          console.log(`[executor:web] case=${opts.caseId} exec=${opts.execId} context close error: ${e instanceof Error ? e.message : String(e)}`);
-        });
+        for (let attempt = 1; attempt <= 3; attempt++) {
+          try {
+            await contextInstance.close();
+            console.log(`[executor:web] case=${opts.caseId} exec=${opts.execId} context closed (attempt ${attempt})`);
+            break;
+          } catch (e) {
+            const msg = e instanceof Error ? e.message : String(e);
+            if (attempt < 3) {
+              console.warn(`[executor:web] case=${opts.caseId} exec=${opts.execId} context close attempt ${attempt}/3 failed: ${msg}, retrying in 1s...`);
+              await new Promise((r) => setTimeout(r, 1000));
+            } else {
+              console.error(`[executor:web] case=${opts.caseId} exec=${opts.execId} context close FAILED after 3 attempts — page may leak on remote agent: ${msg}`);
+            }
+          }
+        }
       }
     }
     if (closeBrowserAfter && browserInstance) {

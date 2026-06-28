@@ -49,6 +49,25 @@ async function checkOk(res: Response, op: string): Promise<void> {
   throw new AgentError(`${op} failed: ${res.statusText || res.status} body=${bodyText.slice(0, 300)}`, res.status, bodyText);
 }
 
+/**
+ * Replace the host in a wsEndpoint URL with the host from agentEndpoint.
+ * Playwright's BrowserServer reports wsEndpoint as ws://127.0.0.1:<port>/...
+ * but the central server needs the agent's externally-reachable host.
+ */
+function rewriteWsEndpointHost(wsEndpoint: string, agentEndpoint: string): string {
+  try {
+    const agentUrl = new URL(agentEndpoint);
+    const wsUrl = new URL(wsEndpoint);
+    if (wsUrl.hostname === '127.0.0.1' || wsUrl.hostname === 'localhost' || wsUrl.hostname === '0.0.0.0') {
+      wsUrl.hostname = agentUrl.hostname;
+    }
+    return wsUrl.toString();
+  } catch {
+    // If URL parsing fails, return as-is (shouldn't happen with valid endpoints)
+    return wsEndpoint;
+  }
+}
+
 export { AgentError };
 
 /**
@@ -73,6 +92,10 @@ export async function launchOnAgent(
   if (!json?.data?.wsEndpoint || !json?.data?.sessionId) {
     throw new AgentError('launchOnAgent: malformed response (no wsEndpoint or sessionId)', 502);
   }
+  // Rewrite wsEndpoint host: the agent's BrowserServer binds to 0.0.0.0 but
+  // reports wsEndpoint with 127.0.0.1. Replace with the agent's reachable host
+  // so the central server can connect from a different machine.
+  json.data.wsEndpoint = rewriteWsEndpointHost(json.data.wsEndpoint, agentEndpoint);
   return json.data;
 }
 

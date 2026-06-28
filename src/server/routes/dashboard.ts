@@ -17,7 +17,8 @@ interface RecentExecutionRow {
 }
 
 // ── GET /api/dashboard/recent-executions ──────────────────────────────
-// 跨 4 种测试类型取最近 N 条批量执行记录
+// 跨 4 种测试类型取最近 N 条执行记录。优先取用例集/场景集级别的执行
+// (有 set_name, 适合列表展示), 单用例执行单独统计。
 dashboardRoutes.get('/recent-executions', (req: Request, res: Response) => {
   const userId = req.user!.userId;
   const limit = Math.min(50, Math.max(1, Number(req.query.limit) || 10));
@@ -25,35 +26,44 @@ dashboardRoutes.get('/recent-executions', (req: Request, res: Response) => {
   const rows = db
     .prepare(
       `SELECT * FROM (
-        SELECT br.id, 'api' AS test_type, br.set_id, ss.name AS set_name,
-               br.passed, br.failed, br.total_duration_ms, br.executed_at
-        FROM batch_reports_api br
-        JOIN scenario_sets_api ss ON ss.id = br.set_id
-        WHERE ss.user_id = ?
+        -- API 场景集执行
+        SELECT e.id, 'api' AS test_type, e.set_id, ss.name AS set_name,
+               e.passed_count AS passed, e.failed_count AS failed,
+               e.total_duration_ms, e.finished_at AS executed_at
+        FROM scenario_set_executions e
+        JOIN scenario_sets_api ss ON ss.id = e.set_id
+        WHERE ss.user_id = ? AND e.status NOT IN ('running')
 
         UNION ALL
 
-        SELECT br.id, 'web' AS test_type, br.set_id, ss.name AS set_name,
-               br.passed, br.failed, br.total_duration_ms, br.executed_at
-        FROM batch_reports_web br
-        JOIN case_sets_web ss ON ss.id = br.set_id
-        WHERE ss.user_id = ?
+        -- Web 用例集执行
+        SELECT e.id, 'web' AS test_type, e.set_id, ss.name AS set_name,
+               e.passed_count AS passed, e.failed_count AS failed,
+               e.total_duration_ms, e.finished_at AS executed_at
+        FROM case_set_executions_web e
+        JOIN case_sets_web ss ON ss.id = e.set_id
+        WHERE ss.user_id = ? AND e.status NOT IN ('running')
 
         UNION ALL
 
-        SELECT br.id, 'mobile' AS test_type, br.set_id, ss.name AS set_name,
-               br.passed, br.failed, br.total_duration_ms, br.executed_at
-        FROM batch_reports_mobile br
-        JOIN case_sets_mobile ss ON ss.id = br.set_id
-        WHERE ss.user_id = ?
+        -- Mobile 用例集执行
+        SELECT e.id, 'mobile' AS test_type, e.set_id, ss.name AS set_name,
+               e.passed_count AS passed, e.failed_count AS failed,
+               e.total_duration_ms, e.finished_at AS executed_at
+        FROM case_set_executions_mobile e
+        JOIN case_sets_mobile ss ON ss.id = e.set_id
+        WHERE ss.user_id = ? AND e.status NOT IN ('running')
 
         UNION ALL
 
-        SELECT br.id, 'pc' AS test_type, br.set_id, ss.name AS set_name,
-               br.passed, br.failed, br.total_duration_ms, br.executed_at
-        FROM batch_reports_pc br
-        JOIN case_sets_pc ss ON ss.id = br.set_id
-        WHERE ss.user_id = ?
+        -- PC 用例集执行
+        SELECT e.id, 'pc' AS test_type, e.set_id, ss.name AS set_name,
+               e.passed_count AS passed, e.failed_count AS failed,
+               e.total_duration_ms, e.finished_at AS executed_at
+        FROM case_set_executions_pc e
+        JOIN case_sets_pc ss ON ss.id = e.set_id
+        WHERE ss.user_id = ? AND e.status NOT IN ('running')
+
       )
       ORDER BY executed_at DESC
       LIMIT ?`,
