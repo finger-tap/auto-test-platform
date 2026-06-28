@@ -1,7 +1,7 @@
 // 2026-06-20: 统一设备选择弹窗 — 支持 web / pc / mobile 三种测试类型
 //
 // 数据源: GET /api/devices/merged?test_type={web|pc|mobile}
-//   - mobile: 本地 adb/hdc/iOS + 远端 agent 设备，source 区分来源
+//   - mobile: 先选远程机器，再从机器获取手机列表
 //   - web/pc: 远端 agent 设备（source='remote'），带 busy 状态
 //
 // web/pc 额外显示「本机执行」选项（不选设备，后端在本机跑浏览器/桌面）
@@ -38,6 +38,14 @@ export interface PickerDevice {
   };
 }
 
+interface MobileDeviceFromAgent {
+  serial: string;
+  platform: 'android' | 'harmony' | 'ios';
+  model?: string | null;
+  os_version?: string | null;
+  status?: string;
+}
+
 interface DevicePickerModalProps {
   open: boolean;
   /** 测试类型，决定数据源和是否显示「本机执行」 */
@@ -57,6 +65,12 @@ const SOURCE_LABEL: Record<string, string> = {
   local: '本地',
   remote: '远端',
   both: '本地+远端',
+};
+
+const STATUS_LABEL: Record<string, string> = {
+  online: '在线',
+  offline: '离线',
+  unknown: '未知',
 };
 
 const TEST_TYPE_TITLE: Record<string, string> = {
@@ -98,6 +112,12 @@ export default function DevicePickerModal({
   const [loading, setLoading] = useState(false);
   const [keyword, setKeyword] = useState('');
 
+  // mobile 两步选择：step1=选机器，step2=选手机
+  const [mobileStep, setMobileStep] = useState<'select-agent' | 'select-phone'>('select-agent');
+  const [selectedAgent, setSelectedAgent] = useState<PickerDevice | null>(null);
+  const [mobileDevices, setMobileDevices] = useState<MobileDeviceFromAgent[]>([]);
+  const [loadingMobile, setLoadingMobile] = useState(false);
+
   const fetchDevices = useCallback(async () => {
     setLoading(true);
     try {
@@ -119,12 +139,66 @@ export default function DevicePickerModal({
     }
   }, [testType]);
 
+  const fetchMobileDevices = useCallback(async (agentId: number) => {
+    setLoadingMobile(true);
+    try {
+      const res = await apiFetch<MobileDeviceFromAgent[]>(`/devices/${agentId}/mobile-devices`);
+      if (res.code === 200 && res.data) {
+        setMobileDevices(res.data);
+      } else {
+        notification.error(res.message || '获取手机列表失败');
+        setMobileDevices([]);
+      }
+    } catch (e) {
+      console.error(`[device-picker] fetch mobile devices failed: ${e instanceof Error ? e.message : String(e)}`);
+      notification.error('获取手机列表失败');
+      setMobileDevices([]);
+    } finally {
+      setLoadingMobile(false);
+    }
+  }, []);
+
   useEffect(() => {
     if (open) {
       setKeyword('');
+      setMobileStep('select-agent');
+      setSelectedAgent(null);
+      setMobileDevices([]);
       fetchDevices();
     }
   }, [open, fetchDevices]);
+
+  const handleSelectAgent = (device: PickerDevice) => {
+    setSelectedAgent(device);
+    setMobileStep('select-phone');
+    if (typeof device.id === 'number') {
+      fetchMobileDevices(device.id);
+    }
+  };
+
+  const handleSelectMobileDevice = (mobile: MobileDeviceFromAgent) => {
+    if (!selectedAgent) return;
+    // 返回一个 PickerDevice，包含 agent 信息和手机 serial
+    onSelect({
+      ...selectedAgent,
+      serial: mobile.serial,
+      platform: mobile.platform,
+      rich_info: {
+        manufacturer: null,
+        model: mobile.model || null,
+        os_version: mobile.os_version || null,
+        sdk_int: null,
+        screen_size: null,
+        imsi: null,
+      },
+    });
+  };
+
+  const handleBack = () => {
+    setMobileStep('select-agent');
+    setSelectedAgent(null);
+    setMobileDevices([]);
+  };
 
   if (!open) return null;
 
@@ -137,188 +211,171 @@ export default function DevicePickerModal({
       return false;
     }
     if (!keyword) return true;
-    const k = keyword.toLowerCase();
+    const kw = keyword.toLowerCase();
     return (
-      d.name.toLowerCase().includes(k) ||
-      (d.serial || '').toLowerCase().includes(k) ||
-      (d.host || '').toLowerCase().includes(k) ||
-      (d.platform || '').toLowerCase().includes(k)
+      d.name.toLowerCase().includes(kw) ||
+      (d.serial || '').toLowerCase().includes(kw) ||
+      (d.host || '').toLowerCase().includes(kw)
     );
   });
 
-  // 判断设备是否可选（空闲 + 在线）
-  const isPickable = (d: PickerDevice) => !d.busy && d.status === 'online';
-
-  // 设备详情行：web/pc 显示 platform + host + agent_version；mobile 显示 rich_info
-  const renderMeta = (d: PickerDevice) => {
-    if (testType === 'mobile' && d.rich_info) {
-      const ri = d.rich_info;
-      const parts = [
-        ri.manufacturer || '未知厂商',
-        d.serial,
-        d.host ? `@${d.host}` : '',
-      ].filter(Boolean);
-      return (
-        <>
-          <div className="dpm-meta">{parts.join(' · ')}</div>
-          {ri.os_version && (
-            <div className="dpm-meta">{ri.os_version}{ri.sdk_int != null ? ` (SDK ${ri.sdk_int})` : ''}</div>
-          )}
-          {ri.screen_size && (
-            <div className="dpm-meta">{ri.screen_size.width}×{ri.screen_size.height} @{ri.screen_size.density}dpi</div>
-          )}
-        </>
-      );
-    }
-    // web/pc: 扁平字段
-    const parts = [d.platform, d.host, d.serial].filter(Boolean);
+  // mobile 两步选择
+  if (testType === 'mobile') {
     return (
-      <>
-        <div className="dpm-meta">{parts.join(' · ') || '—'}</div>
-        {d.agent_version && <div className="dpm-meta">agent v{d.agent_version}</div>}
-      </>
-    );
-  };
+      <div className="device-picker-overlay" onClick={onClose}>
+        <div className="device-picker-modal" onClick={e => e.stopPropagation()}>
+          <div className="device-picker-header">
+            <h3>{mobileStep === 'select-agent' ? '选择远程机器' : '选择手机设备'}</h3>
+            {mobileStep === 'select-phone' && selectedAgent && (
+              <button className="device-picker-back" onClick={handleBack}>← 返回</button>
+            )}
+            <button className="device-picker-close" onClick={onClose}>✕</button>
+          </div>
 
-  // web/pc 不需要「来源」列（全是 remote）；mobile 需要
-  const showSourceColumn = testType === 'mobile';
-
-  return (
-    <div className="dpm-mask" onClick={onClose}>
-      <div className="dpm-modal" onClick={(e) => e.stopPropagation()}>
-        <div className="dpm-header">
-          <div className="dpm-title">{title}</div>
-          <button className="dpm-close" onClick={onClose} aria-label="关闭">×</button>
-        </div>
-
-        <div className="dpm-toolbar">
-          <input
-            className="dpm-search"
-            placeholder="搜索设备名 / host / serial / 平台"
-            value={keyword}
-            onChange={(e) => setKeyword(e.target.value)}
-          />
-          <button className="dpm-refresh" onClick={fetchDevices} disabled={loading}>
-            {loading ? '刷新中...' : '刷新'}
-          </button>
-        </div>
-
-        <div className="dpm-body">
-          {loading && items.length === 0 ? (
-            <div className="dpm-empty">加载中...</div>
-          ) : (
-            <table className="dpm-table">
-              <thead>
-                <tr>
-                  <th>设备</th>
-                  {testType === 'mobile' && <th>系统</th>}
-                  {testType === 'mobile' && <th>屏幕</th>}
-                  {showSourceColumn && <th>来源</th>}
-                  <th>状态</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
-                {/* web/pc: 本机执行选项 */}
-                {showLocalOption && onLocalExecute && (
-                  <tr className="dpm-row dpm-row-local" onClick={onLocalExecute}>
-                    <td>
-                      <div className="dpm-name">💻 本机执行</div>
-                      <div className="dpm-meta">在当前服务器本地运行{testType === 'web' ? '浏览器' : '桌面自动化'}</div>
-                    </td>
-                    {showSourceColumn && <td></td>}
-                    <td>
-                      <span className="dpm-status dpm-status-idle">● 可用</span>
-                    </td>
-                    <td>
-                      <button
-                        className="dpm-pick"
-                        onClick={(e) => { e.stopPropagation(); onLocalExecute(); }}
-                      >
-                        执行
-                      </button>
-                    </td>
-                  </tr>
-                )}
-
-                {/* 远程设备列表 */}
-                {filtered.length === 0 && !showLocalOption ? (
-                  <tr>
-                    <td colSpan={showSourceColumn ? 6 : 4} className="dpm-empty">
-                      {items.length === 0
-                        ? '未发现设备，请确认远端 agent 已启动并上报心跳'
-                        : '没有匹配当前筛选条件的设备'}
-                    </td>
-                  </tr>
-                ) : filtered.length === 0 && showLocalOption ? (
-                  <tr>
-                    <td colSpan={showSourceColumn ? 5 : 3} className="dpm-empty-cell">
-                      没有匹配的远程设备（仍可选择本机执行）
-                    </td>
-                  </tr>
+          {mobileStep === 'select-agent' ? (
+            <>
+              <div className="device-picker-search">
+                <input
+                  type="text"
+                  placeholder="搜索设备名称 / 地址"
+                  value={keyword}
+                  onChange={e => setKeyword(e.target.value)}
+                  autoFocus
+                />
+              </div>
+              <div className="device-picker-body">
+                {loading ? (
+                  <div className="device-picker-empty">加载中...</div>
+                ) : filtered.length === 0 ? (
+                  <div className="device-picker-empty">无可用的远程机器</div>
                 ) : (
-                  filtered.map((d) => {
-                    const pickable = isPickable(d);
-                    return (
-                      <tr
+                  <div className="device-picker-list">
+                    {filtered.map(d => (
+                      <div
                         key={d.id}
-                        className={`dpm-row${pickable ? '' : ' dpm-row-disabled'}`}
-                        onClick={() => pickable && onSelect(d)}
+                        className={`device-picker-item ${d.status === 'offline' ? 'device-picker-item--disabled' : ''}`}
+                        onClick={() => d.status !== 'offline' && handleSelectAgent(d)}
                       >
-                        <td>
-                          <div className="dpm-name">{d.name}</div>
-                          {renderMeta(d)}
-                        </td>
-                        {testType === 'mobile' && (
-                          <td>
-                            <div>{d.rich_info?.os_version || '—'}</div>
-                            {d.rich_info?.sdk_int != null && (
-                              <div className="dpm-meta">SDK {d.rich_info.sdk_int}</div>
-                            )}
-                          </td>
-                        )}
-                        {testType === 'mobile' && (
-                          <td>
-                            {d.rich_info?.screen_size
-                              ? `${d.rich_info.screen_size.width}×${d.rich_info.screen_size.height} @${d.rich_info.screen_size.density || '?'}dpi`
-                              : '—'}
-                          </td>
-                        )}
-                        {showSourceColumn && (
-                          <td>
-                            <span className={`dpm-source dpm-source-${d.source}`}>
-                              {SOURCE_LABEL[d.source] || d.source}
-                            </span>
-                          </td>
-                        )}
-                        <td>
-                          <StatusBadge device={d} />
-                        </td>
-                        <td>
-                          <button
-                            className="dpm-pick"
-                            disabled={!pickable}
-                            onClick={(e) => { e.stopPropagation(); if (pickable) onSelect(d); }}
-                          >
-                            选用
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })
+                        <div className="device-picker-item-info">
+                          <div className="device-picker-item-name">{d.name}</div>
+                          <div className="device-picker-item-meta">
+                            {d.os_type && <span>{d.os_type}</span>}
+                            {d.host && <span> · {d.host}</span>}
+                            {d.agent_version && <span> · v{d.agent_version}</span>}
+                          </div>
+                        </div>
+                        <StatusBadge device={d} />
+                      </div>
+                    ))}
+                  </div>
                 )}
-              </tbody>
-            </table>
+              </div>
+            </>
+          ) : (
+            <div className="device-picker-body">
+              {loadingMobile ? (
+                <div className="device-picker-empty">正在获取手机列表...</div>
+              ) : mobileDevices.length === 0 ? (
+                <div className="device-picker-empty">
+                  未发现已连接的手机设备
+                  <div style={{ fontSize: 12, color: 'var(--fg-tertiary)', marginTop: 8 }}>
+                    请确保远程机器已通过 USB 或 adb connect 连接手机
+                  </div>
+                </div>
+              ) : (
+                <div className="device-picker-list">
+                  {mobileDevices.map(dev => (
+                    <div
+                      key={dev.serial}
+                      className="device-picker-item"
+                      onClick={() => handleSelectMobileDevice(dev)}
+                    >
+                      <div className="device-picker-item-icon">
+                        {dev.platform === 'android' ? '🤖' : dev.platform === 'harmony' ? '🔷' : '📱'}
+                      </div>
+                      <div className="device-picker-item-info">
+                        <div className="device-picker-item-name">
+                          {dev.model || dev.serial}
+                        </div>
+                        <div className="device-picker-item-meta">
+                          <span>{dev.platform === 'android' ? 'Android' : dev.platform === 'harmony' ? 'HarmonyOS' : 'iOS'}</span>
+                          {dev.os_version && <span> · {dev.os_version}</span>}
+                          <span> · {dev.serial}</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="device-picker-footer">
+            <button className="scenario-btn" onClick={onClose}>取消</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // web/pc 选择
+  return (
+    <div className="device-picker-overlay" onClick={onClose}>
+      <div className="device-picker-modal" onClick={e => e.stopPropagation()}>
+        <div className="device-picker-header">
+          <h3>{title}</h3>
+          <button className="device-picker-close" onClick={onClose}>✕</button>
+        </div>
+
+        <div className="device-picker-search">
+          <input
+            type="text"
+            placeholder="搜索设备名称 / 序列号 / 地址"
+            value={keyword}
+            onChange={e => setKeyword(e.target.value)}
+            autoFocus
+          />
+        </div>
+
+        <div className="device-picker-body">
+          {loading ? (
+            <div className="device-picker-empty">加载中...</div>
+          ) : filtered.length === 0 && !showLocalOption ? (
+            <div className="device-picker-empty">无可用设备</div>
+          ) : (
+            <div className="device-picker-list">
+              {showLocalOption && (
+                <div className="device-picker-item device-picker-item--local" onClick={onLocalExecute}>
+                  <div className="device-picker-item-info">
+                    <div className="device-picker-item-name">💻 本机执行</div>
+                    <div className="device-picker-item-meta">在服务器本机运行浏览器</div>
+                  </div>
+                </div>
+              )}
+              {filtered.map(d => (
+                <div
+                  key={d.id}
+                  className={`device-picker-item ${d.busy || d.status === 'offline' ? 'device-picker-item--disabled' : ''}`}
+                  onClick={() => !d.busy && d.status !== 'offline' && onSelect(d)}
+                >
+                  <div className="device-picker-item-info">
+                    <div className="device-picker-item-name">{d.name}</div>
+                    <div className="device-picker-item-meta">
+                      {d.source && <span>{SOURCE_LABEL[d.source]}</span>}
+                      {d.os_type && <span> · {d.os_type}</span>}
+                      {d.host && <span> · {d.host}</span>}
+                      {d.agent_version && <span> · v{d.agent_version}</span>}
+                    </div>
+                  </div>
+                  <StatusBadge device={d} />
+                </div>
+              ))}
+            </div>
           )}
         </div>
 
-        <div className="dpm-footer">
-          <span className="dpm-hint">
-            {testType === 'mobile'
-              ? 'IMSI 永远显示 "需 ROOT 权限"（server 端 adb/hdc 无权读取）'
-              : '仅显示已注册且 agent 在线的远程设备'}
-          </span>
-          <button className="dpm-cancel" onClick={onClose}>取消</button>
+        <div className="device-picker-footer">
+          <button className="scenario-btn" onClick={onClose}>取消</button>
         </div>
       </div>
     </div>

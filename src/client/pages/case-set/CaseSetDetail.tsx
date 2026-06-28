@@ -8,7 +8,6 @@ import { InlineText, InlineSelect } from '../../components/InlineEdit';
 import FormSelect from '../../components/FormSelect';
 import TagInput from '../../components/TagInput';
 import DevicePickerModal, { type PickerDevice } from '../../components/DevicePickerModal';
-import MobileDevicePicker from '../../components/MobileDevicePicker';
 import type { Scenario, WebTestCase, PcTestCase, MobileTestCase, CaseSetExecution, CaseSetExecutionItem } from '../../types';
 import './CaseSetDetail.css';
 
@@ -89,12 +88,10 @@ export default function CaseSetDetail({ basePath = '/api-test', testType = 'api'
   const [selectedForRemoval, setSelectedForRemoval] = useState<Set<number>>(new Set());
   const [modalWidth, setModalWidth] = useState('80%');
   const [expandedSetExec, setExpandedSetExec] = useState<number | null>(null);
-  // 远程设备选择（web/pc 测试类型）
+  // 远程设备选择（web/pc/mobile 测试类型）
+  // mobile 类型：PickerDevice 包含 agent 信息 + 手机 serial
   const [selectedDevice, setSelectedDevice] = useState<PickerDevice | null>(null);
   const [showDevicePicker, setShowDevicePicker] = useState(false);
-  // mobile 测试：手机设备选择
-  const [selectedMobileDevice, setSelectedMobileDevice] = useState<{ serial: string; platform: string; model?: string | null } | null>(null);
-  const [showMobileDevicePicker, setShowMobileDevicePicker] = useState(false);
   const { activeEnv } = useEnvironment();
   const originalRef = useRef({ name: '', description: '', tags: '', status: 'draft', selectedIds: [] as number[] });
   const [isDirty, setIsDirty] = useState(false);
@@ -444,30 +441,18 @@ export default function CaseSetDetail({ basePath = '/api-test', testType = 'api'
         </div>
         <div className="api-detail-actions">
           <button className={`scenario-btn${isDirty ? ' dirty' : ''}`} onClick={doSave} disabled={saving}>{saving ? '保存中...' : '保存'}</button>
-          {/* 远程设备选择（web/pc 类型） */}
-          {(testType === 'web' || testType === 'pc') && !isNew && (
+          {/* 远程设备选择（web/pc/mobile 类型） */}
+          {!isNew && (
             <button
               className="scenario-btn scenario-btn--outline"
               onClick={() => setShowDevicePicker(true)}
-              title={selectedDevice ? `当前设备: ${selectedDevice.name}` : '选择远程执行设备'}
+              title={selectedDevice ? `当前设备: ${selectedDevice.name}${selectedDevice.serial ? ` (${selectedDevice.serial})` : ''}` : '选择远程执行设备'}
             >
-              {selectedDevice ? `🖥 ${selectedDevice.name}` : '选择设备'}
-            </button>
-          )}
-          {/* mobile 类型：选择手机设备 */}
-          {testType === 'mobile' && !isNew && (
-            <button
-              className="scenario-btn scenario-btn--outline"
-              onClick={() => {
-                if (!selectedDevice) {
-                  notification.warning('请先选择远程设备');
-                  return;
-                }
-                setShowMobileDevicePicker(true);
-              }}
-              title={selectedMobileDevice ? `当前手机: ${selectedMobileDevice.model || selectedMobileDevice.serial}` : '选择手机设备'}
-            >
-              {selectedMobileDevice ? `📱 ${selectedMobileDevice.model || selectedMobileDevice.serial}` : '选择手机'}
+              {selectedDevice
+                ? (testType === 'mobile' && selectedDevice.serial
+                    ? `📱 ${selectedDevice.rich_info?.model || selectedDevice.serial}`
+                    : `🖥 ${selectedDevice.name}`)
+                : (testType === 'mobile' ? '选择手机' : '选择设备')}
             </button>
           )}
           {!isNew && (() => {
@@ -545,30 +530,14 @@ export default function CaseSetDetail({ basePath = '/api-test', testType = 'api'
         </div>
       )}
 
-      {/* Device Picker Modal (web/pc only) */}
-      {(testType === 'web' || testType === 'pc') && (
-        <DevicePickerModal
-          open={showDevicePicker}
-          testType={testType as 'web' | 'pc'}
-          onClose={() => setShowDevicePicker(false)}
-          onSelect={(device) => { setSelectedDevice(device); setShowDevicePicker(false); }}
-          onLocalExecute={() => { setSelectedDevice(null); setShowDevicePicker(false); }}
-        />
-      )}
-
-      {/* Mobile Device Picker Modal (mobile only) */}
-      {testType === 'mobile' && selectedDevice && typeof selectedDevice.id === 'number' && (
-        <MobileDevicePicker
-          open={showMobileDevicePicker}
-          deviceId={selectedDevice.id}
-          deviceName={selectedDevice.name}
-          onClose={() => setShowMobileDevicePicker(false)}
-          onSelect={(device) => {
-            setSelectedMobileDevice(device);
-            setShowMobileDevicePicker(false);
-          }}
-        />
-      )}
+      {/* Device Picker Modal (web/pc/mobile) */}
+      <DevicePickerModal
+        open={showDevicePicker}
+        testType={testType as 'web' | 'pc' | 'mobile'}
+        onClose={() => setShowDevicePicker(false)}
+        onSelect={(device) => { setSelectedDevice(device); setShowDevicePicker(false); }}
+        onLocalExecute={testType !== 'mobile' ? () => { setSelectedDevice(null); setShowDevicePicker(false); } : undefined}
+      />
     </div>
   );
 }
