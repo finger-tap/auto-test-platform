@@ -18,7 +18,7 @@ import { pushAgent, stopAgent, pushMobileAgent, stopMobileAgent, pushPcAgent, st
 import type { PushProgressEvent } from '../agent-push/push.js';
 import { connectSsh } from '../agent-push/ssh-client.js';
 import { listMergedMobileDevices, invalidateMergedCache } from '../devices/merge.js';
-import { healthCheckAgent } from '../engine/agent-client.js';
+import { healthCheckAgent, fetchMobileDevicesFromAgent } from '../engine/agent-client.js';
 
 export const deviceRoutes = Router();
 deviceRoutes.use(authMiddleware);
@@ -930,3 +930,34 @@ deviceRoutes.get('/:id/health', async (req: Request, res: Response) => {
 
 // ── Merged device list (2026-06-08) ──
 //
+
+// GET /api/devices/:id/mobile-devices — fetch mobile devices from the agent
+// Returns the list of Android/HarmonyOS/iOS devices connected to the agent machine.
+deviceRoutes.get('/:id/mobile-devices', async (req: Request, res: Response) => {
+  const id = Number(req.params.id);
+  if (!id) {
+    res.status(400).json({ code: 400, message: 'Invalid id' });
+    return;
+  }
+  const device = getDevice(id);
+  if (!device) {
+    res.status(404).json({ code: 404, message: 'Device not found' });
+    return;
+  }
+  if (device.user_id !== req.user!.userId) {
+    res.status(403).json({ code: 403, message: 'Forbidden' });
+    return;
+  }
+  if (!device.agent_endpoint || !device.agent_token) {
+    res.status(400).json({ code: 400, message: 'Agent not configured' });
+    return;
+  }
+  try {
+    const devices = await fetchMobileDevicesFromAgent(device.agent_endpoint, device.agent_token);
+    res.json({ code: 200, message: 'ok', data: devices });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : 'Failed to fetch devices';
+    console.error(`[routes:devices] fetch mobile-devices failed device=${id}: ${msg}`);
+    res.status(500).json({ code: 500, message: msg });
+  }
+});

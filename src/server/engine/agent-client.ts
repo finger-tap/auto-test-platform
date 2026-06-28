@@ -152,6 +152,33 @@ export async function healthCheckAgent(agentEndpoint: string): Promise<AgentHeal
 }
 
 /**
+ * POST /devices — fetch mobile devices from the agent.
+ * Returns the list of Android/HarmonyOS/iOS devices connected to the agent machine.
+ */
+export interface MobileDeviceFromAgent {
+  serial: string;
+  platform: 'android' | 'harmony' | 'ios';
+  model?: string | null;
+  os_version?: string | null;
+  status?: string;
+}
+
+export async function fetchMobileDevicesFromAgent(
+  agentEndpoint: string,
+  agentToken: string
+): Promise<MobileDeviceFromAgent[]> {
+  const url = `${agentEndpoint.replace(/\/$/, '')}/devices`;
+  console.log(`[agent-client] fetchMobileDevicesFromAgent url=${url}`);
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: authHeader(agentToken),
+  });
+  await checkOk(res, 'fetchMobileDevicesFromAgent');
+  const json = await res.json() as { data?: { items?: MobileDeviceFromAgent[] } };
+  return json?.data?.items ?? [];
+}
+
+/**
  * Map web-executor's ResolvedBrowserConfig → AgentLaunchParams. Only the
  * fields the agent cares about are sent; user_data_dir, downloads_path,
  * etc. are set per-context on the central server side, not at launch.

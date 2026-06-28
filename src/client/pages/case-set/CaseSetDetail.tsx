@@ -8,6 +8,7 @@ import { InlineText, InlineSelect } from '../../components/InlineEdit';
 import FormSelect from '../../components/FormSelect';
 import TagInput from '../../components/TagInput';
 import DevicePickerModal, { type PickerDevice } from '../../components/DevicePickerModal';
+import MobileDevicePicker from '../../components/MobileDevicePicker';
 import type { Scenario, WebTestCase, PcTestCase, MobileTestCase, CaseSetExecution, CaseSetExecutionItem } from '../../types';
 import './CaseSetDetail.css';
 
@@ -91,6 +92,9 @@ export default function CaseSetDetail({ basePath = '/api-test', testType = 'api'
   // 远程设备选择（web/pc 测试类型）
   const [selectedDevice, setSelectedDevice] = useState<PickerDevice | null>(null);
   const [showDevicePicker, setShowDevicePicker] = useState(false);
+  // mobile 测试：手机设备选择
+  const [selectedMobileDevice, setSelectedMobileDevice] = useState<{ serial: string; platform: string; model?: string | null } | null>(null);
+  const [showMobileDevicePicker, setShowMobileDevicePicker] = useState(false);
   const { activeEnv } = useEnvironment();
   const originalRef = useRef({ name: '', description: '', tags: '', status: 'draft', selectedIds: [] as number[] });
   const [isDirty, setIsDirty] = useState(false);
@@ -440,7 +444,7 @@ export default function CaseSetDetail({ basePath = '/api-test', testType = 'api'
         </div>
         <div className="api-detail-actions">
           <button className={`scenario-btn${isDirty ? ' dirty' : ''}`} onClick={doSave} disabled={saving}>{saving ? '保存中...' : '保存'}</button>
-          {/* 远程设备选择（仅 web/pc 类型） */}
+          {/* 远程设备选择（web/pc 类型） */}
           {(testType === 'web' || testType === 'pc') && !isNew && (
             <button
               className="scenario-btn scenario-btn--outline"
@@ -448,6 +452,22 @@ export default function CaseSetDetail({ basePath = '/api-test', testType = 'api'
               title={selectedDevice ? `当前设备: ${selectedDevice.name}` : '选择远程执行设备'}
             >
               {selectedDevice ? `🖥 ${selectedDevice.name}` : '选择设备'}
+            </button>
+          )}
+          {/* mobile 类型：选择手机设备 */}
+          {testType === 'mobile' && !isNew && (
+            <button
+              className="scenario-btn scenario-btn--outline"
+              onClick={() => {
+                if (!selectedDevice) {
+                  notification.warning('请先选择远程设备');
+                  return;
+                }
+                setShowMobileDevicePicker(true);
+              }}
+              title={selectedMobileDevice ? `当前手机: ${selectedMobileDevice.model || selectedMobileDevice.serial}` : '选择手机设备'}
+            >
+              {selectedMobileDevice ? `📱 ${selectedMobileDevice.model || selectedMobileDevice.serial}` : '选择手机'}
             </button>
           )}
           {!isNew && (() => {
@@ -533,6 +553,20 @@ export default function CaseSetDetail({ basePath = '/api-test', testType = 'api'
           onClose={() => setShowDevicePicker(false)}
           onSelect={(device) => { setSelectedDevice(device); setShowDevicePicker(false); }}
           onLocalExecute={() => { setSelectedDevice(null); setShowDevicePicker(false); }}
+        />
+      )}
+
+      {/* Mobile Device Picker Modal (mobile only) */}
+      {testType === 'mobile' && selectedDevice && typeof selectedDevice.id === 'number' && (
+        <MobileDevicePicker
+          open={showMobileDevicePicker}
+          deviceId={selectedDevice.id}
+          deviceName={selectedDevice.name}
+          onClose={() => setShowMobileDevicePicker(false)}
+          onSelect={(device) => {
+            setSelectedMobileDevice(device);
+            setShowMobileDevicePicker(false);
+          }}
         />
       )}
     </div>
