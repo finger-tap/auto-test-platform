@@ -82,6 +82,7 @@ async function tick(deps: HeartbeatDeps): Promise<void> {
   const res = await postJson(url, deps.agentToken, {
     agentEndpoint: endpoint,
     version: PKG_VERSION,
+    agentKind: 'mobile',
   });
 
   if (res.ok) {
