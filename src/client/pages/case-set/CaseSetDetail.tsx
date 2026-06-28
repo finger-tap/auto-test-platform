@@ -90,7 +90,8 @@ export default function CaseSetDetail({ basePath = '/api-test', testType = 'api'
   const [expandedSetExec, setExpandedSetExec] = useState<number | null>(null);
   // 远程设备选择（web/pc/mobile 测试类型）
   // mobile 类型：PickerDevice 包含 agent 信息 + 手机 serial
-  const [selectedDevice, setSelectedDevice] = useState<PickerDevice | null>(null);
+  // null = 未选择，undefined = 本机执行
+  const [selectedDevice, setSelectedDevice] = useState<PickerDevice | null | undefined>(null);
   const [showDevicePicker, setShowDevicePicker] = useState(false);
   const { activeEnv } = useEnvironment();
   const originalRef = useRef({ name: '', description: '', tags: '', status: 'draft', selectedIds: [] as number[] });
@@ -446,13 +447,15 @@ export default function CaseSetDetail({ basePath = '/api-test', testType = 'api'
             <button
               className="scenario-btn scenario-btn--outline"
               onClick={() => setShowDevicePicker(true)}
-              title={selectedDevice ? `当前设备: ${selectedDevice.name}${selectedDevice.serial ? ` (${selectedDevice.serial})` : ''}` : '选择远程执行设备'}
+              title={selectedDevice === undefined ? '本机执行' : selectedDevice ? `当前设备: ${selectedDevice.name}${selectedDevice.serial ? ` (${selectedDevice.serial})` : ''}` : '选择远程执行设备'}
             >
-              {selectedDevice
-                ? (testType === 'mobile' && selectedDevice.serial
-                    ? `📱 ${selectedDevice.rich_info?.model || selectedDevice.serial}`
-                    : `🖥 ${selectedDevice.name}`)
-                : (testType === 'mobile' ? '选择手机' : '选择设备')}
+              {selectedDevice === undefined
+                ? '💻 本机'
+                : selectedDevice
+                  ? (testType === 'mobile' && selectedDevice.serial
+                      ? `📱 ${selectedDevice.rich_info?.model || selectedDevice.serial}`
+                      : `🖥 ${selectedDevice.name}`)
+                  : (testType === 'mobile' ? '选择手机' : '选择设备')}
             </button>
           )}
           {!isNew && (() => {
@@ -536,7 +539,7 @@ export default function CaseSetDetail({ basePath = '/api-test', testType = 'api'
         testType={testType as 'web' | 'pc' | 'mobile'}
         onClose={() => setShowDevicePicker(false)}
         onSelect={(device) => { setSelectedDevice(device); setShowDevicePicker(false); }}
-        onLocalExecute={testType !== 'mobile' ? () => { setSelectedDevice(null); setShowDevicePicker(false); } : undefined}
+        onLocalExecute={testType !== 'mobile' ? () => { setSelectedDevice(undefined); setShowDevicePicker(false); } : undefined}
       />
     </div>
   );
