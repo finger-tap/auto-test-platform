@@ -31,7 +31,7 @@ dashboardRoutes.get('/recent-executions', (req: Request, res: Response) => {
                e.passed_count AS passed, e.failed_count AS failed,
                e.total_duration_ms, e.finished_at AS executed_at
         FROM scenario_set_executions e
-        JOIN scenario_sets_api ss ON ss.id = e.set_id
+        JOIN scenario_sets ss ON ss.id = e.set_id
         WHERE ss.user_id = ? AND e.status NOT IN ('running')
 
         UNION ALL
@@ -179,9 +179,9 @@ dashboardRoutes.get('/stats', (req: Request, res: Response) => {
   };
 
   const apiCases = queryCount('apis');
-  const apiSets = queryCount('scenario_sets_api');
+  const apiSets = queryCount('scenario_sets');
   const apiPass = queryLatestPassStats(
-    'scenario_set_execution_items', 'scenario_set_executions', 'scenario_sets_api', 'scenario_id',
+    'scenario_set_execution_items', 'scenario_set_executions', 'scenario_sets', 'scenario_id',
   );
   const apiSinglePass = querySingleApiExecStats();
 
@@ -274,10 +274,10 @@ dashboardRoutes.get('/trend', (req: Request, res: Response) => {
   ].join(' UNION ALL ');
 
   // ── 2. 案例集执行 ──
-  // scenario_set_executions 没有 user_id, 通过 JOIN scenario_sets_api 过滤
+  // scenario_set_executions 没有 user_id, 通过 JOIN scenario_sets 过滤
   // case_set_executions_* 也通过 JOIN 对应 sets 表过滤
   const setExecSql = [
-    // API 场景集: scenario_set_executions → scenario_sets_api (可能无数据, JOIN 安全)
+    // API 场景集: scenario_set_executions → scenario_sets (可能无数据, JOIN 安全)
     `SELECT CASE WHEN e.status='success' THEN 1
                   WHEN e.status='failed' THEN 0
                   WHEN COALESCE(e.passed_count,0) > COALESCE(e.failed_count,0) THEN 1
@@ -288,7 +288,7 @@ dashboardRoutes.get('/trend', (req: Request, res: Response) => {
                   ELSE 0 END AS is_failure,
             e.started_at AS ts
      FROM scenario_set_executions e
-     JOIN scenario_sets_api s ON s.id = e.set_id
+     JOIN scenario_sets s ON s.id = e.set_id
      WHERE s.user_id = ? AND e.status NOT IN ('running')`,
     // Web 用例集
     `SELECT CASE WHEN e.status='success' THEN 1
@@ -336,7 +336,7 @@ dashboardRoutes.get('/trend', (req: Request, res: Response) => {
     `SELECT CASE WHEN failed=0 AND passed>0 THEN 1 ELSE 0 END AS is_success,
             CASE WHEN failed>0 THEN 1 ELSE 0 END AS is_failure,
             executed_at AS ts
-     FROM batch_reports_api br JOIN scenario_sets_api ss ON ss.id = br.set_id WHERE ss.user_id = ?`,
+     FROM batch_reports_api br JOIN scenario_sets ss ON ss.id = br.set_id WHERE ss.user_id = ?`,
     `SELECT CASE WHEN failed=0 AND passed>0 THEN 1 ELSE 0 END AS is_success,
             CASE WHEN failed>0 THEN 1 ELSE 0 END AS is_failure,
             executed_at AS ts
