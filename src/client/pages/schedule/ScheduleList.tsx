@@ -4,6 +4,7 @@ import { apiFetch } from '../../utils/api';
 import { formatDateTime } from '../../utils/datetime';
 import notification from '../../utils/notification';
 import FormSelect from '../../components/FormSelect';
+import DevicePickerModal, { type PickerDevice } from '../../components/DevicePickerModal';
 import './ScheduleList.css';
 
 // 2026-06-06 (#78): backend split into 4 per-type endpoints
@@ -28,6 +29,8 @@ interface ScheduleSetItem {
   next_run_at: string | null;
   last_run_at: string | null;
   last_run_status: string | null;
+  device_id?: number | null;
+  device_name?: string | null;
   created_at: string;
   updated_at: string;
   // Stamped by fetchList — makes the rest of the file type-safe without casts.
@@ -99,6 +102,11 @@ function InlineScheduleConfig({ item, onClose, onUpdated }: {
   const [modalMsg, setModalMsg] = useState('');
   const [modalType, setModalType] = useState<'success' | 'error'>('success');
   const [modalOpen, setModalOpen] = useState(false);
+  // 远程设备选择（web/pc 类型）
+  const [selectedDevice, setSelectedDevice] = useState<PickerDevice | null>(
+    item.device_id ? { id: item.device_id, name: item.device_name || `设备#${item.device_id}`, platform: '', status: 'online', busy: false, source: 'remote' } : null
+  );
+  const [showDevicePicker, setShowDevicePicker] = useState(false);
   // 2026-06-06 (#79): see field→cron effect below.
   const skipFieldToCronSync = useRef(false);
 
@@ -177,7 +185,11 @@ function InlineScheduleConfig({ item, onClose, onUpdated }: {
     const ep = endpointFor(item.testType as ScheduleTestType);
     setSaving(true);
     try {
-      const body = { cron_expr: cronExpr, status: enableImmediately ? 'active' : status };
+      const body: Record<string, unknown> = { cron_expr: cronExpr, status: enableImmediately ? 'active' : status };
+      // 传递设备 ID（web/pc 类型）
+      if (item.testType === 'web' || item.testType === 'pc') {
+        body.device_id = selectedDevice && typeof selectedDevice.id === 'number' ? selectedDevice.id : null;
+      }
       let res;
       if (item.id > 0) {
         res = await apiFetch(`${ep}/${item.id}/configure`, { method: 'PUT', body: JSON.stringify(body) });
@@ -268,6 +280,35 @@ function InlineScheduleConfig({ item, onClose, onUpdated }: {
             />
           </div>
 
+          {/* 远程设备选择（仅 web/pc 类型） */}
+          {(item.testType === 'web' || item.testType === 'pc') && (
+            <div style={{ background: 'var(--surface-raised)', borderRadius: 8, padding: 16, marginBottom: 24 }}>
+              <div style={{ fontSize: 13, color: 'var(--fg-secondary)', marginBottom: 10, fontWeight: 500 }}>执行设备</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <button
+                  className="scenario-btn scenario-btn--outline"
+                  onClick={() => setShowDevicePicker(true)}
+                  style={{ fontSize: 13 }}
+                >
+                  {selectedDevice ? `更换设备` : '选择设备'}
+                </button>
+                {selectedDevice ? (
+                  <span style={{ fontSize: 13, color: 'var(--fg)' }}>
+                    🖥 {selectedDevice.name}
+                    <button
+                      onClick={() => setSelectedDevice(null)}
+                      style={{ background: 'none', border: 'none', color: 'var(--fg-tertiary)', cursor: 'pointer', marginLeft: 8, fontSize: 12 }}
+                    >
+                      ✕ 清除
+                    </button>
+                  </span>
+                ) : (
+                  <span style={{ fontSize: 12, color: 'var(--fg-tertiary)' }}>不指定则使用本机执行</span>
+                )}
+              </div>
+            </div>
+          )}
+
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
             <button className="scenario-btn" onClick={onClose}>取消</button>
             <button className="scenario-btn" onClick={() => doSave(true)} disabled={saving}>
@@ -288,6 +329,17 @@ function InlineScheduleConfig({ item, onClose, onUpdated }: {
         }}>
           {modalMsg}
         </div>
+      )}
+
+      {/* Device Picker Modal (web/pc only) */}
+      {(item.testType === 'web' || item.testType === 'pc') && (
+        <DevicePickerModal
+          open={showDevicePicker}
+          testType={item.testType as 'web' | 'pc'}
+          onClose={() => setShowDevicePicker(false)}
+          onSelect={(device) => { setSelectedDevice(device); setShowDevicePicker(false); }}
+          onLocalExecute={() => { setSelectedDevice(null); setShowDevicePicker(false); }}
+        />
       )}
     </>
   );

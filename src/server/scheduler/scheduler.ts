@@ -41,6 +41,7 @@ interface ScheduleSetLike {
   // 两个字段都可能是 undefined,运行时按 testType 选一个用。
   scenario_set_id?: number;
   case_set_id?: number;
+  device_id?: number | null;
   [k: string]: unknown;
 }
 
@@ -253,7 +254,8 @@ export async function runSchedule(scheduleId: number, testType: SchedulerTestTyp
       await runBatch(setId, executedBy);
     } else {
       const { runCaseSet } = await import('../engine/case-set-executor.js');
-      await runCaseSet(setId, testType, executedBy);
+      const deviceId = schedule.device_id ?? undefined;
+      await runCaseSet(setId, testType, executedBy, undefined, undefined, deviceId);
     }
 
     const nextRunAt = schedule.cron_expr ? pickCompute(testType)(schedule.cron_expr) : null;

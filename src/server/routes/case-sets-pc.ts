@@ -119,9 +119,10 @@ caseSetRoutes.post('/:id/execute', async (req: Request, res: Response) => {
   }
 
   const environmentId = typeof req.body?.environmentId === 'number' ? req.body.environmentId : undefined;
+  const deviceId = Number(req.body?.deviceId) || undefined;
 
   try {
-    const result = await runCaseSet(set.id, 'pc', executor, filterCaseIds, environmentId);
+    const result = await runCaseSet(set.id, 'pc', executor, filterCaseIds, environmentId, deviceId);
     res.json({
       code: 200,
       message: 'ok',

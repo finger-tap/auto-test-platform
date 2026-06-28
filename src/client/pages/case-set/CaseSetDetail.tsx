@@ -7,6 +7,7 @@ import { useEnvironment } from '../../contexts/EnvironmentContext';
 import { InlineText, InlineSelect } from '../../components/InlineEdit';
 import FormSelect from '../../components/FormSelect';
 import TagInput from '../../components/TagInput';
+import DevicePickerModal, { type PickerDevice } from '../../components/DevicePickerModal';
 import type { Scenario, WebTestCase, PcTestCase, MobileTestCase, CaseSetExecution, CaseSetExecutionItem } from '../../types';
 import './CaseSetDetail.css';
 
@@ -87,6 +88,9 @@ export default function CaseSetDetail({ basePath = '/api-test', testType = 'api'
   const [selectedForRemoval, setSelectedForRemoval] = useState<Set<number>>(new Set());
   const [modalWidth, setModalWidth] = useState('80%');
   const [expandedSetExec, setExpandedSetExec] = useState<number | null>(null);
+  // 远程设备选择（web/pc 测试类型）
+  const [selectedDevice, setSelectedDevice] = useState<PickerDevice | null>(null);
+  const [showDevicePicker, setShowDevicePicker] = useState(false);
   const { activeEnv } = useEnvironment();
   const originalRef = useRef({ name: '', description: '', tags: '', status: 'draft', selectedIds: [] as number[] });
   const [isDirty, setIsDirty] = useState(false);
@@ -192,6 +196,10 @@ export default function CaseSetDetail({ basePath = '/api-test', testType = 'api'
       if (isDirty) await doSave();
       const body: Record<string, unknown> = { environmentId: activeEnv?.id };
       if (caseIdsToRun && caseIdsToRun.length > 0) body[filterCaseIdParam] = caseIdsToRun;
+      // 传递远程设备 ID（web/pc 类型）
+      if (selectedDevice && typeof selectedDevice.id === 'number') {
+        body.deviceId = selectedDevice.id;
+      }
       const res = await apiFetch<CaseSetExecution>(`${apiPath.detail}/${id}/execute`, { method: 'POST', body: JSON.stringify(body) });
       if (res.code === 200) {
         setActiveTab('reports');
@@ -432,6 +440,16 @@ export default function CaseSetDetail({ basePath = '/api-test', testType = 'api'
         </div>
         <div className="api-detail-actions">
           <button className={`scenario-btn${isDirty ? ' dirty' : ''}`} onClick={doSave} disabled={saving}>{saving ? '保存中...' : '保存'}</button>
+          {/* 远程设备选择（仅 web/pc 类型） */}
+          {(testType === 'web' || testType === 'pc') && !isNew && (
+            <button
+              className="scenario-btn scenario-btn--outline"
+              onClick={() => setShowDevicePicker(true)}
+              title={selectedDevice ? `当前设备: ${selectedDevice.name}` : '选择远程执行设备'}
+            >
+              {selectedDevice ? `🖥 ${selectedDevice.name}` : '选择设备'}
+            </button>
+          )}
           {!isNew && (() => {
             const hasSelection = activeTab === 'cases' && selectedForRemoval.size > 0;
             const execIds = hasSelection ? Array.from(selectedForRemoval) : undefined;
@@ -505,6 +523,17 @@ export default function CaseSetDetail({ basePath = '/api-test', testType = 'api'
             </div>
           </div>
         </div>
+      )}
+
+      {/* Device Picker Modal (web/pc only) */}
+      {(testType === 'web' || testType === 'pc') && (
+        <DevicePickerModal
+          open={showDevicePicker}
+          testType={testType as 'web' | 'pc'}
+          onClose={() => setShowDevicePicker(false)}
+          onSelect={(device) => { setSelectedDevice(device); setShowDevicePicker(false); }}
+          onLocalExecute={() => { setSelectedDevice(null); setShowDevicePicker(false); }}
+        />
       )}
     </div>
   );

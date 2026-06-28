@@ -57,9 +57,10 @@ scheduleSetPcRoutes.put('/set/:setId', (req: Request, res: Response) => {
     return;
   }
 
-  const { cron_expr, status } = req.body as {
+  const { cron_expr, status, device_id } = req.body as {
     cron_expr?: string;
     status?: 'none' | 'paused' | 'active';
+    device_id?: number | null;
   };
 
   const newStatus = status || 'none';
@@ -67,7 +68,7 @@ scheduleSetPcRoutes.put('/set/:setId', (req: Request, res: Response) => {
     ? computeNextRunFromCron(cron_expr)
     : null;
 
-  const id = upsertScheduleSet(setId, cron_expr ?? null, newStatus, nextRunAt);
+  const id = upsertScheduleSet(setId, cron_expr ?? null, newStatus, nextRunAt, device_id);
 
   if (newStatus === 'active' && cron_expr) {
     scheduleCronJob(id, cron_expr, 'pc');
@@ -93,9 +94,10 @@ scheduleSetPcRoutes.put('/:id/configure', (req: Request, res: Response) => {
     return;
   }
 
-  const { cron_expr, status } = req.body as {
+  const { cron_expr, status, device_id } = req.body as {
     cron_expr?: string;
     status?: 'none' | 'paused' | 'active';
+    device_id?: number | null;
   };
 
   const newCron = cron_expr !== undefined ? cron_expr : schedule.cron_expr;
@@ -108,6 +110,7 @@ scheduleSetPcRoutes.put('/:id/configure', (req: Request, res: Response) => {
     cron_expr: newCron ?? null,
     status: newStatus,
     next_run_at: nextRunAt,
+    device_id: device_id !== undefined ? device_id : schedule.device_id,
   });
 
   if (newStatus === 'active' && newCron) {

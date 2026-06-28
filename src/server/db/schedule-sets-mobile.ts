@@ -14,6 +14,7 @@ export interface ScheduleSetRow {
   next_run_at: string | null;
   last_run_at: string | null;
   last_run_status: string | null;
+  device_id: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -43,6 +44,7 @@ export function findScheduleSetsByUserIdPaginated(
       ss.next_run_at,
       ss.last_run_at,
       ss.last_run_status,
+      ss.device_id,
       ss.created_at        AS schedule_created_at,
       ss.updated_at        AS schedule_updated_at,
       rs.id                AS rs_id,
@@ -76,6 +78,7 @@ export function findScheduleSetsByUserIdPaginated(
       next_run_at: row.next_run_at ?? null,
       last_run_at: row.last_run_at ?? null,
       last_run_status: row.last_run_status ?? null,
+      device_id: row.device_id ?? null,
       created_at: row.schedule_created_at ?? '',
       updated_at: row.schedule_updated_at ?? '',
       case_set_name: row.case_set_name,
@@ -122,6 +125,7 @@ export function updateScheduleSet(
     next_run_at?: string | null;
     last_run_at?: string | null;
     last_run_status?: string | null;
+    device_id?: number | null;
   }
 ): boolean {
   const fields: string[] = [];
@@ -147,11 +151,12 @@ export function upsertScheduleSet(
   caseSetId: number,
   cronExpr: string | null,
   status: 'none' | 'paused' | 'active',
-  nextRunAt: string | null
+  nextRunAt: string | null,
+  deviceId?: number | null
 ): number {
   const existing = findScheduleSetByCaseSetId(caseSetId);
   if (existing) {
-    updateScheduleSet(existing.id, { cron_expr: cronExpr, status, next_run_at: nextRunAt });
+    updateScheduleSet(existing.id, { cron_expr: cronExpr, status, next_run_at: nextRunAt, device_id: deviceId ?? null });
     return existing.id;
   }
   return createScheduleSet({ case_set_id: caseSetId, cron_expr: cronExpr, status, next_run_at: nextRunAt });

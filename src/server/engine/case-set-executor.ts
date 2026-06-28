@@ -99,7 +99,7 @@ interface Dispatcher {
   finishCaseExecution: FinishCaseExec;
   runCase: (
     testCase: unknown,
-    opts: { executedBy: string; caseId: number; execId: number; userId: number; envVars?: Record<string, string> }
+    opts: { executedBy: string; caseId: number; execId: number; userId: number; envVars?: Record<string, string>; deviceId?: number | null }
   ) => Promise<{ status: string; duration_ms: number; report_path?: string; error_message?: string }>;
   createSetExec(setId: number, triggerType: string, executedBy: string, startedAt: string): number;
   updateSetExec(id: number, patch: {
@@ -211,8 +211,9 @@ export async function runCaseSet(
   executedBy: string,
   filterCaseIds?: number[],
   environmentId?: number,
+  deviceId?: number | null,
 ): Promise<RunCaseSetResult> {
-  console.log(`[case-set-executor] start setId=${setId} type=${testType} executor=${executedBy} envId=${environmentId ?? '(none)'}`);
+  console.log(`[case-set-executor] start setId=${setId} type=${testType} executor=${executedBy} envId=${environmentId ?? '(none)'} deviceId=${deviceId ?? '(local)'}`);
 
   const dispatcher = getDispatcher(testType);
   const set = dispatcher.findSet(setId);
@@ -278,6 +279,7 @@ export async function runCaseSet(
     const caseExecId = dispatcher.createCaseExecution(caseId, set.user_id, {
       started_at: new Date().toISOString(),
       executed_by: executedBy,
+      device_id: deviceId ?? null,
     });
 
     try {
@@ -298,6 +300,7 @@ export async function runCaseSet(
         execId: caseExecId,
         userId: set.user_id,
         envVars,
+        deviceId,
       });
 
       const caseEndMs = Date.now();

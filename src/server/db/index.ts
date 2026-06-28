@@ -1598,3 +1598,8 @@ db.exec(`
 `);
 // 2026-06-26: 加 value 列，用于存储非环境类偏好（如 theme）
 try { db.exec("ALTER TABLE user_preferences ADD COLUMN value TEXT"); } catch { /* column already exists */ }
+
+// 2026-06-28: schedule_sets_* 加 device_id 列，支持定时任务绑定远程设备
+for (const tbl of ['schedule_sets_web', 'schedule_sets_pc', 'schedule_sets_mobile']) {
+  try { db.exec(`ALTER TABLE ${tbl} ADD COLUMN device_id INTEGER`); } catch { /* column already exists */ }
+}
