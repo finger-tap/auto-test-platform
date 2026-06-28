@@ -157,6 +157,8 @@ export default function DevicePickerModal({
   const showLocalOption = (testType === 'web' || testType === 'pc') && onLocalExecute;
 
   const filtered = items.filter((d) => {
+    // mobile 类型只显示远程机器（有 agent_endpoint 的），不显示本地设备
+    if (testType === 'mobile' && d.source !== 'remote') return false;
     if (testType === 'mobile' && expectedPlatform && d.platform !== expectedPlatform) return false;
     if (!keyword) return true;
     const kw = keyword.toLowerCase();
