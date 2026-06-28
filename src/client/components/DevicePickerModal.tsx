@@ -129,6 +129,14 @@ export default function DevicePickerModal({
     }
   };
 
+  // 本机设备：使用第一个本地设备的 id 获取手机列表
+  const handleSelectLocal = () => {
+    const localDevice = items.find(d => d.source === 'local' || d.source === 'both');
+    if (localDevice && typeof localDevice.id === 'number') {
+      handleSelectAgent(localDevice);
+    }
+  };
+
   const handleSelectMobileDevice = (mobile: MobileDeviceFromAgent) => {
     if (!selectedAgent) return;
     onSelect({
@@ -156,15 +164,11 @@ export default function DevicePickerModal({
 
   const showLocalOption = (testType === 'web' || testType === 'pc') && onLocalExecute;
 
-  // mobile 类型：先本地设备，再远程机器
-  const localDevices = testType === 'mobile'
-    ? items.filter(d => d.source === 'local' || d.source === 'both')
-    : [];
-  const remoteDevices = testType === 'mobile'
-    ? items.filter(d => d.source === 'remote')
-    : items;
+  // mobile 类型：添加"本机"选项 + 远程机器
+  const hasLocalDevices = items.some(d => d.source === 'local' || d.source === 'both');
+  const remoteDevices = items.filter(d => d.source === 'remote');
 
-  const filtered = (testType === 'mobile' ? [...localDevices, ...remoteDevices] : items).filter((d) => {
+  const filtered = (testType === 'mobile' ? remoteDevices : items).filter((d) => {
     if (testType === 'mobile' && expectedPlatform && d.platform !== expectedPlatform) return false;
     if (!keyword) return true;
     const kw = keyword.toLowerCase();
@@ -197,44 +201,28 @@ export default function DevicePickerModal({
                   <div className="dpm-empty">无可用设备</div>
                 ) : (
                   <table className="dpm-table">
-                    <thead><tr><th>设备名称</th><th>类型</th><th>系统</th><th>地址</th><th>状态</th><th>操作</th></tr></thead>
+                    <thead><tr><th>设备名称</th><th>类型</th><th>地址</th><th>状态</th><th>操作</th></tr></thead>
                     <tbody>
-                      {/* 本地设备 */}
-                      {localDevices.length > 0 && (
-                        <>
-                          <tr><td colSpan={6} style={{ background: 'var(--surface-raised)', padding: '6px 16px', fontSize: 12, color: 'var(--fg-secondary)', fontWeight: 600 }}>本地设备</td></tr>
-                          {localDevices.map(d => (
-                            <tr key={d.id} className={`dpm-row ${d.status === 'offline' ? 'dpm-row-disabled' : ''}`}>
-                              <td className="dpm-name">{d.name}</td>
-                              <td><span className="dpm-source dpm-source-local">本地</span></td>
-                              <td>{d.platform || '—'}</td>
-                              <td className="dpm-meta">{d.serial || '—'}</td>
-                              <td><span className={`dpm-status dpm-status-${d.status === 'online' ? 'idle' : 'offline'}`}>● {d.status === 'online' ? '在线' : '离线'}</span></td>
-                              <td><button className="dpm-pick" disabled={d.status === 'offline'} onClick={() => handleSelectAgent(d)}>选择</button></td>
-                            </tr>
-                          ))}
-                        </>
+                      {/* 本机 */}
+                      {hasLocalDevices && (
+                        <tr className="dpm-row" onClick={handleSelectLocal}>
+                          <td className="dpm-name">💻 本机</td>
+                          <td><span className="dpm-source dpm-source-local">本地</span></td>
+                          <td className="dpm-meta">127.0.0.1</td>
+                          <td><span className="dpm-status dpm-status-idle">● 在线</span></td>
+                          <td><button className="dpm-pick">选择</button></td>
+                        </tr>
                       )}
                       {/* 远程机器 */}
-                      {remoteDevices.length > 0 && (
-                        <>
-                          <tr><td colSpan={6} style={{ background: 'var(--surface-raised)', padding: '6px 16px', fontSize: 12, color: 'var(--fg-secondary)', fontWeight: 600 }}>远程机器</td></tr>
-                          {remoteDevices.filter(d => {
-                            if (!keyword) return true;
-                            const kw = keyword.toLowerCase();
-                            return d.name.toLowerCase().includes(kw) || (d.host || '').toLowerCase().includes(kw);
-                          }).map(d => (
-                            <tr key={d.id} className={`dpm-row ${d.status === 'offline' ? 'dpm-row-disabled' : ''}`}>
-                              <td className="dpm-name">{d.name}</td>
-                              <td><span className="dpm-source dpm-source-remote">远端</span></td>
-                              <td>{d.os_type || '—'}</td>
-                              <td className="dpm-meta">{d.host || '—'}</td>
-                              <td><span className={`dpm-status dpm-status-${d.status === 'online' ? 'idle' : 'offline'}`}>● {d.status === 'online' ? '在线' : '离线'}</span></td>
-                              <td><button className="dpm-pick" disabled={d.status === 'offline'} onClick={() => handleSelectAgent(d)}>选择</button></td>
-                            </tr>
-                          ))}
-                        </>
-                      )}
+                      {filtered.map(d => (
+                        <tr key={d.id} className={`dpm-row ${d.status === 'offline' ? 'dpm-row-disabled' : ''}`}>
+                          <td className="dpm-name">{d.name}</td>
+                          <td><span className="dpm-source dpm-source-remote">远端</span></td>
+                          <td className="dpm-meta">{d.host || '—'}</td>
+                          <td><span className={`dpm-status dpm-status-${d.status === 'online' ? 'idle' : 'offline'}`}>● {d.status === 'online' ? '在线' : '离线'}</span></td>
+                          <td><button className="dpm-pick" disabled={d.status === 'offline'} onClick={() => handleSelectAgent(d)}>选择</button></td>
+                        </tr>
+                      ))}
                     </tbody>
                   </table>
                 )}
