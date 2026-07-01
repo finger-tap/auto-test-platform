@@ -450,6 +450,37 @@ function localToMerged(d: LocalDeviceDetail, platform: 'android' | 'harmony' | '
   };
 }
 
+/**
+ * 只扫描本机 USB 连接的手机（Android / HarmonyOS / iOS），不查远程 agent。
+ * 返回格式与 fetchMobileDevicesFromAgent 一致（MobileDeviceFromAgent），
+ * 供「本机」选择后获取手机列表使用。
+ */
+export async function listLocalMobileDevices(): Promise<Array<{
+  serial: string;
+  platform: 'android' | 'harmony' | 'ios';
+  model: string | null;
+  os_version: string | null;
+  status: string;
+}>> {
+  const [androidLocal, harmonyLocal, iosLocal] = await Promise.all([
+    listLocalAndroidDetailed(),
+    listLocalHarmonyDetailed(),
+    listLocalIosDetailed(),
+  ]);
+  const mapDevice = (d: LocalDeviceDetail, platform: 'android' | 'harmony' | 'ios') => ({
+    serial: d.udid,
+    platform,
+    model: d.model ?? null,
+    os_version: d.os_version ?? null,
+    status: 'online',
+  });
+  return [
+    ...androidLocal.map(d => mapDevice(d, 'android')),
+    ...harmonyLocal.map(d => mapDevice(d, 'harmony')),
+    ...iosLocal.map(d => mapDevice(d, 'ios')),
+  ];
+}
+
 export async function listMergedMobileDevices(userId: number): Promise<MergedDevice[]> {
   const cached = getCached(userId);
   if (cached) return cached;

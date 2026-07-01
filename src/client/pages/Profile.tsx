@@ -13,7 +13,6 @@ export default function Profile() {
   const [avatarPreview, setAvatarPreview] = useState('');
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -41,7 +40,6 @@ export default function Profile() {
   const handleSave = async (e: FormEvent) => {
     e.preventDefault();
     setSaving(true);
-    setMessage('');
     try {
       if (avatarFile) {
         const formData = new FormData();
@@ -57,6 +55,8 @@ export default function Profile() {
           updateUser(data.data);
           setAvatarPreview(data.data.avatar || '');
           setAvatarFile(null);
+        } else {
+          throw new Error(data.message || '头像上传失败');
         }
       }
 
@@ -66,10 +66,12 @@ export default function Profile() {
       });
       if (res.code === 200 && res.data) {
         updateUser(res.data);
-        setMessage('保存成功');
+        notification.success('保存成功');
+      } else {
+        throw new Error(res.message || '保存失败');
       }
-    } catch {
-      setMessage('保存失败');
+    } catch (err) {
+      notification.error(err instanceof Error ? err.message : '保存失败');
     } finally {
       setSaving(false);
     }
@@ -145,12 +147,6 @@ export default function Profile() {
               </div>
             </div>
           </div>
-
-          {message && (
-            <div className={`profile-msg ${message === '保存成功' ? 'profile-msg-success' : 'profile-msg-error'}`}>
-              {message}
-            </div>
-          )}
 
           <div className="profile-card-footer">
             <button type="submit" className="profile-btn-save" disabled={saving}>

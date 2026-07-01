@@ -38,9 +38,6 @@ console.log(`[playwright] drivers exists=${existsSync(process.env.PLAYWRIGHT_BRO
 // it's a non-fatal warning at startup. The crypto module logs its own
 // warning; this is just a "yes/no" status line for ops.
 console.log(`[agent-push] SSH push enabled=${isPushEnabled()} (set AGENT_SSH_KEY_SECRET to enable)`);
-if (!process.env.PUBLIC_SERVER_URL) {
-  console.warn('[agent-push] PUBLIC_SERVER_URL not set; push will fail until it is (it should match the URL the browser uses to reach this server)');
-}
 
 const app = express();
 const PORT = process.env.PORT || 3000;

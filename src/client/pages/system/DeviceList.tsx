@@ -226,37 +226,12 @@ export default function DeviceList() {
   };
 
   const handleTestSsh = async () => {
-    if (editing) {
-      // 编辑模式：如果用户没改密码/私钥，用设备已存凭据
-      const hasNewCredential = (form.ssh_auth_type === 'password' && form.ssh_password)
-        || (form.ssh_auth_type === 'private_key' && form.ssh_private_key);
-      if (!hasNewCredential) {
-        setTestingSsh(true);
-        setSshTestResult(null);
-        try {
-          const res = await apiFetch<{ ok: boolean; error?: string; latency_ms?: number }>(`/devices/${editing.id}/test-ssh`, { method: 'POST' });
-          setSshTestResult(res.data?.ok
-            ? { ok: true, msg: `连接成功 (${res.data.latency_ms}ms)` }
-            : { ok: false, msg: res.data?.error || '连接失败' });
-        } catch (e) {
-          setSshTestResult({ ok: false, msg: e instanceof Error ? e.message : '请求失败' });
-        } finally {
-          setTestingSsh(false);
-        }
-        return;
-      }
-    }
-    // 新建模式 / 编辑模式有新凭据：用表单值
+    // 2026-07-01: 总是把表单所有字段塞进 body + editing 时带 device_id。
+    // 后端字段缺省 fallback DB(密码/private_key 沿用旧值;host/port/user/auth_type
+    // editing 时 form 已用 editing 初始化,值跟 DB 一样,等于"没改就 fallback DB")。
+    // 统一路径,不再分 editing/new,不再分"有凭据/无凭据"。
     if (!form.ssh_host || !form.ssh_user || !form.ssh_auth_type) {
       setSshTestResult({ ok: false, msg: '请先填写 SSH 主机、用户名和认证方式' });
-      return;
-    }
-    if (form.ssh_auth_type === 'password' && !form.ssh_password) {
-      setSshTestResult({ ok: false, msg: '请先填写 SSH 密码' });
-      return;
-    }
-    if (form.ssh_auth_type === 'private_key' && !form.ssh_private_key) {
-      setSshTestResult({ ok: false, msg: '请先填写 SSH 私钥' });
       return;
     }
     setTestingSsh(true);
@@ -265,10 +240,12 @@ export default function DeviceList() {
       const res = await apiFetch<{ ok: boolean; error?: string; latency_ms?: number }>('/devices/test-ssh', {
         method: 'POST',
         body: JSON.stringify({
+          device_id: editing?.id,  // editing 时带,后端可 fallback 密码;new 模式不带
           ssh_host: form.ssh_host,
           ssh_port: form.ssh_port ? Number(form.ssh_port) : 22,
           ssh_user: form.ssh_user,
           ssh_auth_type: form.ssh_auth_type,
+          // password/private_key 字段原样传(form 里编辑时密码字段是空,后端 fallback DB)
           ssh_password: form.ssh_auth_type === 'password' ? form.ssh_password : undefined,
           ssh_private_key: form.ssh_auth_type === 'private_key' ? form.ssh_private_key : undefined,
         }),
@@ -673,26 +650,22 @@ export default function DeviceList() {
                   options={TEST_TYPE_OPTIONS}
                   onChange={v => {
                     const t = v as DeviceTestType;
-                    const presets = PLATFORM_PRESETS[t];
                     // Web 测试目前仅支持 Linux
                     const osType = t === 'web' ? 'linux' : form.os_type;
-                    setForm({ ...form, test_type: t, platform: presets[0], os_type: osType });
+                    // 保留用户原本选的 platform。如果该值不在新类型的
+                    // PLATFORM_PRESETS 里,FormSelect 会显示为空,用户重
+                    // 新从下拉选一个即可。
+                    setForm({ ...form, test_type: t, os_type: osType });
                   }}
                 />
               </label>
               <label>
                 <span>平台 <em>*</em></span>
-                <input
-                  type="text"
-                  list="device-platform-list"
+                <FormSelect
                   value={form.platform}
-                  onChange={e => setForm({ ...form, platform: e.target.value })}
+                  options={PLATFORM_PRESETS[form.test_type].map(p => ({ value: p, label: p }))}
+                  onChange={v => setForm({ ...form, platform: v })}
                 />
-                <datalist id="device-platform-list">
-                  {PLATFORM_PRESETS[form.test_type].map(p => (
-                    <option key={p} value={p} />
-                  ))}
-                </datalist>
               </label>
               <label>
                 <span>序列号 / UDID</span>

@@ -56,10 +56,15 @@ export default function Register() {
       <div className="auth-card">
         <div className="auth-header">
           <div className="auth-logo">
-            <svg width="24" height="24" fill="none" viewBox="0 0 24 24"><path d="M9 3L5 7l4 4" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><path d="M15 3l4 4-4 4" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><path d="M13 7l-2 10" stroke="#fff" strokeWidth="2" strokeLinecap="round"/></svg>
+            <svg width="24" height="24" viewBox="0 0 64 64" fill="none" stroke="currentColor" strokeWidth="4" strokeLinejoin="round" strokeLinecap="round" role="img" aria-label="AutoTest Platform">
+              <path d="M13 20 L23 8 L29 23 L35 23 L41 8 L51 20 L47 43 L34 57 L30 57 L17 43 Z" />
+              <circle cx="39" cy="31" r="7" strokeWidth="3" />
+              <circle cx="39" cy="31" r="2" fill="currentColor" stroke="none" />
+              <path d="M43 49 l4 4 8-10" stroke="#22C55E" />
+            </svg>
           </div>
           <div className="auth-title">注册账号</div>
-          <div className="auth-subtitle">创建你的 Auto Test Platform 账号</div>
+          <div className="auth-subtitle">创建你的 AutoTest Platform 账号</div>
         </div>
         <div className="auth-body">
           <form className="auth-form" onSubmit={handleSubmit}>

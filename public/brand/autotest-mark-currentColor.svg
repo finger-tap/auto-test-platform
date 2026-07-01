@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" role="img" aria-labelledby="title desc">
+  <title id="title">AutoTest Platform mark</title>
+  <desc id="desc">Geometric wolf head with aperture eye, drawn with currentColor strokes.</desc>
+  <g fill="none" stroke="currentColor" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M40 54 L69 18 L91 57 L109 57 L131 18 L160 54 L148 124 L104 178 L96 178 L52 124 Z"/>
+    <path d="M69 18 L84 76 L54 63"/>
+    <path d="M131 18 L116 76 L146 63"/>
+    <path d="M84 76 L63 122 L96 178"/>
+    <path d="M116 76 L137 122 L104 178"/>
+    <path d="M84 76 L100 99 L116 76"/>
+    <path d="M100 99 L96 178"/>
+    <path d="M63 122 L42 103"/>
+    <path d="M137 122 L158 103"/>
+    <circle cx="122" cy="92" r="20"/>
+    <path d="M122 72 L134 91 L122 92 Z"/>
+    <path d="M142 92 L124 105 L122 92 Z"/>
+    <path d="M113 109 L116 88 L122 92 Z"/>
+    <circle cx="122" cy="92" r="4" fill="currentColor" stroke="none"/>
+    <path d="M139 151 L148 160 L165 138" stroke-width="7"/>
+  </g>
+</svg>

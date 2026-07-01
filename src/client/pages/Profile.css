@@ -168,26 +168,6 @@
   color: var(--fg-tertiary);
 }
 
-/* ── Message ── */
-.profile-msg {
-  margin-top: 16px;
-  padding: 8px 14px;
-  border-radius: 6px;
-  font-size: 13px;
-}
-
-.profile-msg-success {
-  background: var(--success-subtle);
-  border: 1px solid var(--success-subtle);
-  color: var(--success);
-}
-
-.profile-msg-error {
-  background: var(--danger-subtle);
-  border: 1px solid var(--danger-subtle);
-  color: var(--danger);
-}
-
 /* ── Save Button ── */
 .profile-btn-save {
   padding: 9px 32px;

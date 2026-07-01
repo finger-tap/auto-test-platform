@@ -49,10 +49,13 @@ const WEB_AGENT_DIST = path.join(PROJECT_ROOT, 'dist', 'agent-web');
 // 2026-06-28: mobile-agent tsconfig 的 rootDir=src 导致输出嵌套一层:
 // dist/agent-mobile/agent-mobile/index.js。bundler 需要指向内层目录。
 const MOBILE_AGENT_DIST = path.join(PROJECT_ROOT, 'dist', 'agent-mobile', 'agent-mobile');
+// 2026-06-28: src/shared/ 编译后输出到 dist/agent-mobile/shared/，agent 的
+// import '../shared/scrcpy-format.js' 依赖这个目录。打包到远端 shared/。
+const MOBILE_SHARED_DIST = path.join(PROJECT_ROOT, 'dist', 'agent-mobile', 'shared');
 // 2026-06-15: pc-agent is compiled (tsc) before bundling, so we package the
-// .js output from dist/agent-pc/ (which also includes the compiled
-// agent-web re-exports). The bundler walks this tree and maps it into the
-// tar as pc-agent-src/.
+// .js output from dist/agent-pc/. push.ts cleans this dist dir before each
+// build so stale web/mobile outputs cannot leak into the PC agent bundle.
+// The bundler walks this tree and maps it into the tar as pc-agent-src/.
 const PC_AGENT_DIST = path.join(PROJECT_ROOT, 'dist', 'agent-pc');
 const NODE_MODULES = path.join(PROJECT_ROOT, 'node_modules');
 const BROWSERS_DIR = process.env.PLAYWRIGHT_BROWSERS_PATH || path.join(PROJECT_ROOT, 'drivers');
@@ -153,6 +156,78 @@ interface BundleFile {
 }
 
 const SKIP_NAMES = new Set(['.DS_Store', 'Thumbs.db', 'desktop.ini']);
+const MIDSCENE_WORKSPACE_PACKAGE_RE = /^node_modules\/@midscene\/([^/]+)$/;
+const MIDSCENE_WORKSPACE_ROOT = path.resolve(PROJECT_ROOT, '..', 'midscene', 'packages');
+let _midsceneWorkspacePackageMap: Map<string, string> | null = null;
+
+async function getMidsceneWorkspacePackageMap(): Promise<Map<string, string>> {
+  if (_midsceneWorkspacePackageMap) return _midsceneWorkspacePackageMap;
+  const map = new Map<string, string>();
+  try {
+    const entries = await fs.readdir(MIDSCENE_WORKSPACE_ROOT, { withFileTypes: true });
+    for (const e of entries) {
+      if (!e.isDirectory()) continue;
+      const packageDir = path.join(MIDSCENE_WORKSPACE_ROOT, e.name);
+      try {
+        const pkg = JSON.parse(await fs.readFile(path.join(packageDir, 'package.json'), 'utf8')) as { name?: string };
+        if (pkg.name?.startsWith('@midscene/')) map.set(pkg.name.slice('@midscene/'.length), packageDir);
+      } catch { /* ignore non-package dirs */ }
+    }
+  } catch {
+    // Midscene may come from registry packages in some environments; then no workspace map exists.
+  }
+  _midsceneWorkspacePackageMap = map;
+  return map;
+}
+
+async function resolveMidsceneWorkspacePackageDir(childRel: string): Promise<string | null> {
+  const m = MIDSCENE_WORKSPACE_PACKAGE_RE.exec(childRel);
+  if (!m) return null;
+  const map = await getMidsceneWorkspacePackageMap();
+  return map.get(m[1]) ?? null;
+}
+
+async function addLocalWorkspacePackage(
+  realAbs: string,
+  rel: string,
+  files: BundleFile[],
+  dirs: BundleFile[],
+  onProgress?: (info: { phase: string; files: number; dirs: number }) => void,
+): Promise<void> {
+  // 2026-07-01: 本地 Midscene 包是 workspace symlink，直接把 symlink 写入 tar
+  // 会在远端指向不存在的本机源码目录。这里按 npm publish 语义复制运行时文件：
+  // package.json + package.json.files 中声明的 dist/bin/native/static 等。
+  const pkgPath = path.join(realAbs, 'package.json');
+  let pkg: { files?: string[] } = {};
+  try {
+    pkg = JSON.parse(await fs.readFile(pkgPath, 'utf8')) as { files?: string[] };
+  } catch (e) {
+    console.warn(`[agent-push:bundler] local workspace package missing package.json for ${rel}: ${e instanceof Error ? e.message : String(e)}`);
+    return;
+  }
+
+  dirs.push({ abs: realAbs, rel: rel + '/', size: 0, mtime: 0, mode: 0o755 });
+  const pkgStat = await fs.stat(pkgPath);
+  files.push({ abs: pkgPath, rel: `${rel}/package.json`, size: pkgStat.size, mtime: Math.floor(pkgStat.mtimeMs / 1000), mode: pkgStat.mode & 0o777 });
+
+  for (const entry of pkg.files ?? []) {
+    const clean = entry.replace(/^\.\//, '').replace(/\/$/, '');
+    if (!clean || clean.includes('..')) continue;
+    const childAbs = path.join(realAbs, clean);
+    const childRel = `${rel}/${clean}`;
+    try {
+      const st = await fs.stat(childAbs);
+      if (st.isDirectory()) {
+        dirs.push({ abs: childAbs, rel: childRel + '/', size: 0, mtime: 0, mode: 0o755 });
+        await walkDir(childAbs, childRel, files, dirs, undefined, onProgress);
+      } else if (st.isFile()) {
+        files.push({ abs: childAbs, rel: childRel, size: st.size, mtime: Math.floor(st.mtimeMs / 1000), mode: st.mode & 0o777 });
+      }
+    } catch {
+      // package.json.files may contain optional entries for other platforms; skip if absent.
+    }
+  }
+}
 
 async function walkDir(
   abs: string,
@@ -173,14 +248,34 @@ async function walkDir(
     if (SKIP_NAMES.has(e.name)) continue;
     const childAbs = path.join(abs, e.name);
     const childRel = `${rel}/${e.name}`;
-    if (shouldInclude && !shouldInclude(childRel)) continue;
+    // 2026-07-01: shouldInclude 只对 file/symlink 生效,**不**过滤目录条目。
+    // 之前把 shouldInclude 放在循环顶部,导致 pc-agent 用 /\.(js|json)$/.test(rel)
+    // 时所有子目录名(agent-pc/、agent-web/)返回 false,整个 pc-agent 段 walk
+    // 静默失败 → 远端 /opt/auto-test-pc-agent/pc-agent-src/ 只有空目录条目。
+    // 目录必须永远 walk 进去,递归时按 file 路径判断过滤。
     if (e.isDirectory()) {
+      const localMidscenePackage = await resolveMidsceneWorkspacePackageDir(childRel);
+      if (localMidscenePackage) {
+        await addLocalWorkspacePackage(localMidscenePackage, childRel, files, dirs, onProgress);
+        continue;
+      }
       dirs.push({ abs: childAbs, rel: childRel + '/', size: 0, mtime: 0, mode: 0o755 });
       await walkDir(childAbs, childRel, files, dirs, shouldInclude, onProgress);
     } else if (e.isSymbolicLink()) {
-      // 2026-06-27: node prebuilt bin/npm、bin/npx、bin/corepack 都是 symlink
-      // 指向 ../lib/node_modules/.../xxx.js。用 fs.readlink 拿目标字符串,
-      // tar header typeflag='2' 写 linkname 字段。远端 tar 解压时自动重建 symlink。
+      try {
+        const localMidscenePackage = await resolveMidsceneWorkspacePackageDir(childRel);
+        const realAbs = localMidscenePackage ?? await fs.realpath(childAbs);
+        const realStat = await fs.stat(realAbs);
+        if (realStat.isDirectory() && MIDSCENE_WORKSPACE_PACKAGE_RE.test(childRel)) {
+          await addLocalWorkspacePackage(realAbs, childRel, files, dirs, onProgress);
+          continue;
+        }
+      } catch {
+        // fall through and try to package the symlink itself below
+      }
+      // 2026-06-27: node prebuilt bin/npm、bin/npx、bin/corepack 等 symlink
+      // 指向 bundle 内其它文件时必须保留 symlink。仅顶层 @midscene workspace
+      // 包按上面的逻辑解引用复制,避免远端指向本机源码路径。
       try {
         const target = await fs.readlink(childAbs);
         const st = await fs.lstat(childAbs);
@@ -189,6 +284,7 @@ async function walkDir(
         // race: link disappeared mid-walk, skip
       }
     } else if (e.isFile()) {
+      if (shouldInclude && !shouldInclude(childRel)) continue;
       try {
         const st = await fs.stat(childAbs);
         files.push({ abs: childAbs, rel: childRel, size: st.size, mtime: Math.floor(st.mtimeMs / 1000), mode: st.mode & 0o777 });
@@ -220,7 +316,7 @@ async function enumerate(
   adbRuntime?: TargetOs,
 ): Promise<{ files: BundleFile[]; dirs: BundleFile[]; version: string; totalBytes: number }> {
   const pkgRaw = await fs.readFile(PKG_PATH, 'utf8');
-  const pkg = JSON.parse(pkgRaw) as { version: string };
+  const pkg = JSON.parse(pkgRaw) as { name?: string; version: string };
 
   const files: BundleFile[] = [];
   const dirs: BundleFile[] = [];
@@ -242,6 +338,14 @@ async function enumerate(
     await walkDir(MOBILE_AGENT_DIST, 'mobile-agent-src', files, dirs, (rel) => /\.(js|json)$/.test(rel));
     dirs.push({ abs: MOBILE_AGENT_DIST, rel: 'mobile-agent-src/', size: 0, mtime: 0, mode: 0o755 });
 
+    // 1b2. dist/agent-mobile/shared/** — src/shared/ 编译输出，agent 通过
+    // import '../shared/...' 引用。打包到远端 shared/，与 mobile-agent-src/ 平级。
+    const sharedDistExists = await fs.access(MOBILE_SHARED_DIST).then(() => true).catch(() => false);
+    if (sharedDistExists) {
+      await walkDir(MOBILE_SHARED_DIST, 'shared', files, dirs, (rel) => /\.(js|json)$/.test(rel));
+      dirs.push({ abs: MOBILE_SHARED_DIST, rel: 'shared/', size: 0, mtime: 0, mode: 0o755 });
+    }
+
     // 1c. src/agent-mobile/bin/scrcpy-server — mobile-agent 启动 scrcpy 用的 Java jar
     // (从 midscene android-playground 同步过来),tar 里走 mobile-agent-bin/scrcpy-server
     // 一并存到远端,启动时通过 CLASSPATH 加载。非 ts 资源,tsc 不编译,从 src 直接打包。
@@ -261,7 +365,7 @@ async function enumerate(
 
   if (kind === 'pc') {
     // 1d. dist/agent-pc/** — compiled pc-agent (tsc -p tsconfig.agent-pc.json).
-    // Walks the full tree (agent-pc/ + agent-web/ compiled re-exports).
+    // Keep this bundle PC-only; ensureAgentBuild() removes stale dist output before compiling.
     const pcAgentExists = await fs.access(PC_AGENT_DIST).then(() => true).catch(() => false);
     if (!pcAgentExists) throw new Error('PC agent bundle missing: run "npm run build:agent-pc" before pushing a PC device');
     await walkDir(PC_AGENT_DIST, 'pc-agent-src', files, dirs, (rel) => {
@@ -333,7 +437,19 @@ async function enumerate(
     console.log(`[agent-push:bundler] adb-runtime done: ${files.length} total files, took=${Date.now() - tAdb}ms`);
   }
 
-  // 4. DEPLOY_VERSION — generated file, content known upfront.
+  // 4. package.json + DEPLOY_VERSION — generated files, content known upfront.
+  // Agents read package.json during heartbeat registration; keep a minimal
+  // manifest at the bundle root so every isolated install dir is self-contained.
+  const manifestJson = JSON.stringify({ name: pkg.name ?? 'auto-test-platform', version: pkg.version, type: 'module' }, null, 2) + '\n';
+  files.push({
+    abs: '(generated)',
+    rel: 'package.json',
+    size: Buffer.byteLength(manifestJson, 'utf8'),
+    mtime: 0,
+    mode: 0o644,
+    generated: manifestJson,
+  });
+
   const versionStr = `${pkg.version}\n`;
   files.push({
     abs: '(generated)',
@@ -417,7 +533,11 @@ export function createBundleStream(kind: AgentBundleKind = 'web', options: Creat
 
       try {
         const { files, dirs } = enumerateResult;
-        const gz: Gzip = createGzip();
+        // 2026-07-01: push 包里必须包含 node-runtime + 完整 node_modules，
+        // 不能为了速度裁剪运行依赖。主要瓶颈变成本机 gzip CPU 时间和 SFTP
+        // 吞吐。这里用 zlib level=1 换取更快压缩；包体会略大，但局域网推送
+        // 通常比默认 level=6 更快，且不会影响远端运行完整性。
+        const gz: Gzip = createGzip({ level: 1, chunkSize: 256 * 1024 });
         gz.pipe(outer);
         gz.on('error', (e) => {
           console.error(`[agent-push:bundler] gz error kind=${kind}: ${e.message}`);

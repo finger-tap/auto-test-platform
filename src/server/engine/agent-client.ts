@@ -213,6 +213,8 @@ export interface PcAgentExecuteRequest {
   contentType: 'text' | 'yaml';
   preconditionText?: string;
   checkpoints: Array<{ description: string; expect?: string }>;
+  /** User whose Midscene model config should be used by the remote agent. */
+  executorUserId?: number;
   /** ComputerDeviceOpt overrides: displayId, keyboardDriver, xvfbResolution, headless */
   deviceOpt?: Record<string, unknown>;
 }

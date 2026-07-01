@@ -99,6 +99,7 @@ app.post('/execute', async (req, res) => {
       contentType: body.contentType === 'yaml' ? 'yaml' : 'text',
       preconditionText: typeof body.preconditionText === 'string' ? body.preconditionText : undefined,
       checkpoints: Array.isArray(body.checkpoints) ? body.checkpoints : (typeof body.checkPointsRaw === 'string' ? parseCheckpoints(body.checkPointsRaw) : []),
+      executorUserId: Number.isFinite(Number(body.executorUserId)) ? Number(body.executorUserId) : undefined,
       deviceOpt: body.deviceOpt && typeof body.deviceOpt === 'object' ? body.deviceOpt : {},
     });
     const sessionId = `pc-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;

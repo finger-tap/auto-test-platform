@@ -111,6 +111,25 @@ export default function DevicePickerModal({
     }
   }, []);
 
+  // 扫描本机 USB 连接的手机
+  const fetchLocalMobileDevices = useCallback(async () => {
+    setLoadingMobile(true);
+    try {
+      const res = await apiFetch<MobileDeviceFromAgent[]>('/devices/local-mobile-devices');
+      if (res.code === 200 && res.data) {
+        setMobileDevices(res.data);
+      } else {
+        notification.error(res.message || '获取本地手机列表失败');
+        setMobileDevices([]);
+      }
+    } catch (e) {
+      notification.error('获取本地手机列表失败');
+      setMobileDevices([]);
+    } finally {
+      setLoadingMobile(false);
+    }
+  }, []);
+
   useEffect(() => {
     if (open) {
       setKeyword('');
@@ -129,27 +148,34 @@ export default function DevicePickerModal({
     }
   };
 
-  // 本机设备：使用第一个本地设备的 id 获取手机列表
+  // 本机设备：点击后扫描本机 USB 手机
   const handleSelectLocal = () => {
     const localDevice = items.find(d => d.source === 'local' || d.source === 'both');
-    if (localDevice) {
-      setSelectedAgent(localDevice);
-      setMobileStep('select-phone');
-      // 本地设备 id 可能是 string 或 number
-      const agentId = typeof localDevice.id === 'string' ? parseInt(localDevice.id, 10) : localDevice.id;
-      if (!isNaN(agentId)) {
-        fetchMobileDevices(agentId);
-      } else {
-        // 如果 id 无效，直接显示空列表
-        setMobileDevices([]);
-      }
-    }
+    // 用本地设备或虚拟占位，id 会在 handleSelectMobileDevice 中补全为 "local:platform:serial"
+    const agent: PickerDevice = localDevice ?? {
+      id: 'local',
+      name: '本机',
+      platform: 'local',
+      status: 'online' as const,
+      busy: false,
+      source: 'local' as const,
+      host: '127.0.0.1',
+    };
+    setSelectedAgent(agent);
+    setMobileStep('select-phone');
+    fetchLocalMobileDevices();
   };
 
   const handleSelectMobileDevice = (mobile: MobileDeviceFromAgent) => {
     if (!selectedAgent) return;
+    // 本地设备 id 统一为 "local:<platform>:<serial>"，与后端锁机制一致
+    const isLocal = selectedAgent.source === 'local' || selectedAgent.source === 'both';
+    const deviceId = isLocal
+      ? `local:${mobile.platform}:${mobile.serial}`
+      : selectedAgent.id;
     onSelect({
       ...selectedAgent,
+      id: deviceId,
       serial: mobile.serial,
       platform: mobile.platform,
       rich_info: {
@@ -172,9 +198,11 @@ export default function DevicePickerModal({
   if (!open) return null;
 
   const showLocalOption = (testType === 'web' || testType === 'pc') && onLocalExecute;
+  const localExecuteText = testType === 'pc'
+    ? '在服务器本机运行桌面自动化'
+    : '在服务器本机运行浏览器';
 
-  // mobile 类型：添加"本机"选项 + 远程机器
-  const hasLocalDevices = items.some(d => d.source === 'local' || d.source === 'both');
+  // mobile 类型：本机（固定第一行）+ 远程机器
   const remoteDevices = items.filter(d => d.source === 'remote');
 
   const filtered = (testType === 'mobile' ? remoteDevices : items).filter((d) => {
@@ -190,7 +218,7 @@ export default function DevicePickerModal({
       <div className="dpm-mask" onClick={onClose}>
         <div className="dpm-modal" onClick={e => e.stopPropagation()}>
           <div className="dpm-header">
-            <span className="dpm-title">{mobileStep === 'select-agent' ? '选择远程机器' : '选择手机设备'}</span>
+            <span className="dpm-title">{mobileStep === 'select-agent' ? '选择机器' : '选择手机设备'}</span>
             {mobileStep === 'select-phone' && (
               <button className="dpm-cancel" onClick={handleBack} style={{ marginRight: 8 }}>← 返回</button>
             )}
@@ -206,22 +234,18 @@ export default function DevicePickerModal({
               <div className="dpm-body">
                 {loading ? (
                   <div className="dpm-empty">加载中...</div>
-                ) : filtered.length === 0 ? (
-                  <div className="dpm-empty">无可用设备</div>
                 ) : (
                   <table className="dpm-table">
                     <thead><tr><th>设备名称</th><th>类型</th><th>地址</th><th>状态</th><th>操作</th></tr></thead>
                     <tbody>
-                      {/* 本机 */}
-                      {hasLocalDevices && (
-                        <tr className="dpm-row" onClick={handleSelectLocal}>
-                          <td className="dpm-name">💻 本机</td>
-                          <td><span className="dpm-source dpm-source-local">本地</span></td>
-                          <td className="dpm-meta">127.0.0.1</td>
-                          <td><span className="dpm-status dpm-status-idle">● 在线</span></td>
-                          <td><button className="dpm-pick">选择</button></td>
-                        </tr>
-                      )}
+                      {/* 本机 — 固定第一行，点击后才查询本地手机 */}
+                      <tr className="dpm-row" onClick={handleSelectLocal}>
+                        <td className="dpm-name">💻 本机</td>
+                        <td><span className="dpm-source dpm-source-local">本地</span></td>
+                        <td className="dpm-meta">127.0.0.1</td>
+                        <td><span className="dpm-status dpm-status-idle">● 在线</span></td>
+                        <td><button className="dpm-pick">选择</button></td>
+                      </tr>
                       {/* 远程机器 */}
                       {filtered.map(d => (
                         <tr key={d.id} className={`dpm-row ${d.status === 'offline' ? 'dpm-row-disabled' : ''}`}>
@@ -268,7 +292,7 @@ export default function DevicePickerModal({
           )}
 
           <div className="dpm-footer">
-            <span className="dpm-hint">{mobileStep === 'select-agent' ? '选择一台已连接手机的远程机器' : '选择要执行测试的手机'}</span>
+            <span className="dpm-hint">{mobileStep === 'select-agent' ? '选择一台已连接手机的机器' : '选择要执行测试的手机'}</span>
             <button className="dpm-cancel" onClick={onClose}>取消</button>
           </div>
         </div>
@@ -303,7 +327,7 @@ export default function DevicePickerModal({
                   <tr className="dpm-row dpm-row-local" onClick={onLocalExecute}>
                     <td className="dpm-name">💻 本机执行</td>
                     <td>本地</td>
-                    <td colSpan={3}>在服务器本机运行浏览器</td>
+                    <td colSpan={3}>{localExecuteText}</td>
                     <td><button className="dpm-pick">选择</button></td>
                   </tr>
                 )}

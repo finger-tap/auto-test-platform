@@ -91,8 +91,16 @@ export default function MobileTestDetail() {
   const [saving, setSaving] = useState(false);
   const [executing, setExecuting] = useState(false);
 
+  // Dirty state tracking — true when current form diverges from last saved snapshot
+  const originalSnapshotRef = useRef<string>('');
+  const [dirty, setDirty] = useState(false);
+
   // 2026-06-09: 执行流 — 选设备 → 启动预览
+  const [selectedDeviceId, setSelectedDeviceId] = useState<number | string | null>(null);
+  const [selectedDeviceName, setSelectedDeviceName] = useState<string | null>(null);
   const [devicePickerOpen, setDevicePickerOpen] = useState(false);
+  // true = 从执行按钮触发的选择(选完自动执行); false = 从按钮触发(只选设备连预览)
+  const pendingExecuteFromRef = useRef(false);
   const [preview, setPreview] = useState<{
     open: boolean;
     device: PickerDevice | null;
@@ -214,7 +222,23 @@ export default function MobileTestDetail() {
   // Header meta
   const [updatedAt, setUpdatedAt] = useState<string | null>(null);
 
+  // Build snapshot string from all saveable fields — used for dirty detection
+  const buildSnapshot = () => JSON.stringify({
+    name, description, platform, status, tags,
+    deviceName, platformVersion, appiumUrl,
+    appPackage, appActivity, bundleId,
+    caseContent, caseContentType,
+    preconditions,
+    assertions: assertions.map(({ type, text }) => ({ type, text })),
+    capabilities,
+    appId, appVersion,
+  });
 
+  // Compute dirty: compare current state to last saved snapshot
+  useEffect(() => {
+    setDirty(buildSnapshot() !== originalSnapshotRef.current);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [name, description, platform, status, tags, deviceName, platformVersion, appiumUrl, appPackage, appActivity, bundleId, caseContent, caseContentType, preconditions, assertions, capabilities, appId, appVersion]);
 
   // Load existing
   useEffect(() => {
@@ -280,6 +304,10 @@ export default function MobileTestDetail() {
             setAssertions([defaultTextAssertion()]);
           }
         } catch { setAssertions([defaultTextAssertion()]); }
+        // Capture snapshot after state setters flush so initial dirty === false
+        queueMicrotask(() => {
+          originalSnapshotRef.current = buildSnapshot();
+        });
       }
     });
   }, [id, isNew]);
@@ -356,6 +384,9 @@ export default function MobileTestDetail() {
           body: JSON.stringify(body),
         });
         notification.success('保存成功');
+        // Refresh snapshot so the save button stops pulsing
+        originalSnapshotRef.current = buildSnapshot();
+        setDirty(false);
       }
     } catch {
       notification.error('保存失败');
@@ -365,7 +396,7 @@ export default function MobileTestDetail() {
   };
 
   // 2026-06-11: preview session 跟页面绑定,不跟单次执行绑定。
-  // 预览已经在 streaming → 直接执行;没有预览 → 先选设备连预览再执行。
+  // 预览已经在 streaming → 直接执行;已选设备但未就绪 → 等 streaming 再执行;没有设备 → 先选设备。
   const handleExecute = async () => {
     if (isNew) { notification.error('请先保存用例'); return; }
     // 预览已经在流式传输 → 直接执行,不需要重新选设备/重连
@@ -408,7 +439,13 @@ export default function MobileTestDetail() {
       }
       return;
     }
-    // 没有预览或预览未就绪 → 先选设备
+    // 已选设备但预览未就绪 → 等 streaming 后自动执行
+    if (preview.open && preview.device) {
+      setPreview(p => ({ ...p, pendingExecute: true }));
+      return;
+    }
+    // 没有设备 → 先选设备(选完自动执行)
+    pendingExecuteFromRef.current = true;
     setDevicePickerOpen(true);
   };
 
@@ -420,6 +457,8 @@ export default function MobileTestDetail() {
       notification.error(`设备 ${device.name} 正被其他会话占用，请稍后再试`);
       return;
     }
+    setSelectedDeviceId(device.id);
+    setSelectedDeviceName(device.name);
     const kind = decidePreviewKind(device);
     // 同设备:preview session 还在(hook deps 不变,WS 不断),直接标记 pendingExecute
     const isSameDevice = preview.open && preview.device && String(preview.device.id) === String(device.id);
@@ -427,14 +466,50 @@ export default function MobileTestDetail() {
       // 不同设备:重置 session state,让 hook 重新启动
       setPreviewSessionState('idle');
     }
-    console.log(`[mtd] preview device=${device.id} platform=${device.platform} kind=${kind} sameDevice=${isSameDevice}`);
+    const shouldAutoExecute = pendingExecuteFromRef.current;
+    pendingExecuteFromRef.current = false;
+    console.log(`[mtd] preview device=${device.id} platform=${device.platform} kind=${kind} sameDevice=${isSameDevice} autoExecute=${shouldAutoExecute}`);
     setPreview({
       open: true,
       device,
       kind,
       caseExecutionId: null,
-      pendingExecute: true,
+      pendingExecute: shouldAutoExecute,
     });
+  };
+
+  // 从设备选择按钮触发:只选设备+连预览,不自动执行
+  const handlePickerButtonClick = () => {
+    pendingExecuteFromRef.current = false;
+    setDevicePickerOpen(true);
+  };
+
+  // 本地执行:清掉选中设备,关闭预览,直接执行
+  const handleLocalExecute = () => {
+    setSelectedDeviceId(null);
+    setSelectedDeviceName(null);
+    setDevicePickerOpen(false);
+    setPreview(p => ({ ...p, open: false, device: null, pendingExecute: false }));
+    // 本地执行
+    setExecuting(true);
+    apiFetch<MobileExecuteResult>(`/mobile-tests/${id}/execute`, {
+      method: 'POST',
+      body: JSON.stringify({ environmentId: activeEnv?.id }),
+    }).then(res => {
+      if (res.code !== 200 || !res.data) {
+        notification.error(res.message || '执行启动失败');
+        return;
+      }
+      if (res.data.status === 'success') {
+        notification.success('执行完成');
+      } else {
+        notification.error(`执行失败: ${res.data.error_message || '未知错误'}`);
+      }
+      setActiveTab('logs');
+    }).catch(e => {
+      console.error(`[mtd] local execute failed: ${e instanceof Error ? e.message : String(e)}`);
+      notification.error('执行启动出错');
+    }).finally(() => setExecuting(false));
   };
 
   // 2026-06-11: 预览就绪后自动触发执行。previewSessionState 由 hook 同步。
@@ -573,11 +648,20 @@ export default function MobileTestDetail() {
           )}
         </div>
         <div className="api-detail-actions">
-          <button className="scenario-btn" onClick={handleSave} disabled={saving}>
+          <button
+            type="button"
+            className="scenario-btn"
+            onClick={handlePickerButtonClick}
+            disabled={executing || preview.pendingExecute}
+            title="选择执行设备"
+          >
+            {selectedDeviceName || '本机'}
+          </button>
+          <button className={`scenario-btn ${dirty ? 'dirty' : ''}`} onClick={handleSave} disabled={saving}>
             {saving ? '保存中...' : '保存'}
           </button>
           <button className="sset-btn sset-btn-primary" onClick={handleExecute} disabled={executing || preview.pendingExecute || isNew}>
-            {executing ? '执行中...' : preview.pendingExecute ? '连接中...' : '执行'}
+            {executing ? '执行中...' : preview.pendingExecute ? '连接中...' : selectedDeviceId ? '远程执行' : '执行'}
           </button>
         </div>
       </div>
@@ -899,6 +983,7 @@ export default function MobileTestDetail() {
         testType="mobile"
         expectedPlatform={platform === 'ios' ? 'ios' : 'android'}
         onClose={() => setDevicePickerOpen(false)}
+        onLocalExecute={handleLocalExecute}
         onSelect={handleDeviceSelected}
       />
     </div>

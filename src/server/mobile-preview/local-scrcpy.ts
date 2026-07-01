@@ -11,8 +11,9 @@
 // 协议(已对齐客户端 useScrcpyDecoder):
 //   第一条 text:JSON metadata
 //   之后 binary:1 字节 type prefix(0x00=configuration, 0x01=data) + H.264 payload
+//   帧编码由 src/shared/scrcpy-format.ts 的 encodeScrcpyFrame() 统一处理
 //
-// 复用:跟 src/agent-mobile/scrcpy.ts 平级,共享 scrcpy-server bin、AdbScrcpyClient。
+// 复用:跟 src/agent-mobile/scrcpy.ts 平级,共享 scrcpy-server bin、AdbScrcpyClient、encodeScrcpyFrame。
 
 import { createReadStream } from 'node:fs';
 import path from 'node:path';
@@ -23,6 +24,7 @@ import { AdbServerNodeTcpConnector } from '@yume-chan/adb-server-node-tcp';
 import { AdbScrcpyClient, AdbScrcpyOptions3_3_3 } from '@yume-chan/adb-scrcpy';
 import { ReadableStream } from '@yume-chan/stream-extra';
 import { DefaultServerPath, ScrcpyVideoCodecId } from '@yume-chan/scrcpy';
+import { encodeScrcpyFrame } from '../../shared/scrcpy-format.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -163,17 +165,12 @@ async function runReaderLoop(session: SharedScrcpySession): Promise<void> {
       const { done, value } = await reader.read();
       if (done) break;
       if (!value) continue;
-      const typeByte = value.type === 'configuration' ? 0x00 : 0x01;
+      // 编码为 [1字节type + payload] 格式,跟 agent-mobile 和前端 useScrcpyDecoder 一致
+      const payload = encodeScrcpyFrame(value);
       // 缓存 SPS/PPS configuration 帧,新 subscriber attach 时补发
       if (value.type === 'configuration') {
-        const configPayload = new Uint8Array(1 + value.data.length);
-        configPayload[0] = 0x00;
-        configPayload.set(value.data, 1);
-        session.lastConfigFrame = configPayload;
+        session.lastConfigFrame = payload;
       }
-      const payload = new Uint8Array(1 + value.data.length);
-      payload[0] = typeByte;
-      payload.set(value.data, 1);
       // fan-out:每个 subscriber 独立 send,慢的 WS 只影响自己的 buffer
       for (const sub of session.subscribers.values()) {
         if (sub.closed) continue;

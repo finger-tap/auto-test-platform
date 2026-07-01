@@ -184,16 +184,17 @@ async function executePcCaseRemotely(
     contentType,
     preconditionText: preconditionText || undefined,
     checkpoints: checkpointPayload,
+    executorUserId: opts.userId,
     deviceOpt: deviceOpt as Record<string, unknown>,
   };
 
-  console.log(`[executor:pc] case=${opts.caseId} exec=${opts.execId} REMOTE agent=${agentEndpoint} name="${testCase.name}" checkpoints=${checkpoints.length}`);
+  console.log(`[executor:pc] case=${opts.caseId} exec=${opts.execId} REMOTE agent=${agentEndpoint} name="${testCase.name}" checkpoints=${checkpoints.length} user=${opts.userId ?? '(none)'}`);
 
   try {
-    // Push Midscene config before executing remotely. Note: the agent uses
-    // its own Midscene config from env vars / default. If we want per-user
-    // config propagation to agents, that's a future enhancement.
-    // For now, we just send the case and let the agent use its local config.
+    // Remote pc-agent runs in a different process/machine, so it cannot see
+    // the central server's live overrideAIConfig state or process.env. Send
+    // the executor user id; the agent will query the server callback URL for
+    // that user's resolved Midscene config before constructing ComputerAgent.
     const agentResult = await executeOnPcAgent(agentEndpoint, agentToken, request);
     const totalMs = Date.now() - globalStart;
 

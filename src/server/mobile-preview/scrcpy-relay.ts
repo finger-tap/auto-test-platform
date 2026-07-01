@@ -67,7 +67,7 @@ export async function bridgeScrcpySession(
     return started;
   }
   const { sessionId: agentSessionId } = started;
-  log(`serial=${deps.serial} agentSessionId=${agentSessionId} bridging`);
+  log(`serial=${deps.serial} agent=${deps.agentBaseUrl} agentSessionId=${agentSessionId} bridging`);
 
   // 2. 开上游 WebSocket
   const upstreamUrl = agentStreamUrl(deps.agentBaseUrl, agentSessionId, deps.agentToken);

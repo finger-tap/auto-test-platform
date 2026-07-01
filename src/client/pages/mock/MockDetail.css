@@ -161,18 +161,6 @@
   color: var(--primary);
 }
 
-/* 脏状态呼吸效果 */
-.scenario-btn.dirty {
-  border-color: var(--primary);
-  color: var(--primary);
-  animation: dirty-pulse 1.5s ease-in-out infinite;
-}
-
-@keyframes dirty-pulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.3); }
-  50% { box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.15); }
-}
-
 
 /* InlineText / InlineSelect shared styles */
 .field-url .ie-field {

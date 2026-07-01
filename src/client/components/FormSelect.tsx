@@ -1,4 +1,5 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useLayoutEffect } from 'react';
+import { createPortal } from 'react-dom';
 import './FormSelect.css';
 
 interface Option {
@@ -15,6 +16,8 @@ interface FormSelectProps {
   style?: React.CSSProperties;
   disabled?: boolean;
   size?: 'default' | 'sm' | 'compact';
+  /** Use fixed positioning so the dropdown is not clipped by overflow ancestors */
+  fixed?: boolean;
 }
 
 export default function FormSelect({
@@ -26,19 +29,42 @@ export default function FormSelect({
   style,
   disabled = false,
   size = 'default',
+  fixed = false,
 }: FormSelectProps) {
   const [open, setOpen] = useState(false);
   const [focusIndex, setFocusIndex] = useState(-1);
   const wrapRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
+  const [fixedPos, setFixedPos] = useState<{ top: number; left: number; width: number }>({ top: 0, left: 0, width: 0 });
+
+  // Calculate fixed position when dropdown opens
+  useLayoutEffect(() => {
+    if (!fixed || !open || !triggerRef.current) return;
+    const rect = triggerRef.current.getBoundingClientRect();
+    setFixedPos({ top: rect.bottom + 4, left: rect.left, width: rect.width });
+
+    const updatePos = () => {
+      if (!triggerRef.current) return;
+      const r = triggerRef.current.getBoundingClientRect();
+      setFixedPos({ top: r.bottom + 4, left: r.left, width: r.width });
+    };
+    window.addEventListener('scroll', updatePos, true);
+    window.addEventListener('resize', updatePos);
+    return () => {
+      window.removeEventListener('scroll', updatePos, true);
+      window.removeEventListener('resize', updatePos);
+    };
+  }, [fixed, open]);
 
   // Close on outside click
   useEffect(() => {
     if (!open) return;
     const handler = (e: MouseEvent) => {
-      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
+      const target = e.target as Node;
+      if (wrapRef.current?.contains(target)) return;
+      if (listRef.current?.contains(target)) return;
+      setOpen(false);
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
@@ -122,6 +148,39 @@ export default function FormSelect({
   );
 
   const sizeClass = size !== 'default' ? ` form-select-${size}` : '';
+  const dropdownStyle: React.CSSProperties = fixed
+    ? {
+        position: 'fixed',
+        top: fixedPos.top,
+        left: fixedPos.left,
+        width: 'max-content',
+        minWidth: 0,
+        maxWidth: `calc(100vw - ${Math.max(fixedPos.left, 0)}px - 16px)`,
+        zIndex: 2000,
+      }
+    : {};
+
+  const dropdown = open ? (
+    <div
+      className="form-select-dropdown"
+      ref={listRef}
+      role="listbox"
+      style={dropdownStyle}
+    >
+      {options.map((opt, i) => (
+        <div
+          key={opt.value}
+          className={`form-select-option${opt.value === value ? ' selected' : ''}${i === focusIndex ? ' focused' : ''}`}
+          role="option"
+          aria-selected={opt.value === value}
+          onMouseDown={(e) => { e.preventDefault(); handleSelect(opt.value); }}
+          onMouseEnter={() => setFocusIndex(i)}
+        >
+          {opt.label}
+        </div>
+      ))}
+    </div>
+  ) : null;
 
   return (
     <div
@@ -130,6 +189,7 @@ export default function FormSelect({
       style={style}
     >
       <div
+        ref={triggerRef}
         className={`form-select-trigger${open ? ' open' : ''}${disabled ? ' disabled' : ''}`}
         onClick={handleOpen}
         onKeyDown={handleKeyDown}
@@ -145,22 +205,7 @@ export default function FormSelect({
           <path d="M3 4.5l3 3 3-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
         </svg>
       </div>
-      {open && (
-        <div className="form-select-dropdown" ref={listRef} role="listbox">
-          {options.map((opt, i) => (
-            <div
-              key={opt.value}
-              className={`form-select-option${opt.value === value ? ' selected' : ''}${i === focusIndex ? ' focused' : ''}`}
-              role="option"
-              aria-selected={opt.value === value}
-              onMouseDown={(e) => { e.preventDefault(); handleSelect(opt.value); }}
-              onMouseEnter={() => setFocusIndex(i)}
-            >
-              {opt.label}
-            </div>
-          ))}
-        </div>
-      )}
+      {fixed && dropdown ? createPortal(dropdown, document.body) : dropdown}
     </div>
   );
 }

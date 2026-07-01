@@ -809,7 +809,10 @@ export async function executeWebCase(
     }
 
     const PlaywrightAgent = await getPlaywrightAgent();
-    const agent = new PlaywrightAgent(page, {
+    // Midscene workspace may be built against a different Playwright minor version
+    // than the platform. The runtime Page shape is compatible, but TypeScript
+    // treats the two package copies as distinct nominal-ish types.
+    const agent = new PlaywrightAgent(page as any, {
       generateReport: true,
       outputFormat: 'html-and-external-assets',
       reportFileName: reportName,

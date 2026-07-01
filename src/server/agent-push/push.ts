@@ -7,7 +7,7 @@
 //   4. Run the inline deploy script via ssh-client.execCommand:
 //      - extract to a temp dir
 //      - verify sha256 (sha256sum -c bundle.sha256)
-//      - atomically swap the new dir into /opt/auto-test-agent
+//      - extract into the agent-kind-specific install directory
 //      - write /etc/auto-test-agent.env (idempotent)
 //      - write the systemd unit (idempotent — only if not present)
 //      - systemctl daemon-reload + enable + restart
@@ -38,7 +38,7 @@ import type { Client as SshClient } from 'ssh2';
 import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { existsSync } from 'node:fs';
+import { existsSync, rmSync } from 'node:fs';
 import { resolveArch, resolveOs, nodeBinaryInstallPath, NODE_VERSION_MODERN, pickNodeVersionForGlibc, type TargetOs, type TargetArch } from './node-runtime.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -59,6 +59,10 @@ function ensureAgentBuild(kind: 'web' | 'mobile' | 'pc'): void {
     : kind === 'pc' ? 'agent-pc'
     : 'agent-web';
   const t0 = Date.now();
+  // Always start from a clean agent dist directory. TypeScript does not prune
+  // stale files from a previous rootDir/include shape, and those stale files
+  // can leak unrelated agent code into a newly pushed bundle.
+  rmSync(path.join(PROJECT_ROOT, 'dist', distDir), { recursive: true, force: true });
   console.log(`[agent-push] ensureAgentBuild kind=${kind} running npm run ${script} ...`);
   const result = spawnSync(process.platform === 'win32' ? 'npm.cmd' : 'npm',
     ['run', script],
@@ -69,8 +73,7 @@ function ensureAgentBuild(kind: 'web' | 'mobile' | 'pc'): void {
     throw new Error(`npm run ${script} failed (exit=${result.status}): ${tail.slice(-800)}`);
   }
   // Sanity-check that the expected entry .js exists.
-  const nested = kind === 'mobile' || kind === 'pc';
-  const indexJs = nested
+  const indexJs = kind === 'mobile'
     ? path.join(PROJECT_ROOT, 'dist', distDir, distDir, 'index.js')
     : path.join(PROJECT_ROOT, 'dist', distDir, 'index.js');
   if (!existsSync(indexJs)) {
@@ -124,8 +127,8 @@ export interface PushOptions {
 
 /**
  * The deploy script run on the remote. Designed to be idempotent: it
- * leaves the previous /opt/auto-test-agent in place until the new bundle
- * has been verified, then atomically swaps. Re-running it is safe.
+ * extracts into an agent-kind-specific install directory after verification.
+ * Re-running it is safe.
  *
  * 2026-06-09: 把 "服务自启" 这段抽成 `__SERVICE_SETUP__` 占位符 — Linux 走
  * systemd(daemon-reload + enable + restart),macOS 走 launchd(load -w)。
@@ -138,15 +141,17 @@ export interface PushOptions {
 const DEPLOY_SCRIPT = `set -e
 TS=$(date +%s)
 BUNDLE_PATH="/tmp/agent-bundle-\${TS}.tar.gz"
-INSTALL_DIR="/opt/auto-test-agent"
+INSTALL_DIR="__INSTALL_DIR__"
 
 echo "[deploy] moving bundle to $BUNDLE_PATH"
 mv /tmp/agent-bundle-latest.tar.gz "$BUNDLE_PATH"
 
 # 2026-06-27: 用户明确要求"用一个目录就行,别搞 new/old 这一套"。
 # 之前用 -bundle-new + -old atomic swap 是为了部署中途失败时保护当前运行的
-# 目录,但用户场景里部署失败就是失败,不需要 keep old。直接清空 /opt/auto-test-agent
+# 目录,但用户场景里部署失败就是失败,不需要 keep old。直接清空 INSTALL_DIR
 # 重新解压,ExecStart 用这个固定路径,简单直观。
+# 2026-07-01: INSTALL_DIR 按 kind 分流(web/mobile/pc),同台主机上不同 agent
+# 互不污染。占位符由 push.ts 的 installRoot 替换填入。
 echo "[deploy] cleaning install dir $INSTALL_DIR"
 rm -rf "$INSTALL_DIR"
 mkdir -p "$INSTALL_DIR"
@@ -184,6 +189,7 @@ NODE_VER=$("$NODE_BIN" --version 2>&1) || {
 }
 echo "[deploy] node version: $NODE_VER at $NODE_BIN"
 echo "[deploy] entry js ok: $ENTRY_JS"
+__EXTRA_VERIFY__
 echo "[deploy] bundle verification ok"
 
 echo "[deploy] setting up service"
@@ -227,13 +233,11 @@ else
   done
 fi
 echo "[deploy] node binary listing:"
-ls -la /opt/auto-test-agent/node-runtime/bin/ 2>&1 | head -10
-echo "[deploy] entry candidates:"
-ls -la /opt/auto-test-agent/agent-src/index.js 2>&1
-ls -la /opt/auto-test-agent/mobile-agent-src/index.js 2>&1
-ls -la /opt/auto-test-agent/pc-agent-src/agent-pc/index.js 2>&1
+ls -la "$INSTALL_DIR/node-runtime/bin/" 2>&1 | head -10
+echo "[deploy] configured entry:"
+ls -la "$ENTRY_JS" 2>&1
 echo "[deploy] node --version:"
-/opt/auto-test-agent/node-runtime/bin/node --version 2>&1 || echo "[deploy] node binary execution failed (exit \$?)"
+"$INSTALL_DIR/node-runtime/bin/node" --version 2>&1 || echo "[deploy] node binary execution failed (exit \$?)"
 echo "[deploy] ---- end diagnostic ----"
 exit 1
 `;
@@ -254,10 +258,17 @@ systemctl restart __UNIT_NAME__`;
  *   (launchd 以 root 跑,其它用户读 tail -f)
  */
 const SERVICE_SETUP_MACOS = `PLIST_PATH="/Library/LaunchDaemons/__PLIST_LABEL__.plist"
+PLIST_LABEL="__PLIST_LABEL__"
 sudo touch /var/log/auto-test-agent.log
 sudo chmod 666 /var/log/auto-test-agent.log
-sudo launchctl unload "$PLIST_PATH" 2>/dev/null || true
-sudo launchctl load -w "$PLIST_PATH"`;
+# launchd may keep an already-bootstrapped daemon using the old plist content
+# even after the file is overwritten. Boot it out of the system domain first,
+# then bootstrap the freshly written plist so ProgramArguments is definitely
+# re-read (important when entry paths move between releases).
+sudo launchctl bootout system "$PLIST_PATH" 2>/dev/null || sudo launchctl unload "$PLIST_PATH" 2>/dev/null || true
+sudo launchctl bootstrap system "$PLIST_PATH"
+sudo launchctl enable "system/$PLIST_LABEL" 2>/dev/null || true
+sudo launchctl kickstart -k "system/$PLIST_LABEL" 2>/dev/null || true`;
 
 /**
  * 2026-06-27: Windows (sc.exe / Windows Service) 服务自启段。
@@ -270,8 +281,8 @@ sudo launchctl load -w "$PLIST_PATH"`;
  *
  * 占位符:
  *   __SERVICE_NAME__ → auto-test-agent / auto-test-mobile-agent / auto-test-pc-agent
- *   __NODE_BIN__     → C:\auto-test-agent\node-runtime\node.exe
- *   __ENTRY_JS__     → C:\auto-test-agent\agent-src\index.js (or nested for mobile/pc)
+ *   __NODE_BIN__     → C:\auto-test-<kind>-agent\node-runtime\node.exe
+ *   __ENTRY_JS__     → C:\auto-test-<kind>-agent\<agent-src>/index.js
  */
 const SERVICE_SETUP_WIN = `$svc = '__SERVICE_NAME__'
 $bin = '"__NODE_BIN__" "__ENTRY_JS__"'
@@ -306,13 +317,14 @@ Start-Service -Name $svc`;
 const DEPLOY_SCRIPT_WIN = `$ErrorActionPreference = 'Stop'
 $TS = [int64](Get-Date -UFormat %s)
 $BundlePath = "C:\\Windows\\Temp\\agent-bundle-$TS.tar.gz"
-$InstallRoot = "C:\\auto-test-agent"
+$InstallRoot = "__INSTALL_DIR_WIN__"
 
 Write-Host "[deploy] moving bundle to $BundlePath"
 Move-Item "C:\\Windows\\Temp\\agent-bundle-latest.tar.gz" $BundlePath -Force
 
 # 2026-06-27: 用户明确要求"用一个目录就行,别搞 new/old 这一套"。
 # 直接清空 InstallRoot 重新解压,sc.exe 服务 binPath 用这个固定路径。
+# 2026-07-01: InstallRoot 占位符替换,push.ts installRoot 提供 Windows 路径。
 Write-Host "[deploy] cleaning install dir $InstallRoot"
 if (Test-Path $InstallRoot) { Remove-Item -Recurse -Force $InstallRoot }
 New-Item -ItemType Directory -Path $InstallRoot -Force | Out-Null
@@ -409,26 +421,37 @@ async function pushAgentByKind(device: DeviceRow, kind: 'web' | 'mobile' | 'pc',
     : kind === 'pc'
       ? 4003  // pc-agent 固定端口,与 web(4001)/mobile(4002) 并列
       : 4001;
+  // 2026-06-27: 远端 OS 决定 systemd(Linux) / launchd(macOS) / sc.exe(Windows)。
+  // os_type 为空 → 兜底 Linux(老数据,UI 上没填)。
+  const effectiveOs: 'linux' | 'macos' | 'windows' =
+    os_type === 'macos' ? 'macos' : os_type === 'windows' ? 'windows' : 'linux';
   const unitName = kind === 'mobile' ? 'auto-test-mobile-agent.service'
     : kind === 'pc' ? 'auto-test-pc-agent.service'
     : 'auto-test-agent.service';
   const plistLabel = kind === 'mobile' ? 'com.auto-test.mobile-agent'
     : kind === 'pc' ? 'com.auto-test.pc-agent'
     : 'com.auto-test.agent';
-  // 2026-06-27: web bundle is flat (tsconfig.agent.json rootDir=src/agent-web),
-  // so agent-src/index.js lands at the top of the bundle. mobile/pc bundles
-  // re-export from agent-web, so their tsconfigs use rootDir=src and the
-  // compiled output nests: dist/agent-X/agent-X/index.js.
-  // 2026-06-28: bundler now points MOBILE_AGENT_DIST to the inner directory,
-  // so mobile-agent-src/index.js is at the top level (no nesting).
+  // Install dir is isolated by agent kind. A push cleans this directory before
+  // extraction, so sharing one directory would let a web/mobile/pc push delete
+  // or overwrite another agent on the same remote machine.
+  const installRoot = effectiveOs === 'windows'
+    ? (kind === 'mobile' ? 'C:\\auto-test-mobile-agent'
+      : kind === 'pc' ? 'C:\\auto-test-pc-agent'
+      : 'C:\\auto-test-agent')
+    : kind === 'mobile' ? '/opt/auto-test-mobile-agent'
+    : kind === 'pc'    ? '/opt/auto-test-pc-agent'
+    : '/opt/auto-test-agent';
+  // env 文件同理。三种 agent 各自一份,避免 AGENT_TOKEN / AGENT_PORT / AGENT_BROWSERS_PATH 混用。
+  const envPath = kind === 'mobile' ? '/etc/auto-test-mobile-agent.env'
+    : kind === 'pc'    ? '/etc/auto-test-pc-agent.env'
+    : '/etc/auto-test-agent.env';
+  // Entry paths inside the extracted bundle. Web/PC are built with rootDir at
+  // their own source folders, so index.js is at bundle root. Mobile still uses
+  // rootDir=src because it imports src/shared, and bundler maps the inner dist
+  // folder to mobile-agent-src/.
   const entryPoint = kind === 'mobile' ? 'mobile-agent-src/index.js'
-    : kind === 'pc' ? 'pc-agent-src/agent-pc/index.js'
+    : kind === 'pc' ? 'pc-agent-src/index.js'
     : 'agent-src/index.js';
-
-  // 2026-06-27: 远端 OS 决定 systemd(Linux) / launchd(macOS) / sc.exe(Windows)。
-  // os_type 为空 → 兜底 Linux(老数据,UI 上没填)。
-  const effectiveOs: 'linux' | 'macos' | 'windows' =
-    os_type === 'macos' ? 'macos' : os_type === 'windows' ? 'windows' : 'linux';
 
   if (!ssh_host || !ssh_user || !ssh_auth_type) {
     return { ok: false, took_ms: 0, error: 'SSH host / user / auth type not configured' };
@@ -540,16 +563,16 @@ async function pushAgentByKind(device: DeviceRow, kind: 'web' | 'mobile' | 'pc',
         ),
       ]);
       console.log(`[agent-push] bundle.ready kind=${kind} device=${id} version=${meta.version} files=${meta.fileCount} totalBytes=${meta.totalBytes}`);
-      // 2026-06-27: Win install root = C:\auto-test-agent, Linux/macOS = /opt/auto-test-agent。
-      // SFTP upload path:Win 上 forward slash 也 OK(ssh2 / OpenSSH 都接受),走 C:/Windows/Temp。
-      const remoteRoot = effectiveOs === 'windows' ? 'C:\\auto-test-agent' : '/opt/auto-test-agent';
+      // 2026-07-01: installRoot 按 kind 分流(在 unitName/plistLabel 派生旁已
+      // 算好)。SFTP 上传的目标仍是 /tmp/agent-bundle-latest.tar.gz 暂存
+      // (deploy 脚本会用 mv 改名为带时间戳的 BUNDLE_PATH 再解压到 INSTALL_DIR)。
       const remotePath = effectiveOs === 'windows'
         ? 'C:/Windows/Temp/agent-bundle-latest.tar.gz'
         : '/tmp/agent-bundle-latest.tar.gz';
       const serviceName = effectiveOs === 'macos' ? plistLabel
         : effectiveOs === 'windows' ? unitName  // Win service name 跟 systemd unit 同名(auto-test-agent / mobile / pc)
         : unitName;
-      console.log(`[agent-push] start kind=${kind} device=${id} name="${name}" host=${ssh_user}@${ssh_host}:${ssh_port ?? 22} os=${effectiveOs} package=agent-bundle-${meta.version}.tar.gz files=${meta.fileCount} size=${(meta.totalBytes / 1024 / 1024).toFixed(1)}MB upload=${remotePath} install=${remoteRoot} service=${serviceName}`);
+      console.log(`[agent-push] start kind=${kind} device=${id} name="${name}" host=${ssh_user}@${ssh_host}:${ssh_port ?? 22} os=${effectiveOs} package=agent-bundle-${meta.version}.tar.gz files=${meta.fileCount} size=${(meta.totalBytes / 1024 / 1024).toFixed(1)}MB upload=${remotePath} install=${installRoot} service=${serviceName}`);
       emitProgress({ stage: 'uploading', message: '正在上传推送包', percent: 10, bytes_uploaded: 0, total_bytes: meta.totalBytes });
 
       // 3. Upload to /tmp/agent-bundle-latest.tar.gz (deploy script renames
@@ -576,7 +599,8 @@ async function pushAgentByKind(device: DeviceRow, kind: 'web' | 'mobile' | 'pc',
       //    - Windows: PowerShell [Environment]::SetEnvironmentVariable 'Machine';
       //               service 定义不需要单独文件,sc.exe 在 deploy 脚本里 inline 创建
       const safeName = name.replace(/\s+/g, '-').slice(0, 32);
-      const browsersPath = effectiveOs === 'windows' ? 'C:\\auto-test-agent\\browsers' : '/opt/auto-test-agent/browsers';
+      // 2026-07-01: 跟随 installRoot(按 kind 分流),不再硬编 /opt/auto-test-agent。
+      const browsersPath = `${installRoot}${effectiveOs === 'windows' ? '\\browsers' : '/browsers'}`;
       const envPairs: Array<[string, string]> = [
         ['AGENT_TOKEN', agent_token],
         ['AGENT_SERVER_URL', serverUrl || ''],
@@ -607,7 +631,8 @@ async function pushAgentByKind(device: DeviceRow, kind: 'web' | 'mobile' | 'pc',
         console.log(`[agent-push] env ok (win machine-level) device=${id} pairs=${envPairs.length}`);
       } else {
         const envContent = envPairs.map(([k, v]) => `${k}=${v}`).join('\n') + '\n';
-        const envPath = '/etc/auto-test-agent.env';
+        // 2026-07-01: envPath 由 push.ts 上方按 kind 派生(/etc/auto-test-mobile-agent.env
+        // / /etc/auto-test-pc-agent.env / /etc/auto-test-agent.env),不再硬编。
         const writeEnvCmd = `echo ${shellQuote(envContent)} | sudo tee ${envPath} >/dev/null && sudo chmod 600 ${envPath}`;
         const envRes = await execCommand(sshConn.conn, writeEnvCmd, 'write-env');
         if (envRes.code !== 0) {
@@ -628,6 +653,7 @@ async function pushAgentByKind(device: DeviceRow, kind: 'web' | 'mobile' | 'pc',
           agentPort,
           entryPoint,
           kind,
+          installRoot,
         });
         // 2026-06-27: 之前 `if [ ! -f ${plistPath} ]` 保护用户手改,但 upgrade
         // 路径(node 路径变 / entry 变)需要 plist 跟着覆盖,否则老 ProgramArguments
@@ -642,7 +668,7 @@ sudo chmod 644 ${plistPath}`;
         }
         console.log(`[agent-push] service file ok device=${id} remote=${plistPath}`);
       } else if (effectiveOs === 'linux') {
-        const unitContent = systemdUnitContent(agent_token, serverUrl || '', name, entryPoint);
+        const unitContent = systemdUnitContent(agent_token, serverUrl || '', name, entryPoint, installRoot, agentPort, kind);
         const unitPath = `/etc/systemd/system/${unitName}`;
         // 2026-06-27: 之前用 `if [ ! -f ${unitPath} ]; then ... fi' 保护用户手改,
         // 但实际场景是 bundle 升级 / node 路径变更 / entry 路径变更 → unit 文件必须
@@ -671,9 +697,24 @@ UNIT_EOF`;
       //      __SERVICE_NAME__   → windows service name (sc.exe)
       //      __NODE_BIN__       → windows bundle 内 node.exe 路径
       //      __ENTRY_JS__       → windows bundle 内 entry .js 路径
+      // 2026-07-01:
+      //      __INSTALL_DIR__     → Linux/macOS install root(按 kind)
+      //      __INSTALL_DIR_WIN__ → Windows install root(按 kind 分流)
       const healthzPort = agentPort;
-      const winNodeBin = 'C:\\auto-test-agent\\node-runtime\\node.exe';
-      const winEntryJs = 'C:\\auto-test-agent\\' + entryPoint.replace(/\//g, '\\');
+      const winInstallRoot = effectiveOs === 'windows' ? installRoot : installRoot;
+      const winNodeBin = `${winInstallRoot}\\node-runtime\\node.exe`;
+      const winEntryJs = `${winInstallRoot}\\` + entryPoint.replace(/\//g, '\\');
+      const extraVerify = kind === 'pc' ? `if [ ! -f "$INSTALL_DIR/node_modules/@midscene/computer/package.json" ]; then
+  echo "[deploy] FAIL: @midscene/computer package missing from bundle"
+  find "$INSTALL_DIR/node_modules/@midscene" -maxdepth 2 -type f -name package.json 2>&1 | head -20
+  exit 1
+fi
+if [ -L "$INSTALL_DIR/node_modules/@midscene/computer" ]; then
+  echo "[deploy] FAIL: @midscene/computer is still a symlink; local workspace package was not materialized"
+  ls -la "$INSTALL_DIR/node_modules/@midscene/computer" 2>&1
+  exit 1
+fi
+echo "[deploy] @midscene/computer package ok"` : '';
       const serviceSetup = (effectiveOs === 'windows' ? SERVICE_SETUP_WIN
         : effectiveOs === 'macos' ? SERVICE_SETUP_MACOS
         : SERVICE_SETUP_LINUX)
@@ -686,8 +727,11 @@ UNIT_EOF`;
       const deployScriptFor = deployTemplate
         .replace(/__HEALTHZ_PORT__/g, String(healthzPort))
         .replace(/__SERVICE_SETUP__/g, serviceSetup)
-        .replace(/__ENTRY_JS__/g, entryPoint);
-      console.log(`[agent-push] deploy starting device=${id} install=${remoteRoot} service=${serviceName} healthz=http://127.0.0.1:${healthzPort}/healthz`);
+        .replace(/__EXTRA_VERIFY__/g, extraVerify)
+        .replace(/__ENTRY_JS__/g, entryPoint)
+        .replace(/__INSTALL_DIR__/g, installRoot)
+        .replace(/__INSTALL_DIR_WIN__/g, winInstallRoot);
+      console.log(`[agent-push] deploy starting device=${id} install=${installRoot} service=${serviceName} healthz=http://127.0.0.1:${healthzPort}/healthz`);
       emitProgress({ stage: 'deploying', message: '正在部署并重启 agent', percent: 92, bytes_uploaded: bytesUploaded, total_bytes: meta.totalBytes });
       let deployRes: { stdout: string; stderr: string; code: number | null; signal: string | null };
       if (effectiveOs === 'windows') {
@@ -699,8 +743,14 @@ UNIT_EOF`;
           deployScriptFor + '\n',
         );
       } else {
-        console.log(`[agent-push] executing deploy script via sudo bash -s on device=${id} ...`);
-        deployRes = await execCommand(sshConn.conn, `sudo bash -s <<'DEPLOY_EOF'\n${deployScriptFor}\nDEPLOY_EOF`, 'deploy');
+        console.log(`[agent-push] executing deploy script via stdin on device=${id} ...`);
+        // 2026-07-01: 改用 stdin 传脚本,不再用 sudo bash -s <<HEREDOC。
+        // 旧写法死锁:heredoc 让 bash 等 stdin 上 DEPLOY_EOF 终止行,但 execCommand
+        // 没传 stdin 参数 → ssh-client.ts:219-222 跳过 stream.end() → SSH channel
+        // stdin 永远 open → bash 永远等 EOF → channel 不 close → execCommand 等 300s
+        // 外层超时。改用 stdin 传脚本(跟 windows 分支 push.ts:717-724 同模式):
+        // ssh-client.ts 立刻 stream.write + stream.end(),bash 收到 EOF 跑完脚本退出。
+        deployRes = await execCommand(sshConn.conn, 'sudo bash -s', 'deploy', deployScriptFor + '\n');
       }
       const logTail = (deployRes.stdout + deployRes.stderr).slice(-2000);
       if (deployRes.code !== 0) {
@@ -709,7 +759,7 @@ UNIT_EOF`;
 
       const took = Date.now() - t0;
       console.log(`[agent-push] deploy result device=${id} service=${serviceName} code=${deployRes.code} logTail=${JSON.stringify(logTail.slice(-800))}`);
-      console.log(`[agent-push] push ok kind=${kind} device=${id} version=${meta.version} bytes=${bytesUploaded} install=${remoteRoot} service=${serviceName} took=${took}ms`);
+      console.log(`[agent-push] push ok kind=${kind} device=${id} version=${meta.version} bytes=${bytesUploaded} install=${installRoot} service=${serviceName} took=${took}ms`);
       recordPushResult(id, 'ok');
       emitProgress({ stage: 'done', message: '上线完成', percent: 100, bytes_uploaded: bytesUploaded, total_bytes: meta.totalBytes });
       return {
@@ -841,11 +891,12 @@ function shellQuote(s: string): string {
   return `'${s.replace(/'/g, `'\\''`)}'`;
 }
 
-function systemdUnitContent(token: string, serverUrl: string, deviceName: string, entryPoint: string): string {
+function systemdUnitContent(token: string, serverUrl: string, deviceName: string, entryPoint: string, installRoot: string, agentPort: number, kind: 'web' | 'mobile' | 'pc'): string {
   // 2026-06-27: 用 bundle 内的 prebuilt node,不再要求远端预装 node。
-  const nodeBin = nodeBinaryInstallPath('linux', '/opt/auto-test-agent');
+  const nodeBin = nodeBinaryInstallPath('linux', installRoot);
   // 2026-06-28: mobile agent 需要 adb,从 bundle 内的 adb-runtime 加载。
-  const adbPath = '/opt/auto-test-agent/adb-runtime/platform-tools';
+  // 2026-07-01: adbRuntime/path 由 installRoot 派生,跟 kind 一一对应。
+  const adbPath = `${installRoot}/adb-runtime/platform-tools`;
   return `[Unit]
 Description=Auto Test Agent (${deviceName})
 After=network.target
@@ -855,10 +906,11 @@ Type=simple
 Environment="AGENT_TOKEN=${token}"
 Environment="AGENT_SERVER_URL=${serverUrl}"
 Environment="AGENT_NAME=${deviceName.replace(/[^a-zA-Z0-9_-]/g, '-').slice(0, 32)}"
-Environment="AGENT_BROWSERS_PATH=/opt/auto-test-agent/browsers"
+Environment="AGENT_PORT=${agentPort}"
+${kind === 'mobile' ? `Environment="AGENT_MOBILE_PORT=${agentPort}"\n` : ''}${kind === 'pc' ? `Environment="AGENT_PC_PORT=${agentPort}"\n` : ''}Environment="AGENT_BROWSERS_PATH=${installRoot}/browsers"
 Environment="PATH=${adbPath}:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-ExecStart=${nodeBin} /opt/auto-test-agent/${entryPoint}
-WorkingDirectory=/opt/auto-test-agent
+ExecStart=${nodeBin} ${installRoot}/${entryPoint}
+WorkingDirectory=${installRoot}
 Restart=on-failure
 RestartSec=10
 StandardOutput=journal
@@ -884,13 +936,16 @@ interface PlistContentArgs {
   agentPort: number;
   entryPoint: string;
   kind: 'web' | 'mobile' | 'pc';
+  // 2026-07-01: 按 kind 分流 install dir
+  installRoot: string;
 }
 function plistContent(args: PlistContentArgs): string {
   const safeName = args.deviceName.replace(/[^a-zA-Z0-9_-]/g, '-').slice(0, 32);
   // 2026-06-27: macOS 也走 bundle 内 node,跟 Linux 一致
-  const nodeBin = nodeBinaryInstallPath('darwin', '/opt/auto-test-agent');
+  const nodeBin = nodeBinaryInstallPath('darwin', args.installRoot);
   // 2026-06-28: mobile agent 需要 adb,从 bundle 内的 adb-runtime 加载。
-  const adbPath = '/opt/auto-test-agent/adb-runtime/platform-tools';
+  // 2026-07-01: installRoot 由 push.ts 传入,按 kind 分流。
+  const adbPath = `${args.installRoot}/adb-runtime/platform-tools`;
   const envDict = [
     `    <key>AGENT_TOKEN</key>`,
     `    <string>${args.token}</string>`,
@@ -901,12 +956,15 @@ function plistContent(args: PlistContentArgs): string {
     `    <key>AGENT_PORT</key>`,
     `    <string>${args.agentPort}</string>`,
     `    <key>AGENT_BROWSERS_PATH</key>`,
-    `    <string>/opt/auto-test-agent/browsers</string>`,
+    `    <string>${args.installRoot}/browsers</string>`,
     `    <key>PATH</key>`,
     `    <string>${adbPath}:/usr/local/bin:/usr/bin:/bin</string>`,
   ];
   if (args.kind === 'mobile') {
     envDict.push(`    <key>AGENT_MOBILE_PORT</key>`, `    <string>${args.agentPort}</string>`);
+  }
+  if (args.kind === 'pc') {
+    envDict.push(`    <key>AGENT_PC_PORT</key>`, `    <string>${args.agentPort}</string>`);
   }
   return `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -917,7 +975,7 @@ function plistContent(args: PlistContentArgs): string {
   <key>ProgramArguments</key>
   <array>
     <string>${nodeBin}</string>
-    <string>/opt/auto-test-agent/${args.entryPoint}</string>
+    <string>${args.installRoot}/${args.entryPoint}</string>
   </array>
   <key>EnvironmentVariables</key>
   <dict>
@@ -932,7 +990,7 @@ ${envDict.join('\n')}
   <key>StandardErrorPath</key>
   <string>/var/log/auto-test-agent.log</string>
   <key>WorkingDirectory</key>
-  <string>/opt/auto-test-agent</string>
+  <string>${args.installRoot}</string>
 </dict>
 </plist>`;
 }

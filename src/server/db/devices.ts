@@ -1,5 +1,6 @@
 import db from './index.js';
 import crypto from 'node:crypto';
+import { createRequire } from 'node:module';
 
 export type DeviceTestType = 'web' | 'pc' | 'mobile';
 export type DeviceStatus = 'online' | 'offline' | 'unknown';
@@ -385,14 +386,15 @@ export function setNeedsUpgrade(id: number, needs: boolean): number {
 export function getRequiredAgentVersion(): string {
   if (_requiredVersionCache !== null) return _requiredVersionCache;
   try {
-    // project root is 4 levels up from src/server/db/devices.ts:
-    //   devices.ts → db/ → server/ → src/ → <root>
-    // Use createRequire so we can use require() inside an ESM module.
-    const { createRequire } = require('node:module') as typeof import('node:module');
+    // project root is 3 levels up from both source and compiled locations:
+    //   src/server/db/devices.ts  → db/ → server/ → src/  → <root>
+    //   dist/server/db/devices.js → db/ → server/ → dist/ → <root>
+    // This file is ESM, so use createRequire instead of bare require().
     const req = createRequire(import.meta.url);
-    const pkg = req('../../../../package.json') as { version?: string };
+    const pkg = req('../../../package.json') as { version?: string };
     _requiredVersionCache = pkg.version ?? 'unknown';
-  } catch {
+  } catch (e) {
+    console.warn(`[devices] failed to read required agent version from package.json: ${e instanceof Error ? e.message : String(e)}`);
     _requiredVersionCache = 'unknown';
   }
   return _requiredVersionCache;

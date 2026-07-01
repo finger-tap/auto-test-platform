@@ -53,7 +53,10 @@ export async function apiFetchJSON<T>(
   if (res.status === 401) {
     removeToken();
     removeUserInfo();
-    window.location.href = '/login';
+    // Do NOT hard-redirect here — let the caller handle it (AuthContext
+    // will set user=null → ProtectedRoute navigates to /login via React
+    // Router, avoiding the infinite reload loop caused by
+    // window.location.href on a page that itself triggers API calls).
     return Promise.reject(new Error('登录已过期，请重新登录'));
   }
 

@@ -24,25 +24,23 @@ import os from 'node:os';
 const HEARTBEAT_INTERVAL_MS = 30_000;   // 30s
 const REGISTER_EVERY_MS = 10 * 60_000; // re-register every 10 min
 
-// Read this process's own version from <projectRoot>/package.json.
-// We can't require() relative paths from an ESM module, so use
-// createRequire. The package.json is the SAME file the server reads
-// to get its required_version — so this is the source of truth.
+// Read this process's own version from package.json. In deployed bundles the
+// manifest sits one level above agent-src/; in local dev/dist it sits two
+// levels above src/agent-web or dist/agent-web.
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-// src/agent-web/heartbeat.ts → 2 levels up = project root (3 from compiled
-// dist/agent-web/heartbeat.js). Use the relative path that works for both.
 const PKG_VERSION = (() => {
-  try {
-    const req = createRequire(import.meta.url);
-    const pkg = req(path.resolve(__dirname, '../../package.json')) as { version?: string };
-    return pkg.version ?? 'unknown';
-  } catch {
-    return 'unknown';
+  const req = createRequire(import.meta.url);
+  for (const candidate of ['../package.json', '../../package.json', '../../../package.json']) {
+    try {
+      const pkg = req(path.resolve(__dirname, candidate)) as { version?: string };
+      if (pkg.version) return pkg.version;
+    } catch { /* try next */ }
   }
+  return 'unknown';
 })();
 
 let _lastRegisterAt = 0;
@@ -102,6 +100,7 @@ async function tick(deps: HeartbeatDeps): Promise<void> {
   const url = deps.serverUrl.replace(/\/$/, '') + path;
 
   const res = await postJson(url, deps.agentToken, {
+    agentKind: 'web',
     agentEndpoint: endpoint,
     version: PKG_VERSION,
   });

@@ -37,6 +37,8 @@ export interface ExecResult {
  * with an Error that names the host so the UI can show a useful message.
  */
 export function connectSsh(creds: SshCredentials): Promise<{ conn: Client; end: () => void }> {
+  const t0 = Date.now();
+  console.log(`[agent-push:ssh] connectSsh initiating ${creds.username}@${creds.host}:${creds.port} auth=${creds.password ? 'password' : creds.privateKey ? 'privateKey' : 'none'}`);
   return new Promise((resolve, reject) => {
     const conn = new Client();
     let settled = false;
@@ -45,6 +47,7 @@ export function connectSsh(creds: SshCredentials): Promise<{ conn: Client; end: 
       if (settled) return;
       settled = true;
       const msg = `SSH to ${creds.username}@${creds.host}:${creds.port} failed: ${err.message}`;
+      console.error(`[agent-push:ssh] connectSsh ERROR after ${Date.now() - t0}ms: ${msg}`);
       reject(new Error(msg));
       try { conn.end(); } catch { /* ignore */ }
     };
@@ -52,6 +55,7 @@ export function connectSsh(creds: SshCredentials): Promise<{ conn: Client; end: 
     conn.on('ready', () => {
       if (settled) return;
       settled = true;
+      console.log(`[agent-push:ssh] connectSsh ready in ${Date.now() - t0}ms ${creds.username}@${creds.host}:${creds.port}`);
       resolve({
         conn,
         end: () => {
@@ -60,12 +64,19 @@ export function connectSsh(creds: SshCredentials): Promise<{ conn: Client; end: 
       });
     });
     conn.on('error', onError);
+    // 2026-06-27: 开 ssh2 'debug' 事件监听 — 输出 KEX/cipher/banner 协商细节,
+    // 用于排查命令行 ssh 能连但 ssh2 不能连的场景(典型: Windows OpenSSH
+    // 算法配置 / banner 交换超时)。ssh2 类型定义没声明 'debug' 事件,用 cast 绕过。
+    (conn as unknown as NodeJS.EventEmitter).on('debug', (msg: string) => {
+      console.error(`[agent-push:ssh] debug ${creds.host}:${creds.port} ${msg}`);
+    });
     // 'close' fires after end() and after auth failures; treat as a
     // duplicate error if we haven't settled yet (rare race).
     conn.on('close', () => {
       if (!settled) onError(new Error('connection closed before ready'));
     });
 
+    console.log(`[agent-push:ssh] connectSsh calling conn.connect() readyTimeout=20000`);
     conn.connect({
       host: creds.host,
       port: creds.port,
@@ -73,6 +84,8 @@ export function connectSsh(creds: SshCredentials): Promise<{ conn: Client; end: 
       password: creds.password,
       privateKey: creds.privateKey,
       readyTimeout: 20_000,
+      // Skip host key verification — managed devices may not be in known_hosts.
+      hostVerifier: (_hash: string) => true,
       // Keep the keepalive at default — we close after each push anyway.
     });
   });
@@ -84,25 +97,49 @@ export function connectSsh(creds: SshCredentials): Promise<{ conn: Client; end: 
  * Rejects on any error (network, auth, SFTP, src). Streams are NOT
  * closed on the caller's behalf — push.ts does that.
  */
+/** 30 min timeout for SFTP upload (1GB+ bundles on slow LANs need headroom). */
+const SFTP_UPLOAD_TIMEOUT_MS = 30 * 60 * 1000;
+
 export function sftpUpload(
   conn: Client,
   remotePath: string,
   src: Readable,
   onProgress?: (bytesWritten: number) => void
 ): Promise<void> {
+  const t0 = Date.now();
+  console.log(`[agent-push:ssh] sftpUpload start remote=${remotePath}`);
   return new Promise<void>((resolve, reject) => {
     let settled = false;
+    let written = 0;
+
+    const timeout = setTimeout(() => {
+      if (!settled) {
+        settled = true;
+        const msg = `SFTP upload timed out after ${SFTP_UPLOAD_TIMEOUT_MS / 1000}s (wrote ${written} bytes)`;
+        console.error(`[agent-push:ssh] sftpUpload TIMEOUT: ${msg}`);
+        try { src.unpipe(); } catch { /* ignore */ }
+        reject(new Error(msg));
+      }
+    }, SFTP_UPLOAD_TIMEOUT_MS);
+
     const fail = (err: Error) => {
       if (settled) return;
       settled = true;
+      clearTimeout(timeout);
+      console.error(`[agent-push:ssh] sftpUpload ERROR after ${Date.now() - t0}ms: ${err.message}`);
       try { src.unpipe(); } catch { /* ignore */ }
       reject(err);
     };
 
+    console.log(`[agent-push:ssh] sftpUpload acquiring SFTP session ...`);
     conn.sftp((sftpErr, sftp: SFTPWrapper) => {
       if (sftpErr) { fail(sftpErr instanceof Error ? sftpErr : new Error(String(sftpErr))); return; }
-      const ws = sftp.createWriteStream(remotePath);
-      let written = 0;
+      console.log(`[agent-push:ssh] sftpUpload SFTP session acquired in ${Date.now() - t0}ms, creating write stream to ${remotePath}`);
+      // 2026-07-01: agent bundle is large because it intentionally ships
+      // node-runtime + full node_modules. Use a larger write buffer than the
+      // stream default to reduce backpressure churn and improve throughput on
+      // LAN / high-latency SSH links without changing package contents.
+      const ws = sftp.createWriteStream(remotePath, { highWaterMark: 1024 * 1024 });
       src.on('data', (chunk) => {
         written += (chunk as Buffer).length;
         if (onProgress) onProgress(written);
@@ -110,26 +147,65 @@ export function sftpUpload(
       src.on('error', fail);
       ws.on('error', fail);
       ws.on('close', () => {
-        if (!settled) { settled = true; resolve(); }
+        if (!settled) {
+          settled = true;
+          clearTimeout(timeout);
+          console.log(`[agent-push:ssh] sftpUpload complete remote=${remotePath} bytes=${written} took=${Date.now() - t0}ms`);
+          resolve();
+        }
       });
+      console.log(`[agent-push:ssh] sftpUpload piping stream to remote ...`);
       src.pipe(ws);
     });
   });
 }
 
+/** 5 min timeout for individual SSH commands (deploy, write-env, etc.). */
+const EXEC_COMMAND_TIMEOUT_MS = 5 * 60 * 1000;
+
 /**
  * Run a command on the SSH channel, capture stdout/stderr, return
  * when the channel closes. Streams both to the console with an
  * [agent-push:ssh] prefix for live operator feedback during deploys.
+ *
+ * 2026-06-27: 可选 stdin — Windows deploy 走 `powershell -Command -` 时
+ * 需要把脚本通过 stdin 喂进去(Linux/Mac 仍用 bash heredoc 嵌入 command
+ * 字符串,但 stdin 是更通用的方式)。
  */
-export function execCommand(conn: Client, command: string, label = 'exec'): Promise<ExecResult> {
+export function execCommand(
+  conn: Client,
+  command: string,
+  label = 'exec',
+  stdin?: string,
+): Promise<ExecResult> {
+  const t0 = Date.now();
+  console.log(`[agent-push:ssh] execCommand start label=${label} cmd=${command.slice(0, 120)}${command.length > 120 ? '...' : ''}${stdin ? ` stdin=${stdin.length}B` : ''}`);
   return new Promise((resolve, reject) => {
+    let settled = false;
+
+    const timeout = setTimeout(() => {
+      if (!settled) {
+        settled = true;
+        const msg = `SSH command "${label}" timed out after ${EXEC_COMMAND_TIMEOUT_MS / 1000}s`;
+        console.error(`[agent-push:ssh] execCommand TIMEOUT: ${msg}`);
+        reject(new Error(msg));
+      }
+    }, EXEC_COMMAND_TIMEOUT_MS);
+
     conn.exec(command, (err, stream: ClientChannel) => {
-      if (err) { reject(err instanceof Error ? err : new Error(String(err))); return; }
+      if (err) {
+        clearTimeout(timeout);
+        console.error(`[agent-push:ssh] execCommand exec() ERROR label=${label}: ${err.message}`);
+        reject(err instanceof Error ? err : new Error(String(err)));
+        return;
+      }
       let stdout = '';
       let stderr = '';
       stream.on('close', (code: number | null, signal: string | null) => {
-        console.log(`[agent-push:ssh] ${label} exit code=${code} signal=${signal} stdout=${stdout.length}B stderr=${stderr.length}B`);
+        if (settled) return;
+        settled = true;
+        clearTimeout(timeout);
+        console.log(`[agent-push:ssh] ${label} exit code=${code} signal=${signal} stdout=${stdout.length}B stderr=${stderr.length}B took=${Date.now() - t0}ms`);
         resolve({ stdout, stderr, code, signal });
       });
       stream.on('data', (data: Buffer) => {
@@ -143,6 +219,11 @@ export function execCommand(conn: Client, command: string, label = 'exec'): Prom
         stderr += s;
         process.stderr.write(`[agent-push:ssh] ${label} ! ${s}`);
       });
+      // 2026-06-27: 可选 stdin — write + close(stdin EOF 让远端 `cmd -` 完成读取)
+      if (stdin !== undefined) {
+        stream.write(stdin, 'utf8');
+        stream.end();
+      }
     });
   });
 }

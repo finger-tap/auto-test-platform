@@ -78,7 +78,7 @@ export interface ExecuteResult {
 export interface ExecuteOptions {
   executedBy: string;
   environmentId?: number;
-  deviceId?: number;
+  deviceId?: number | string;
   /** Environment variables for ${varName} substitution in content/preconditions/checkpoints. */
   envVars?: Record<string, string>;
   // The owning user's id — used to load that user's Midscene model config
@@ -322,7 +322,7 @@ export async function executeMobileTest(
   // 2026-06-09: 远端设备 → SSH 隧道。deviceId 是 devices.id 时视为远端,
   // 走 SSH LocalForward;deviceId 是 local 字符串(`local:<platform>:<serial>`)
   // 或 undefined 时视为本地,直接调 agent factory。
-  const deviceRow = _opts.deviceId ? getDevice(_opts.deviceId) : null;
+  const deviceRow = typeof _opts.deviceId === 'number' ? getDevice(_opts.deviceId) : null;
   // 远端 = 设备行有 agent_endpoint(mobile-agent 上报过)
   const isRemote = !!deviceRow && deviceRow.test_type === 'mobile' && !!deviceRow.agent_endpoint;
   // 2026-06-20: 远程执行前校验设备状态

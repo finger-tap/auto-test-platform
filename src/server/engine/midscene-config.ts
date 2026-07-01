@@ -35,7 +35,7 @@ async function getOverrideAIConfig(): Promise<OverrideFn> {
  * EXTRA_BODY_JSON / INIT_CONFIG_JSON / REASONING_*) in addition to the
  * base NAME/API_KEY/BASE_URL/FAMILY/TIMEOUT/TEMPERATURE.
  */
-function buildEnvMap(row: MidsceneConfigRow): Record<string, string> {
+export function buildMidsceneEnvMap(row: MidsceneConfigRow): Record<string, string> {
   const m: Record<string, string> = {};
   const setIfPresent = (key: string, value: string | number | null | undefined) => {
     if (value === null || value === undefined) return;
@@ -110,9 +110,84 @@ function buildEnvMap(row: MidsceneConfigRow): Record<string, string> {
  * `extendMode: true` so any leftover env-var-set values (e.g. OPENAI_API_KEY
  * from a Docker secret) are preserved unless the user explicitly set them.
  */
+const MIDSCENE_ENV_KEYS = [
+  'MIDSCENE_MODEL_NAME',
+  'MIDSCENE_MODEL_API_KEY',
+  'MIDSCENE_MODEL_BASE_URL',
+  'MIDSCENE_MODEL_FAMILY',
+  'MIDSCENE_MODEL_TIMEOUT',
+  'MIDSCENE_MODEL_TEMPERATURE',
+  'MIDSCENE_MODEL_RETRY_COUNT',
+  'MIDSCENE_MODEL_RETRY_INTERVAL',
+  'MIDSCENE_MODEL_HTTP_PROXY',
+  'MIDSCENE_MODEL_SOCKS_PROXY',
+  'MIDSCENE_MODEL_EXTRA_BODY_JSON',
+  'MIDSCENE_MODEL_INIT_CONFIG_JSON',
+  'MIDSCENE_MODEL_REASONING_ENABLED',
+  'MIDSCENE_MODEL_REASONING_EFFORT',
+  'MIDSCENE_MODEL_REASONING_BUDGET',
+  'MIDSCENE_INSIGHT_MODEL_NAME',
+  'MIDSCENE_INSIGHT_MODEL_API_KEY',
+  'MIDSCENE_INSIGHT_MODEL_BASE_URL',
+  'MIDSCENE_INSIGHT_MODEL_FAMILY',
+  'MIDSCENE_INSIGHT_MODEL_TIMEOUT',
+  'MIDSCENE_INSIGHT_MODEL_TEMPERATURE',
+  'MIDSCENE_INSIGHT_MODEL_RETRY_COUNT',
+  'MIDSCENE_INSIGHT_MODEL_RETRY_INTERVAL',
+  'MIDSCENE_INSIGHT_MODEL_HTTP_PROXY',
+  'MIDSCENE_INSIGHT_MODEL_SOCKS_PROXY',
+  'MIDSCENE_INSIGHT_MODEL_EXTRA_BODY_JSON',
+  'MIDSCENE_INSIGHT_MODEL_INIT_CONFIG_JSON',
+  'MIDSCENE_INSIGHT_MODEL_REASONING_ENABLED',
+  'MIDSCENE_INSIGHT_MODEL_REASONING_EFFORT',
+  'MIDSCENE_INSIGHT_MODEL_REASONING_BUDGET',
+  'MIDSCENE_PLANNING_MODEL_NAME',
+  'MIDSCENE_PLANNING_MODEL_API_KEY',
+  'MIDSCENE_PLANNING_MODEL_BASE_URL',
+  'MIDSCENE_PLANNING_MODEL_FAMILY',
+  'MIDSCENE_PLANNING_MODEL_TIMEOUT',
+  'MIDSCENE_PLANNING_MODEL_TEMPERATURE',
+  'MIDSCENE_PLANNING_MODEL_RETRY_COUNT',
+  'MIDSCENE_PLANNING_MODEL_RETRY_INTERVAL',
+  'MIDSCENE_PLANNING_MODEL_HTTP_PROXY',
+  'MIDSCENE_PLANNING_MODEL_SOCKS_PROXY',
+  'MIDSCENE_PLANNING_MODEL_EXTRA_BODY_JSON',
+  'MIDSCENE_PLANNING_MODEL_INIT_CONFIG_JSON',
+  'MIDSCENE_PLANNING_MODEL_REASONING_ENABLED',
+  'MIDSCENE_PLANNING_MODEL_REASONING_EFFORT',
+  'MIDSCENE_PLANNING_MODEL_REASONING_BUDGET',
+  'MIDSCENE_PREFERRED_LANGUAGE',
+  'MIDSCENE_REPLANNING_CYCLE_LIMIT',
+] as const;
+
+function getServerDefaultMidsceneEnvMap(): Record<string, string> {
+  const m: Record<string, string> = {};
+  for (const key of MIDSCENE_ENV_KEYS) {
+    const value = process.env[key];
+    if (typeof value === 'string' && value.trim()) {
+      m[key] = value.trim();
+    }
+  }
+  return m;
+}
+
+/**
+ * Resolve the config that should be sent to a remote agent. User-specific DB
+ * values win; blank user fields fall back to the central server's project
+ * default MIDSCENE_* environment variables. This mirrors local execution's
+ * overrideAIConfig(envMap, true) behavior, but makes it explicit for agents
+ * running in a different process/machine.
+ */
+export function resolveMidsceneEnvMapForUser(userId: number): Record<string, string> {
+  return {
+    ...getServerDefaultMidsceneEnvMap(),
+    ...(getMidsceneConfig(userId) ? buildMidsceneEnvMap(getMidsceneConfig(userId)!) : {}),
+  };
+}
+
 export async function applyUserMidsceneConfig(userId: number, logContext: string): Promise<void> {
   const row = getMidsceneConfig(userId);
-  const envMap = row ? buildEnvMap(row) : {};
+  const envMap = row ? buildMidsceneEnvMap(row) : {};
   const override = await getOverrideAIConfig();
   // No row → wipe override. Midscene will fall back to process.env.
   if (!row) {

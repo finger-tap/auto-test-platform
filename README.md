@@ -1,324 +1,370 @@
-# auto-test-platform
+<p align="center">
+  <img src="public/brand/autotest-lockup-horizontal.svg" alt="AutoTest Platform" width="520" />
+</p>
 
-自动化测试平台 - 支持接口 / Web / UI / 移动端 自动化测试,支持在远程机器上跑浏览器用例。
+<h1 align="center">AutoTest Platform</h1>
+
+<p align="center">
+  面向 API、Web、PC 桌面与移动端场景的一体化自动化测试平台。
+</p>
+
+<p align="center">
+  <img alt="Node.js" src="https://img.shields.io/badge/Node.js-%3E%3D18-339933?logo=node.js&logoColor=white" />
+  <img alt="React" src="https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=111" />
+  <img alt="Vite" src="https://img.shields.io/badge/Vite-5-646CFF?logo=vite&logoColor=white" />
+  <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white" />
+  <img alt="SQLite" src="https://img.shields.io/badge/SQLite-better--sqlite3-003B57?logo=sqlite&logoColor=white" />
+</p>
+
+---
+
+## 项目简介
+
+AutoTest Platform 是一个自研自动化测试平台，提供从用例管理、场景编排、批量执行、定时调度、远程设备管理到执行报告查看的一整套能力。
+
+平台覆盖四类测试：
+
+- **API 接口测试**：HTTP / WebSocket 请求、断言、参数化、前后置脚本、数据库查询、Mock、OpenAPI 导入导出。
+- **Web 自动化测试**：基于 Playwright 与 Midscene 的浏览器自动化，支持本机与远程 Web Agent 执行。
+- **PC 桌面自动化测试**：面向 Windows / macOS / Linux 桌面应用场景，支持本机与远程 PC Agent 执行。
+- **移动端自动化测试**：支持 Android / Harmony / iOS 设备接入、应用管理、实时预览与远程 Mobile Agent 执行。
+
+项目采用前后端一体化架构：开发环境中 Express 与 Vite 运行在同一端口，生产环境由 Express 托管构建后的前端静态资源。
+
+---
+
+## 核心能力
+
+### 1. 测试资产管理
+
+- API / Web / PC / Mobile 四套独立用例体系。
+- 支持标签、状态、描述、环境变量、参数化数据。
+- 支持用例集、场景集、批量执行与历史执行记录。
+- 支持不同测试类型下独立的环境配置和系统配置。
+
+### 2. API 测试
+
+- 支持 HTTP / HTTPS / WS / WSS。
+- 支持 Header、Query、Body、Cookie、Content-Type 配置。
+- 支持 JSONPath 断言、状态码断言、响应内容断言。
+- 支持前置脚本、后置脚本、前置 / 后置数据库查询。
+- 支持 Mock 服务与请求命中统计。
+- 支持 OpenAPI 文档导入和导出。
+
+### 3. Web 测试
+
+- 基于 Playwright 执行浏览器自动化。
+- 支持自然语言步骤与 Midscene 执行报告。
+- 支持本地浏览器执行，也支持远程 Web Agent 执行。
+- 支持浏览器配置、无头模式、窗口尺寸、基础 URL 等参数。
+
+### 4. PC 桌面测试
+
+- 支持 PC 桌面自动化用例的管理与执行。
+- 按目标平台区分 Windows / macOS / Linux 配置项。
+- 支持本机桌面执行与远程 PC Agent 执行。
+- 支持远程 Agent 注册、心跳、版本校验、重连 / 升级。
+
+### 5. 移动端测试
+
+- 支持 Android / Harmony / iOS 移动自动化场景。
+- 支持应用包管理、设备选择、实时预览、截图与报告。
+- Android / Harmony 侧集成 ADB、scrcpy 相关能力。
+- 支持远程 Mobile Agent 部署与回连。
+
+### 6. 设备与 Agent 管理
+
+- 设备库统一管理 Web / Mobile / PC 远程设备。
+- 支持 SSH 推送 Agent 包、自动部署、服务注册与状态回报。
+- 支持按 Agent 类型隔离远端部署目录，避免不同 Agent 包互相覆盖。
+- 支持 Agent 版本不一致时提示升级，并通过平台 UI 触发重连 / 升级。
+
+### 7. 调度与报告
+
+- 支持定时执行测试集。
+- 支持执行状态、耗时、结果统计和历史记录。
+- 支持 Midscene HTML 报告查看。
+- 后台包含报告清理、Agent 心跳扫描等调度任务。
+
+---
+
+## 技术栈
+
+| 层级 | 技术 |
+| --- | --- |
+| 前端 | React 18、Vite、TypeScript、React Router、CodeMirror、Recharts、@xyflow/react |
+| 后端 | Node.js、Express、TypeScript、better-sqlite3、node-cron、ws |
+| 自动化 | Playwright、Midscene Web / Android / iOS / Harmony / Computer |
+| 远程部署 | ssh2、systemd、launchd、Node Runtime 打包、SFTP 上传 |
+| 数据存储 | SQLite，本地文件数据库 |
+| 构建 | Vite、TypeScript、tsx |
+
+---
 
 ## 快速开始
 
-```sh
+### 环境要求
+
+- Node.js >= 18
+- npm / pnpm 均可，当前仓库包含 `package-lock.json`，默认示例使用 npm
+- 如需执行 Web 自动化，需要安装 Playwright 浏览器驱动
+- 如需移动端能力，需要准备对应平台的设备、驱动或远程 Agent 环境
+
+### 安装依赖
+
+```bash
 npm install
-npx playwright install chromium   # 本地浏览器二进制
-npm run dev                       # 起 server + vite dev server(同进程)
 ```
 
-访问 http://localhost:3000 ,默认账号在首次启动时打印到 server 日志。
+安装 Playwright 浏览器驱动：
 
-## 项目结构
-
-```
-src/
-├── server/        # Express + SQLite 后端,所有执行器和路由
-│   ├── engine/    # api / web / pc / mobile 执行器
-│   ├── routes/    # REST 端点
-│   ├── scheduler/ # node-cron 调度(场景集 + 报告清理 + agent 心跳)
-│   ├── devices/   # merge / ssh-tunnel(移动端本地+远端设备合并)
-│   ├── mobile-preview/  # scrcpy / mjpeg / screenshot relay
-│   ├── agent-push/      # bundler / ssh-client / push / crypto
-│   └── db/        # better-sqlite3 表 + 访问函数
-├── client/        # React + Vite 前端
-├── agent-web/     # 远程 web agent 服务(独立 Node 进程,4001 端口,Playwright Chromium)
-└── agent-mobile/  # 远程 mobile agent 服务(独立 Node 进程,4002 端口,Android/Harmony/iOS)
+```bash
+npm run setup:drivers
 ```
 
-## 测试类型
+### 启动开发环境
 
-| 类型 | 说明 | 执行器 |
-|---|---|---|
-| 接口 (api) | 用 YAML/JSON 描述 HTTP 请求,断言 JSON/状态码 | `engine/api-executor.ts` |
-| Web | 用自然语言或 YAML 驱动 PlaywrightAgent,生成 Midscene HTML 报告 | `engine/web-executor.ts` |
-| PC | 同上(headless Chromium 模拟) | `engine/pc-executor.ts` |
-| 移动端 | 同上 | `engine/mobile-executor.ts` |
-
-所有类型的用例、场景、场景集、调度都拆成独立的 4 套表(见 `src/server/db/`),
-互不污染。
-
-## Web 远程 Agent 部署
-
-Web 用例默认在 server 所在机器上跑(`launcher.launchServer()` in-process)。
-如果你需要在另一台机器(Windows / Linux / macOS 远端、CI runner)上跑 web 用例,
-有两种部署方式:**SSH 集中推送**(默认推荐,平台一键搞定)和**手动部署**(开发/CI 备用)。
-
-### 方式一:SSH 集中推送(推荐)
-
-平台在用户点"重连/升级"按钮时,会通过 SSH 登录远端 Linux 机器,把
-agent 源码 + node_modules + Chromium + systemd unit 一次性打包推过去,
-远端自动解压、自动安装、注册成 systemd 服务 `auto-test-agent.service`。
-整个过程不需要人 SSH 到机器上。
-
-#### 1. server 端:配 SSH 加密密钥(只做一次)
-
-```sh
-# 32 字节 hex,跟 JWT secret 同等强度
-export AGENT_SSH_KEY_SECRET=$(openssl rand -hex 32)
-# 持久化到 .env / 系统环境变量,重启 server 后依然生效
+```bash
+npm run dev
 ```
 
-如果这个 env 没设,server 启动时会打一条 warning,推送/停止端点会返 503;
-其他功能(heartbeat、调度、执行器)不受影响。
+默认访问：
 
-#### 2. UI:添加 web 设备 + 填 SSH 信息
-
-打开 UI → 系统管理 → 设备库 → `+ 添加设备`,类型选 **Web 测试**,保存。
-
-然后点该设备的 `编辑` 按钮,展开 **SSH 配置**(默认折叠):
-
-| 字段 | 说明 |
-|---|---|
-| `SSH Host` / `SSH Port` / `SSH User` | 远端机器地址 + 22/2222 + 用户名(需要能 `sudo`,详见下文) |
-| `认证方式` | 密码 / 私钥二选一 |
-| `密码` 或 `私钥` | 留空 = 保留原值(编辑模式);空字符串 = 清空 |
-| `操作系统` | 现只支持 Linux;macOS/Windows 暂不支持(按钮会灰掉) |
-
-**凭据安全**:密码和私钥在 server 端用 AES-256-GCM 加密存到 `devices` 表,
-列名作为 AAD 防止密文被换列。**API 响应里不返回明文**,只在 Agent Info
-弹窗里展示 `has_ssh_password` / `has_ssh_private_key` 两个布尔。
-
-**用户权限要求**:SSH 登入的用户必须能 `sudo`(推送脚本里用 `sudo tee` 写
-`/etc/auto-test-agent.env` 和 `/etc/systemd/system/auto-test-agent.service`)。
-建议用 `root` 或专门的 sudoer 账号。
-
-#### 3. UI:点"重连/升级" → 几分钟后远端跑起来
-
-设备列表的每一行 web 设备都有 **重连/升级** 按钮(SSH 信息不全时灰掉),
-点了之后:
-
-1. server 把 `src/agent-web/` 源码 + `node_modules/` + `chromium-*` + systemd unit
-   打成 tar.gz(~1.5GB),流式 SFTP 上传到 `/tmp/agent-bundle-<ts>.tar.gz`
-2. 远端跑内联的 deploy 脚本:解压到 `-bundle-new` → sha256 校验 →
-   原子切换(老目录改名为 `-old`、新目录切上来)→ 写 `/etc/auto-test-agent.env`
-   → 写 systemd unit(`[ -f ... ]` 判断,只在不存在时写) → `daemon-reload` →
-   `systemctl restart auto-test-agent`
-3. agent 启动后立刻向 server `register` + 开始心跳,UI 上 30s 内变 `🟢 在线`
-4. `devices.last_push_at` / `last_push_status` / `last_push_error` 落地,
-   Agent Info 弹窗可以看到上一次推送的时间和错误
-
-> **降级路径**:Windows / macOS 远端机器、或不想配 SSH,改用"方式二:手动部署"。
-
-#### 4. 升级机制(Version Mismatch)
-
-升级是个**显式**动作 —— server 不会自动 SSH 上去 restart 用户的远端进程。
-流程:
-
-1. server 升级到新版本(改了 `package.json` 的 `version`)
-2. 远端 agent 还在跑老版本 → 它每次 `register`/`heartbeat` 时带上 `version`
-3. server 端 `/api/agents/heartbeat` 检测到 version 不一致 → 返 **401**
-   `{code: 401, message: "agent version mismatch: server requires X, agent has Y", required_version: X}`
-4. agent 看到 401 → 打印升级提示 → `process.exit(1)`
-5. server 把设备翻 `needs_upgrade=1`,UI 上设备名旁边出现 🆙 角标
-6. 用户看到角标 → 点 **重连/升级** → server 推新版本 → 完成
-
-server 启动时(`startScheduler()`)也会扫一遍所有 web 设备,version 不一致的
-标记 `needs_upgrade=1`,不需要等下次心跳。
-
-#### 5. 停止 / 重新调度
-
-设备行还有 **停止** 按钮(只在 `status=online` 时显示),点了之后
-server SSH 上去跑 `systemctl stop auto-test-agent.service`:
-agent 收到 SIGTERM → 主动 `POST /api/agents/shutdown` → server 翻 offline
-**不自动重拉**。再上线走 **重连/升级** 按钮。
-
-#### 6. SSH 推送排错速查
-
-| 现象 | 原因 |
-|---|---|
-| 按钮灰掉 | 设备类型不是 web,或 SSH 信息不全(host/user/auth_type 缺一) |
-| `503 SSH push is disabled` | server 没设 `AGENT_SSH_KEY_SECRET` |
-| `connect: connect ETIMEDOUT` | 防火墙挡 SSH 端口 |
-| `All configured authentication methods failed` | 密码/私钥错 |
-| `sudo: a password is required` | SSH 用的用户不在 sudoers,改成 root 或加 NOPASSWD |
-| `systemctl: command not found` | 远端没装 systemd(非主流发行版) |
-| agent 没自动起来 | 看 server 控制台 `[agent-push] deploy error: ...`,通常 sha256 失败或磁盘满 |
-| `Permission denied (publickey)` | ssh_user / ssh_private_key 跟公钥指纹对不上 |
-
-### 方式二:手动部署(开发 / CI 备用)
-
-不走 SSH 推送,自己在远端机器上手动装。适合 CI runner、个人开发机、
-不支持 systemd 的环境。
-
-#### 1. 中央 server 端:创建 web 设备,拿到 token
-
-打开 UI → 系统管理 → 设备库 → 右上角 `+ 添加设备`,类型选 **Web 测试**,保存。
-
-设备列表 → 找到那条记录 → 点 `Agent` 按钮 → 弹窗里能看到:
-
-- `Agent Token` (UUID, 点击复制)
-- `Agent 部署命令` (预渲染好的一行命令,直接复制)
-
-#### 2. 远程机器:装 agent
-
-```sh
-git clone <this-repo>            # 或单独拷 src/agent-web + package.json + tsconfig.agent.json
-cd <this-repo>
-npm install
-npx playwright install chromium  # agent 必须有 chromium 二进制
-
-# 填入步骤 1 拿到的两个值
-export AGENT_TOKEN=<粘贴 token>
-export AGENT_SERVER_URL=http://central-server:3000   # 改成你 server 的真实地址
-export AGENT_PORT=4001            # 可选,默认 4001
-
-npm run agent                    # dev 模式(热重启用 npm run dev:agent)
+```text
+http://localhost:3000
 ```
 
-启动后 agent 会立刻 `POST /api/agents/register` 注册到 server,然后每 30s 一次心跳。
-中央 server 调度器每分钟会扫一次 last_seen_at,>90s 没心跳就翻成 offline。
+开发模式下，后端 Express 与前端 Vite 中间件运行在同一个服务中，接口与页面共用端口。
 
-#### 3. 验证
+### 构建生产版本
 
-- 中央 server 控制台:看到 `[agent:heartbeat] registered (status=200)`
-- 中央 server UI:设备库 → 那条 web 设备状态变成 `🟢 在线`,`last_seen_at` 持续刷新
-- 中央 server UI:Web 用例详情 → 顶部"执行设备"下拉会列出这个远程设备,选上 → 执行
+```bash
+npm run build
+```
 
-#### 4. 常用运维
+### 启动生产服务
 
-| 操作 | 命令 |
-|---|---|
-| 看 agent 日志 | `npm run agent`(前台) |
-| 升级重启 | `Ctrl+C` 再 `npm run agent`(graceful shutdown 会主动通知 server 翻 offline) |
-| 看活跃会话 | `curl http://agent-host:4001/healthz` → 返回 `activeSessions` 字段 |
-| 换一台机器 | UI 设备库 → 编辑设备 → 改 `connection 地址`,再用新机器的 token 启动 agent |
+```bash
+npm run start
+```
 
-#### 5. 排错速查
+---
 
-| 现象 | 原因 |
-|---|---|
-| agent 启动后 server 看不到 | `AGENT_SERVER_URL` 写错,或 4001 端口被防火墙挡 |
-| UI 状态一直是 `⚫ 离线` | agent 没起来 / token 填错 / server 调度器还没扫(等最多 60s) |
-| 用例报 `Agent disconnected` | agent 在用例中途挂了,server 端会标记该执行失败,重启 agent 再试 |
-| `401 Unauthorized` | token 跟 server 数据库里那条设备对不上,重新从 UI 复制 |
-| `playwright install` 失败 | agent 主机不能访问 playwright CDN,自行准备 `PLAYWRIGHT_BROWSERS_PATH` 指向内部镜像 |
+## 常用脚本
 
-### 安全提醒
+| 命令 | 说明 |
+| --- | --- |
+| `npm run dev` | 启动开发环境，后端与前端同端口运行 |
+| `npm run dev:server` | 仅启动后端开发服务 |
+| `npm run agent` | 启动 Web Agent |
+| `npm run dev:agent` | 以 watch 模式启动 Web Agent |
+| `npm run build` | 构建前端与服务端 |
+| `npm run build:agent` | 构建 Web Agent |
+| `npm run build:agent-mobile` | 构建 Mobile Agent |
+| `npm run build:agent-pc` | 构建 PC Agent |
+| `npm run start` | 启动生产服务 |
+| `npm run start:agent` | 启动构建后的 Web Agent |
+| `npm run test` | 运行后端 smoke 测试 |
+| `npm run setup:drivers` | 安装 Playwright 驱动 |
 
-- `AGENT_TOKEN` 是唯一的共享密钥,别提交到 git,别贴到群里
-- `AGENT_SSH_KEY_SECRET` 跟 JWT secret 同等对待 —— **轮换会作废所有
-  设备存的 SSH 凭据密文**,得让用户重填
-- agent 的 4001 端口别直接暴露公网,放到内网/SSH 隧道/防火墙白名单
-- 正式环境请把 server 和 agent 都套在 TLS 终止的 reverse proxy 后面
+---
 
-### 完整参考
+## 目录结构
 
-- 协议细节、端点列表、环境变量、浏览器池策略 → `src/agent-web/README.md`
-- 推送实现:`src/server/agent-push/`(bundler / ssh-client / push / crypto)
-- 推送端点:`POST /api/devices/:id/push-agent` 和 `POST /api/devices/:id/stop-agent`
-- 调度器、报告清理、token 生成细节 → `src/server/scheduler/scheduler.ts`
-- 客户端实现 → `src/client/pages/system/DeviceList.tsx` / `WebCaseDetail.tsx`
+```text
+.
+├── public/                  # 静态资源与品牌资源
+│   └── brand/               # Logo、图标、报告封面等品牌素材
+├── src/
+│   ├── client/              # React 前端应用
+│   │   ├── components/      # 通用组件
+│   │   ├── contexts/        # 鉴权、主题、环境等上下文
+│   │   ├── pages/           # API / Web / PC / Mobile 各模块页面
+│   │   ├── styles/          # 全局样式与模块样式
+│   │   └── utils/           # 前端工具函数
+│   ├── server/              # Express 后端
+│   │   ├── agent-push/      # Agent 打包、SSH 推送、远端部署
+│   │   ├── auth/            # 登录鉴权与 JWT 中间件
+│   │   ├── db/              # SQLite 表结构与数据访问
+│   │   ├── devices/         # 设备合并、隧道等能力
+│   │   ├── engine/          # API / Web / PC / Mobile 执行器
+│   │   ├── mobile-preview/  # 移动端预览、scrcpy、截图转发
+│   │   ├── pc-preview/      # PC 预览会话管理
+│   │   ├── routes/          # REST API 路由
+│   │   └── scheduler/       # 定时任务、报告清理、心跳扫描
+│   ├── agent-web/           # 远程 Web Agent
+│   ├── agent-mobile/        # 远程 Mobile Agent
+│   ├── agent-pc/            # 远程 PC Agent
+│   └── shared/              # 前后端共享类型或工具
+├── docs/                    # 规范、操作手册、数据库结构等文档
+├── drivers/                 # Playwright 浏览器驱动缓存
+├── data/                    # SQLite 数据库、上传文件等运行数据
+├── scripts/                 # 开发、驱动安装、诊断脚本
+└── dist/                    # 构建输出目录
+```
 
-## Mobile 远程 Agent 部署
+---
 
-移动端用例(server 端 Midscene 调用 adb/hdc/WDA 协议)支持在远端机器上跑:
+## 环境变量
 
-| 平台 | 远端 OS | 工具链 | 端口 / 协议 | Server 端做法 |
-|---|---|---|---|---|
-| Android | Linux | adb-server | TCP 5037 | SSH LocalForward 5037 → 远端,`process.env.ADB_SERVER_SOCKET = "tcp:127.0.0.1:PORT"` |
-| Harmony | Linux | hdc-server | TCP 5037(跟 adb 共用) | `process.env.HDC_SERVER_PORT = PORT` |
-| iOS | macOS | WDA + xcrun simctl + idevicescreenshot | HTTP 8100 (WDA) | SSH LocalForward 8100 → 远端,`agentFromWebDriverAgent({wdaHost, wdaPort})` |
+| 变量 | 必填 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `PORT` | 否 | `3000` | 服务监听端口 |
+| `NODE_ENV` | 否 | `development` | 运行环境 |
+| `DATA_DIR` | 否 | `data` | 数据文件目录 |
+| `JWT_SECRET` | 生产建议 | 内置开发兜底 | JWT 签名密钥，生产环境应显式配置 |
+| `CORS_ORIGINS` | 生产建议 | localhost 白名单 | 生产环境允许的跨域来源，逗号分隔 |
+| `PUBLIC_SERVER_URL` | 远程 Agent 建议 | 自动推断或手动配置 | Agent 回连中心服务的地址 |
+| `AGENT_SSH_KEY_SECRET` | SSH 推送必填 | 无 | 用于加密保存设备 SSH 凭据，建议 32 字节 hex |
+| `PLAYWRIGHT_BROWSERS_PATH` | 否 | `drivers` | Playwright 浏览器驱动目录 |
 
-跟 web-agent 不同的地方:移动端**没有 HTTP 协议让 server 直连远端 adb 进程**,
-adb/hdc/WDA 都是 TCP 长连接或 HTTP。Server 端用 SSH LocalForward(`ssh2.Client.forwardOut`)
-把远端端口透到 `127.0.0.1:RANDOM`,然后当本地端口用 — 所有现有 Midscene 工厂函数
-零修改。
+生成 SSH 凭据加密密钥示例：
 
-`mobile-agent`(`src/agent-mobile/`,跟 `src/agent-web/` 平级)主要负责**屏幕预览传输**:
-- Android: scrcpy H.264 → WebSocket(给前端 WebCodecs 解码)
-- iOS: WDA MJPEG 或 xcrun simctl screenshot
-- Harmony: hdc shell screencap 轮询(1 FPS)
-- 设备列表:`POST /devices` 返回本机 adb/hdc/iOS 设备,server 在 agent
-  register/heartbeat 时拉取,落到 `devices.metadata` JSON
-
-### 方式一:SSH 集中推送(推荐)
-
-跟 web-agent 一样,server 把 `src/agent-mobile/` 源码 + 共享 `node_modules/` 打成
-tar.gz,通过 SSH 推过去。区别是**服务自启按远端 OS 分**:
-- 远端 Linux:写 `/etc/systemd/system/auto-test-mobile-agent.service` + `systemctl restart`
-- 远端 macOS:写 `/Library/LaunchDaemons/com.auto-test.mobile-agent.plist` + `sudo launchctl load -w`
-
-#### 1. server 端:配 SSH 加密密钥(同 web-agent)
-
-```sh
+```bash
 export AGENT_SSH_KEY_SECRET=$(openssl rand -hex 32)
 ```
 
-#### 2. UI:添加 mobile 设备
+生产环境建议将关键环境变量写入进程管理器、容器环境或 `.env` 管理方案中。
 
-打开 UI → 系统管理 → 设备库 → `+ 添加设备`,类型选 **Mobile 测试**,保存。
+---
 
-点该设备的 `编辑`,展开 **SSH 配置**:
+## 数据与存储
 
-| 字段 | 说明 |
-|---|---|
-| `SSH Host` / `SSH Port` / `SSH User` | 远端机器地址(Android/Harmony = Linux,iOS = Mac) |
-| `认证方式` | 密码 / 私钥 |
-| `操作系统` | **Linux (systemd)** 或 **macOS (launchd)** — iOS 选 macOS,Android/Harmony 选 Linux |
+默认使用 SQLite，本地数据库位于 `data/app.db`。
 
-#### 3. UI:点"上线" / "下线"
+运行时还会在 `data/` 下保存上传文件、头像、报告引用等数据。该目录属于运行态数据，生产环境部署时应做好备份和权限控制。
 
-设备列表行(mobile 设备现在也显示 push/stop 按钮)点 **上线** 后:
+---
 
-1. server 推同一份 tar.gz(包含 web + mobile 两套 agent 源码)
-2. 远端跑 deploy 脚本:解压 → sha256 校验 → 原子 swap → 写 systemd unit 或
-   launchd plist(幂等,只在不存在时写)→ 启动服务
-3. macOS 上额外:`sudo touch /var/log/auto-test-agent.log && sudo chmod 666`,
-   日志走 `tail -f /var/log/auto-test-agent.log`
-4. mobile-agent 启动后 `POST /api/agents/register`,server 端立即 fire-and-forget
-   调 `POST {agentEndpoint}/devices` 拉本机设备列表,写到 `devices.metadata`
-5. **设备列表合并**:`/api/devices/merged?testType=mobile` 路由综合本地 adb/hdc +
-   远端 mobile-agent 上报的设备,UI 的 DevicePickerModal 展示给用户选
+## 远程 Agent 部署概览
 
-#### 4. iOS 远端 — 额外要求
+平台支持通过设备库对远程 Agent 执行“重连 / 升级”。服务端会根据设备类型打包对应 Agent，并通过 SSH 推送到远端机器。
 
-远端 macOS 机器必须装:
+当前 Agent 类型与默认能力：
 
-| 工具 | 用途 | 安装 |
-|---|---|---|
-| Xcode + Command Line Tools | `xcrun simctl`(模拟器) | `xcode-select --install`,再 App Store 装 Xcode |
-| libimobiledevice | `idevice_id` / `idevicescreenshot` / `ideviceinfo`(真机) | `brew install libimobiledevice` |
-| WebDriverAgent | WDA 监听 8100(真机必需) | `npm install -g appium-webdriveragent` 或 `brew install ios-deploy` |
-| Node.js 18+ | 跑 mobile-agent | `brew install node` |
+| Agent | 说明 | 默认端口 | 典型远端目录 |
+| --- | --- | --- | --- |
+| Web Agent | 执行浏览器自动化用例 | `4001` | `/opt/auto-test-agent` |
+| Mobile Agent | 执行移动端自动化与预览相关能力 | `4002` | `/opt/auto-test-mobile` |
+| PC Agent | 执行桌面自动化用例 | `4003` | `/opt/auto-test-pc` |
 
-模拟器测试**不需要**真机 / WDA — `xcrun simctl list devices booted` 直接列
-simulator;WDA 只在接真机时需要(`agentFromWebDriverAgent({wdaHost, wdaPort})` 走 8100)。
+远程部署通常包含：
 
-#### 5. 排错速查(mobile 专属)
+1. 在设备库中创建对应类型设备。
+2. 配置 SSH Host、Port、User、密码或私钥。
+3. 确保服务端已配置 `AGENT_SSH_KEY_SECRET`。
+4. 在平台 UI 点击“重连 / 升级”。
+5. 远端 Agent 启动后向中心服务注册并定时心跳。
 
-| 现象 | 原因 / 解决 |
-|---|---|
-| 上线后 UI 设备列表空 | adb/hdc 没装,或 USB 设备没插。Mac server 看 `xcrun simctl list devices`,Linux server 看 `adb devices -l` |
-| iOS 真机 case 报 `WDA not reachable` | 远端 Mac 没跑 WDA(`xcrun simctl listapps` 也要 WDA),或 8100 端口被防火墙挡 |
-| Harmony 截图 1 FPS 太慢 | 故意行为(Harmony 只能 screencap,不能像 scrcpy 推 H.264 流) |
-| 远端 macOS 上 launchctl 报 `service already bootstrapped` | plist 改完没 unload,deploy 脚本已处理;如果失败,`sudo launchctl unload <plist>` 后重试 |
-| `/devices` 返回空但本机有设备 | 工具没在 PATH:Mac 装 Xcode CLT,Linux 装 android-platform-tools / hvigorw |
-| 推送后 `last_push_status=error` 含 `systemctl: command not found` | 远端 OS 选错(Linux 机器上选了 macOS 不会失败,但 macOS 机器上选 Linux 会) |
+Agent 与中心服务存在版本校验机制。如果中心服务版本升级，旧 Agent 心跳会收到版本不一致提示，此时需要在设备库中重新执行“重连 / 升级”。
 
-### 方式二:手动部署
+---
 
-跟 web-agent 一样,远端手动 `git clone` + `npm install` + 跑 `npm run agent:mobile`
-(`AGENT_TOKEN` / `AGENT_SERVER_URL` / `AGENT_MOBILE_PORT=4002` 三个 env 必填)。
+## 开发说明
 
-iOS 额外:`AGENT_MOBILE_PLATFORM=ios` 不需要,代码里 `process.platform === 'darwin'`
-自动启用 iOS 工具链(没装 Xcode 只是返回空列表,不会崩)。
+### 前端开发
 
-### 完整参考(mobile)
+前端入口：
 
-- mobile-agent 实现:`src/agent-mobile/`(index / preview / scrcpy / ios-preview —
-  协议跟 web-agent 同形:register / heartbeat / shutdown + bearer token)
-- 推送实现:`src/server/agent-push/push.ts`(`pushMobileAgent` + `stopMobileAgent` 入口)
-- 远端判定 + 隧道 + 三平台 dispatch:`src/server/engine/mobile-executor.ts:74-291`
-- 设备合并:`src/server/devices/merge.ts`(local + 远端 metadata 归一)
-- preview 中转:`src/server/mobile-preview/`(scrcpy-relay / mjpeg-relay / screenshot-relay)
-- 客户端:`src/client/components/DevicePickerModal.tsx` + `MobilePreviewDrawer.tsx`
+```text
+src/client/main.tsx
+src/client/App.tsx
+```
 
-## 其它
+主要页面按测试类型拆分：
 
-- 用户文档见 `docs/`(api/scenario/执行日志等专题)
-- 报告路径可每个用户单独配置,见 UI → 系统管理 → Midscene 配置
-- PC 远程执行(ComputerAgent) 计划中,见 task #80
+- `src/client/pages/api-test/`
+- `src/client/pages/web-test/`
+- `src/client/pages/pc-test/`
+- `src/client/pages/mobile-test/`
+
+通用样式集中在：
+
+```text
+src/client/styles/
+src/client/components/
+```
+
+### 后端开发
+
+后端入口：
+
+```text
+src/server/index.ts
+```
+
+路由统一挂载在：
+
+```text
+src/server/routes/index.ts
+```
+
+执行器位于：
+
+```text
+src/server/engine/
+```
+
+数据库访问位于：
+
+```text
+src/server/db/
+```
+
+### 数据库结构
+
+数据库结构和部分说明可参考：
+
+```text
+docs/database-schema.sql
+```
+
+系统启动时会执行必要的表结构初始化和兼容迁移。
+
+---
+
+## 文档
+
+| 文档 | 说明 |
+| --- | --- |
+| `docs/OPERATION_MANUAL.md` | 操作手册，覆盖主要功能入口与使用方式 |
+| `docs/FRONTEND_STANDARDS.md` | 前端开发规范 |
+| `docs/BACKEND_STANDARDS.md` | 后端开发规范 |
+| `docs/CSS_STANDARDS.md` | CSS 与视觉规范 |
+| `docs/database-schema.sql` | 数据库结构参考 |
+| `DEPLOYMENT.md` | 部署与运行配置补充说明 |
+
+---
+
+## 推荐开发流程
+
+1. 拉取代码并安装依赖。
+2. 执行 `npm run setup:drivers` 安装浏览器驱动。
+3. 执行 `npm run dev` 启动本地环境。
+4. 修改前端、后端或 Agent 代码。
+5. 根据修改范围执行构建验证：
+
+```bash
+npm run build
+npm run build:agent
+npm run build:agent-mobile
+npm run build:agent-pc
+```
+
+如果只修改某个 Agent，可只执行对应的 `build:agent-*` 脚本。
+
+---
+
+## 适用场景
+
+- 团队内部自动化测试平台建设。
+- 多类型测试资产统一管理。
+- Web / 桌面 / 移动端远程设备集中调度。
+- AI 驱动的自然语言自动化执行验证。
+- 需要 Mock、OpenAPI、批量执行和定时调度的一体化测试场景。
+
+---
+
+## License
+
+当前项目为私有项目，使用前请确认团队内部授权与依赖许可要求。

@@ -22,8 +22,7 @@
   top: 0;
   right: 0;
   height: 100%;
-  width: min(900px, 85vw);
-  max-width: calc(100vw - var(--sidebar-w, 240px));
+  width: calc((100vw - var(--sidebar-w, 240px)) * 0.8);
   background: var(--surface, #fff);
   box-shadow: -6px 0 20px rgba(0, 0, 0, 0.1);
   display: flex;

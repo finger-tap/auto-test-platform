@@ -12,12 +12,13 @@ import {
   recordPushResult,
   DeviceTestType,
   DeviceStatus,
+  type DeviceRow,
 } from '../db/devices.js';
 import { encryptColumn, decryptColumn, isPushEnabled, serializeBlob } from '../agent-push/crypto.js';
 import { pushAgent, stopAgent, pushMobileAgent, stopMobileAgent, pushPcAgent, stopPcAgent, serverUrlForDevice } from '../agent-push/push.js';
 import type { PushProgressEvent } from '../agent-push/push.js';
 import { connectSsh } from '../agent-push/ssh-client.js';
-import { listMergedMobileDevices, invalidateMergedCache } from '../devices/merge.js';
+import { listMergedMobileDevices, listLocalMobileDevices, invalidateMergedCache } from '../devices/merge.js';
 import { healthCheckAgent, fetchMobileDevicesFromAgent } from '../engine/agent-client.js';
 
 export const deviceRoutes = Router();
@@ -216,6 +217,19 @@ deviceRoutes.post('/merged/refresh', (req: Request, res: Response) => {
     invalidateMergedCache(req.user!.userId);
   }
   res.json({ code: 200, message: 'Cache invalidated' });
+});
+
+// GET /api/devices/local-mobile-devices — 扫描本机 USB 连接的手机
+// 供 DevicePickerModal 点击「本机」后获取手机列表，不查远程 agent
+deviceRoutes.get('/local-mobile-devices', async (_req: Request, res: Response) => {
+  try {
+    const devices = await listLocalMobileDevices();
+    res.json({ code: 200, message: 'ok', data: devices });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : 'Failed to scan local devices';
+    console.error(`[routes:devices] local-mobile-devices failed: ${msg}`);
+    res.status(500).json({ code: 500, message: msg });
+  }
 });
 
 // GET /api/devices/:id
@@ -560,89 +574,143 @@ deviceRoutes.get('/:id/push-progress', (req: Request, res: Response) => {
  * updated with `last_push_status='error'`.
  */
 /**
- * POST /api/devices/test-ssh
- * 测试 SSH 连接 — 用表单里填写的凭据直接连,不落库。
- * Body: { ssh_host, ssh_port, ssh_user, ssh_auth_type, ssh_password?, ssh_private_key? }
+ * 2026-07-01: 合并 test-ssh endpoint 的 fallback 逻辑。前端总是把表单所有字段塞进 body
+ * + editing 时带 device_id。后端字段缺省策略:
+ *   - ssh_host / ssh_user / ssh_auth_type: body 缺省 → fallback DB;再缺省 → 400
+ *   - ssh_password / ssh_private_key:     body 缺省 → fallback DB(仅当 device.ssh_auth_type
+ *                                          与 body auth_type 一致,否则表示 user 改了 auth_type,要求重输)
+ *   - 没 device_id + 缺省密码 → 400 让 user 在 new 模式下补填
+ *
+ * 这样 editing 时 user 改了 host 不重输密码也能测新值(host 用 body,password fallback DB)。
  */
-deviceRoutes.post('/test-ssh', async (req: Request, res: Response) => {
-  const { ssh_host, ssh_port, ssh_user, ssh_auth_type, ssh_password, ssh_private_key } = req.body;
-  if (!ssh_host || !ssh_user || !ssh_auth_type) {
+async function runTestSsh(
+  res: Response,
+  userId: number,
+  overrides: {
+    deviceId?: number;
+    ssh_host?: string;
+    ssh_port?: number | string;
+    ssh_user?: string;
+    ssh_auth_type?: 'password' | 'private_key';
+    ssh_password?: string;
+    ssh_private_key?: string;
+  },
+): Promise<void> {
+  // 1. device_id 提供时,从 DB 取设备并做 ownership 校验
+  let device: DeviceRow | null = null;
+  if (overrides.deviceId != null) {
+    device = getDevice(overrides.deviceId);
+    if (!device) {
+      res.status(404).json({ code: 404, message: 'Device not found' });
+      return;
+    }
+    if (device.user_id !== userId) {
+      res.status(403).json({ code: 403, message: 'Forbidden' });
+      return;
+    }
+  }
+
+  // 2. 字段派生(body 优先,缺省 fallback DB)
+  const host = overrides.ssh_host ?? device?.ssh_host ?? '';
+  const user = overrides.ssh_user ?? device?.ssh_user ?? '';
+  const auth = overrides.ssh_auth_type ?? device?.ssh_auth_type ?? '';
+  const portNum = overrides.ssh_port != null
+    ? (typeof overrides.ssh_port === 'number' ? overrides.ssh_port : Number(overrides.ssh_port))
+    : (device?.ssh_port ?? 22);
+  const port = Number.isFinite(portNum) && portNum > 0 ? portNum : 22;
+
+  if (!host || !user || !auth) {
     res.status(400).json({ code: 400, message: '请填写 SSH 主机、用户名和认证方式' });
     return;
   }
-  if (ssh_auth_type === 'password' && !ssh_password) {
-    res.status(400).json({ code: 400, message: '请填写 SSH 密码' });
+
+  // 3. password/private_key fallback(仅当 device 的 auth_type 与 body auth_type 一致)
+  let password = overrides.ssh_password;
+  let privateKey = overrides.ssh_private_key;
+  if (auth === 'password' && !password) {
+    if (device && device.ssh_auth_type === 'password' && device.ssh_password) {
+      password = decryptColumn('ssh_password', device.ssh_password) ?? '';
+    } else {
+      res.status(400).json({ code: 400, message: '请填写 SSH 密码' });
+      return;
+    }
+  }
+  if (auth === 'private_key' && !privateKey) {
+    if (device && device.ssh_auth_type === 'private_key' && device.ssh_private_key) {
+      privateKey = decryptColumn('ssh_private_key', device.ssh_private_key) ?? '';
+    } else {
+      res.status(400).json({ code: 400, message: '请填写 SSH 私钥' });
+      return;
+    }
+  }
+
+  if (auth === 'password' && !password) {
+    res.status(400).json({ code: 400, message: 'SSH 密码无法解密，请重新输入密码' });
     return;
   }
-  if (ssh_auth_type === 'private_key' && !ssh_private_key) {
-    res.status(400).json({ code: 400, message: '请填写 SSH 私钥' });
+  if (auth === 'private_key' && !privateKey) {
+    res.status(400).json({ code: 400, message: 'SSH 私钥无法解密，请重新输入私钥' });
     return;
   }
 
-  const port = typeof ssh_port === 'number' ? ssh_port : (ssh_port ? Number(ssh_port) : 22);
   const t0 = Date.now();
-  console.log(`[routes:devices] test-ssh ${ssh_user}@${ssh_host}:${port} auth=${ssh_auth_type}`);
+  console.log(`[routes:devices] test-ssh ${user}@${host}:${port} auth=${auth} source=device=${overrides.deviceId ?? 'none'}`);
   try {
     const { conn, end } = await connectSsh({
-      host: ssh_host,
+      host,
       port,
-      username: ssh_user,
-      password: ssh_auth_type === 'password' ? ssh_password : undefined,
-      privateKey: ssh_auth_type === 'private_key' ? ssh_private_key : undefined,
+      username: user,
+      password: auth === 'password' ? password : undefined,
+      privateKey: auth === 'private_key' ? privateKey : undefined,
     });
     end();
     const ms = Date.now() - t0;
-    console.log(`[routes:devices] test-ssh OK ${ssh_user}@${ssh_host}:${port} ${ms}ms`);
+    console.log(`[routes:devices] test-ssh OK ${user}@${host}:${port} ${ms}ms`);
     res.json({ code: 200, message: 'ok', data: { ok: true, latency_ms: ms } });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
-    console.log(`[routes:devices] test-ssh FAIL ${ssh_user}@${ssh_host}:${port}: ${msg}`);
+    console.log(`[routes:devices] test-ssh FAIL ${user}@${host}:${port}: ${msg}`);
     res.json({ code: 200, message: 'ok', data: { ok: false, error: msg } });
   }
+}
+
+/**
+ * POST /api/devices/test-ssh
+ * 测试 SSH 连接 — 用表单里填写的凭据直接连,不落库。
+ * editing 时 body 带 device_id,后端缺省字段 fallback DB(实现见上方 runTestSsh)。
+ * Body: { device_id?, ssh_host, ssh_port, ssh_user, ssh_auth_type, ssh_password?, ssh_private_key? }
+ */
+deviceRoutes.post('/test-ssh', async (req: Request, res: Response) => {
+  const { device_id, ssh_host, ssh_port, ssh_user, ssh_auth_type, ssh_password, ssh_private_key } = req.body;
+  await runTestSsh(res, req.user!.userId, {
+    deviceId: device_id,
+    ssh_host,
+    ssh_port,
+    ssh_user,
+    ssh_auth_type,
+    ssh_password,
+    ssh_private_key,
+  });
 });
 
 /**
  * POST /api/devices/:id/test-ssh
- * 用设备已存储的 SSH 凭据测试连接（编辑模式,密码/私钥未修改时用这个）。
+ * 2026-07-01: 保留向后兼容,但行为跟 POST /test-ssh(带 device_id)等价 — body 字段优先,
+ * 缺省 fallback DB。前端不再直接用这个 endpoint,改走 /test-ssh + body device_id。
  */
 deviceRoutes.post('/:id/test-ssh', async (req: Request, res: Response) => {
   const device = requireOwnedDevice(req, res);
   if (!device) return;
-  if (!device.ssh_host || !device.ssh_user || !device.ssh_auth_type) {
-    res.json({ code: 200, message: 'ok', data: { ok: false, error: '设备未配置 SSH 信息' } });
-    return;
-  }
-
-  const plaintextPassword = device.ssh_auth_type === 'password' ? decryptColumn('ssh_password', device.ssh_password) : null;
-  const plaintextKey = device.ssh_auth_type === 'private_key' ? decryptColumn('ssh_private_key', device.ssh_private_key) : null;
-  if (device.ssh_auth_type === 'password' && !plaintextPassword) {
-    res.json({ code: 200, message: 'ok', data: { ok: false, error: 'SSH 密码无法解密，请重新输入密码' } });
-    return;
-  }
-  if (device.ssh_auth_type === 'private_key' && !plaintextKey) {
-    res.json({ code: 200, message: 'ok', data: { ok: false, error: 'SSH 私钥无法解密，请重新输入私钥' } });
-    return;
-  }
-
-  const t0 = Date.now();
-  console.log(`[routes:devices] test-ssh device=${device.id} ${device.ssh_user}@${device.ssh_host}:${device.ssh_port ?? 22}`);
-  try {
-    const { conn, end } = await connectSsh({
-      host: device.ssh_host,
-      port: device.ssh_port ?? 22,
-      username: device.ssh_user,
-      password: plaintextPassword ?? undefined,
-      privateKey: plaintextKey ?? undefined,
-    });
-    end();
-    const ms = Date.now() - t0;
-    console.log(`[routes:devices] test-ssh OK device=${device.id} ${ms}ms`);
-    res.json({ code: 200, message: 'ok', data: { ok: true, latency_ms: ms } });
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
-    console.log(`[routes:devices] test-ssh FAIL device=${device.id}: ${msg}`);
-    res.json({ code: 200, message: 'ok', data: { ok: false, error: msg } });
-  }
+  const { ssh_host, ssh_port, ssh_user, ssh_auth_type, ssh_password, ssh_private_key } = req.body;
+  await runTestSsh(res, req.user!.userId, {
+    deviceId: device.id,
+    ssh_host,
+    ssh_port,
+    ssh_user,
+    ssh_auth_type,
+    ssh_password,
+    ssh_private_key,
+  });
 });
 
 deviceRoutes.post('/:id/push-agent', async (req: Request, res: Response) => {

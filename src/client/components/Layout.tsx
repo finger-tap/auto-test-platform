@@ -98,11 +98,11 @@ const MENUS_BY_TYPE: Record<string, NavSection[]> = {
   ],
 };
 
-const BRAND_CONFIG: Record<string, { name: string; color: string; icon: string }> = {
-  'api-test': { name: '接口测试', color: 'oklch(95% 0.04 250)', icon: 'lightning' },
-  'mobile-test': { name: '移动端测试', color: 'oklch(95% 0.04 75)', icon: 'mobile' },
-  'web-test': { name: 'Web 测试', color: 'oklch(95% 0.04 145)', icon: 'globe' },
-  'pc-test': { name: 'PC 测试', color: 'oklch(95% 0.04 300)', icon: 'monitor' },
+const BRAND_CONFIG: Record<string, { name: string; color: string; stroke: string; icon: string }> = {
+  'api-test': { name: '接口测试', color: 'oklch(95% 0.04 250)', stroke: 'oklch(55% 0.2 250)', icon: 'lightning' },
+  'mobile-test': { name: '移动端测试', color: 'oklch(95% 0.04 75)', stroke: 'oklch(60% 0.15 75)', icon: 'mobile' },
+  'web-test': { name: 'Web 测试', color: 'oklch(95% 0.04 145)', stroke: 'oklch(55% 0.16 145)', icon: 'globe' },
+  'pc-test': { name: 'PC 测试', color: 'oklch(95% 0.04 300)', stroke: 'oklch(55% 0.15 300)', icon: 'monitor' },
 };
 
 // 侧边栏 brand 右侧"切换测试类型"下拉的可选项,顺序即下拉展示顺序
@@ -156,7 +156,7 @@ export default function Layout() {
       {/* Sidebar */}
       <aside className="sys-sidebar">
         <div className="sys-brand">
-          <div className="sys-brand-dot" style={{ background: brand.color }}>
+          <div className="sys-brand-dot" style={{ background: brand.color, color: brand.stroke }}>
             {icons[brand.icon]}
           </div>
           <div className="sys-brand-text">{brand.name}</div>

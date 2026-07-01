@@ -7,20 +7,23 @@ import os from 'node:os';
 const HEARTBEAT_INTERVAL_MS = 30_000;   // 30s
 const REGISTER_EVERY_MS = 10 * 60_000; // re-register every 10 min
 
-// Read this process's own version from <projectRoot>/package.json.
+// Read this process's own version from package.json. In deployed bundles the
+// manifest sits one level above mobile-agent-src/; in local dev/dist it sits
+// two levels above src/agent-mobile or dist/agent-mobile/agent-mobile.
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const PKG_VERSION = (() => {
-  try {
-    const req = createRequire(import.meta.url);
-    const pkg = req(path.resolve(__dirname, '../../package.json')) as { version?: string };
-    return pkg.version ?? 'unknown';
-  } catch {
-    return 'unknown';
+  const req = createRequire(import.meta.url);
+  for (const candidate of ['../package.json', '../../package.json', '../../../package.json']) {
+    try {
+      const pkg = req(path.resolve(__dirname, candidate)) as { version?: string };
+      if (pkg.version) return pkg.version;
+    } catch { /* try next */ }
   }
+  return 'unknown';
 })();
 
 let _lastRegisterAt = 0;

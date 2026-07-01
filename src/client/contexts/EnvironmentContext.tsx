@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef, type ReactNode } from 'react';
-import { apiFetch } from '../utils/api';
+import { apiFetch, getToken } from '../utils/api';
 import type { Environment, EnvVariable } from '../types';
 
 interface EnvironmentContextValue {
@@ -47,6 +47,7 @@ export function EnvironmentProvider({ children }: { children: ReactNode }) {
 
   // Load environments + restore preference for given testType
   const load = useCallback((testType?: string) => {
+    if (!getToken()) return;
     const tt = testType || testTypeRef.current;
     apiFetch<Environment[]>('/environments').then(res => {
       const r = res as { code?: number; data?: Environment[] };
@@ -95,6 +96,13 @@ export function EnvironmentProvider({ children }: { children: ReactNode }) {
     const handler = () => load();
     window.addEventListener('envs-changed', handler);
     return () => window.removeEventListener('envs-changed', handler);
+  }, [load]);
+
+  // Reload after login (auth-changed fires from AuthContext)
+  useEffect(() => {
+    const handler = () => load();
+    window.addEventListener('auth-changed', handler);
+    return () => window.removeEventListener('auth-changed', handler);
   }, [load]);
 
   return (

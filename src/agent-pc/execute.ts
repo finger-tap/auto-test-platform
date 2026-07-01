@@ -17,7 +17,7 @@
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
-import { ComputerAgent, agentForComputer } from '@midscene/computer';
+import { ComputerAgent, agentForComputer, overrideAIConfig } from '@midscene/computer';
 
 export interface PcAgentStepResult {
   index: number;
@@ -45,12 +45,51 @@ export interface ExecuteRequest {
   contentType: 'text' | 'yaml';
   preconditionText?: string;
   checkpoints: { description: string; expect?: string }[];
+  /** Executor user id used to resolve Midscene model config from the server. */
+  executorUserId?: number;
   deviceOpt: {
     displayId?: string;
     keyboardDriver?: 'applescript' | 'libnut';
     headless?: boolean;
     xvfbResolution?: string;
   };
+}
+
+interface RemoteMidsceneConfig {
+  env: Record<string, string>;
+  agentOpt?: Record<string, unknown>;
+}
+
+async function fetchRemoteMidsceneConfig(userId?: number): Promise<RemoteMidsceneConfig> {
+  const serverUrl = process.env.AGENT_SERVER_URL;
+  const token = process.env.AGENT_TOKEN;
+  if (!serverUrl || !token) return { env: {} };
+  const url = `${serverUrl.replace(/\/$/, '')}/api/agents/midscene-config`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(userId ? { userId } : {}),
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(`fetch Midscene config failed: ${res.status} ${text.slice(0, 200)}`);
+  }
+  const json = await res.json() as { data?: RemoteMidsceneConfig };
+  return {
+    env: json.data?.env && typeof json.data.env === 'object' ? json.data.env : {},
+    agentOpt: json.data?.agentOpt && typeof json.data.agentOpt === 'object' ? json.data.agentOpt : {},
+  };
+}
+
+function maskEnvForLog(env: Record<string, string>): Record<string, string> {
+  const masked: Record<string, string> = {};
+  for (const [k, v] of Object.entries(env)) {
+    masked[k] = k.includes('API_KEY') ? `${v.slice(0, 4)}…${v.slice(-4)} (len=${v.length})` : v;
+  }
+  return masked;
 }
 
 function parseCheckpoints(raw?: string): { description: string; expect?: string }[] {
@@ -80,12 +119,17 @@ export async function executeOnAgent(req: ExecuteRequest): Promise<PcAgentExecRe
   const reportTempBase = path.join(os.tmpdir(), 'pc-agent-reports');
   await fs.mkdir(reportTempBase, { recursive: true });
 
-  console.log(`[pc-agent:execute] start group="${req.groupName}" type=${contentType} hasContent=${!!content} hasPrecondition=${!!preconditionText} checkpoints=${checkpoints.length}`);
+  console.log(`[pc-agent:execute] start group="${req.groupName}" type=${contentType} hasContent=${!!content} hasPrecondition=${!!preconditionText} checkpoints=${checkpoints.length} user=${req.executorUserId ?? '(none)'}`);
 
   let agent: ComputerAgent | null = null;
   try {
+    const remoteConfig = await fetchRemoteMidsceneConfig(req.executorUserId);
+    overrideAIConfig(remoteConfig.env, true);
+    console.log(`[pc-agent:execute] Midscene config applied keys=${Object.keys(remoteConfig.env).length} ${JSON.stringify(maskEnvForLog(remoteConfig.env))}`);
+
     agent = await agentForComputer({
       ...req.deviceOpt,
+      ...(remoteConfig.agentOpt || {}),
       generateReport: true,
       outputFormat: 'html-and-external-assets',
       reportFileName: req.reportName,

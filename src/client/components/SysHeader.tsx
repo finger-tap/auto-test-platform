@@ -1,26 +1,8 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
+import { useState, useRef, useEffect } from 'react';
 import { useEnvironment } from '../contexts/EnvironmentContext';
-import SettingsDrawer from './SettingsDrawer';
+import { useThemeContext } from '../contexts/ThemeContext';
+import UserMenu from './UserMenu';
 import type { Environment } from '../types';
-
-function useTheme() {
-  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
-    const stored = localStorage.getItem('theme');
-    if (stored === 'dark' || stored === 'light') return stored;
-    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-  });
-
-  useEffect(() => {
-    document.documentElement.dataset.theme = theme;
-    localStorage.setItem('theme', theme);
-  }, [theme]);
-
-  const toggle = useCallback(() => setTheme(t => t === 'dark' ? 'light' : 'dark'), []);
-
-  return { theme, toggle };
-}
 
 /**
  * Shared top header: 返回主页 + 环境切换 + 用户菜单.
@@ -33,33 +15,18 @@ function useTheme() {
  * there, not in the dropdown.
  */
 export default function SysHeader() {
-  const navigate = useNavigate();
-  const { user, logout } = useAuth();
   const { environments, activeEnv, setActiveEnv } = useEnvironment();
   const [envOpen, setEnvOpen] = useState(false);
   const envRef = useRef<HTMLDivElement>(null);
-  const [userMenuOpen, setUserMenuOpen] = useState(false);
-  const userMenuRef = useRef<HTMLDivElement>(null);
-  const [settingsOpen, setSettingsOpen] = useState(false);
-  const { theme, toggle: toggleTheme } = useTheme();
+  const { theme, toggleTheme } = useThemeContext();
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (envRef.current && !envRef.current.contains(e.target as Node)) setEnvOpen(false);
-      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) setUserMenuOpen(false);
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, []);
-
-  const displayName = user?.nickname || user?.account?.slice(0, 8) || 'User';
-  const firstChar = displayName.charAt(0).toUpperCase();
-  const avatarSrc = user?.avatar && !user.avatar.startsWith('data:') ? user.avatar : null;
-
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
-  };
 
   return (
     <div className="sys-header">
@@ -94,33 +61,8 @@ export default function SysHeader() {
             )}
           </div>
         )}
-        <div className="hdr-user-menu" ref={userMenuRef}>
-          <button className="hdr-user-btn" onClick={() => setUserMenuOpen(o => !o)}>
-            <div className="hdr-user-avatar">
-              {avatarSrc ? <img src={avatarSrc} alt="" /> : firstChar}
-            </div>
-            <span className="hdr-user-name">{displayName}</span>
-            <span className="hdr-user-arrow">▾</span>
-          </button>
-          {userMenuOpen && (
-            <div className="hdr-user-dropdown">
-              <div className="hdr-user-dropdown-info">
-                <div className="hdr-user-dropdown-name">{displayName}</div>
-                <div className="hdr-user-dropdown-account">{user?.account || ''}</div>
-              </div>
-              <div className="hdr-user-dropdown-divider" />
-              <button className="hdr-user-dropdown-item" onClick={() => { setUserMenuOpen(false); setSettingsOpen(true); }}>
-                账号与设置
-              </button>
-              <div className="hdr-user-dropdown-divider" />
-              <button className="hdr-user-dropdown-item danger" onClick={handleLogout}>
-                退出登录
-              </button>
-            </div>
-          )}
-        </div>
+        <UserMenu />
       </div>
-      <SettingsDrawer open={settingsOpen} onClose={() => setSettingsOpen(false)} />
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
+import { ThemeProvider } from './contexts/ThemeContext';
 import { EnvironmentProvider } from './contexts/EnvironmentContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import HomeLayout from './components/HomeLayout';
@@ -39,6 +40,7 @@ import './App.css';
 function App() {
   return (
     <BrowserRouter>
+      <ThemeProvider>
       <AuthProvider>
         <EnvironmentProvider>
           <Routes>
@@ -121,6 +123,7 @@ function App() {
           </Routes>
         </EnvironmentProvider>
       </AuthProvider>
+      </ThemeProvider>
     </BrowserRouter>
   );
 }

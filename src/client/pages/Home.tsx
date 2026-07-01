@@ -2,16 +2,44 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useEnvironment } from '../contexts/EnvironmentContext';
+import { useThemeContext } from '../contexts/ThemeContext';
 import { apiFetch } from '../utils/api';
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
-import SettingsDrawer from '../components/SettingsDrawer';
+import UserMenu from '../components/UserMenu';
 import './Home.css';
 
+// AutoTest Platform mark — content inlined from public/brand/autotest-mark-currentColor.svg
+// (200x200 viewBox, currentColor strokes — inherits the surrounding color so it
+// adapts to the active theme). Sized to 22x22 to match the previous header logo.
 const LogoSvg = () => (
-  <svg width="22" height="22" fill="none" viewBox="0 0 24 24">
-    <path d="M9 3L5 7l4 4" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-    <path d="M15 3l4 4-4 4" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-    <path d="M13 7l-2 10" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round"/>
+  <svg
+    width="22"
+    height="22"
+    viewBox="0 0 200 200"
+    role="img"
+    aria-label="AutoTest Platform"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth={6}
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    style={{ color: 'var(--accent)' }}
+  >
+    <path d="M40 54 L69 18 L91 57 L109 57 L131 18 L160 54 L148 124 L104 178 L96 178 L52 124 Z" />
+    <path d="M69 18 L84 76 L54 63" />
+    <path d="M131 18 L116 76 L146 63" />
+    <path d="M84 76 L63 122 L96 178" />
+    <path d="M116 76 L137 122 L104 178" />
+    <path d="M84 76 L100 99 L116 76" />
+    <path d="M100 99 L96 178" />
+    <path d="M63 122 L42 103" />
+    <path d="M137 122 L158 103" />
+    <circle cx="122" cy="92" r="20" />
+    <path d="M122 72 L134 91 L122 92 Z" />
+    <path d="M142 92 L124 105 L122 92 Z" />
+    <path d="M113 109 L116 88 L122 92 Z" />
+    <circle cx="122" cy="92" r="4" fill="currentColor" stroke="none" />
+    <path d="M139 151 L148 160 L165 138" strokeWidth={7} stroke="#22C55E" />
   </svg>
 );
 
@@ -107,13 +135,10 @@ const testTypes = [
 
 export default function Home() {
   const navigate = useNavigate();
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const { environments, activeEnv, setActiveEnv } = useEnvironment();
   const [envOpen, setEnvOpen] = useState(false);
   const envRef = useRef<HTMLDivElement>(null);
-  const [userDropdownOpen, setUserDropdownOpen] = useState(false);
-  const userDropdownRef = useRef<HTMLDivElement>(null);
-  const [settingsOpen, setSettingsOpen] = useState(false);
   const [newTodoTitle, setNewTodoTitle] = useState('');
   const [addingTodo, setAddingTodo] = useState(false);
   const [todoInputOpen, setTodoInputOpen] = useState(false);
@@ -123,22 +148,11 @@ export default function Home() {
   const [pending, setPending] = useState<PendingItem[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Theme toggle (same logic as SysHeader)
-  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
-    const stored = localStorage.getItem('theme');
-    if (stored === 'dark' || stored === 'light') return stored;
-    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-  });
-  useEffect(() => {
-    document.documentElement.dataset.theme = theme;
-    localStorage.setItem('theme', theme);
-  }, [theme]);
-  const toggleTheme = useCallback(() => setTheme(t => t === 'dark' ? 'light' : 'dark'), []);
+  const { theme, toggleTheme } = useThemeContext();
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (envRef.current && !envRef.current.contains(e.target as Node)) setEnvOpen(false);
-      if (userDropdownRef.current && !userDropdownRef.current.contains(e.target as Node)) setUserDropdownOpen(false);
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
@@ -161,8 +175,6 @@ export default function Home() {
   }, []);
 
   const displayName = user?.nickname || user?.account?.slice(0, 8) || '管理员';
-  const firstChar = displayName.charAt(0).toUpperCase();
-  const avatarSrc = user?.avatar && !user.avatar.startsWith('data:') ? user.avatar : null;
   const today = new Date();
   const dateStr = `${today.getFullYear()}年${today.getMonth() + 1}月${today.getDate()}日`;
 
@@ -171,7 +183,7 @@ export default function Home() {
       <div className="home-header">
         <div className="home-header-title">
           <LogoSvg />
-          <span>Auto Test Platform</span>
+          <span>AutoTest Platform</span>
         </div>
         <div className="home-header-actions">
           <button className="hdr-theme-btn" onClick={toggleTheme} title={theme === 'dark' ? '切换亮色' : '切换暗色'}>
@@ -201,33 +213,9 @@ export default function Home() {
               )}
             </div>
           )}
-          <div className="home-user-dropdown" ref={userDropdownRef}>
-            <button className="home-user-btn" onClick={() => setUserDropdownOpen(!userDropdownOpen)}>
-              <div className="home-user-avatar">
-                {avatarSrc ? <img src={avatarSrc} alt="" /> : firstChar}
-              </div>
-            </button>
-            {userDropdownOpen && (
-              <div className="home-user-menu">
-                <div className="home-user-menu-info">
-                  <div className="home-user-menu-name">{displayName}</div>
-                  <div className="home-user-menu-account">{user?.account || ''}</div>
-                </div>
-                <div className="home-user-menu-divider" />
-                <button className="home-user-menu-item" onClick={() => { setUserDropdownOpen(false); setSettingsOpen(true); }}>
-                  账号与设置
-                </button>
-                <div className="home-user-menu-divider" />
-                <button className="home-user-menu-item home-user-menu-item--danger" onClick={() => { logout(); setUserDropdownOpen(false); }}>
-                  退出登录
-                </button>
-              </div>
-            )}
-          </div>
+          <UserMenu />
         </div>
       </div>
-
-      <SettingsDrawer open={settingsOpen} onClose={() => setSettingsOpen(false)} />
 
       <div className="home-body">
         <div className="home-welcome">欢迎回来，{displayName}</div>

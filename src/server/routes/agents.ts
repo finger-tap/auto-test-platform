@@ -18,6 +18,7 @@
 import { Router, type Request, type Response } from 'express';
 import { agentAuthMiddleware } from '../auth/middleware.js';
 import { updateAgentHeartbeat, markAgentOffline, getRequiredAgentVersion, setNeedsUpgrade, updateAgentDeviceMetadata } from '../db/devices.js';
+import { resolveMidsceneEnvMapForUser, getAgentOptOverrides } from '../engine/midscene-config.js';
 
 export const agentRoutes = Router();
 
@@ -47,7 +48,7 @@ function parseAgentKind(raw: unknown, device: { test_type?: string | null }): { 
 }
 
 // POST /api/agents/register
-// Body: { agentEndpoint: "http://192.168.1.50:4001", version: "0.1.0", agentKind?: "web"|"mobile" }
+// Body: { agentEndpoint: "http://192.168.1.50:4001", version: "0.1.0", agentKind?: "web"|"mobile"|"pc" }
 // Idempotent — safe to call on every agent startup, or on re-registration
 // after the agent's IP changes. Updates the device's endpoint / version
 // and flips status to online.
@@ -99,7 +100,7 @@ agentRoutes.post('/register', (req: Request, res: Response) => {
 });
 
 // POST /api/agents/heartbeat
-// Body: { agentEndpoint?: string, version?: string, agentKind?: "web"|"mobile" } — both optional. The
+// Body: { agentEndpoint?: string, version?: string, agentKind?: "web"|"mobile"|"pc" } — both optional. The
 // endpoint and version are only persisted if supplied, so a bare heartbeat
 // (sent every 30s) can omit them to keep the payload tiny.
 //
@@ -141,6 +142,25 @@ agentRoutes.post('/heartbeat', (req: Request, res: Response) => {
     void fetchAndPersistDeviceList(device.id, device.agent_token, device.agent_endpoint);
   }
   res.json({ code: 200, message: 'ok' });
+});
+
+// POST /api/agents/midscene-config
+// Body: { userId?: number }
+// Returns the executor user's resolved Midscene config for remote agents.
+// User DB config wins; blank fields fall back to the central server's project
+// default MIDSCENE_* env. The remote agent calls this through AGENT_SERVER_URL
+// so it does not need model secrets baked into the deployed bundle or plist.
+agentRoutes.post('/midscene-config', (req: Request, res: Response) => {
+  const device = req.agent!.device;
+  const requestedUserId = Number(req.body?.userId);
+  const userId = Number.isFinite(requestedUserId) && requestedUserId > 0
+    ? requestedUserId
+    : device.user_id;
+  const env = resolveMidsceneEnvMapForUser(userId);
+  const agentOpt = getAgentOptOverrides(userId);
+  const maskedKeys = Object.keys(env).map(k => k.includes('API_KEY') ? `${k}=****` : k);
+  console.log(`[agent-routes] midscene-config device=${device.id} executor=${userId} keys=${maskedKeys.join(',') || '(none)'}`);
+  res.json({ code: 200, message: 'ok', data: { userId, env, agentOpt } });
 });
 
 // POST /api/agents/shutdown

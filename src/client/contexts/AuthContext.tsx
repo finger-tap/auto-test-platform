@@ -61,6 +61,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setToken(res.data.token);
     setUserInfo(res.data.user);
     setUser(res.data.user);
+    window.dispatchEvent(new Event('auth-changed'));
   };
 
   const register = async (account: string, password: string, nickname?: string, avatarFile?: File) => {
@@ -96,6 +97,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setToken(res.data.token);
     setUserInfo(res.data.user);
     setUser(res.data.user);
+    window.dispatchEvent(new Event('auth-changed'));
   };
 
   const logout = () => {

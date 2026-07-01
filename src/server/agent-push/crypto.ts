@@ -15,39 +15,83 @@
 // we only decrypt at the moment of an SSH push, in this module.
 
 import crypto from 'node:crypto';
+import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import path from 'node:path';
 
 const ALGO = 'aes-256-gcm';
 const IV_LEN = 12; // GCM standard
 const KEY_LEN = 32; // 256 bits
+const HEX_KEY_LEN = KEY_LEN * 2;
 
 let _key: Buffer | null = null;
 let _missingWarned = false;
 
+function parseKey(raw: string | undefined): Buffer | null {
+  if (!raw) return null;
+  // Accept either 64 hex chars (preferred) or 32 raw bytes.
+  if (/^[0-9a-fA-F]{64}$/.test(raw)) return Buffer.from(raw, 'hex');
+  if (Buffer.byteLength(raw, 'utf8') === KEY_LEN) return Buffer.from(raw, 'utf8');
+  return null;
+}
+
+function getDevKey(): Buffer | null {
+  if (process.env.NODE_ENV === 'production') return null;
+
+  const dataDir = process.env.DATA_DIR || path.resolve(process.cwd(), 'data');
+  const keyPath = path.join(dataDir, '.agent-ssh-key-secret');
+  try {
+    mkdirSync(dataDir, { recursive: true });
+    if (!existsSync(keyPath)) {
+      writeFileSync(keyPath, crypto.randomBytes(KEY_LEN).toString('hex'), { mode: 0o600 });
+      console.warn('[agent-push:crypto] AGENT_SSH_KEY_SECRET not set; generated a local development SSH credential key under data/.agent-ssh-key-secret');
+    }
+    const raw = readFileSync(keyPath, 'utf8').trim();
+    const key = parseKey(raw);
+    if (key) {
+      chmodSync(keyPath, 0o600);
+      return key;
+    }
+    if (!_missingWarned) {
+      console.warn(`[agent-push:crypto] local development SSH key file is invalid; expected ${HEX_KEY_LEN} hex chars`);
+      _missingWarned = true;
+    }
+    return null;
+  } catch (e) {
+    if (!_missingWarned) {
+      console.warn(`[agent-push:crypto] failed to create local development SSH key: ${e instanceof Error ? e.message : String(e)}`);
+      _missingWarned = true;
+    }
+    return null;
+  }
+}
+
 function getKey(): Buffer | null {
   if (_key) return _key;
   const raw = process.env.AGENT_SSH_KEY_SECRET;
-  if (!raw) {
-    if (!_missingWarned) {
-      console.warn('[agent-push:crypto] AGENT_SSH_KEY_SECRET not set — SSH push/stop endpoints will return 503');
-      _missingWarned = true;
-    }
+  const envKey = parseKey(raw);
+  if (envKey) {
+    _key = envKey;
+    return _key;
+  }
+  if (raw && !_missingWarned) {
+    console.warn(
+      `[agent-push:crypto] AGENT_SSH_KEY_SECRET must be ${KEY_LEN} bytes (or ${HEX_KEY_LEN} hex chars); got ${Buffer.byteLength(raw, 'utf8')} bytes — SSH push disabled`
+    );
+    _missingWarned = true;
     return null;
   }
-  // Accept either 64 hex chars (preferred) or 32 raw bytes.
-  if (/^[0-9a-fA-F]{64}$/.test(raw)) {
-    _key = Buffer.from(raw, 'hex');
-  } else if (Buffer.byteLength(raw, 'utf8') === KEY_LEN) {
-    _key = Buffer.from(raw, 'utf8');
-  } else {
-    if (!_missingWarned) {
-      console.warn(
-        `[agent-push:crypto] AGENT_SSH_KEY_SECRET must be ${KEY_LEN} bytes (or 64 hex chars); got ${Buffer.byteLength(raw, 'utf8')} bytes — SSH push disabled`
-      );
-      _missingWarned = true;
-    }
-    return null;
+
+  const devKey = getDevKey();
+  if (devKey) {
+    _key = devKey;
+    return _key;
   }
-  return _key;
+
+  if (!_missingWarned) {
+    console.warn('[agent-push:crypto] AGENT_SSH_KEY_SECRET not set — SSH push/stop endpoints will return 503');
+    _missingWarned = true;
+  }
+  return null;
 }
 
 /** Returns true if the server has a usable SSH crypto key. */

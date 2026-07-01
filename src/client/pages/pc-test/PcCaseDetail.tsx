@@ -39,6 +39,12 @@ const STATUS_OPTIONS = [
   { value: 'draft', label: '草稿' },
 ];
 
+const PLATFORM_OPTIONS = [
+  { value: 'windows', label: 'Windows' },
+  { value: 'mac', label: 'macOS' },
+  { value: 'linux', label: 'Linux' },
+];
+
 const TABS = [
   { key: 'detail', label: '详情' },
   { key: 'precondition', label: '前置动作' },
@@ -100,6 +106,7 @@ export default function PcCaseDetail() {
   const [form, setForm] = useState({
     name: '',
     status: 'draft',
+    platform: 'windows',
     description: '',
     tags: '',
     created_at: '',
@@ -149,7 +156,7 @@ export default function PcCaseDetail() {
   // original snapshot taken at load time (or right after a successful save).
   useEffect(() => {
     const current = JSON.stringify({
-      form: { name: form.name, description: form.description, tags: form.tags, status: form.status },
+      form: { name: form.name, description: form.description, tags: form.tags, status: form.status, platform: form.platform },
       preconditions,
       caseContent,
       caseContentType,
@@ -173,6 +180,7 @@ export default function PcCaseDetail() {
           setForm({
             name: d.name || '',
             status: d.status || 'draft',
+            platform: d.platform || 'windows',
             description: d.description || '',
             tags: d.tags || '',
             created_at: d.created_at || '',
@@ -236,7 +244,7 @@ export default function PcCaseDetail() {
           // uses so first-render dirty === false.
           queueMicrotask(() => {
             originalSnapshotRef.current = JSON.stringify({
-              form: { name: d.name || '', description: d.description || '', tags: d.tags || '', status: d.status || 'draft' },
+              form: { name: d.name || '', description: d.description || '', tags: d.tags || '', status: d.status || 'draft', platform: d.platform || 'windows' },
               preconditions: d.preconditions ? (() => {
                 const t = d.preconditions.trimStart();
                 if (!t.startsWith('[')) return d.preconditions;
@@ -370,15 +378,16 @@ export default function PcCaseDetail() {
       description: form.description,
       tags: form.tags,
       status: form.status,
+      platform: form.platform,
       case_content: caseContent,
       case_content_type: caseContentType,
       check_points: JSON.stringify(checkpointsForSave),
       data_drive: JSON.stringify({ headers: dataHeaders, rows: dataRows, enabled: dataEnabled }),
       preconditions,
       display_id: envConfig.displayId.trim() || null,
-      keyboard_driver: envConfig.keyboardDriver || null,
-      xvfb_resolution: envConfig.xvfbResolution.trim() || null,
-      headless: envConfig.headless ? 1 : 0,
+      keyboard_driver: form.platform === 'mac' ? (envConfig.keyboardDriver || null) : null,
+      xvfb_resolution: form.platform === 'linux' ? (envConfig.xvfbResolution.trim() || null) : null,
+      headless: form.platform === 'linux' && envConfig.headless ? 1 : 0,
       timeout: (Number(envConfig.timeout) || 300) * 1000,
       window_size: envConfig.windowSize,
     };
@@ -390,7 +399,7 @@ export default function PcCaseDetail() {
           // Refresh snapshot to the just-saved state so the save button
           // stops pulsing.
           originalSnapshotRef.current = JSON.stringify({
-            form: { name: form.name, description: form.description, tags: form.tags, status: form.status },
+            form: { name: form.name, description: form.description, tags: form.tags, status: form.status, platform: form.platform },
             preconditions,
             caseContent,
             caseContentType,
@@ -480,6 +489,15 @@ export default function PcCaseDetail() {
               value={form.status}
               options={STATUS_OPTIONS}
               onChange={v => setForm(f => ({ ...f, status: v }))}
+              renderDisplay={(v, label) => <span className={`status-text status-${v}`}>{label}</span>}
+            />
+          </div>
+          <div className="field">
+            <label>目标平台</label>
+            <InlineSelect
+              value={form.platform}
+              options={PLATFORM_OPTIONS}
+              onChange={v => setForm(f => ({ ...f, platform: v }))}
               renderDisplay={(v, label) => <span className={`status-text status-${v}`}>{label}</span>}
             />
           </div>
@@ -646,16 +664,6 @@ export default function PcCaseDetail() {
             />
           </div>
           <div className="field">
-            <label>macOS 键盘驱动</label>
-            <FormSelect
-              value={envConfig.keyboardDriver}
-              options={KEYBOARD_DRIVER_OPTIONS}
-              onChange={v => setEnvConfig(c => ({ ...c, keyboardDriver: v }))}
-            />
-          </div>
-        </div>
-        <div className="api-detail-row">
-          <div className="field">
             <label>超时时间（秒）</label>
             <input
               type="number"
@@ -664,36 +672,52 @@ export default function PcCaseDetail() {
               onChange={e => setEnvConfig(c => ({ ...c, timeout: e.target.value }))}
             />
           </div>
-          <div className="field">
-            <label>Linux 无头模式（Xvfb）</label>
-            <div className="web-env-headless">
-              <label className="rule-switch rule-switch--labeled" title="仅 Linux 生效。开启后用 Xvfb 虚拟显示器执行,无需真实屏幕。macOS/Windows 忽略此项。">
-                <input
-                  type="checkbox"
-                  checked={envConfig.headless}
-                  onChange={() => setEnvConfig(c => ({ ...c, headless: !c.headless }))}
-                />
-                <span className="rule-switch-slider">
-                  <span className="rule-switch-label">{envConfig.headless ? '开启' : '关闭'}</span>
-                </span>
-              </label>
+        </div>
+        {form.platform === 'mac' && (
+          <div className="api-detail-row">
+            <div className="field">
+              <label>macOS 键盘驱动</label>
+              <FormSelect
+                value={envConfig.keyboardDriver}
+                options={KEYBOARD_DRIVER_OPTIONS}
+                onChange={v => setEnvConfig(c => ({ ...c, keyboardDriver: v }))}
+              />
             </div>
           </div>
-        </div>
-        <div className="api-detail-row">
-          <div className="field">
-            <label>Xvfb 分辨率</label>
-            <FormSelect
-              value={envConfig.xvfbResolution}
-              options={XVFB_RESOLUTION_OPTIONS}
-              onChange={v => setEnvConfig(c => ({ ...c, xvfbResolution: v }))}
-            />
-          </div>
-        </div>
+        )}
+        {form.platform === 'linux' && (
+          <>
+            <div className="api-detail-row">
+              <div className="field">
+                <label>Linux 虚拟显示（Xvfb）</label>
+                <div className="web-env-headless">
+                  <label className="rule-switch rule-switch--labeled" title="仅 Linux 生效。开启后用 Xvfb 虚拟显示器执行,无需真实屏幕。">
+                    <input
+                      type="checkbox"
+                      checked={envConfig.headless}
+                      onChange={() => setEnvConfig(c => ({ ...c, headless: !c.headless }))}
+                    />
+                    <span className="rule-switch-slider">
+                      <span className="rule-switch-label">{envConfig.headless ? '开启' : '关闭'}</span>
+                    </span>
+                  </label>
+                </div>
+              </div>
+              <div className="field">
+                <label>Xvfb 分辨率</label>
+                <FormSelect
+                  value={envConfig.xvfbResolution}
+                  options={XVFB_RESOLUTION_OPTIONS}
+                  onChange={v => setEnvConfig(c => ({ ...c, xvfbResolution: v }))}
+                />
+              </div>
+            </div>
+          </>
+        )}
         <div className="api-detail-hint">
           PC 测试使用原生桌面自动化（@midscene/computer），可控制任意桌面应用。
-          macOS 首次执行需在「系统设置 → 隐私与安全」授予控制当前 App 的<strong>辅助功能</strong>与<strong>屏幕录制</strong>权限；
-          Linux 无头环境需安装 <code>xvfb</code>。
+          {form.platform === 'mac' && <>macOS 首次执行需在「系统设置 → 隐私与安全」授予控制当前 App 的<strong>辅助功能</strong>与<strong>屏幕录制</strong>权限。</>}
+          {form.platform === 'linux' && <>Linux 虚拟显示环境需安装 <code>xvfb</code>。</>}
         </div>
       </div>
     </div>

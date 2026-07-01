@@ -36,7 +36,7 @@ export default function Header({ showSwitch, onSwitchTestType }: HeaderProps) {
   return (
     <header className="hdr">
       <div className="hdr-left">
-        <span className="hdr-logo" onClick={() => navigate('/')}>Auto Test Platform</span>
+        <span className="hdr-logo" onClick={() => navigate('/')}>AutoTest Platform</span>
         {showSwitch && (
           <button className="hdr-switch" onClick={onSwitchTestType || (() => navigate('/'))}>切换测试类型</button>
         )}

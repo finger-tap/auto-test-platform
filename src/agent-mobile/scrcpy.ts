@@ -16,10 +16,10 @@
 // 都在一个 ActiveSession 里。WS 断开 / 调用 stop() 都触发清理,关 adb / scrcpy 进程。
 //
 // 文件路径:scrcpy-server 二进制放在 mobile-agent-bin/scrcpy-server(bundler 同步到
-// 远端 /opt/auto-test-agent/mobile-agent-bin/scrcpy-server)。pushServer 把它推
-// 到设备,然后用 DefaultServerPath(Genymobile 默认)作为设备端 classpath。
+// 远端当前 mobile agent 安装目录下的 mobile-agent-bin/scrcpy-server)。pushServer
+// 把它推到设备,然后用 DefaultServerPath(Genymobile 默认)作为设备端 classpath。
 
-import { createReadStream } from 'node:fs';
+import { createReadStream, existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { WebSocketServer, type WebSocket } from 'ws';
@@ -28,16 +28,19 @@ import { AdbServerNodeTcpConnector } from '@yume-chan/adb-server-node-tcp';
 import { AdbScrcpyClient, AdbScrcpyOptions3_3_3 } from '@yume-chan/adb-scrcpy';
 import { ReadableStream } from '@yume-chan/stream-extra';
 import { DefaultServerPath, ScrcpyVideoCodecId } from '@yume-chan/scrcpy';
+import { encodeScrcpyFrame } from '../shared/scrcpy-format.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// 远端部署后:src/agent-mobile/scrcpy.ts → /opt/auto-test-agent/mobile-agent-src/scrcpy.ts
-// → 同目录上一级 = /opt/auto-test-agent/mobile-agent-bin/scrcpy-server
-// 本地 dev:src/agent-mobile/scrcpy.ts → src/agent-mobile/bin/scrcpy-server
-const SCRCPY_SERVER_BIN = process.env.SCRCPY_SERVER_BIN
-  || path.resolve(__dirname, '..', 'mobile-agent-bin', 'scrcpy-server')
-  || path.resolve(__dirname, 'bin', 'scrcpy-server');   // fallback 本地 dev
+// 远端部署后:mobile-agent-src/scrcpy.js → ../mobile-agent-bin/scrcpy-server
+// 本地 dev:src/agent-mobile/scrcpy.ts → ./bin/scrcpy-server
+const SCRCPY_SERVER_BIN = (() => {
+  if (process.env.SCRCPY_SERVER_BIN) return process.env.SCRCPY_SERVER_BIN;
+  const deployedPath = path.resolve(__dirname, '..', 'mobile-agent-bin', 'scrcpy-server');
+  if (existsSync(deployedPath)) return deployedPath;
+  return path.resolve(__dirname, 'bin', 'scrcpy-server');
+})();
 
 const ADB_SERVER_PORT = Number(process.env.ADB_SERVER_PORT || 5037);
 
@@ -157,7 +160,10 @@ export function activeScrcpySessionCount(): number {
 /**
  * 把指定 session 的 H.264 帧流附到一个 ws(由调用方管理生命周期)。
  * 协议:第一条消息是 JSON metadata(便于 client 初始化 decoder),后续每条
- * 是 binary frame(type=0x00 configuration / 0x01 data),scrcpy 原始格式。
+ * 是 binary frame(1字节 type 前缀 + H.264 payload):
+ *   type=0x00 → configuration (SPS/PPS)
+ *   type=0x01 → data (H.264 NAL unit)
+ * 跟 server 端 local-scrcpy.ts 和前端 useScrcpyDecoder 协议一致。
  */
 export async function attachScrcpyStream(sessionId: string, ws: WebSocket): Promise<boolean> {
   const s = activeSessions.get(sessionId);
@@ -203,8 +209,9 @@ export async function attachScrcpyStream(sessionId: string, ws: WebSocket): Prom
         if (done) break;
         if (!value) continue;
         if (ws.readyState !== ws.OPEN) break;
-        // 透传:WebSocket 默认用 binary frame,前端按 type 分配置/数据
-        ws.send(value.data, { binary: true }, (err) => {
+        // 编码为 [1字节type + payload] 格式,跟 local-scrcpy 和前端 useScrcpyDecoder 一致
+        const payload = encodeScrcpyFrame(value);
+        ws.send(payload, { binary: true }, (err) => {
           if (err && !stopped) {
             console.log(`[mobile-agent:scrcpy] ws send error sessionId=${sessionId}: ${err.message}`);
             void cleanup();
