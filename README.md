@@ -1,8 +1,6 @@
 <p align="center">
-  <img src="public/brand/autotest-lockup-horizontal.svg" alt="AutoTest Platform" width="520" />
+  <img src="public/brand/autotest-logo-horizontal.png" alt="AutoTest Platform" width="520" />
 </p>
-
-<h1 align="center">AutoTest Platform</h1>
 
 <p align="center">
   面向 API、Web、PC 桌面与移动端场景的一体化自动化测试平台。
