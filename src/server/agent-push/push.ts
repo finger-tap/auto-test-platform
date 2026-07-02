@@ -946,6 +946,10 @@ function plistContent(args: PlistContentArgs): string {
   // 2026-06-28: mobile agent 需要 adb,从 bundle 内的 adb-runtime 加载。
   // 2026-07-01: installRoot 由 push.ts 传入,按 kind 分流。
   const adbPath = `${args.installRoot}/adb-runtime/platform-tools`;
+  // macOS system tools such as system_profiler live in /usr/sbin.
+  // launchd services do not inherit the interactive shell PATH, so keep the
+  // service PATH explicit and aligned with the Linux systemd unit.
+  const servicePath = `${adbPath}:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin`;
   const envDict = [
     `    <key>AGENT_TOKEN</key>`,
     `    <string>${args.token}</string>`,
@@ -958,7 +962,7 @@ function plistContent(args: PlistContentArgs): string {
     `    <key>AGENT_BROWSERS_PATH</key>`,
     `    <string>${args.installRoot}/browsers</string>`,
     `    <key>PATH</key>`,
-    `    <string>${adbPath}:/usr/local/bin:/usr/bin:/bin</string>`,
+    `    <string>${servicePath}</string>`,
   ];
   if (args.kind === 'mobile') {
     envDict.push(`    <key>AGENT_MOBILE_PORT</key>`, `    <string>${args.agentPort}</string>`);
