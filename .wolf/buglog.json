@@ -8105,6 +8105,2439 @@
       "related_bugs": [],
       "occurrences": 1,
       "last_seen": "2026-06-25T14:19:58.831Z"
+    },
+    {
+      "id": "bug-504",
+      "timestamp": "2026-06-26T11:56:32.111Z",
+      "error_message": "Type error",
+      "file": "src/client/pages/mobile-test/MobileTestDetail.tsx",
+      "root_cause": "Missing or incorrect type annotation",
+      "fix": "Added type assertion/annotation",
+      "tags": [
+        "auto-detected",
+        "type-fix",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-26T11:56:32.111Z"
+    },
+    {
+      "id": "bug-505",
+      "timestamp": "2026-06-26T11:57:06.424Z",
+      "error_message": "Missing error handling in unknown",
+      "file": "src/client/pages/mobile-test/MobileTestDetail.tsx",
+      "root_cause": "Code path had no error handling — exceptions would propagate uncaught",
+      "fix": "Added try/catch block",
+      "tags": [
+        "auto-detected",
+        "error-handling",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-26T11:57:06.424Z"
+    },
+    {
+      "id": "bug-506",
+      "timestamp": "2026-06-26T11:58:57.354Z",
+      "error_message": "Incorrect value in code",
+      "file": "src/client/pages/mobile-test/MobileTestDetail.tsx",
+      "root_cause": "Had \"scenario-btn\"",
+      "fix": "Changed to `scenario-btn ${dirty ? '",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-26T11:58:57.354Z"
+    },
+    {
+      "id": "bug-507",
+      "timestamp": "2026-06-26T12:08:55.807Z",
+      "error_message": "CSS fix: box-shadow",
+      "file": "src/client/App.css",
+      "root_cause": "box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.15) → 0 0 12px 4px color-mix(in srgb, var(--primary) 25%, transparent)",
+      "fix": "Changed box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.15) → 0 0 12px 4px color-mix(in srgb, var(--primary) 25%, transparent)",
+      "tags": [
+        "auto-detected",
+        "style-fix",
+        "css"
+      ],
+      "related_bugs": [],
+      "occurrences": 2,
+      "last_seen": "2026-06-26T12:10:53.945Z"
+    },
+    {
+      "id": "bug-508",
+      "timestamp": "2026-06-26T12:09:27.114Z",
+      "error_message": "CSS fix: animation",
+      "file": "src/client/styles/buttons.css",
+      "root_cause": "animation: btn-dirty-pulse 1.5s ease-in-out infinite → scenario-btn-dirty-pulse 1.5s ease-in-out infinite",
+      "fix": "Changed animation: btn-dirty-pulse 1.5s ease-in-out infinite → scenario-btn-dirty-pulse 1.5s ease-in-out infinite",
+      "tags": [
+        "auto-detected",
+        "style-fix",
+        "css"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-26T12:09:27.114Z"
+    },
+    {
+      "id": "bug-509",
+      "timestamp": "2026-06-26T12:15:32.296Z",
+      "error_message": "CSS fix: width",
+      "file": "src/client/components/SettingsDrawer.css",
+      "root_cause": "width: min(900px, 85vw) → calc((100vw - var(--sidebar-w, 240px)) * 0.7)",
+      "fix": "Changed width: min(900px, 85vw) → calc((100vw - var(--sidebar-w, 240px)) * 0.7)",
+      "tags": [
+        "auto-detected",
+        "style-fix",
+        "css"
+      ],
+      "related_bugs": [],
+      "occurrences": 2,
+      "last_seen": "2026-06-26T12:15:55.929Z"
+    },
+    {
+      "id": "bug-510",
+      "timestamp": "2026-06-26T12:19:12.632Z",
+      "error_message": "Missing guard clause",
+      "file": "src/client/components/FormSelect.tsx",
+      "root_cause": "No early return/throw for edge case: !portal || !open || !triggerRef.current",
+      "fix": "Added guard clause: if (!portal || !open || !triggerRef.current)",
+      "tags": [
+        "auto-detected",
+        "guard-clause",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-26T12:19:12.632Z"
+    },
+    {
+      "id": "bug-511",
+      "timestamp": "2026-06-26T12:19:44.363Z",
+      "error_message": "CSS fix: top",
+      "file": "src/client/components/FormSelect.tsx",
+      "root_cause": "top: rect.bottom + 4, left: rect.left, width: rect.width → r.bottom + 4, left: r.left, width: r.width",
+      "fix": "Changed top: rect.bottom + 4, left: rect.left, width: rect.width → r.bottom + 4, left: r.left, width: r.width",
+      "tags": [
+        "auto-detected",
+        "style-fix",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-26T12:19:44.363Z"
+    },
+    {
+      "id": "bug-512",
+      "timestamp": "2026-06-26T12:21:47.993Z",
+      "error_message": "Null/undefined access in ",
+      "file": "src/client/components/FormSelect.tsx",
+      "root_cause": "Property access on potentially null/undefined value",
+      "fix": "Added null safety (optional chaining or null check)",
+      "tags": [
+        "auto-detected",
+        "null-safety",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-26T12:21:47.993Z"
+    },
+    {
+      "id": "bug-513",
+      "timestamp": "2026-06-26T12:24:43.542Z",
+      "error_message": "Wrong reference: portal should be fixed",
+      "file": "src/client/pages/system/DeviceList.tsx",
+      "root_cause": "Used \"portal\" instead of \"fixed\"",
+      "fix": "Changed portal → fixed",
+      "tags": [
+        "auto-detected",
+        "wrong-reference",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-26T12:24:43.542Z"
+    },
+    {
+      "id": "bug-514",
+      "timestamp": "2026-06-26T12:33:48.468Z",
+      "error_message": "设备编辑弹窗底部“操作系统类型”下拉选项被弹窗滚动容器裁剪/偏移,点击后看不到选项",
+      "file": "src/client/components/FormSelect.tsx",
+      "root_cause": "FormSelect fixed 模式只使用 position: fixed 计算坐标,但下拉 DOM 仍渲染在弹窗滚动容器内部,会受 overflow/层级上下文影响",
+      "fix": "fixed 模式下用 createPortal 将下拉列表渲染到 document.body,并让外部点击判断同时识别 trigger 和 portal 列表;提高固定下拉 z-index",
+      "tags": [
+        "frontend",
+        "select",
+        "modal",
+        "overflow",
+        "portal",
+        "device-list"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-26T12:33:48.468Z"
+    },
+    {
+      "id": "bug-515",
+      "timestamp": "2026-06-26T12:38:12.664Z",
+      "error_message": "设备编辑弹窗里固定下拉列表能显示后,选项区域异常变成页面宽度,没有按选项内容自适应",
+      "file": "src/client/components/FormSelect.tsx",
+      "root_cause": "fixed 模式下下拉列表通过 portal 挂到 document.body 后,原 CSS 的 min-width: 100% 不再相对触发器,而是相对页面/包含块计算,导致下拉过宽",
+      "fix": "fixed 模式内联覆盖 width 为 max-content、minWidth 为 0,并用 maxWidth 限制不超出右侧视口",
+      "tags": [
+        "frontend",
+        "select",
+        "portal",
+        "width",
+        "device-list"
+      ],
+      "related_bugs": [
+        "bug-514"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-06-26T12:38:12.664Z"
+    },
+    {
+      "id": "bug-516",
+      "timestamp": "2026-06-26T12:38:12.664Z",
+      "error_message": "npx tsc -p tsconfig.client.json --noEmit --pretty false 仍失败: MidsceneReportViewer.tsx null 类型与 Home.tsx Recharts formatter 类型不兼容",
+      "file": "src/client/components/MidsceneReportViewer.tsx; src/client/pages/Home.tsx",
+      "root_cause": "项目已有无关类型错误未清理,不是本次 FormSelect 固定下拉宽度改动引入",
+      "fix": "本次未修改无关文件;记录为验证阻塞项",
+      "tags": [
+        "typecheck",
+        "existing-error",
+        "frontend"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-26T12:38:12.664Z"
+    },
+    {
+      "id": "bug-517",
+      "timestamp": "2026-06-26T12:55:15.224Z",
+      "error_message": "POST /api/devices 503: AGENT_SSH_KEY_SECRET not configured; cannot store SSH credentials, even though the request body includes SSH password",
+      "file": "src/server/agent-push/crypto.ts; src/server/routes/devices.ts",
+      "root_cause": "SSH 密码是用户登录远端机器的凭据,但后端还需要一个稳定的服务端加密密钥来把该凭据安全存入 SQLite;本地开发环境未配置该密钥时 create 直接拒绝保存。PUT 路径还直接调用 encryptColumn,缺少与 POST 一致的缺密钥报错语义。",
+      "fix": "生产环境继续要求显式 AGENT_SSH_KEY_SECRET;非生产环境未配置时自动生成并复用 data/.agent-ssh-key-secret 作为本地开发加密密钥。PUT 路径改为复用 encryptSshField,保持 create/update 一致。",
+      "tags": [
+        "devices",
+        "ssh",
+        "agent-push",
+        "encryption",
+        "dev-default"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-26T12:55:15.224Z"
+    },
+    {
+      "id": "bug-518",
+      "timestamp": "2026-06-26T13:09:16.191Z",
+      "error_message": "Web 测试选择刚新增的远程设备后仍发送到本地执行；新增设备后未自动推送 agent，且设备选择弹窗展示了未注册 agent 的在线设备",
+      "file": "src/server/routes/devices.ts + src/client/pages/system/DeviceList.tsx",
+      "root_cause": "设备创建只保存 SSH 信息，不触发 push-agent；同时 /api/devices/merged?test_type=web 只按 devices.status 展示设备，用户手动传 online 时即使 agent_endpoint 为空也会出现在执行设备选择中，导致远程执行目标未真正就绪。",
+      "fix": "Web/PC 执行设备列表改为只返回 status=online 且 agent_endpoint/agent_token 存在的设备；设备库新增设备时如果填写完整 SSH 信息，保存成功后自动调用对应 push-agent/push-mobile-agent/push-pc-agent 端点。",
+      "tags": [
+        "web",
+        "device-picker",
+        "agent-push",
+        "remote-execution"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-26T13:09:16.191Z"
+    },
+    {
+      "id": "bug-519",
+      "timestamp": "2026-06-26T13:58:48.300554Z",
+      "error_message": "用户指出 PUBLIC_SERVER_URL 不应作为推送 agent 的全局回连地址,应使用当前设备配置的 host/port；设备编辑界面也应把 host/port 放在更显眼的位置",
+      "file": "src/server/agent-push/push.ts; src/server/routes/devices.ts; src/client/pages/system/DeviceList.tsx; src/server/db/index.ts",
+      "root_cause": "SSH 推送生成 agent .env 时依赖全局 PUBLIC_SERVER_URL,没有使用设备级 host 字段；前端 host 文案仍是 ADB/WDA 连接地址,导致用户不知道这里应填平台回连 URL。",
+      "fix": "推送时改为通过 serverUrlForDevice(device) 从设备 host 生成 AGENT_SERVER_URL；保存在线/点击上线均要求填写平台回连地址；表单文案改为平台回连地址(Host:Port),并提示不要填远端 SSH 地址；手动 deploy_command 也改用设备 host。",
+      "tags": [
+        "devices",
+        "agent-push",
+        "server-url",
+        "remote-execution",
+        "ui-copy"
+      ],
+      "related_bugs": [
+        "bug-518"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-06-26T13:58:48.300554Z"
+    },
+    {
+      "id": "bug-520",
+      "timestamp": "2026-06-26T14:09:43.632846Z",
+      "error_message": "用户上线设备时报 {code: 500, message: \"ssh_password present but could not decrypt (key missing or ciphertext corrupt)\"}，担心密码认证方式保存加密后连接是否可用",
+      "file": "src/server/agent-push/push.ts; src/client/pages/system/DeviceList.tsx",
+      "root_cause": "SSH 密码认证连接本身支持明文 password 参数，但数据库只保存 AES-GCM 密文；如果已有设备行的密文由不同 AGENT_SSH_KEY_SECRET/本地开发密钥加密，或旧数据损坏，推送/停止时无法解密成明文，ssh2 无法拿到 password 发起连接。",
+      "fix": "保持不降级读取明文，后端将解密失败改成中文可操作错误，前端识别解密失败并提示重新输入 SSH 密码/私钥，手动上线时自动打开编辑表单和 SSH 区域。",
+      "tags": [
+        "devices",
+        "agent-push",
+        "ssh",
+        "encryption",
+        "credentials"
+      ],
+      "related_bugs": [
+        "bug-517",
+        "bug-519"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-06-26T14:09:43.632846Z"
+    },
+    {
+      "id": "bug-521",
+      "timestamp": "2026-06-26T14:19:40.285Z",
+      "error_message": "设备列表点击上线后操作列按钮样式变化导致表格下边框不对齐；Web 远程执行机上线时控制台提示 dist/agent-pc not found; run \"npm run build:agent-pc\" first",
+      "file": "src/server/agent-push/bundler.ts; src/server/agent-push/push.ts; src/client/pages/system/DeviceList.css",
+      "root_cause": "操作列 td 被设置为 display:flex，脱离表格单元格布局后边框高度与其他列不一致；agent bundler 不区分设备类型，Web 推送也枚举 PC agent 产物并打印 PC 缺包告警。",
+      "fix": "操作列恢复为表格单元格布局，用 inline-flex 按钮和 margin 保持间距；createBundleStream 增加 web/mobile/pc 类型参数，pushAgentByKind 按 kind 只打对应 agent 包，PC 缺包只在推 PC 设备时作为明确错误。",
+      "tags": [
+        "device-list",
+        "agent-push",
+        "bundler",
+        "web-agent",
+        "pc-agent",
+        "css"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-26T14:19:40.285Z"
+    },
+    {
+      "id": "bug-522",
+      "timestamp": "2026-06-26T14:30:11.543894+00:00",
+      "error_message": "点击设备上线后按钮一直显示“上线中”，后端只打印 [agent-push:bundler] dist/agent-pc not found，前端没有异常信息输出",
+      "file": "src/server/agent-push/bundler.ts; src/server/routes/devices.ts; src/client/pages/system/DeviceList.tsx",
+      "root_cause": "打包枚举失败时 Readable stream 以 error destroy，可能先触发未兜住的 stream error；推送路由缺少顶层 try/catch，前端 fetch 也没有主动超时保护，导致异常路径不能稳定返回 JSON 且按钮 loading 依赖请求结束。",
+      "fix": "打包器改为通过 ready Promise 传播枚举错误并无 error destroy stream；三个推送接口增加统一 try/catch JSON 响应并记录失败状态；前端上线请求增加 6 分钟 AbortController 超时、失败 console.error 和 toast。",
+      "tags": [
+        "agent-push",
+        "device-list",
+        "timeout",
+        "error-handling",
+        "bundler"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-26T14:30:11.543894+00:00"
+    },
+    {
+      "id": "bug-523",
+      "timestamp": "2026-06-26T14:47:12.985764Z",
+      "error_message": "用户指出推送请求不应因固定前端/后端总超时而中断，大包或慢网络可能还在上传；异常应当立即返回，并希望上线过程有进度条",
+      "file": "src/server/agent-push/push.ts; src/server/routes/devices.ts; src/client/pages/system/DeviceList.tsx; src/client/pages/system/DeviceList.css",
+      "root_cause": "上一轮为避免按钮卡住加入了固定请求超时，但这会误杀仍在正常上传的大包；同时前端没有展示服务端上传阶段进度，只能看到“上线中”。",
+      "fix": "移除推送总超时和前端 AbortController；后端保留逐步骤异常即时返回并新增 push-progress 状态；前端轮询进度接口并在操作列显示进度条。",
+      "tags": [
+        "agent-push",
+        "timeout",
+        "progress",
+        "ssh",
+        "ui"
+      ],
+      "related_bugs": [
+        "bug-522"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-06-26T14:47:12.985764Z"
+    },
+    {
+      "id": "bug-524",
+      "timestamp": "2026-06-26T14:47:12.985764Z",
+      "error_message": "用户指出项目主页头像菜单和切换到不同测试类型后的用户信息组件不一致，希望切换到主页头像样式：默认头像，点击后展示用户名和设置项",
+      "file": "src/client/components/UserMenu.tsx; src/client/styles/user-menu.css; src/client/components/SysHeader.tsx; src/client/pages/Home.tsx; src/client/pages/Home.css; src/client/components/Layout.css",
+      "root_cause": "Home 和 SysHeader 各自实现用户菜单，SysHeader 默认展示用户名且样式与主页头像菜单不同，重复样式也增加维护成本。",
+      "fix": "抽出共享 UserMenu 组件和全局 user-menu.css；主页和 SysHeader 都使用头像按钮，点击后显示用户名、账号、账号与设置、退出登录。",
+      "tags": [
+        "user-menu",
+        "avatar",
+        "css-reuse",
+        "header",
+        "ui"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-26T14:47:12.985764Z"
+    },
+    {
+      "id": "bug-525",
+      "timestamp": "2026-06-26T22:57:12",
+      "error_message": "用户反馈保存个人资料成功提示跟整个项目不统一",
+      "file": "src/client/pages/Profile.tsx; src/client/pages/Profile.css",
+      "root_cause": "个人资料页仍使用页面内联 profile-msg 提示，而项目其他保存行为使用全局 notification toast。",
+      "fix": "移除本地 message 状态和 profile-msg DOM/CSS，保存成功/失败改为 notification.success/error，并补充头像上传失败错误透传。",
+      "tags": [
+        "profile",
+        "notification",
+        "ui-consistency"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-26T22:57:12"
+    },
+    {
+      "id": "bug-526",
+      "timestamp": "2026-06-26T15:06:48.415Z",
+      "error_message": "Significant refactor of ",
+      "file": "src/server/agent-push/bundler.ts",
+      "root_cause": "2 lines replaced/restructured",
+      "fix": "Rewrote 24→30 lines (2 removed) | Also: export function createBundleStream(kind: AgentBund; const { files, dirs, version, totalBytes } = await",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 2,
+      "last_seen": "2026-06-26T15:07:06.611Z"
+    },
+    {
+      "id": "bug-527",
+      "timestamp": "2026-06-26T15:07:39.091Z",
+      "error_message": "Null/undefined access in ",
+      "file": "src/server/agent-push/push.ts",
+      "root_cause": "Property access on potentially null/undefined value",
+      "fix": "Added null safety (optional chaining or null check)",
+      "tags": [
+        "auto-detected",
+        "null-safety",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-26T15:07:39.091Z"
+    },
+    {
+      "id": "bug-528",
+      "timestamp": "2026-06-26T15:08:39.542Z",
+      "error_message": "Null/undefined access in ",
+      "file": "src/server/routes/devices.ts",
+      "root_cause": "Property access on potentially null/undefined value",
+      "fix": "Added null safety (optional chaining or null check) | Also: console.log(`[routes:devices] POST /:id/push-mobile-agent id; console.log(`[routes:devices] push-mobile-agent rejected: te | Also: console.log(`[routes:devices] POST /:id/push-pc-agent id=${r; console.log(`[routes:devices] push-pc-agent rejected: test_t",
+      "tags": [
+        "auto-detected",
+        "null-safety",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 3,
+      "last_seen": "2026-06-26T15:09:14.220Z"
+    },
+    {
+      "id": "bug-529",
+      "timestamp": "2026-06-26T15:17:30.975Z",
+      "error_message": "CSS fix: background",
+      "file": "src/client/pages/Auth.css",
+      "root_cause": "background: linear-gradient(135deg, #f5f3ff 0%, #fffff5 50%, #fdf2f8 100%) → linear-gradient(135deg, #1e1b2e 0%, #1a1a14 50%, #2a1a24 100%)",
+      "fix": "Changed background: linear-gradient(135deg, #f5f3ff 0%, #fffff5 50%, #fdf2f8 100%) → linear-gradient(135deg, #1e1b2e 0%, #1a1a14 50%, #2a1a24 100%)",
+      "tags": [
+        "auto-detected",
+        "style-fix",
+        "css"
+      ],
+      "related_bugs": [],
+      "occurrences": 2,
+      "last_seen": "2026-06-26T15:17:35.482Z"
+    },
+    {
+      "id": "bug-530",
+      "timestamp": "2026-06-26T15:18:35.213Z",
+      "error_message": "Missing error handling in unknown",
+      "file": "src/server/db/index.ts",
+      "root_cause": "Code path had no error handling — exceptions would propagate uncaught",
+      "fix": "Added try/catch block",
+      "tags": [
+        "auto-detected",
+        "error-handling",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-26T15:18:35.213Z"
+    },
+    {
+      "id": "bug-531",
+      "timestamp": "2026-06-26T15:18:47.811Z",
+      "error_message": "Null/undefined access in ",
+      "file": "src/server/db/user-preferences.ts",
+      "root_cause": "Property access on potentially null/undefined value",
+      "fix": "Added null safety (optional chaining or null check)",
+      "tags": [
+        "auto-detected",
+        "null-safety",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-26T15:18:47.811Z"
+    },
+    {
+      "id": "bug-532",
+      "timestamp": "2026-06-26T15:20:44.002Z",
+      "error_message": "Significant refactor of ",
+      "file": "src/client/components/SysHeader.tsx",
+      "root_cause": "14 lines replaced/restructured",
+      "fix": "Rewrote 21→5 lines (14 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-26T15:20:44.002Z"
+    },
+    {
+      "id": "bug-533",
+      "timestamp": "2026-06-26T15:26:43.064Z",
+      "error_message": "Missing guard clause",
+      "file": "src/server/agent-push/ssh-client.ts",
+      "root_cause": "No early return/throw for edge case: !settled",
+      "fix": "Added guard clause: if (!settled)",
+      "tags": [
+        "auto-detected",
+        "guard-clause",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-26T15:26:43.064Z"
+    },
+    {
+      "id": "bug-534",
+      "timestamp": "2026-06-27T01:24:52.514Z",
+      "error_message": "Missing error handling in unknown",
+      "file": "src/server/routes/devices.ts",
+      "root_cause": "Code path had no error handling — exceptions would propagate uncaught",
+      "fix": "Added try/catch block",
+      "tags": [
+        "auto-detected",
+        "error-handling",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-27T01:24:52.514Z"
+    },
+    {
+      "id": "bug-535",
+      "timestamp": "2026-06-27T01:25:25.540Z",
+      "error_message": "Missing error handling in unknown",
+      "file": "src/client/pages/system/DeviceList.tsx",
+      "root_cause": "Code path had no error handling — exceptions would propagate uncaught",
+      "fix": "Added try/catch block",
+      "tags": [
+        "auto-detected",
+        "error-handling",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-27T01:25:25.540Z"
+    },
+    {
+      "id": "bug-536",
+      "timestamp": "2026-06-27T01:27:50.093Z",
+      "error_message": "CSS fix: color",
+      "file": "src/client/pages/system/DeviceList.css",
+      "root_cause": "color: var(--warning, #b45309) → var(--danger)",
+      "fix": "Changed color: var(--warning, #b45309) → var(--danger)",
+      "tags": [
+        "auto-detected",
+        "style-fix",
+        "css"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-27T01:27:50.093Z"
+    },
+    {
+      "id": "bug-537",
+      "timestamp": "2026-06-27T02:49:49.598Z",
+      "error_message": "Type error",
+      "file": "src/server/agent-push/push.ts",
+      "root_cause": "Missing or incorrect type annotation",
+      "fix": "Added type assertion/annotation",
+      "tags": [
+        "auto-detected",
+        "type-fix",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-27T02:49:49.598Z"
+    },
+    {
+      "id": "bug-538",
+      "timestamp": "2026-06-27T02:50:05.999Z",
+      "error_message": "Significant refactor of ",
+      "file": "src/server/agent-push/push.ts",
+      "root_cause": "4 lines replaced/restructured",
+      "fix": "Rewrote 7→3 lines (4 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-27T02:50:05.999Z"
+    },
+    {
+      "id": "bug-539",
+      "timestamp": "2026-06-27T03:15:05.962Z",
+      "error_message": "Significant refactor of ",
+      "file": "src/server/agent-push/bundler.ts",
+      "root_cause": "26 lines replaced/restructured",
+      "fix": "Rewrote 80→107 lines (26 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-27T03:15:05.962Z"
+    },
+    {
+      "id": "bug-539",
+      "timestamp": "2026-06-27T11:17:32.964752",
+      "error_message": "agent-push 推送包卡住: 控制台日志只到 [agent-push:bundler] enumerate complete kind=web files=35189 ... took=1492ms 后无任何后续输出, POST /api/devices/:id/push-agent 永久挂起",
+      "file": "src/server/agent-push/bundler.ts",
+      "root_cause": "createBundleStream 的 ready Promise resolve 时机错误 + backpressure 互锁: (1) ready 在所有 gz.write + gz.end() 完成后才 resolve (bundler.ts:317), 但 push.ts 是 await ready 之后才开始 sftpUpload 消费 outer; (2) gz.on('data', chunk => if(!outer.push(chunk)) gz.pause()) 在 outer buffer 满时 pause gz; (3) outer.on('drain', () => gz.resume()) 永远不触发 - Readable stream 没有 'drain' 事件, 那是 Writable 的事件; (4) 文件 read stream rs 等 gz.once('drain'), gz writable 'drain' 需要 readable 端 emit, readable emit 需要 gz.resume(), 但 gz.resume() 永远不被调用 - 互锁. 一旦 enumerate 完成, 进入 dir header 写入, gz writable buffer 满, 进入 file 循环第一个 rs.on('data') 就死锁.",
+      "fix": "把 outer 从 new Readable({read(){}}) push-mode 改成 new PassThrough({highWaterMark:1MB}) Duplex. ready Promise 在 enumerate 完成后立即 resolve (不再等 gz.end). gz.pipe(outer) 自动 forward backpressure: SFTP ws 慢 → outer.write 返回 false → pipe 让 gz 暂停 → rs 等 gz.once('drain') → ws drain → outer drain → gz resume → rs resume. 用 const waitForDrain = () => new Promise(r => gz.once('drain', r)) 统一处理同步 gz.write 返回 false 的等待. 顺手修了第二个 bug: 原代码 outer.push('enumerating...') 把日志字符串塞进 tar.gz 文件头会破坏 tar 结构, 已删除.",
+      "tags": [
+        "agent-push",
+        "bundler",
+        "backpressure",
+        "stream-deadlock",
+        "ssh-push",
+        "passthrough"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-27T11:17:32.964801"
+    },
+    {
+      "id": "bug-541",
+      "timestamp": "2026-06-27T03:29:14.433Z",
+      "error_message": "Type error",
+      "file": "src/server/agent-push/bundler.ts",
+      "root_cause": "Missing or incorrect type annotation",
+      "fix": "Added type assertion/annotation",
+      "tags": [
+        "auto-detected",
+        "type-fix",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-27T03:29:14.433Z"
+    },
+    {
+      "id": "bug-540",
+      "timestamp": "2026-06-27T11:32:12.435922",
+      "error_message": "远端 tar -xzf agent-bundle 报错 'implausibly old time stamp 1970-01-01 08:00:00' for DEPLOY_VERSION 和 bundle.sha256, 然后 '由于前次错误，将以上次的错误状态退出' (exit code 2)",
+      "file": "src/server/agent-push/bundler.ts",
+      "root_cause": "tarHeader 函数生成的 dir headers 和 generated files (DEPLOY_VERSION/bundle.sha256) 用 mtime=0 (epoch 1970-01-01 UTC). 本地 mac bsdtar 只警告不报错, 但远端 Linux GNU tar 1.27+ 把 mtime < 315532800 (1980-01-01) 当作致命错误 'implausibly old time stamp', 配合 deploy 脚本里的 set -e 让整个部署失败. 这是 bug-539 修复 (PassThrough + ready 提前 resolve) 之后才暴露的: 之前 bundler 死锁根本没机会生成完整 tar, 现在能生成完整 tar 了, mtime=0 的 entries 才被远端 tar 检查到.",
+      "fix": "在 tarHeader 函数里加 mtime floor: `const safeMtime = Math.max(315532800, Math.floor(mtime))`, 任何 mtime < 1980-01-01 都被 clamp 到 1980-01-01 UTC. 这一行同时覆盖 dir (mtime=0)、DEPLOY_VERSION (mtime=0)、bundle.sha256 (mtime=0) 三种情况, 无需改 enumerate. 顺手加 ustar magic 'ustar\\0' + version '00' at offset 257-264, 让 GNU tar 走 ustar 解析路径 (name 编码更宽容). 校验本身是 GNU tar 内置不可关闭, 用户问的'本地/远端时间差异'跟这个无关 - tar mtime 是绝对 Unix epoch 秒数, 远端时钟不影响解压.",
+      "tags": [
+        "agent-push",
+        "bundler",
+        "tar",
+        "gnu-tar",
+        "mtime",
+        "implausibly-old",
+        "ustar"
+      ],
+      "related_bugs": [
+        "bug-539"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-06-27T11:32:12.435939"
+    },
+    {
+      "id": "bug-543",
+      "timestamp": "2026-06-27T03:41:54.285Z",
+      "error_message": "Missing await",
+      "file": "src/server/agent-push/bundler.ts",
+      "root_cause": "Async call without await — returned Promise instead of value",
+      "fix": "Added await to async call",
+      "tags": [
+        "auto-detected",
+        "async-fix",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-27T03:41:54.285Z"
+    },
+    {
+      "id": "bug-541",
+      "timestamp": "2026-06-27T11:46:34.012846",
+      "error_message": "远端 GNU tar 解压报 'tar: Skipping to next header' × 5 + 'Exiting with failure status due to previous errors' (exit code 2). 但 ls 显示 5 个顶层 entry (agent-src/browsers/bundle.sha256/DEPLOY_VERSION/node_modules) 都解压成功",
+      "file": "src/server/agent-push/bundler.ts",
+      "root_cause": "ustar 格式 name 字段限制 100 字节 (99 chars + NUL). 当真实路径 > 99 字节时, 代码用 name.slice(0, 99) 截断. **dir entry 截断后末尾不一定有 '/'**, 例如 'node_modules/@midscene/harmony/node_modules/@midscene/core/dist/es/ai-model/shared/model-locate-res' (99 字节, 真实路径更长但被截断). 实测 268 个 dir 被这样截断. 本地 mac bsdtar 容忍 (自动补 '/' 或按 typeFlag 解析), 远端 GNU tar 严格 ustar 模式遇到 typeFlag='5' 但 name 不以 '/' 结尾的 entry 会 'Skipping to next header'. checksum 全对 (Python 验证 39479 个 entry 0 个 bad checksum), 不是数据损坏, 是格式规范问题. bundle.sha256 (13 字节) 等正常 entries 解压没问题, 所以 ls 能看到顶层.",
+      "fix": "实现 GNU @LongLink 扩展 (typeflag='L'): 路径超过 99 字节时, 先写一个 synthetic header (name='././@LongLink', typeflag='L', size=fullPathBytes+1), 跟着完整路径作为 data (NUL 终止 + 512 字节对齐). 然后再写真正的 entry header (name 用截断值, 但 GNU tar 看到 'L' 后会用 long name 替代). bsdtar 和 GNU tar 都识别这个扩展. 新增 helper writeLongLinkIfNeeded(gz, waitForDrain, name), 在 dir/file header 写入前调用. 实测 bundle 写入 1073 个 LongLink entries, Python 解析验证后 0 个 dir 仍缺 '/' 结尾.",
+      "tags": [
+        "agent-push",
+        "bundler",
+        "tar",
+        "ustar",
+        "long-name",
+        "gnu-tar",
+        "longlink",
+        "ustar-magic"
+      ],
+      "related_bugs": [
+        "bug-539",
+        "bug-540"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-06-27T11:46:34.012882"
+    },
+    {
+      "id": "bug-545",
+      "timestamp": "2026-06-27T11:21:34.955Z",
+      "error_message": "Incorrect value in code",
+      "file": "package.json",
+      "root_cause": "Had \"build:agent-pc\"",
+      "fix": "Changed to \"build:agent-mobile\"",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "json"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-27T11:21:34.955Z"
+    },
+    {
+      "id": "bug-546",
+      "timestamp": "2026-06-27T12:00:11.293Z",
+      "error_message": "Incorrect value in code",
+      "file": "src/agent-mobile/auth.ts",
+      "root_cause": "Had '../agent/auth.js'",
+      "fix": "Changed to '../agent-web/auth.js'",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-27T12:00:11.293Z"
+    },
+    {
+      "id": "bug-547",
+      "timestamp": "2026-06-27T12:00:11.517Z",
+      "error_message": "Incorrect value in code",
+      "file": "src/agent-mobile/heartbeat.ts",
+      "root_cause": "Had '../agent/heartbeat.js'",
+      "fix": "Changed to '../agent-web/heartbeat.js'",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-27T12:00:11.517Z"
+    },
+    {
+      "id": "bug-548",
+      "timestamp": "2026-06-27T12:00:33.647Z",
+      "error_message": "Significant refactor of ",
+      "file": "src/server/agent-push/push.ts",
+      "root_cause": "2 lines replaced/restructured",
+      "fix": "Rewrote 3→8 lines (2 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-27T12:00:33.647Z"
+    },
+    {
+      "id": "bug-549",
+      "timestamp": "2026-06-27T12:01:07.334Z",
+      "error_message": "Missing error handling in unknown",
+      "file": "src/server/agent-push/push.ts",
+      "root_cause": "Code path had no error handling — exceptions would propagate uncaught",
+      "fix": "Added try/catch block",
+      "tags": [
+        "auto-detected",
+        "error-handling",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-27T12:01:07.334Z"
+    },
+    {
+      "id": "bug-550",
+      "timestamp": "2026-06-27T12:02:03.874Z",
+      "error_message": "telnet 192.168.127.130 4001 Connection refused after agent push reports online; agent service fails to start",
+      "file": "src/server/agent-push/bundler.ts",
+      "root_cause": "Bundler shipped .ts source (regex /.(ts|json|md)$/) for web/mobile agents, but systemd ExecStart runs /usr/bin/node .../index.js. node cannot execute TypeScript without tsx/ts-node. dist/agent-{web,mobile}/ never built. Bundler only worked for PC because PC_AGENT_DIST was already wired to dist/agent-pc.",
+      "fix": "Switched bundler web/mobile branches to walk compiled dist/agent-{web,mobile}/ (matching PC pattern). Added tsconfig.agent-mobile.json mirroring tsconfig.agent-pc.json (rootDir=src, include agent-mobile+agent-web so cross-agent re-exports resolve). Added build:agent-mobile npm script. Added ensureAgentBuild() in push.ts that spawns npm run build:agent{,-mobile,-pc} before createBundleStream and verifies dist/<kind>/<kind>/index.js exists.",
+      "tags": [
+        "agent-push",
+        "bundler",
+        "systemd",
+        "tsc",
+        "critical"
+      ],
+      "related_bugs": [
+        "bug-539",
+        "bug-540",
+        "bug-541"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-06-27T12:02:03.874Z"
+    },
+    {
+      "id": "bug-551",
+      "timestamp": "2026-06-27T12:02:03.874Z",
+      "error_message": "tsc -p tsconfig.agent-mobile.json: Cannot find module ../agent/auth.js (and heartbeat.js)",
+      "file": "src/agent-mobile/auth.ts",
+      "root_cause": "agent-mobile/auth.ts and heartbeat.ts had typos: re-exports pointed to ../agent/ but the actual shared dir is ../agent-web/ (compare agent-pc/auth.ts which correctly uses ../agent-web/). tsc emitted broken .js because noEmitOnError defaults to false, so runtime imports would have failed.",
+      "fix": "Changed ../agent/ → ../agent-web/ in both files",
+      "tags": [
+        "agent-mobile",
+        "typo",
+        "tsc",
+        "imports"
+      ],
+      "related_bugs": [
+        "bug-550"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-06-27T12:02:03.874Z"
+    },
+    {
+      "id": "bug-552",
+      "timestamp": "2026-06-27T12:02:03.874Z",
+      "error_message": "PC/mobile bundle entry .js path mismatch: bundler preserves nested dist structure but ExecStart used flat path",
+      "file": "src/server/agent-push/push.ts",
+      "root_cause": "tsconfig.agent-pc.json (and now agent-mobile.json) uses rootDir=./src so tsc preserves dir structure: dist/agent-X/agent-X/*.js + dist/agent-X/agent-web/*.js. walkDir in bundler preserves nesting into X-agent-src/. But push.ts entryPoint was X-agent-src/index.js (flat) — file does not exist at that path.",
+      "fix": "Changed entryPoint for mobile and pc to nested: X-agent-src/agent-X/index.js. Web stays flat (tsconfig.agent.json rootDir=src/agent-web produces flat output).",
+      "tags": [
+        "agent-push",
+        "systemd",
+        "execstart",
+        "tsc",
+        "path"
+      ],
+      "related_bugs": [
+        "bug-550"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-06-27T12:02:03.874Z"
+    },
+    {
+      "id": "bug-553",
+      "timestamp": "2026-06-27T12:21:02.034Z",
+      "error_message": "Missing guard clause",
+      "file": "src/server/agent-push/node-runtime.ts",
+      "root_cause": "No early return/throw for edge case: os === 'win'",
+      "fix": "Added guard clause: if (os === 'win')",
+      "tags": [
+        "auto-detected",
+        "guard-clause",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-27T12:21:02.035Z"
+    },
+    {
+      "id": "bug-554",
+      "timestamp": "2026-06-27T12:23:34.495Z",
+      "error_message": "Missing await",
+      "file": "src/server/agent-push/push.ts",
+      "root_cause": "Async call without await — returned Promise instead of value",
+      "fix": "Added await to async call",
+      "tags": [
+        "auto-detected",
+        "async-fix",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-27T12:23:34.495Z"
+    },
+    {
+      "id": "bug-553",
+      "timestamp": "2026-06-27T12:25:31.750Z",
+      "error_message": "systemd ExecStart status=203/EXEC — /usr/bin/node 不存在;远端 Linux 是干净 CentOS,没装 node",
+      "file": "src/server/agent-push/push.ts",
+      "root_cause": "push.ts 把 ExecStart 写死成 /usr/bin/node,假设远端预装 node。但用户测试机是干净 Linux,没装 node,systemd 无法执行 → restart 循环 → 4001 端口不监听。",
+      "fix": "bundle 自带官方 prebuilt node 而不是依赖远端预装。新增 src/server/agent-push/node-runtime.ts:fetch nodejs.org dist 的 linux/darwin/win × x64/arm64 包,data/node-runtime-cache/<os>-<arch>/ 缓存,tar -xzf --strip-components=1 或 unzip 展开。bundler.ts 加 targetOs/targetArch 选项,把 node-runtime/ 目录打进去。push.ts SSH 连上后跑 uname -m 探测 arch,传给 createBundleStream;ExecStart(linux)/ProgramArguments(macos) 用 /opt/auto-test-agent/node-runtime/bin/node 替代 /usr/bin/node。",
+      "tags": [
+        "agent-push",
+        "systemd",
+        "node",
+        "prebuilt",
+        "cross-platform"
+      ],
+      "related_bugs": [
+        "bug-550",
+        "bug-551",
+        "bug-552"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-06-27T12:25:31.750Z"
+    },
+    {
+      "id": "bug-556",
+      "timestamp": "2026-06-27T12:28:01.790Z",
+      "error_message": "CSS fix: value",
+      "file": "src/client/pages/system/DeviceList.tsx",
+      "root_cause": "value: 'macos', label: 'macOS (launchd)' → 'windows', label: 'Windows (sc.exe / Windows Service)'",
+      "fix": "Changed value: 'macos', label: 'macOS (launchd)' → 'windows', label: 'Windows (sc.exe / Windows Service)'",
+      "tags": [
+        "auto-detected",
+        "style-fix",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-27T12:28:01.790Z"
+    },
+    {
+      "id": "bug-557",
+      "timestamp": "2026-06-27T12:28:34.852Z",
+      "error_message": "Significant refactor of ",
+      "file": "src/server/agent-push/push.ts",
+      "root_cause": "2 lines replaced/restructured",
+      "fix": "Rewrote 3→4 lines (2 removed) | Also: const remoteRoot = '/opt/auto-test-agent';; const remotePath = '/tmp/agent-bundle-latest.tar.g | Also: // 2. 写 agent env 文件 + 服务自启定义(systemd unit / launc; //    env 文件对两边一致(都读 /etc/auto-test-agent.env);ser",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 3,
+      "last_seen": "2026-06-27T12:31:36.930Z"
+    },
+    {
+      "id": "bug-558",
+      "timestamp": "2026-06-27T12:29:09.768Z",
+      "error_message": "Missing error handling in unknown",
+      "file": "src/server/agent-push/push.ts",
+      "root_cause": "Code path had no error handling — exceptions would propagate uncaught",
+      "fix": "Added try/catch block",
+      "tags": [
+        "auto-detected",
+        "error-handling",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-27T12:29:09.768Z"
+    },
+    {
+      "id": "bug-559",
+      "timestamp": "2026-06-27T12:30:41.288Z",
+      "error_message": "Null/undefined access in ",
+      "file": "src/server/agent-push/ssh-client.ts",
+      "root_cause": "Property access on potentially null/undefined value",
+      "fix": "Added null safety (optional chaining or null check)",
+      "tags": [
+        "auto-detected",
+        "null-safety",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-27T12:30:41.288Z"
+    },
+    {
+      "id": "bug-560",
+      "timestamp": "2026-06-27T12:31:59.062Z",
+      "error_message": "Incorrect value in code",
+      "file": "src/server/agent-push/push.ts",
+      "root_cause": "Had \"[deploy] agent healthy after ${i}s\"",
+      "fix": "Changed to \"[deploy] agent healthy after \\${i}s\"",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 2,
+      "last_seen": "2026-06-27T12:33:13.903Z"
+    },
+    {
+      "id": "bug-561",
+      "timestamp": "2026-06-27T12:32:48.120Z",
+      "error_message": "Incorrect value in code",
+      "file": "src/client/pages/system/DeviceList.tsx",
+      "root_cause": "Had 'systemd'",
+      "fix": "Changed to 'windows'",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 3,
+      "last_seen": "2026-06-27T12:32:48.850Z"
+    },
+    {
+      "id": "bug-562",
+      "timestamp": "2026-06-27T12:38:59.701Z",
+      "error_message": "Missing error handling in unknown",
+      "file": "src/server/agent-push/push.ts",
+      "root_cause": "Code path had no error handling — exceptions would propagate uncaught",
+      "fix": "Added try/catch block",
+      "tags": [
+        "auto-detected",
+        "error-handling",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-27T12:38:59.701Z"
+    },
+    {
+      "id": "bug-563",
+      "timestamp": "2026-06-27T13:05:00.000Z",
+      "error_message": "stopAgent on Windows device: OS guard rejected 'windows' as unsupported; even after guard fix, stop logic fell through to Linux systemctl branch",
+      "file": "src/server/agent-push/push.ts",
+      "root_cause": "stopAgent had two gaps: (1) guard clause `if (os_type !== 'linux' && os_type !== 'macos')` rejected Windows; (2) the if/else only branched on effectiveOs === 'macos' and fell through to systemctl for everything else including Windows. Also initially introduced a separate PascalCase winServiceName (AutoTestAgent) that did NOT match the deploy script's __SERVICE_NAME__ substitution (which uses unitName = 'auto-test-agent.service').",
+      "fix": "Added 'windows' to OS guard allowlist. Added explicit Windows stop branch using PowerShell Stop-Service with regex match on 'Cannot find any service|无法查找|没有启动' to treat already-stopped/missing service as success. Reused unitName (not a separate PascalCase name) to match deploy substitution at line 573.",
+      "tags": [
+        "agent-push",
+        "windows",
+        "stop-service",
+        "sc.exe",
+        "powershell",
+        "naming-mismatch"
+      ],
+      "related_bugs": [
+        "bug-553"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-06-27T13:05:00.000Z"
+    },
+    {
+      "id": "bug-564",
+      "timestamp": "2026-06-27T12:45:37.269Z",
+      "error_message": "Incorrect value in code",
+      "file": "src/server/agent-push/push.ts",
+      "root_cause": "Had \"[deploy] WARNING: agent did not respond to /healt",
+      "fix": "Changed to \"[deploy] WARNING: agent did not respond to /healt",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 2,
+      "last_seen": "2026-06-27T12:45:40.045Z"
+    },
+    {
+      "id": "bug-565",
+      "timestamp": "2026-06-27T12:45:52.640Z",
+      "error_message": "Significant refactor of ",
+      "file": "src/server/agent-push/push.ts",
+      "root_cause": "3 lines replaced/restructured",
+      "fix": "Rewrote 3→5 lines (3 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-27T12:45:52.640Z"
+    },
+    {
+      "id": "bug-566",
+      "timestamp": "2026-06-27T13:15:00.000Z",
+      "error_message": "用户反馈:推送后 agent 没启动,但 UI 仍显示'上线成功',设备状态被标为 online",
+      "file": "src/server/agent-push/push.ts",
+      "root_cause": "deploy 脚本(Linux L175-176 + Windows L303-304)在 healthz 15s 超时后仍然 exit 0。push.ts L596 用 `if (deployRes.code !== 0) throw` 判定 deploy 成败,但 code 永远是 0 → 永远不抛错 → recordPushResult(id, 'ok') → db/devices.ts L363 写 status='online'。注释 L14-15 还写着 'A failure here does NOT count as a push failure',约定本身错了。",
+      "fix": "1) Linux deploy script healthz 超时分支 exit 0 → exit 1;2) Windows deploy script 同样改;3) 同步修正文件头注释,healthz 超时 = deploy 失败 = 设备 offline。db/devices.ts 无需改动,recordPushResult 的 'ok'→online / 'error'→offline 映射本来就对,只是之前永远拿不到 'error'。",
+      "tags": [
+        "agent-push",
+        "healthz",
+        "online-state",
+        "false-positive",
+        "exit-code",
+        "linux",
+        "windows"
+      ],
+      "related_bugs": [
+        "bug-553",
+        "bug-562",
+        "bug-563"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-06-27T13:15:00.000Z"
+    },
+    {
+      "id": "bug-567",
+      "timestamp": "2026-06-27T12:53:29.329Z",
+      "error_message": "Significant refactor of ",
+      "file": "src/server/agent-push/push.ts",
+      "root_cause": "3 lines replaced/restructured",
+      "fix": "Rewrote 12→16 lines (3 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-27T12:53:29.329Z"
+    },
+    {
+      "id": "bug-568",
+      "timestamp": "2026-06-27T13:25:00.000Z",
+      "error_message": "用户反馈: 推送后 systemctl status 显示 ExecStart=/usr/bin/node /opt/auto-test-agent/agent-src/index.js, status=203/EXEC。注释问'是不是这个 server 里的命令没改啊'",
+      "file": "src/server/agent-push/push.ts",
+      "root_cause": "systemd unit 文件用 `if [ ! -f ${unitPath} ]; then cat > ... fi' 写入 — 只在文件不存在时才写。之前推过老版本(unit 里 ExecStart=/usr/bin/node),文件已存在 → if 永远走 false 分支 → 改好的 nodeBin(/opt/auto-test-agent/node-runtime/bin/node)从来没被写到磁盘。systemctl daemon-reload + restart 读的还是旧 unit 文件,所以一直 status=203/EXEC(/usr/bin/node 在远端不存在)。macOS launchd plist 同样的 if 检查,同样的 upgrade 路径 bug。",
+      "fix": "Linux: 删掉 if 检查,用 `sudo tee ${unitPath} >/dev/null <<UNIT_EOF ... UNIT_EOF` 每次推都强制覆盖。macOS: 删掉 if 检查,用 `sudo tee ${plistPath}` 强制覆盖。注释同步说明 unit/plist 是系统自动管理产物,不是用户手配,无需保留。",
+      "tags": [
+        "agent-push",
+        "systemd",
+        "launchd",
+        "upgrade-path",
+        "idempotent-bug",
+        "execstart",
+        "node-runtime",
+        "linux",
+        "macos"
+      ],
+      "related_bugs": [
+        "bug-553",
+        "bug-566"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-06-27T13:25:00.000Z"
+    },
+    {
+      "id": "bug-569",
+      "timestamp": "2026-06-27T12:59:23.139Z",
+      "error_message": "Significant refactor of ",
+      "file": "src/server/agent-push/bundler.ts",
+      "root_cause": "3 lines replaced/restructured",
+      "fix": "Rewrote 26→33 lines (3 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-27T12:59:23.139Z"
+    },
+    {
+      "id": "bug-570",
+      "timestamp": "2026-06-27T13:00:17.319Z",
+      "error_message": "Wrong condition in logic",
+      "file": "src/server/agent-push/bundler.ts",
+      "root_cause": "Condition was: if (!gz.write(tarHeader(f.rel, f.size, f.mtime)",
+      "fix": "Changed to: if (!gz.write(tarHeader(f.rel, f.size, f.mtime, '0', f)",
+      "tags": [
+        "auto-detected",
+        "logic-fix",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-27T13:00:17.319Z"
+    },
+    {
+      "id": "bug-571",
+      "timestamp": "2026-06-27T13:35:00.000Z",
+      "error_message": "用户反馈: 远端 systemctl status 仍报 status=203/EXEC,ExecStart=/opt/auto-test-agent/node-runtime/bin/node 路径已对但启动失败。用户要求'确定 node 的 bin 目录下的文件打包进去了'+'解压后启动前校验文件'",
+      "file": "src/server/agent-push/bundler.ts",
+      "root_cause": "三个独立 bug 叠加:(1) tarHeader 第 65 行 mode 字段硬编码 '0000644',所有文件解压后 -rw-r--r--,node 二进制无 +x → status=203/EXEC。(2) walkDir 只判断 isFile()/isDirectory(),Dirent 对 symlink 这两个都返回 false,bin/npm、bin/npx、bin/corepack 三个 symlink 被静默跳过,从未打包。(3) deploy script 缺文件存在性 verify,解压后直接 systemctl restart,失败时 root cause 被掩盖。",
+      "fix": "1) bundler.ts tarHeader 加 mode 参数(默认 0o644),dirHeader 用 0o755(目录必须 +x);walkDir 写 mode: st.mode & 0o777;BundleFile 加 mode 字段;tar 写入循环传 f.mode。2) BundleFile 加 linkTarget 字段;walkDir 加 isSymbolicLink() 分支用 fs.readlink 拿目标;tarHeader 支持 typeflag='2' + linkname(ustar offset 157, 长度 100);tar 写入循环对 linkTarget!==undefined 走 symlink 分支(size=0,不写内容)。3) Linux/Windows deploy script atomic swap 之后、SERVICE_SETUP 之前加 verify 段:[ -x $NODE_BIN ] / [ -f $ENTRY_JS ] / node --version,失败 exit 1 不 restart。",
+      "tags": [
+        "agent-push",
+        "bundler",
+        "tar",
+        "mode",
+        "symlink",
+        "ustar",
+        "typeflag-2",
+        "verify",
+        "pre-start-check",
+        "node-runtime",
+        "linux",
+        "windows"
+      ],
+      "related_bugs": [
+        "bug-553",
+        "bug-566",
+        "bug-568"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-06-27T13:35:00.000Z"
+    },
+    {
+      "id": "bug-572",
+      "timestamp": "2026-06-27T13:50:00.000Z",
+      "error_message": "用户反馈两件事:(1) sha256 verification FAILED(刚改完 symlink 后);(2) '要不就用一个目录就行,别搞new或者old这一套,服务的命令也就用这个固定目录就行了'",
+      "file": "src/server/agent-push/push.ts",
+      "root_cause": "(1) sha256 失败:bug-571 修 symlink 时,把 symlink 的 hash 计算成空字符串 hash(e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855),并写入 bundle.sha256 manifest。但远端 `sha256sum symlink` 默认 follow symlink 算目标文件真实内容 hash,跟 manifest 里写的空 hash 对不上 → verification FAILED。(2) atomic swap -bundle-new + -old 模式:用户多次反馈不直观,要求简化为固定目录直接覆盖。",
+      "fix": "(1) bundler.ts: symlink 不再 push 到 hashes 数组 → bundle.sha256 manifest 不包含 symlink 条目。symlink 完整性由 tar typeflag=2 + linkname 保证,不需要 sha256 校验。(2) push.ts Linux/Windows deploy script: 删除 -bundle-new / -old 中间目录,直接 `rm -rf /opt/auto-test-agent && mkdir && tar -xzf`。ExecStart/service binPath 都用这个固定路径。本地测试验证:39709 文件 sha256 OK, exit=0。",
+      "tags": [
+        "agent-push",
+        "deploy-script",
+        "sha256",
+        "symlink",
+        "manifest",
+        "atomic-swap-removed",
+        "simplification",
+        "linux",
+        "windows"
+      ],
+      "related_bugs": [
+        "bug-571"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-06-27T13:50:00.000Z"
+    },
+    {
+      "id": "bug-573",
+      "timestamp": "2026-06-27T13:25:09.901Z",
+      "error_message": "Significant refactor of ",
+      "file": "src/server/agent-push/node-runtime.ts",
+      "root_cause": "9 lines replaced/restructured",
+      "fix": "Rewrote 20→29 lines (9 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-27T13:25:09.901Z"
+    },
+    {
+      "id": "bug-574",
+      "timestamp": "2026-06-27T13:25:23.534Z",
+      "error_message": "Significant refactor of ",
+      "file": "src/server/agent-push/bundler.ts",
+      "root_cause": "2 lines replaced/restructured",
+      "fix": "Rewrote 6→7 lines (2 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-27T13:25:23.534Z"
+    },
+    {
+      "id": "bug-575",
+      "timestamp": "2026-06-27T14:05:00.000Z",
+      "error_message": "用户反馈 deploy verify 失败:node binary cannot execute。/lib64/libstdc++.so.6: version CXXABI_1.3.11 not found, GLIBC_2.28 not found 等一堆 glibc/libstdc++ 版本不匹配。用户问'是不是 node 24 而 CentOS 是 7 的原因,centos 高一些就行'",
+      "file": "src/server/agent-push/node-runtime.ts",
+      "root_cause": "Node 20+ 用了升级的 toolchain,glibc 最低要求 2.28+。CentOS 7 / RHEL 7 的 glibc 是 2.17,libstdc++ 是 3.4.19,跑不动 Node 20/22/24。Node 18 是最后兼容 glibc 2.17 的 LTS。用户原话分析正确:要么升 CentOS(8+/Stream/Rocky/Alma),要么降 Node。",
+      "fix": "用户选择'两个都支持: 加 glibc 探测自动选 Node 版本'。1) node-runtime.ts: 删除单一 NODE_VERSION,改 NODE_VERSION_MODERN(v24.15.0)+ NODE_VERSION_LEGACY(v18.20.8);加 pickNodeVersionForGlibc(glibcVersionString): 解析 'ldd --version' 第一行,glibc >=2.28 → modern,否则 legacy;ensureNodeRuntime 加 version 参数,缓存路径加版本号避免互相覆盖。2) bundler.ts: CreateBundleStreamOptions.nodeRuntime 加 version: string 字段。3) push.ts: SSH 连上后跑 'ldd --version | head -1',解析 glibc 选 Node 版本,传给 createBundleStream。macOS/Windows 没 glibc,直接 modern。本地测试:6 个 glibc 字符串场景全部解析正确。",
+      "tags": [
+        "agent-push",
+        "node-runtime",
+        "glibc",
+        "centos-7",
+        "version-detection",
+        "auto-selection",
+        "node-18",
+        "node-24",
+        "libstdc",
+        "linux"
+      ],
+      "related_bugs": [
+        "bug-571",
+        "bug-572"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-06-27T14:05:00.000Z"
+    },
+    {
+      "id": "bug-576",
+      "timestamp": "2026-06-27T15:28:40.891Z",
+      "error_message": "Windows 设备无法作为 web 执行机推送: OS \"windows\" is not supported (only linux / macos)",
+      "file": "src/server/agent-push/push.ts",
+      "root_cause": "pushAgentByKind L418-419 残留旧版 OS 守卫,在添加 Windows 推送支持(DEPLOY_SCRIPT_WIN / SERVICE_SETUP_WIN / effectiveOs='windows' 分支)时没同步更新。stopAgent L734-735 已支持 windows,但推送入口仍在拦截。",
+      "fix": "guard 加入 os_type !== 'windows' 分支,与 stopAgent 对齐",
+      "tags": [
+        "windows",
+        "push",
+        "os-guard",
+        "web-executor"
+      ],
+      "related_bugs": [
+        "bug-563"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-06-27T15:28:40.891Z"
+    },
+    {
+      "id": "bug-577",
+      "timestamp": "2026-06-27T16:00:00.000Z",
+      "error_message": "launchOnAgent failed: Internal Server Error body={\"message\":\"launch failed: Executable doesn't exist at /opt/playwright-browsers/chromium_headless_shell-1223/chrome-headless-shell-linux64/chrome-headless-shell\"}",
+      "file": "src/server/agent-push/push.ts",
+      "root_cause": "bundler 把 chromium 打包到 tarball 的 browsers/chromium-*, 解压后实际路径是 /opt/auto-test-agent/browsers/chromium-*, 但 agent-web/launch.ts L23-28 默认从 AGENT_BROWSERS_PATH 或 /opt/playwright-browsers 找, push 从来没设过 AGENT_BROWSERS_PATH, 导致 agent 在错的目录找 browser. 注: systemd unit 没 EnvironmentFile=, /etc/auto-test-agent.env 写了但 systemd 不读, 所以必须 inline 到 unit/plist 的 Environment= 行里.",
+      "fix": "三处都加 AGENT_BROWSERS_PATH: (1) systemdUnitContent 加 Environment= inline (2) plistContent 加 EnvironmentVariables key (3) envPairs 加一份(覆盖 Windows PowerShell 设置 machine env)",
+      "tags": [
+        "playwright",
+        "browsers-path",
+        "env-var",
+        "agent-push",
+        "linux",
+        "macos",
+        "windows"
+      ],
+      "related_bugs": [
+        "bug-571",
+        "bug-572"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-06-27T16:00:00.000Z"
+    },
+    {
+      "id": "bug-578",
+      "timestamp": "2026-06-27T16:20:00.000Z",
+      "error_message": "launchOnAgent failed: Executable doesn't exist at /opt/auto-test-agent/browsers/chromium_headless_shell-1223/chrome-headless-shell-linux64/chrome-headless-shell (实际目录里只有 chrome-headless-shell-mac-x64)",
+      "file": "src/server/agent-push/bundler.ts",
+      "root_cause": "bundler.ts L54 BROWSERS_DIR 直接读服务器本机 PLAYWRIGHT_BROWSERS_PATH,在 Mac 上 push 给 Linux VM 时把 mac-x64 的 chromium 打进了 tarball,版本号对得上但平台不对。bug-577 修的路径不匹配只是表象。",
+      "fix": "新建 browsers-cache.ts,用 playwright 的 PLAYWRIGHT_HOST_PLATFORM_OVERRIDE env var 在 Mac 上下载目标 OS 的 chromium,缓存到 ~/.cache/auto-test-platform/browsers/<os>-<arch>/。bundler 接受 browsers 选项,按目标 OS 选缓存目录;push.ts 调 createBundleStream 时传 browsers: { os: targetOs, arch: targetArch }。镜像 node-runtime 的 cache + ensure 模式。",
+      "tags": [
+        "playwright",
+        "chromium",
+        "cross-os",
+        "bundler",
+        "cache"
+      ],
+      "related_bugs": [
+        "bug-577"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-06-27T16:20:00.000Z"
+    },
+    {
+      "id": "bug-579",
+      "timestamp": "2026-06-27T16:25:00.000Z",
+      "error_message": "ReferenceError: Cannot determine intended module format because both '__dirname' and top-level await are present.",
+      "file": "src/server/agent-push/browsers-cache.ts",
+      "root_cause": "新建的 browsers-cache.ts 用了 __dirname,但项目是 ESM。Node 看到 __dirname + (任何 top-level await 或 ESM 信号) 就抛这个特定 ReferenceError,而不是 ReferenceError: __dirname is not defined。顺手还修了 os === 'windows' 应该是 'win'(TargetOs 联合类型是 linux/darwin/win)。",
+      "fix": "用 fileURLToPath(import.meta.url) 算 __filename,__dirname = path.dirname(__filename)。跟 bundler.ts / node-runtime.ts 同模式。",
+      "tags": [
+        "esm",
+        "__dirname",
+        "module-format",
+        "targetos"
+      ],
+      "related_bugs": [
+        "bug-578"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-06-27T16:25:00.000Z"
+    },
+    {
+      "id": "bug-580",
+      "timestamp": "2026-06-28T02:17:23.908Z",
+      "error_message": "Type error",
+      "file": "src/server/engine/agent-client.ts",
+      "root_cause": "Missing or incorrect type annotation",
+      "fix": "Added type assertion/annotation",
+      "tags": [
+        "auto-detected",
+        "type-fix",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-28T02:17:23.908Z"
+    },
+    {
+      "id": "bug-581",
+      "timestamp": "2026-06-28T02:27:16.015Z",
+      "error_message": "Null/undefined access in ",
+      "file": "src/agent-web/launch.ts",
+      "root_cause": "Property access on potentially null/undefined value",
+      "fix": "Added null safety (optional chaining or null check)",
+      "tags": [
+        "auto-detected",
+        "null-safety",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-28T02:27:16.015Z"
+    },
+    {
+      "id": "bug-582",
+      "timestamp": "2026-06-28T02:32:29.410Z",
+      "error_message": "Significant refactor of ",
+      "file": "src/agent-web/launch.ts",
+      "root_cause": "2 lines replaced/restructured",
+      "fix": "Rewrote 10→7 lines (2 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-28T02:32:29.410Z"
+    },
+    {
+      "id": "bug-583",
+      "timestamp": "2026-06-28T02:55:22.824Z",
+      "error_message": "Wrong condition in logic",
+      "file": "src/server/engine/agent-client.ts",
+      "root_cause": "Condition was: if (wsUrl.hostname === '127.0.0.1' || wsUrl.hostname =)",
+      "fix": "Changed to: if (wsUrl.hostname === '127.0.0.1' || wsUrl.hostname =)",
+      "tags": [
+        "auto-detected",
+        "logic-fix",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-28T02:55:22.824Z"
+    },
+    {
+      "id": "bug-584",
+      "timestamp": "2026-06-28T03:03:50.390Z",
+      "error_message": "Significant refactor of ",
+      "file": "src/server/engine/web-executor.ts",
+      "root_cause": "11 lines replaced/restructured",
+      "fix": "Rewrote 19→12 lines (11 removed) | Also: // / video up to the failure point). In agent mode; // pulls the report from the remote agent's temp d | Also: finalReportPath,; _sharedBrowser?.device ?? null,",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 3,
+      "last_seen": "2026-06-28T03:04:41.143Z"
+    },
+    {
+      "id": "bug-585",
+      "timestamp": "2026-06-28T03:11:54.406Z",
+      "error_message": "Significant refactor of ",
+      "file": "src/server/engine/web-executor.ts",
+      "root_cause": "3 lines replaced/restructured",
+      "fix": "Rewrote 9→21 lines (3 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-28T03:11:54.406Z"
+    },
+    {
+      "id": "bug-586",
+      "timestamp": "2026-06-28T03:27:46.498Z",
+      "error_message": "Significant refactor of ",
+      "file": "src/server/routes/dashboard.ts",
+      "root_cause": "2 lines replaced/restructured",
+      "fix": "Rewrote 46→91 lines (2 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-28T03:27:46.498Z"
+    },
+    {
+      "id": "bug-587",
+      "timestamp": "2026-06-28T03:38:24.437Z",
+      "error_message": "Wrong reference: scenario_sets_api should be scenario_sets",
+      "file": "src/server/routes/dashboard.ts",
+      "root_cause": "Used \"scenario_sets_api\" instead of \"scenario_sets\"",
+      "fix": "Changed scenario_sets_api → scenario_sets",
+      "tags": [
+        "auto-detected",
+        "wrong-reference",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-28T03:38:24.437Z"
+    },
+    {
+      "id": "bug-588",
+      "timestamp": "2026-06-28T03:45:47.722Z",
+      "error_message": "Type error",
+      "file": "src/server/db/index.ts",
+      "root_cause": "Missing or incorrect type annotation",
+      "fix": "Added type assertion/annotation",
+      "tags": [
+        "auto-detected",
+        "type-fix",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-28T03:45:47.722Z"
+    },
+    {
+      "id": "bug-589",
+      "timestamp": "2026-06-28T03:46:44.964Z",
+      "error_message": "Significant refactor of ",
+      "file": "src/server/routes/index.ts",
+      "root_cause": "8 lines replaced/restructured",
+      "fix": "Rewrote 11→3 lines (8 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-28T03:46:44.964Z"
+    },
+    {
+      "id": "bug-590",
+      "timestamp": "2026-06-28T03:47:10.997Z",
+      "error_message": "Significant refactor of ",
+      "file": "src/server/routes/dashboard.ts",
+      "root_cause": "21 lines replaced/restructured",
+      "fix": "Rewrote 36→16 lines (21 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-28T03:47:10.997Z"
+    },
+    {
+      "id": "bug-591",
+      "timestamp": "2026-06-28T03:47:57.169Z",
+      "error_message": "Significant refactor of ",
+      "file": "docs/database-schema.sql",
+      "root_cause": "37 lines replaced/restructured",
+      "fix": "Rewrote 42→3 lines (37 removed) | Also: CREATE TABLE IF NOT EXISTS mock_endpoints_pc (; id INTEGER PRIMARY KEY AUTOINCREMENT, | Also: CREATE TABLE IF NOT EXISTS mock_endpoints_mobile (; id INTEGER PRIMARY KEY AUTOINCREMENT, | Also: -- === mock_endpoints_{type} ===; -- === batch_reports_{type} ===",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "sql"
+      ],
+      "related_bugs": [],
+      "occurrences": 4,
+      "last_seen": "2026-06-28T03:48:32.675Z"
+    },
+    {
+      "id": "bug-592",
+      "timestamp": "2026-06-28T03:48:36.857Z",
+      "error_message": "Wrong reference: mock_endpoints_ should be mock_endpoints_api",
+      "file": "docs/database-schema.sql",
+      "root_cause": "Used \"mock_endpoints_\" instead of \"mock_endpoints_api\"",
+      "fix": "Changed mock_endpoints_ → mock_endpoints_api",
+      "tags": [
+        "auto-detected",
+        "wrong-reference",
+        "sql"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-28T03:48:36.857Z"
+    },
+    {
+      "id": "bug-593",
+      "timestamp": "2026-06-28T12:18:16.304Z",
+      "error_message": "CSS fix: test_type",
+      "file": "src/client/pages/system/DeviceList.tsx",
+      "root_cause": "test_type: t, platform: presets[0] → t, platform: presets[0], os_type: osType",
+      "fix": "Changed test_type: t, platform: presets[0] → t, platform: presets[0], os_type: osType",
+      "tags": [
+        "auto-detected",
+        "style-fix",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-28T12:18:16.304Z"
+    },
+    {
+      "id": "bug-594",
+      "timestamp": "2026-06-28T12:26:01.707Z",
+      "error_message": "Type error",
+      "file": "src/server/db/index.ts",
+      "root_cause": "Missing or incorrect type annotation",
+      "fix": "Added type assertion/annotation",
+      "tags": [
+        "auto-detected",
+        "type-fix",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-28T12:26:01.707Z"
+    },
+    {
+      "id": "bug-595",
+      "timestamp": "2026-06-28T12:29:26.444Z",
+      "error_message": "Null/undefined access in ",
+      "file": "src/server/engine/case-set-executor.ts",
+      "root_cause": "Property access on potentially null/undefined value",
+      "fix": "Added null safety (optional chaining or null check)",
+      "tags": [
+        "auto-detected",
+        "null-safety",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-28T12:29:26.444Z"
+    },
+    {
+      "id": "bug-596",
+      "timestamp": "2026-06-28T12:30:43.877Z",
+      "error_message": "Null/undefined access in ",
+      "file": "src/server/db/schedule-sets-web.ts",
+      "root_cause": "Property access on potentially null/undefined value",
+      "fix": "Added null safety (optional chaining or null check)",
+      "tags": [
+        "auto-detected",
+        "null-safety",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-28T12:30:43.877Z"
+    },
+    {
+      "id": "bug-597",
+      "timestamp": "2026-06-28T12:31:19.792Z",
+      "error_message": "Null/undefined access in ",
+      "file": "src/server/db/schedule-sets-pc.ts",
+      "root_cause": "Property access on potentially null/undefined value",
+      "fix": "Added null safety (optional chaining or null check)",
+      "tags": [
+        "auto-detected",
+        "null-safety",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-28T12:31:19.792Z"
+    },
+    {
+      "id": "bug-598",
+      "timestamp": "2026-06-28T12:32:03.204Z",
+      "error_message": "Null/undefined access in ",
+      "file": "src/server/db/schedule-sets-mobile.ts",
+      "root_cause": "Property access on potentially null/undefined value",
+      "fix": "Added null safety (optional chaining or null check)",
+      "tags": [
+        "auto-detected",
+        "null-safety",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-28T12:32:03.204Z"
+    },
+    {
+      "id": "bug-599",
+      "timestamp": "2026-06-28T12:32:28.948Z",
+      "error_message": "Null/undefined access in ",
+      "file": "src/server/scheduler/scheduler.ts",
+      "root_cause": "Property access on potentially null/undefined value",
+      "fix": "Added null safety (optional chaining or null check)",
+      "tags": [
+        "auto-detected",
+        "null-safety",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-28T12:32:28.948Z"
+    },
+    {
+      "id": "bug-600",
+      "timestamp": "2026-06-28T12:33:37.045Z",
+      "error_message": "Type error",
+      "file": "src/client/pages/case-set/CaseSetDetail.tsx",
+      "root_cause": "Missing or incorrect type annotation",
+      "fix": "Added type assertion/annotation",
+      "tags": [
+        "auto-detected",
+        "type-fix",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-28T12:33:37.045Z"
+    },
+    {
+      "id": "bug-601",
+      "timestamp": "2026-06-28T12:34:33.801Z",
+      "error_message": "CSS fix: fontSize",
+      "file": "src/client/pages/schedule/ScheduleList.tsx",
+      "root_cause": "fontSize: 14, color: 'var(--fg)' → 12, color: 'var(--fg-tertiary)'",
+      "fix": "Changed fontSize: 14, color: 'var(--fg)' → 12, color: 'var(--fg-tertiary)'",
+      "tags": [
+        "auto-detected",
+        "style-fix",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-28T12:34:33.801Z"
+    },
+    {
+      "id": "bug-602",
+      "timestamp": "2026-06-28T12:34:43.983Z",
+      "error_message": "Type error",
+      "file": "src/client/pages/schedule/ScheduleList.tsx",
+      "root_cause": "Missing or incorrect type annotation",
+      "fix": "Added type assertion/annotation",
+      "tags": [
+        "auto-detected",
+        "type-fix",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-28T12:34:43.983Z"
+    },
+    {
+      "id": "bug-603",
+      "timestamp": "2026-06-28T13:04:37.871Z",
+      "error_message": "Type error",
+      "file": "src/server/agent-push/bundler.ts",
+      "root_cause": "Missing or incorrect type annotation",
+      "fix": "Added type assertion/annotation",
+      "tags": [
+        "auto-detected",
+        "type-fix",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-28T13:04:37.871Z"
+    },
+    {
+      "id": "bug-604",
+      "timestamp": "2026-06-28T13:47:04.262Z",
+      "error_message": "Null/undefined access in ",
+      "file": "src/server/engine/agent-client.ts",
+      "root_cause": "Property access on potentially null/undefined value",
+      "fix": "Added null safety (optional chaining or null check)",
+      "tags": [
+        "auto-detected",
+        "null-safety",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-28T13:47:04.262Z"
+    },
+    {
+      "id": "bug-605",
+      "timestamp": "2026-06-28T13:50:14.121Z",
+      "error_message": "Incorrect value in code",
+      "file": "src/client/pages/case-set/CaseSetDetail.tsx",
+      "root_cause": "Had '../../types'",
+      "fix": "Changed to '../../components/MobileDevicePicker'",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-28T13:50:14.121Z"
+    },
+    {
+      "id": "bug-606",
+      "timestamp": "2026-06-28T13:57:58.144Z",
+      "error_message": "Incorrect value in code",
+      "file": "src/client/pages/case-set/CaseSetDetail.tsx",
+      "root_cause": "Had '../../components/MobileDevicePicker'",
+      "fix": "Changed to '../../types'",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-28T13:57:58.144Z"
+    },
+    {
+      "id": "bug-607",
+      "timestamp": "2026-06-28T13:58:04.592Z",
+      "error_message": "Significant refactor of ",
+      "file": "src/client/pages/case-set/CaseSetDetail.tsx",
+      "root_cause": "4 lines replaced/restructured",
+      "fix": "Rewrote 7→5 lines (4 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-28T13:58:04.592Z"
+    },
+    {
+      "id": "bug-608",
+      "timestamp": "2026-06-28T13:58:11.814Z",
+      "error_message": "Null/undefined access in ",
+      "file": "src/client/pages/case-set/CaseSetDetail.tsx",
+      "root_cause": "Property access on potentially null/undefined value",
+      "fix": "Added null safety (optional chaining or null check)",
+      "tags": [
+        "auto-detected",
+        "null-safety",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-28T13:58:11.814Z"
+    },
+    {
+      "id": "bug-609",
+      "timestamp": "2026-06-28T13:58:43.309Z",
+      "error_message": "Wrong operator: === should be !==",
+      "file": "src/client/pages/case-set/CaseSetDetail.tsx",
+      "root_cause": "Used \"===\" instead of \"!==\"",
+      "fix": "Changed operator === → !==",
+      "tags": [
+        "auto-detected",
+        "operator-fix",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-28T13:58:43.309Z"
+    },
+    {
+      "id": "bug-610",
+      "timestamp": "2026-06-28T14:11:26.431Z",
+      "error_message": "Significant refactor of ",
+      "file": "src/client/components/DevicePickerModal.tsx",
+      "root_cause": "3 lines replaced/restructured",
+      "fix": "Rewrote 8→14 lines (3 removed) | Also: <thead><tr><th>设备名称</th><th>类型</th><th>系统</th><th>; {/* 本地设备 */} | Also: if (localDevice && typeof localDevice.id === 'numb; handleSelectAgent(localDevice);",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 3,
+      "last_seen": "2026-06-28T14:19:18.935Z"
+    },
+    {
+      "id": "bug-611",
+      "timestamp": "2026-06-28T14:12:14.071Z",
+      "error_message": "Missing guard clause",
+      "file": "src/client/components/DevicePickerModal.tsx",
+      "root_cause": "No early return/throw for edge case: !keyword",
+      "fix": "Added guard clause: if (!keyword)",
+      "tags": [
+        "auto-detected",
+        "guard-clause",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-28T14:12:14.071Z"
+    },
+    {
+      "id": "bug-612",
+      "timestamp": "2026-06-28T14:25:37.584Z",
+      "error_message": "Incorrect value in code",
+      "file": "src/client/components/DevicePickerModal.tsx",
+      "root_cause": "Had '选择远程机器'",
+      "fix": "Changed to '选择机器'",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 3,
+      "last_seen": "2026-06-28T14:26:24.261Z"
+    },
+    {
+      "id": "bug-613",
+      "timestamp": "2026-06-28T14:26:33.244Z",
+      "error_message": "Significant refactor of ",
+      "file": "src/client/components/DevicePickerModal.tsx",
+      "root_cause": "2 lines replaced/restructured",
+      "fix": "Rewrote 5→3 lines (2 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-28T14:26:33.244Z"
+    },
+    {
+      "id": "bug-614",
+      "timestamp": "2026-06-28T14:28:19.002Z",
+      "error_message": "Missing await",
+      "file": "src/server/devices/merge.ts",
+      "root_cause": "Async call without await — returned Promise instead of value",
+      "fix": "Added await to async call",
+      "tags": [
+        "auto-detected",
+        "async-fix",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-28T14:28:19.002Z"
+    },
+    {
+      "id": "bug-615",
+      "timestamp": "2026-06-28T14:28:32.236Z",
+      "error_message": "Missing error handling in unknown",
+      "file": "src/server/routes/devices.ts",
+      "root_cause": "Code path had no error handling — exceptions would propagate uncaught",
+      "fix": "Added try/catch block",
+      "tags": [
+        "auto-detected",
+        "error-handling",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-28T14:28:32.236Z"
+    },
+    {
+      "id": "bug-616",
+      "timestamp": "2026-06-28T14:28:54.108Z",
+      "error_message": "Null/undefined access in ",
+      "file": "src/client/components/DevicePickerModal.tsx",
+      "root_cause": "Property access on potentially null/undefined value",
+      "fix": "Added null safety (optional chaining or null check)",
+      "tags": [
+        "auto-detected",
+        "null-safety",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-28T14:28:54.108Z"
+    },
+    {
+      "id": "bug-617",
+      "timestamp": "2026-06-28T14:30:43.749Z",
+      "error_message": "Wrong reference: null should be string",
+      "file": "src/client/pages/mobile-test/MobileTestDetail.tsx",
+      "root_cause": "Used \"null\" instead of \"string\"",
+      "fix": "Changed null → string",
+      "tags": [
+        "auto-detected",
+        "wrong-reference",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-28T14:30:43.749Z"
+    },
+    {
+      "id": "bug-618",
+      "timestamp": "2026-06-28T14:32:34.000Z",
+      "error_message": "Null/undefined access in ",
+      "file": "src/server/devices/merge.ts",
+      "root_cause": "Property access on potentially null/undefined value",
+      "fix": "Added null safety (optional chaining or null check)",
+      "tags": [
+        "auto-detected",
+        "null-safety",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-28T14:32:34.000Z"
+    },
+    {
+      "id": "bug-619",
+      "timestamp": "2026-06-28T14:38:33.008Z",
+      "error_message": "Significant refactor of ",
+      "file": "src/agent-mobile/scrcpy.ts",
+      "root_cause": "2 lines replaced/restructured",
+      "fix": "Rewrote 21→26 lines (2 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-28T14:38:33.008Z"
+    },
+    {
+      "id": "bug-620",
+      "timestamp": "2026-06-28T14:38:38.301Z",
+      "error_message": "Incorrect value in code",
+      "file": "src/server/mobile-preview/scrcpy-relay.ts",
+      "root_cause": "Had `serial=${deps.serial} agentSessionId=${agentSessi",
+      "fix": "Changed to `serial=${deps.serial} agent=${deps.agentBaseUrl} ",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-28T14:38:38.301Z"
+    },
+    {
+      "id": "bug-621",
+      "timestamp": "2026-06-28T14:44:37.414Z",
+      "error_message": "Incorrect value in code",
+      "file": "tsconfig.server.json",
+      "root_cause": "Had \"./dist/server\"",
+      "fix": "Changed to \"./dist\"",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "json"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-28T14:44:37.414Z"
+    },
+    {
+      "id": "bug-622",
+      "timestamp": "2026-06-28T14:52:18.142Z",
+      "error_message": "Missing import: ../shared/scrcpy-format.js",
+      "file": "src/server/agent-push/bundler.ts",
+      "root_cause": "Module(s) not imported: ../shared/scrcpy-format.js",
+      "fix": "Added import(s) for ../shared/scrcpy-format.js",
+      "tags": [
+        "auto-detected",
+        "missing-import",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-28T14:52:18.142Z"
+    },
+    {
+      "id": "bug-623",
+      "timestamp": "2026-06-29T14:43:51.725Z",
+      "error_message": "Type error",
+      "file": "../midscene/packages/visualizer/src/component/logo/index.tsx",
+      "root_cause": "Missing or incorrect type annotation",
+      "fix": "Added type assertion/annotation",
+      "tags": [
+        "auto-detected",
+        "type-fix",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-29T14:43:51.725Z"
+    },
+    {
+      "id": "bug-624",
+      "timestamp": "2026-06-29T14:44:02.093Z",
+      "error_message": "Incorrect value in code",
+      "file": "../midscene/apps/report/src/App.tsx",
+      "root_cause": "Had \"Midscene.js - Error\"",
+      "fix": "Changed to \"AutoTest Platform - Error\"",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-29T14:44:02.093Z"
+    },
+    {
+      "id": "bug-625",
+      "timestamp": "2026-06-29T14:47:23.384Z",
+      "error_message": "Significant refactor of ",
+      "file": "../midscene/packages/visualizer/src/component/logo/index.tsx",
+      "root_cause": "8 lines replaced/restructured",
+      "fix": "Rewrote 30→35 lines (8 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-29T14:47:23.384Z"
+    },
+    {
+      "id": "bug-626",
+      "timestamp": "2026-06-29T14:47:48.582Z",
+      "error_message": "Significant refactor of ",
+      "file": "../midscene/apps/report/template/index.html",
+      "root_cause": "4 lines replaced/restructured",
+      "fix": "Rewrote 8→6 lines (4 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "html"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-29T14:47:48.582Z"
+    },
+    {
+      "id": "bug-627",
+      "timestamp": "2026-06-29T15:07:31.105Z",
+      "error_message": "Incorrect value in code",
+      "file": "package.json",
+      "root_cause": "Had \"file:/Users/dinghao/工作/midscene/packages/web\"",
+      "fix": "Changed to \"file:/Users/dinghao/工作/midscene/packages/web-inte",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "json"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-29T15:07:31.105Z"
+    },
+    {
+      "id": "bug-628",
+      "timestamp": "2026-06-29T15:09:17.711Z",
+      "error_message": "Significant refactor of ",
+      "file": "package.json",
+      "root_cause": "8 lines replaced/restructured",
+      "fix": "Rewrote 12→12 lines (8 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "json"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-29T15:09:17.711Z"
+    },
+    {
+      "id": "bug-629",
+      "timestamp": "2026-06-30T11:52:51.019Z",
+      "error_message": "Incorrect value in code",
+      "file": "verify-report.mjs",
+      "root_cause": "Had '@midscene/core/report'",
+      "fix": "Changed to '@midscene/core'",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "mjs"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-30T11:52:51.019Z"
+    },
+    {
+      "id": "bug-630",
+      "timestamp": "2026-06-30T11:53:04.726Z",
+      "error_message": "Null/undefined access in ",
+      "file": "verify-report.mjs",
+      "root_cause": "Property access on potentially null/undefined value",
+      "fix": "Added null safety (optional chaining or null check)",
+      "tags": [
+        "auto-detected",
+        "null-safety",
+        "mjs"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-30T11:53:04.726Z"
+    },
+    {
+      "id": "bug-631",
+      "timestamp": "2026-06-30T12:20:41.476Z",
+      "error_message": "Significant refactor of ",
+      "file": "src/client/pages/Home.tsx",
+      "root_cause": "4 lines replaced/restructured",
+      "fix": "Rewrote 7→34 lines (4 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-30T12:20:41.476Z"
+    },
+    {
+      "id": "bug-632",
+      "timestamp": "2026-06-30T12:28:31.102Z",
+      "error_message": "Type error",
+      "file": "../midscene/packages/shared/src/img/canvas-fallback.ts",
+      "root_cause": "Missing or incorrect type annotation",
+      "fix": "Added type assertion/annotation",
+      "tags": [
+        "auto-detected",
+        "type-fix",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-30T12:28:31.102Z"
+    },
+    {
+      "id": "bug-633",
+      "timestamp": "2026-06-30T12:37:31.146Z",
+      "error_message": "Significant refactor of ",
+      "file": "src/client/pages/Login.tsx",
+      "root_cause": "4 lines replaced/restructured",
+      "fix": "Rewrote 7→22 lines (4 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-30T12:37:31.146Z"
+    },
+    {
+      "id": "bug-634",
+      "timestamp": "2026-06-30T12:38:13.547Z",
+      "error_message": "CSS fix: background",
+      "file": "src/client/pages/Auth.css",
+      "root_cause": "background: var(--accent) → #0B1437",
+      "fix": "Changed background: var(--accent) → #0B1437",
+      "tags": [
+        "auto-detected",
+        "style-fix",
+        "css"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-30T12:38:13.547Z"
+    },
+    {
+      "id": "bug-635",
+      "timestamp": "2026-06-30T12:42:30.713Z",
+      "error_message": "CSS fix: name",
+      "file": "src/client/components/Layout.tsx",
+      "root_cause": "name: 'PC 测试', color: 'oklch(95% 0.04 300)', icon: 'monitor' → 'PC 测试', color: 'oklch(95% 0.04 300)', stroke: 'oklch(55% 0.15 300)', icon: 'monitor'",
+      "fix": "Changed name: 'PC 测试', color: 'oklch(95% 0.04 300)', icon: 'monitor' → 'PC 测试', color: 'oklch(95% 0.04 300)', stroke: 'oklch(55% 0.15 300)', icon: 'monitor'",
+      "tags": [
+        "auto-detected",
+        "style-fix",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 2,
+      "last_seen": "2026-06-30T12:42:30.966Z"
+    },
+    {
+      "id": "bug-636",
+      "timestamp": "2026-07-01T00:00:00.000Z",
+      "error_message": "apps/report build fail: TS2322 Uint8Array<ArrayBufferLike> not assignable to BlobPart at detail-panel/index.tsx:98",
+      "file": "/Users/dinghao/工作/midscene/apps/report/src/components/detail-panel/index.tsx",
+      "root_cause": "新 TS lib.dom 把 Uint8Array.buffer 类型收窄到 ArrayBufferLike(含 SharedArrayBuffer),而 Blob 的 BlobPart 类型签名要 ArrayBufferView<ArrayBuffer>。zipSync 返回 Uint8Array 直接传给 new Blob 触发类型不兼容",
+      "fix": "new Blob([new Uint8Array(zipped)], {...}) 显式包一层,生成普通 ArrayBuffer-backed Uint8Array",
+      "tags": [
+        "type-error",
+        "midscene-upstream",
+        "report-viewer"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-01"
+    },
+    {
+      "id": "bug-637",
+      "timestamp": "2026-07-01T00:00:00.000Z",
+      "error_message": "computer build fail: @microsoft/api-extractor is required when dts.bundle is set to true",
+      "file": "/Users/dinghao/工作/midscene/packages/computer/rslib.config.ts",
+      "root_cause": "rslib.config.ts esm 输出配了 dts.bundle: true,但任何 package.json 都没显式 declare @microsoft/api-extractor。lock 里有但实际 node_modules 没装。web-integration 不用 bundle: true 就 build OK",
+      "fix": "去掉 dts.bundle: true,跟 web-integration rslib.config.ts 对齐只保留 distPath。bundled dts 在 fork dev 用不上,不影响 dist 产物",
+      "tags": [
+        "build-config",
+        "midscene-upstream",
+        "rslib",
+        "dependency-missing"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-01"
+    },
+    {
+      "id": "bug-638",
+      "timestamp": "2026-07-01T12:38:24.187Z",
+      "error_message": "CSS fix: platform",
+      "file": "src/client/pages/system/DeviceList.tsx",
+      "root_cause": "platform: e.target.value → v",
+      "fix": "Changed platform: e.target.value → v",
+      "tags": [
+        "auto-detected",
+        "style-fix",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 2,
+      "last_seen": "2026-07-01T12:38:38.768Z"
+    },
+    {
+      "id": "bug-639",
+      "timestamp": "2026-07-01T12:59:24.216Z",
+      "error_message": "Incorrect value in code",
+      "file": "src/server/agent-push/push.ts",
+      "root_cause": "Had ').slice(0, 32);\n      const browsersPath = effect",
+      "fix": "Changed to ').slice(0, 32);\n      // 2026-07-01: 跟随 installRo",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 3,
+      "last_seen": "2026-07-01T13:00:07.520Z"
+    },
+    {
+      "id": "bug-640",
+      "timestamp": "2026-07-01T13:00:01.343Z",
+      "error_message": "Significant refactor of ",
+      "file": "src/server/agent-push/push.ts",
+      "root_cause": "4 lines replaced/restructured",
+      "fix": "Rewrote 21→28 lines (4 removed) | Also: // 2026-06-27: 远端 OS 决定 systemd(Linux) / launchd(m; // os_type 为空 → 兜底 Linux(老数据,UI 上没填)。",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 2,
+      "last_seen": "2026-07-01T13:01:21.999Z"
+    },
+    {
+      "id": "bug-641",
+      "timestamp": "2026-07-01T12:50:00.000Z",
+      "error_message": "同台远端主机先 push web agent 再 push pc agent,pc 的 deploy 脚本 rm -rf /opt/auto-test-agent 把 web 那份 bundle 删光;AGENT_TOKEN/AGENT_PORT/AGENT_BROWSERS_PATH 三个 env 文件共用 /etc/auto-test-agent.env 也会被覆盖,AGENT_PORT 跟 kind 不匹配导致 agent 起来心跳端口错位。push.ts:141 INSTALL_DIR + push.ts:610 envPath 都写死。",
+      "file": "src/server/agent-push/push.ts",
+      "root_cause": "三个 kind 的 systemd unit / launchd plist / service 名都已经按 kind 区分(push.ts:412-417),但 install dir 和 env file 路径没分,DEPLOY_SCRIPT 模板硬编 /opt/auto-test-agent + DEPLOY_SCRIPT_WIN 写死 C:\\auto-test-agent,systemdUnitContent/plistContent 助手内硬编同样路径。",
+      "fix": "在 unitName/plistLabel 派生旁新增 installRoot(envPath 同样派生):web=/opt/auto-test-agent、mobile=/opt/auto-test-mobile-agent、pc=/opt/auto-test-pc-agent;envPath 同步 (/etc/auto-test-{mobile,pc,}-agent.env)。DEPLOY_SCRIPT 模板里 INSTALL_DIR 改 __INSTALL_DIR__ 占位符,DEPLOY_SCRIPT_WIN 改 __INSTALL_DIR_WIN__;systemdUnitContent / plistContent 都加 installRoot 入参并替换 ExecStart / WorkingDirectory / Environment 里的硬编。envPath 在 write-env 处用变量。winNodeBin / winEntryJs 用 installRoot 拼。deployScriptFor .replace 增加 __INSTALL_DIR__ + __INSTALL_DIR_WIN__ 替换。console.log 统一使用 installRoot 替代原来的 remoteRoot(remoteRoot 变量删除)。tsc 0 错误。Web kind 保留原 /opt/auto-test-agent 路径(已部署机器不动);Windows 路径(目前 push.ts 无 win 分支)暂不区分。",
+      "tags": [
+        "agent-push",
+        "install-dir",
+        "kind-segregation",
+        "deploy-script",
+        "cross-agent-contamination"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-01T12:50:00.000Z"
+    },
+    {
+      "id": "bug-642",
+      "timestamp": "2026-07-01T21:14:00.000Z",
+      "error_message": "POST /api/devices/9/push-pc-agent FAILED device=9: SSH command 'deploy' timed out after 300s — 远端 /opt/auto-test-pc-agent/pc-agent-src/ 目录是空的(只有 . 和 ..),plist 里 ExecStart 指向 /opt/auto-test-pc-agent/pc-agent-src/agent-pc/index.js,node 启动报 Cannot find module。bundle.sha256(20MB)+ node_modules(628项)+ node-runtime(9项)都齐了,只有 pc-agent-src 目录是空。SFTP 上传 1.43GB(bundle enumerate 报告 4.1MB 未压缩,138287 files,gzip 后合理),远端 bundle 文件大小跟 SFTP bytes 一致,确认 bundler 真的只生成 1.43GB tar.gz,内容里没有 pc-agent 任何 .js 文件。",
+      "file": "src/server/agent-push/bundler.ts",
+      "root_cause": "walkDir 函数(bundler.ts:160-207)for 循环顶部 (原第 179 行) 对**每个 entry** 都调用 shouldInclude,但 shouldInclude 的语义是'过滤文件'。pc-agent 段(bundler.ts:278-281)用 `(rel) => /\\.(js|json)$/.test(rel)` 作 shouldInclude,对所有目录名(agent-pc/、agent-web/)返回 false → continue,整个 pc-agent 子树静默不 walk。但 bundler.ts:282 那条独立的 `dirs.push({rel: 'pc-agent-src/'})` 在 walkDir 调用之后单独 push,所以 tar 里只有空目录条目 `pc-agent-src/`,没有子目录条目也没有 file entries。enumerate complete 报告 files=138287 = node_modules(133757) + node-runtime(4529) + DEPLOY_VERSION(1),**pc-agent 段贡献 0**,但不报错。device=9 是 macOS,StandardOutPath='/var/log/auto-test-agent.log' 跟同台 mobile-agent 共用,所以日志里 `[mobile-agent:preview] hdc list targets failed: spawn hdc ENOENT` 是 mobile-agent 找不到鸿蒙调试工具,跟 pc-agent 推送无关。",
+      "fix": "bundler.ts:175-202 walkDir 把 `if (shouldInclude && !shouldInclude(childRel)) continue` 从 for 循环顶部移到 `isFile()` 分支顶部(原 isSymbolicLink 分支保持原行为,不过滤)。目录条目(isDirectory)永远 walk 进去,递归时按 file 路径判断过滤。tsc 0 错误。验证方式:重推后 server log 应输出 `enumerate complete kind=pc files=N` (N ≈ 138360+,原来 138287 多了 ~70 个 pc-agent 文件);远端 `ls /opt/auto-test-pc-agent/pc-agent-src/` 应看到 agent-pc/ + agent-web/ 子目录 + agent-pc/index.js。deploy 300s 超时是另一独立问题(bug-643 待排查),跟本 bug 同源(修完 walkDir 后 sha256 verify 应该过 + verify entry.js 应该过 → deploy 不再卡 300s,大概率随之解决)。",
+      "tags": [
+        "agent-push",
+        "pc-agent",
+        "bundler",
+        "walkDir-shouldInclude",
+        "empty-bundle",
+        "silent-skip-directory",
+        "300s-deploy-timeout"
+      ],
+      "related_bugs": [
+        "bug-641"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-07-01T21:14:00.000Z"
+    },
+    {
+      "id": "bug-643",
+      "timestamp": "2026-07-01T14:08:50.264Z",
+      "error_message": "Significant refactor of ",
+      "file": "src/server/agent-push/push.ts",
+      "root_cause": "2 lines replaced/restructured",
+      "fix": "Rewrote 4→10 lines (2 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-01T14:08:50.264Z"
+    },
+    {
+      "id": "bug-644",
+      "timestamp": "2026-07-01T14:17:24.640Z",
+      "error_message": "Null/undefined access in ",
+      "file": "src/server/routes/devices.ts",
+      "root_cause": "Property access on potentially null/undefined value",
+      "fix": "Added null safety (optional chaining or null check)",
+      "tags": [
+        "auto-detected",
+        "null-safety",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-01T14:17:24.640Z"
+    },
+    {
+      "id": "bug-645",
+      "timestamp": "2026-07-01T14:17:50.236Z",
+      "error_message": "Significant refactor of ",
+      "file": "src/server/routes/devices.ts",
+      "root_cause": "33 lines replaced/restructured",
+      "fix": "Rewrote 43→19 lines (33 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "ts"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-01T14:17:50.236Z"
+    },
+    {
+      "id": "bug-646",
+      "timestamp": "2026-07-01T14:18:24.426Z",
+      "error_message": "Significant refactor of ",
+      "file": "src/client/pages/system/DeviceList.tsx",
+      "root_cause": "11 lines replaced/restructured",
+      "fix": "Rewrote 57→34 lines (11 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-01T14:18:24.426Z"
     }
   ]
 }

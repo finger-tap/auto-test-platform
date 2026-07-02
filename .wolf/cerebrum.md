@@ -6,12 +6,15 @@
 
 ## User Preferences
 
+- **(2026-06-26) 个人资料保存提示必须使用全局 notification**：Profile 页不要用页面内联 `profile-msg` 成功/失败条；保存成功/失败应和项目其他页面一致调用 `notification.success/error`。
 - **95% 把握铁律**：修改代码前必须有 95% 以上的把握。如果没有达到这个确定性，必须先问用户确认方案再动手。不确定时问 > 盲目改。这是铁律，不可违反。
 - **CSS 组件复用铁律**：发现相同或相似的组件样式（如 Header、按钮、卡片、表格等）时，必须抽取到公共 CSS 文件（如 `detail-components.css`、`App.css`），禁止在各页面 CSS 中重复定义。公共样式放在 `src/client/styles/` 目录下，页面级 CSS 只保留该页面特有的样式。违反此原则会导致：1）样式不一致；2）维护成本翻倍；3）主题切换时遗漏某些页面。
 - **四种测试类型后端必须完全隔离**：API/Web/移动端/PC测试的数据必须通过独立表和独立路由管理，不共用表、不共用路由。test_type 字段不能作为隔离手段，只能作为辅助字段。原型设计与此冲突时，以本原则为准。
 - **前端组件通过 API_PATH_MAP 调用隔离后端**：共享组件（ScenarioList, ScenarioDetail, ScenarioSetList, ScenarioSetDetail）使用 API_PATH_MAP 常量，根据 testType 调用对应的 /scenarios、/scenarios-web、/scenarios-pc、/scenarios-mobile 等端点。路由跳转也通过 ROUTE_PATH_MAP 常量映射。
 - **environments 表无 test_type 字段**：环境（DB 连接/SSL 证书/环境变量）是 4 种测试类型共享的基础设施，必须保持为单一共享表，不应加 test_type 列做隔离。
 - **(2026-06-07) 页面展示功能 vs 执行能力 解耦**：操作类按钮（上/下线、删除、推送、停止、导出等）不要根据"是否配置了某些属性"来决定显示/隐藏，而是**始终显示**让用户看得见能力,点击时再校验是否符合执行条件,不符合时给清晰提示(toast 警告 + 自动引导到编辑表单)。理由:用户原话"别因为某些属性没设置导致页面展示的内容和操作不同"。**错误模式**:`canPush = test_type === 'web' && hasSshConfig` 把"配置齐全"和"类型支持"合在一起,部分用户看不到这个能力。**正确模式**:可见性只看"类型是否支持"(`test_type === 'web'`),执行前再做"配置是否齐全"校验,失败时不静默 fail,给 toast + 引导路径
+- **(2026-06-26) SSH 推送不要用固定总超时误杀正常上传**：agent 包可能很大、内网也可能慢；除非用户明确要求，否则前端/后端不要设置 broad wall-clock timeout。异常应由具体步骤(connect/upload/write-env/deploy)即时返回；长耗时通过进度条/日志反馈。
+- **(2026-06-26) 顶部用户菜单统一为头像入口**：主页和各测试类型页应使用同一个头像菜单组件；默认只展示头像，点击后展示用户名/账号和设置、退出登录等操作，避免不同页面表现不一致。
 
 ## Key Learnings
 
@@ -34,6 +37,8 @@
 ## Do-Not-Repeat
 
 - [2026-06-15] 首页 UI 布局改动(去掉 kanban 卡片)被用户回滚: 前端页面布局/视觉改动前必须先确认用户意图,不要擅自删除 UI 元素。后端逻辑修复(统计一致性)可以独立提交,不要和前端 UI 改动混在一起
+- [2026-07-01] HTML `<input list="...">` + `<datalist>` **不是真下拉**:多数浏览器只在用户键入字符后才显示建议,空字段点 trigger 看不到任何列表项,用户体感"下拉是空的/只能选一项"。**任何"枚举候选 + 必填"场景都该用 `<FormSelect>` 或原生 `<select>`,不要用 datalist 假下拉**。常被误用为"既能选又能输"的轻量下拉。配套:**切关联 enum 字段时不要 `setX(presets[0])` 强制覆盖**——会让用户以为"只能选第一项",正确是 `setX(原值或预设首项)` 或者干脆保留原值让下拉显示为空让用户重选
+- [2026-07-01] agent push 的 install dir / env file 路径**必须按 kind 分流**,不要写死 `/opt/auto-test-agent` + `/etc/auto-test-agent.env`。systemd unit / launchd plist / service 名 push.ts 已经按 kind 分了,但 install dir / env / browsers path 没分,导致同台主机上后部署的 agent `rm -rf` 把先部署的 bundle 全删光,env 文件也覆盖,AGENT_TOKEN/PORT/BROWSERS_PATH 全部错配。**所有"按 kind 区分"的设计必须连 install dir / env / browsers / log 路径都同步分**——unit/plist 区分只是表象。如果出现 push.ts 这种"半区分"(只改了 service 名没改 install dir),后续 agent 部署会污染先部署的;已部署的旧机器只能重 push 一次
 - [2026-05-26] Agent tool API Error 400: 不要用 Agent 子代理探索文件，直接 Read/Grep 更可靠
 - [2026-05-26] WebFetch 对 github.com 失败: 克隆 GitHub 仓库用 `git clone --depth 1` 而非 WebFetch
 - [2026-05-27] PC/Web 共用 web-cases 表和路由导致命名混乱: PC测试应独立表 + /pc-cases 路由，Web测试用 /web-cases
@@ -68,6 +73,7 @@
 - [2026-06-18] 表格宽度自动撑满 + 列挤压隐形:`table { width: 100% }` + `input { width: 100% }` 会让浏览器把短名列拉到全宽(出现 X 按钮溢出),长列被挤到看不见。**正解**:`table { width: auto; max-width: 100% }` + `input { width: 140px; min-width: 140px }`(或按内容用 ch 单元)。模式:**表格内容自适应、容器 overflow-x:auto 出滚动条**,而不是"表格永远 = 容器宽"
 - [2026-06-18] Dark theme 边框隐形:`--border: #27272a` on `--surface: #18181b` 的亮度差 <2%,肉眼几乎看不到。**正解**:dark theme `--border` 至少 `#3f3f46`(亮度差 ~25%),`--border-subtle` 至少 `#2a2a30`。亮度差参考:`#27272a ≈ 9% L`,`#3f3f46 ≈ 25% L`,`#52525b ≈ 35% L`。任何"边框在深色主题看不见"的 bug 先 grep `--border:` 的十六进制值
 - [2026-06-18] 项目滚动条样式跟主题:在 App.css 顶部加全局 `::-webkit-scrollbar` (width/height 8px, thumb `var(--border)`, hover `var(--fg-tertiary)`, track transparent, 4px padding via background-clip) + Firefox `scrollbar-width: thin; scrollbar-color: var(--border) transparent`。**反模式**:每个组件自己写一套 `::-webkit-scrollbar` 覆盖(PcCaseDetail / WebCaseDetail 之前有),会和全局打架。统一到 App.css,删除组件级 override
+- **SSH 推送进度反馈模式(2026-06-26)**: server push 流程通过 `onProgress` 发布 bundling/connecting/uploading/configuring/deploying/done/error 状态，routes 层用 deviceId 存 Map 并暴露 `GET /api/devices/:id/push-progress`；前端在 POST 推送期间轮询这个轻量接口显示进度条。这样主 POST 可长时间等待，不需要 AbortController 误杀上传。
 - [2026-06-18] 详情页外框模式对齐列表页:列表页 `.alist` 是 `background: var(--surface); overflow: hidden` 没有 border,直接填满 `.sys-content`。详情页 `.api-detail-card` / `.scenario-detail-card` / `.sset-card` 之前有 `border: 1px solid var(--border)` + `border-bottom: none`(3 边框),dark 主题边框颜色加深后(bug-189)从隐形变显眼,显得和列表页不一致。**正解**:删除所有详情页外层 card 的 border 跟 margin-bottom,让详情页就是 `background: var(--surface)` 的平板填满 content 区域,跟列表页 `.alist` 同款。模式:**全局只有一种"页面容器"模式,列表/详情共用,不要给详情页加额外的"卡片框"**
 
 ## Decision Log
@@ -86,6 +92,32 @@
 - **2026-06-07**: Agent 集中推送架构（task #82 ~ #94）决策:（1）**只支持 Linux** —— systemd 是 Linux-only,塞进 macOS/Windows 等同于在 ssh push 里塞 3 套 if/else,先不发。（2）**server 不自动 SSH 重拉/升级** —— 显式按 UI 按钮触发,server 端 cron bug 不会拖垮用户机器。（3）**bundle 全量推**（~1.5GB tar.gz）,不打 diff,不打增量 —— 用户原话"反正内网快"。（4）**agent version mismatch → 401 → 自我 exit** —— agent 启动 + 每次心跳带 version,server 对比 `pkg.version` 不一致返 401 + `{required_version}`,agent 看到 exit(1) → systemd 标 failed → UI 出现 needs_upgrade=1 角标 → 用户点按钮重推。（5）**SSH 凭据 AES-256-GCM 加密**存 `devices.ssh_password` / `ssh_private_key` 列,key 来自 `AGENT_SSH_KEY_SECRET` env(32 字节 hex),列名做 AAD 防换列密文复用。**密文永不进 API response**,前端用 `has_*` 布尔占位。（6）**手动部署路径保留** —— 走 SSH push 是默认推荐,但 CI runner / 个人开发机 / 非 Linux 用户还能用 `npm run agent` 方式,文档明确标注为"开发/CI 备用"
 
 ## Key Learnings
+
+### Node prebuilt 跟远端 glibc 版本强绑定 (2026-06-27)
+- Node 20+ toolchain 升级,glibc 最低要求 **2.28+**。CentOS 7 / RHEL 7 / 老 Ubuntu 的 glibc 是 2.17,**Node 20/22/24 全部跑不动**,会报 `GLIBC_2.28 not found` / `CXXABI_1.3.11 not found` / `GLIBCXX_3.4.21 not found`。
+- Node 18 LTS 是**最后兼容 glibc 2.17**的版本(CentOS 7 / RHEL 7 默认库)。Node 18 已 EOL(2025-04)但仍能跑。
+- 集成方案:推送前 SSH 跑 `ldd --version | head -1` 探测远端 glibc,>=2.28 用 modern (v24),<2.28 用 legacy (v18)。
+- macOS / Windows 没 glibc 概念,直接 modern。
+- ensureNodeRuntime 缓存路径必须带版本号(`linux-x64-v24.15.0/` vs `linux-x64-v18.20.8/`),否则 modern 解压后会被 legacy 覆盖。
+
+### 自实现 tar 头时必须保留 mode + symlink (2026-06-27)
+- 自己写 tar(uasar) header 时,mode 字段(offset 100, 7 octal + NUL)绝不能硬编码 `0000644`,否则二进制文件解压后丢 +x,systemd/launchd ExecStart 报 status=203/EXEC。必须从 `fs.stat().mode & 0o777` 取真实权限位传到 tarHeader。
+- 目录必须 0o755(目录的 +x 是"可进入"位,缺了无法 cd / list)。
+- Dirent.isFile() / isDirectory() 对 symlink 都返回 false(lstat-based),只走这两个分支会让 symlink 被静默跳过。Node prebuilt `bin/npm`、`bin/npx`、`bin/corepack` 都是 symlink → 必须单独 `isSymbolicLink()` 分支处理。
+- ustar symlink:typeflag='2'(offset 156),linkname 字段(offset 157, 长度 100)填 readlink 目标,size=0,不写文件内容。tar 解压时根据 linkname 自动重建 symlink。
+- 实际场景中 tar header 函数应支持可选 mode + linkTarget 参数,目录用 0o755 默认。
+
+### SSH push 远端 deploy 流程必须先 verify 再启动 (2026-06-27)
+- 用户原话:"解压后启动前先校验下文件是不是都打包进去了,然后再更新service的配置文件,然后再启动,最后通过端口判断是否启动成功"
+- 流程顺序:upload → extract → sha256 → atomic swap → **verify(node bin 可执行 + entry.js 存在 + node --version)** → 写 service unit/plist → systemctl restart → healthz 轮询。
+- verify 在 SERVICE_SETUP 之前是为了:文件残缺/权限错时直接 exit 1,不要 trigger systemctl restart 进入 failed 状态再被 Restart=on-failure 拉起,污染 journal。
+- verify 失败时输出 `ls -la` / `find -name index.js` / `file $NODE_BIN` / `ldd $NODE_BIN` 等诊断,避免下次还得 ssh 手动排查。
+
+### SSH push 远端 OS 服务命名必须严格对齐 (2026-06-27)
+- deploy 脚本(linux/macos/win 三种)在 `serviceSetup.replace(/__SERVICE_NAME__/g, unitName)` 处用 `unitName`(`auto-test-agent.service`,带 `.service` 后缀)替换 Windows 服务名
+- 因此 Windows 上 `New-Service -Name $svc` 实际创建的服务就叫 `auto-test-agent.service`(Windows 允许 `.` 字符)
+- stopAgent / pushAgentByKind 等任何后续 SSH 操作里写 Windows 服务名时**必须复用同一个 `unitName` 变量**,绝不能引入独立的 PascalCase 命名(如 `AutoTestAgent`)—— 会找不到服务
+- 模式:任何在 deploy 脚本模板里用占位符替换的名字,后续操作都必须传同一个变量,而不是重写一份"看起来更合适"的名字
 
 ### TS 5+ JSX ternary/&& with `unknown` (2026-06-02)
 - `unknown && <X/>` or `unknown ? <X/> : null` produces a result typed as `unknown` because `unknown` widens to the top type — JSX children expect ReactNode, NOT unknown.
@@ -170,6 +202,8 @@
 - **AES-256-GCM 列名做 AAD(2026-06-07)**: 存"每行不同密钥但同列名"的密文时,用列名当 `additionalData` 防止 attacker 把 `ssh_password` 列的密文换到 `ssh_private_key` 列 —— GCM tag 校验会失败,解密时直接 throw。key 32 字节 hex 来自 env,`iv` 12 字节随机,`authTag` 16 字节。存:JSON.stringify `{iv, tag, ciphertext}`(三段都 base64)。解:parse → decipher.setAAD(colName) → decipher.setAuthTag → decipher.update + final
 - **Promise.race 软超时(2026-06-07)**: 长跑操作(SSH push ~1-2min)不要在内部 setTimeout 写复杂取消逻辑,直接外层 `Promise.race([mainPromise, timeoutPromise])` 包一层。timeout 命中时只需 `console.error` + 收尾清理(`bundle.stream.destroy()` + `sshConn?.end()`),socket 残余让 OS GC。**不要在 timeout 里 try kill 子进程** —— 跟远端 systemctl 会有 race,反而留僵尸
 - **idempotent 跨 systemd 写文件(2026-06-07)**: 部署时用 `if [ ! -f /etc/systemd/system/auto-test-agent.service ]; then cat > ... <<EOF ... EOF; fi` 包一层,避免覆盖用户在本机手工改过的 unit。env 文件用 `echo ... | sudo tee /etc/auto-test-agent.env` 幂等覆盖(这是配置不是用户手改的代码)。systemd unit 路径也用 `daemon-reload` + `enable` + `restart` 三连,缺一不可
+- **Node.js Readable push-mode 没有 'drain' 事件(2026-06-27)**: `new Readable({read(){}})` 是 push-mode,数据通过 push 进。push 返回 false 时,**Readable 不会 emit 'drain'** —— 那是 Writable/Duplex 的事件。如果代码里 `gz.on('data', chunk => if(!outer.push(chunk)) gz.pause())` + `outer.on('drain', () => gz.resume())`,**outer.on('drain') 永远不触发,gz 永远 pause,死锁**。修法:用 `PassThrough`(Duplex)替代,它有正确的 'drain' 事件;或者用 `gz.pipe(outer)` 让 Node 自动管理 backpressure。**模式**:跨 stream 串联时,中间缓冲层必须是 Duplex/Transform 才能正确传递 backpressure;push-mode Readable 只是 sink,不能做中间层。另外:**enumerate 完成后立即 resolve ready Promise,把"生成"和"消费"解耦** —— 不要让 ready Promise 等所有 gz.write 完成,否则下游 consumer 还没 attach 就死锁。
+- **GNU tar 1.27+ 对 mtime < 1980-01-01 报致命错(2026-06-27)**: 自写 tar 生成代码不要用 mtime=0 (epoch 1970-01-01 UTC), 远端 Linux GNU tar 会报 "implausibly old time stamp" 并 exit code 2 (fatal), 让 deploy 脚本 `set -e` 失败. 本地 mac bsdtar 只警告不报错, 所以本地验证可能 OK 但远端挂. **修法**: tarHeader 函数里加 `Math.max(315532800, Math.floor(mtime))` floor 到 1980-01-01 UTC (315532800). 315532800 是 GNU tar 内置的 sanity 阈值 TMCTIME. 顺手加 ustar magic "ustar\0" + version "00" at offset 257-264, 让 GNU tar 走 ustar 路径(name 编码更宽容). 用户问的"本地/远端时间差异"跟这个无关 —— tar mtime 是绝对 Unix epoch 秒数, 远端时钟不影响解压; 校验本身是 GNU tar 内置不可关闭, 但加 `--warning=no-timestamp` 可抑制. tar header 自己写时, 用 floor 比改每个 entry 的 mtime 赋值更省事.
 
 ## Do-Not-Repeat
 
@@ -185,6 +219,8 @@
 - [2026-06-11] overlay→并排布局重构模式:把 Drawer(overlay)改成 Panel(inline flex)时,关键步骤是把 Drawer 内部的 hooks(usePreviewSession+useScrcpyDecoder)和 state(frameCount/scrcpyStatus/scrcpyMetadata)上移到父组件,Panel 只做纯渲染(所有数据通过 props 传入)。父组件用 `.mtd-content-row { display: flex }` 包裹 body+panel,panel 用条件渲染 `{preview.open && <div className="mtd-preview-panel">...</div>}`。Drawer 文件保留不删,只是不再引用
 - [2026-06-11] 移动端断言从结构化字段改为自然语言:原 AssertionRule(source/key/operator/expected)改 TextAssertion({type:'text',text:string}),后端用 agent.aiAssert(text) 执行。前端 textarea 多行输入,每行一条断言。JSON 数组存 mobile_test_cases.assertions 列,向后兼容 — 读取时检测旧格式自动转 TextAssertion
 - [2026-06-11] 设置页改为 Drawer:全页路由 /settings/* 改为 SysHeader 内触发的右侧 Drawer。关键:Drawer 用 `position: fixed; top: var(--header-h); left: var(--sidebar-w); right: 0; bottom: 0` 只覆盖 body 区域,不挡侧边栏和 header。SysHeader 管理 settingsOpen state,下拉菜单"账号与设置"触发。5 个子页面直接 import 渲染(不用路由),activePage state 切换。App.tsx 删除 SettingsLayout 嵌套路由,/settings/* redirect 到 /
+
+- [2026-07-01] walkDir 类递归遍历函数的 shouldInclude 谓词**绝对不能放在 for 循环顶部** —— 目录条目没有"扩展名",用 `/\.(js|json)$/.test(rel)` 这类 file-extension 谓词过滤时,所有子目录名永远返回 false,整个子树静默不 walk,bundler enumerate 静默成功(files 数组空但不报错)。症状:tar 打包只有空目录条目,远端解压后空目录存在但里面没文件;本地 dist 目录里文件齐全但 bundle 漏掉整个 kind 段。**修法**:shouldInclude 只在 `isFile()` 分支(或需要时 `isSymbolicLink()`)调用,`isDirectory()` 分支必须永远 walk 进去,递归时按 file 路径判断过滤。同样的模式适用于任何 recursive walker(glob 工具 / file copier / tree builder)。bundler.ts:175-202 是这个 bug 的修复位置。**诊断**:push 失败时先 grep `enumerate complete kind=pc files=N`,对比 kinds 间 file 数差异 —— node_modules 13万+ pc-agent 0 就明显是 walkDir 把 pc-agent 段静默跳过了。
 
 ## Decision Log
 
@@ -230,3 +266,43 @@
 - [2026-06-18] .sys-content / .sys-sidebar / .sys-header 都不应有 border-radius。布局主体保持直角,让 header / sidebar / content 三块无缝紧贴。圆角只用在内部小元素(nav-item, brand-dot, avatar, button)作为视觉装饰。
 - [2026-06-18] 第三方编辑器(CodeMirror/Monaco 等)在 dark theme 下必须显式注入 dark theme extension,不能依赖 CSS 变量。@uiw/react-codemirror 默认 light 主题,dark 主题切换不会自动跟随 document data-theme。解决方案:封装 ThemedCodeMirror 包装组件 + useThemeMode hook(useSyncExternalStore + MutationObserver 监听 [data-theme] 属性)。详情页 5 个直接调用 CodeMirror 的位置全部改用 ThemedCodeMirror。**禁止**在业务组件里直接 import @uiw/react-codemirror,必须用 ThemedCodeMirror。
 - [2026-06-18] inline style 里禁止硬编码颜色值(#bbb/#999/#fff/#1677ff 等),必须用 `style={{ color: 'var(--fg-tertiary)' }}` 字符串形式引用 CSS 变量。React inline style 接受 CSS 字符串作为属性值,浏览器会解析 var() 引用。例外:状态色 success/danger 也要用 var(--success)/var(--danger) 而不是写死 #10b981/#ff4d4f。
+
+- **FormSelect fixed 下拉防裁剪模式(2026-06-26)**: 当下拉位于 modal/drawer 等 `overflow` 容器内时,仅 `position: fixed` 不足以避免裁剪/层级问题;fixed 模式需通过 `createPortal(..., document.body)` 脱离滚动容器,外部点击判断同时检查 trigger 容器和 portal 列表。
+
+## Key Learnings
+
+- **FormSelect fixed portal 宽度陷阱(2026-06-26)**: 下拉列表 portal 到 `document.body` 后,共享 CSS 里的 `.form-select-dropdown { min-width: 100% }` 不再相对触发器,会把固定下拉撑到页面/包含块宽度。固定模式必须内联覆盖 `width: max-content; minWidth: 0`,再用 `maxWidth: calc(100vw - left - 16px)` 防止长选项越过视口。
+
+## Key Learnings
+
+- **AGENT_SSH_KEY_SECRET 本地开发默认值(2026-06-26)**: 设备库保存 SSH 密码时,用户请求里的 `ssh_password` 是远端登录凭据,不是服务端存储加密密钥。生产环境仍必须显式配置 `AGENT_SSH_KEY_SECRET`;非生产环境可自动生成并复用 `data/.agent-ssh-key-secret`(data 已 gitignore) 来避免本地保存设备时报 503。create/update 两条路径都应走同一个 `encryptSshField` helper,否则 PUT 可能在缺 key 时静默清空密文字段。
+
+- **Web/PC 远程执行设备就绪判定(2026-06-26)**: 设备库里的 `status='online'` 不能作为远程执行可调度的唯一依据，因为用户创建设备时可能手动传 online。Web/PC 执行选择列表必须同时要求 `agent_endpoint` + `agent_token` 存在，代表 agent 已上报心跳；新增设备如果填写完整 SSH 信息，应在保存后立即触发对应 push-agent，让 agent 注册后再出现在执行选择中。
+
+- **设备 host 字段语义(2026-06-26)**: 远程 agent 推送时 `devices.host` 表示“平台回连地址”(如 `http://192.168.127.1:3000`),用于生成远端 `AGENT_SERVER_URL`;不要依赖全局 `PUBLIC_SERVER_URL` 作为所有设备的统一回连地址。SSH 登录地址仍使用 `ssh_host/ssh_port`。保存/上线在线设备时必须先有平台回连地址,否则应保存为离线并提示用户补齐。
+
+- **设备 host 字段语义(2026-06-26)**: 远程 agent 推送时 `devices.host` 表示“平台回连地址”(如 `http://192.168.127.1:3000`),用于生成远端 `AGENT_SERVER_URL`;不要依赖全局 `PUBLIC_SERVER_URL` 作为所有设备的统一回连地址。SSH 登录地址仍使用 `ssh_host/ssh_port`。保存/上线在线设备时必须先有平台回连地址,否则应保存为离线并提示用户补齐。
+
+### SSH 凭据加密与重填路径 (2026-06-26)
+- devices.ssh_password/ssh_private_key 只存 AES-GCM 密文；推送/停止时再用当前 AGENT_SSH_KEY_SECRET 或本地开发密钥解密后传给 ssh2 的 password/privateKey。密码认证方式本身可用，但密文如果来自旧密钥/不同启动目录/损坏数据就无法还原，必须让用户重新输入凭据覆盖旧密文，不能降级读取明文。
+- 这类错误要提示“重新输入 SSH 密码/私钥”，不要让用户误以为密码认证方式不支持；手动上线失败时应打开设备编辑表单并展开 SSH 区域。
+- **Agent 推包按设备类型打包 (2026-06-26)**: `createBundleStream` 必须接收 `web|mobile|pc` kind，只枚举当前设备类型需要的 agent 目录；Web 推送不能检查 `dist/agent-pc`，PC 缺包只能在推 PC 设备时作为明确错误暴露。
+- **表格操作列不要把 `<td>` 改成 flex (2026-06-26)**: `td.device-list__actions { display:flex }` 会破坏表格单元格布局，导致行高/下边框与其他列不对齐。正确做法是保持 td 默认 display，用 `white-space: nowrap` + 按钮 `inline-flex` + margin/gap 模拟横向按钮组。
+- **Agent push 打包异常必须走 JSON 响应(2026-06-26)**: `createBundleStream()` 枚举阶段失败时不要 `outer.destroy(error)`，否则 SFTP 监听未挂上前可能触发未处理 stream error，前端只看到按钮卡在“上线中”。正确模式：枚举错误通过 `bundle.ready` reject 给 `push.ts`/路由处理，stream 只无 error destroy；推送路由外层必须 `try/catch` 返回 `{code,message,data:{ok:false,error}}`，前端再用 `AbortController` 做兜底超时恢复 loading。
+
+### Agent bundle 必须装编译产物,不能装 .ts 源码 (2026-06-27)
+- bundler.ts 给 web/mobile/pc 三个 kind 都必须打包 `dist/agent-X/` 下的 .js,不能直接打包 `src/agent-X/` 下的 .ts。原因:systemd ExecStart 是 `/usr/bin/node /opt/auto-test-agent/.../index.js`,裸 node 不能跑 TypeScript。PC 一直是这个模式(走 `dist/agent-pc/`),web/mobile 是漏网之鱼(走 `src/agent-X/` 且只过滤 ts/json/md)。
+- **tsconfig rootDir 决定 dist 结构**:`rootDir: "./src/agent-X"` + 只 include 当前目录 → 输出扁平(`dist/agent-X/index.js`);`rootDir: "./src"` + include 多个目录 → 输出嵌套(`dist/agent-X/agent-X/index.js` + `dist/agent-X/agent-web/*.js`)。需要跨 agent 复用代码(PC/mobile 用 re-export shim 引用 agent-web)时只能用嵌套模式。
+- **bundle 保留嵌套结构**:`walkDir(dist/agent-X, 'X-agent-src', ...)` 递归保留子目录,bundle 内是 `X-agent-src/agent-X/index.js` + `X-agent-src/agent-web/*.js`。push.ts 的 `entryPoint` 必须匹配:`X-agent-src/agent-X/index.js`(嵌套),不是 `X-agent-src/index.js`(扁平)。web 因为输出扁平,entryPoint 仍是 `agent-src/index.js`。
+- **推包前必须先 build**:push.ts 加 `ensureAgentBuild(kind)` 在 SSH connect 之前 spawn `npm run build:agent{,-mobile,-pc}`,build 失败直接 return `{ok:false}`,不要拿着空 dist 推包。同时校验 `dist/<kind>/[<kind>/]index.js` 真的存在,防止 npm 假成功。
+- **tsc 默认 `noEmitOnError: false`**:即使有 TS 错误也会 emit .js,运行时 import 会坏。修 mobile `../agent/` → `../agent-web/` typo 时,要靠 `npm run build` 的报错暴露,不能只看 dist 是否生成。
+
+
+### Agent bundle 自带 prebuilt node (2026-06-27)
+- 远端测试机可能是干净的 Linux/macOS,没装 node;ExecStart 写死 `/usr/bin/node` 在这些机器上必然 systemd status=203/EXEC。解法:bundle 自带官方 prebuilt node,systemd/launchd 直接用 bundle 路径启动。
+- **node-runtime.ts 模块**:`ensureNodeRuntime(os, arch)` 第一次跑时从 `nodejs.org/dist/<ver>/node-<ver>-<os>-<arch>.{tar.gz|zip}` 下载到 `data/node-runtime-cache/<os>-<arch>/`,之后复用。Linux/Darwin 用 `tar -xzf --strip-components=1`,Win 用 `unzip` (fallback PowerShell `Expand-Archive`) + 手动 flatten 顶层目录。
+- **架构探测**:`uname -m` 输出经 `resolveArch` 映射:`{x86_64,amd64}→x64, {aarch64,arm64}→arm64`,其他返回 null。push.ts SSH 连上后跑 `uname -m` 探测,失败直接 fail(避免推一个跑不起来的 bundle)。
+- **bundle 体积**:完整 node + npm 目录约 +195MB,主要在 `lib/node_modules/npm/`(npm 自带包)+ `include/`(C++ 头文件,远端用不到)。后续如果体积是问题,可只打 `bin/node + lib/node_modules/*/package.json`。
+- **OS 类型映射**:`uname -s` 输出经 `resolveOs` 映射:`linux→linux, darwin→darwin, {win,windows,windows_nt}→win`。push.ts effectiveOs 已有 `linux|macos` 分支,`macos → darwin`(node prebuilt 命名用 darwin 不用 macos)。
+- **Windows 完整推送未实现**:node-runtime.ts 框架支持 win 包下载,但 push.ts 没有 win 分支(Win 没有 systemd/launchd,要用 `sc.exe` 注册 Windows Service 或 `schtasks`,SSH exec 走 cmd/PowerShell,bundle 解压用 `Expand-Archive`,路径用 `C:\auto-test-agent\`)。当前 push.ts 只 wire 了 Linux/macOS。
+
