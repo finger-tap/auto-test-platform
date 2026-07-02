@@ -1,0 +1,122 @@
+/* ── PreAction Section ── */
+.pre-action-section {
+  margin-top: 16px;
+  padding: 12px;
+  background: #fafafa;
+  border: 1px solid #f0f0f0;
+  border-radius: 6px;
+}
+
+/* ── PreAction Card ── */
+.pre-action-card {
+  background: #fff;
+  border: 1px solid #e8e8e8;
+  border-radius: 8px;
+  margin-bottom: 8px;
+  overflow: hidden;
+  transition: border-color 0.2s;
+}
+
+.pre-action-card:hover {
+  border-color: #d0d0d0;
+}
+
+.pa-card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: #fafafa;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.pa-toggle-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #999;
+  flex-shrink: 0;
+}
+
+.pa-toggle-icon {
+  display: inline-block;
+  font-size: 16px;
+  transition: transform 0.2s;
+  line-height: 1;
+}
+
+.pa-toggle-icon.open {
+  transform: rotate(90deg);
+}
+
+.pa-type-select {
+  padding: 3px 8px;
+  border: 1px solid #d9d9d9;
+  border-radius: 4px;
+  font-size: 12px;
+  background: #fff;
+  color: #333;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.pa-desc-input {
+  flex: 1;
+  padding: 4px 8px;
+  border: 1px solid #d9d9d9;
+  border-radius: 4px;
+  font-size: 12px;
+  outline: none;
+  background: #fff;
+  min-width: 0;
+}
+
+.pa-desc-input:focus {
+  border-color: var(--primary);
+}
+
+.pa-save-btn {
+  padding: 3px 10px;
+  border: 1px solid var(--primary);
+  border-radius: 4px;
+  background: var(--primary);
+  color: #fff;
+  font-size: 12px;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s;
+}
+
+.pa-save-btn:hover {
+  background: #0958d9;
+}
+
+/* ── Card Body ── */
+.pa-card-body {
+  padding: 12px;
+}
+
+/* ── Extract section inside card ── */
+.pa-extract-section {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #f0f0f0;
+}
+
+.pa-rule-card {
+  background: #fafafa;
+  border: 1px solid #e8e8e8;
+  border-radius: 6px;
+  padding: 8px 12px;
+  margin-bottom: 6px;
+}
+
+.pa-rule-card .ad-rule-row {
+  flex-wrap: wrap;
+}

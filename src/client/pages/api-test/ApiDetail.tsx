@@ -9,6 +9,7 @@ import type { Extension } from '@codemirror/state';
 import { apiFetch } from '../../utils/api';
 import { InlineText, InlineSelect } from '../../components/InlineEdit';
 import MessageModal from '../../components/MessageModal';
+import PreActionSection from './PreActionSection';
 import type { ApiItem, ApiLog, AssertionRule, AssertionResult } from '../../types';
 import './ApiDetail.css';
 
@@ -438,6 +439,9 @@ export default function ApiDetail() {
               </div>
             ))}
           </div>
+
+          {/* Pre-Action Section */}
+          <PreActionSection apiId={(api?.id && api.id > 0) ? api.id : null} saved={saved} />
         </div>
       </div>
 

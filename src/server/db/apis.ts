@@ -130,3 +130,63 @@ export function createApiLog(apiId: number, data: {
 export function findLogsByApiId(apiId: number, limit = 10): ApiLogRow[] {
   return db.prepare('SELECT * FROM api_logs WHERE api_id = ? ORDER BY executed_at DESC LIMIT ?').all(apiId, limit) as ApiLogRow[];
 }
+
+// ── Pre-Action CRUD ──
+
+export interface PreActionRow {
+  id: number;
+  api_id: number;
+  type: 'script' | 'database';
+  description: string | null;
+  content: string | null;
+  extract_rules: string | null;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreatePreActionInput {
+  api_id: number;
+  type: 'script' | 'database';
+  description?: string;
+  content?: string;
+  extract_rules?: string; // JSON string
+  sort_order?: number;
+}
+
+export function findPreActionsByApiId(apiId: number): PreActionRow[] {
+  return db.prepare('SELECT * FROM pre_actions WHERE api_id = ? ORDER BY sort_order ASC').all(apiId) as PreActionRow[];
+}
+
+export function createPreAction(data: CreatePreActionInput): number {
+  const result = db.prepare(
+    `INSERT INTO pre_actions (api_id, type, description, content, extract_rules, sort_order, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, datetime('now', '+8 hours'), datetime('now', '+8 hours'))`
+  ).run(data.api_id, data.type, data.description || '', data.content || '', data.extract_rules || '[]', data.sort_order || 0);
+  return result.lastInsertRowid as number;
+}
+
+export function updatePreAction(id: number, data: Partial<Omit<CreatePreActionInput, 'api_id'>>): boolean {
+  const fields: string[] = [];
+  const values: unknown[] = [];
+
+  for (const [key, value] of Object.entries(data)) {
+    if (value !== undefined) {
+      fields.push(`${key} = ?`);
+      values.push(value);
+    }
+  }
+
+  if (fields.length === 0) return false;
+
+  fields.push("updated_at = datetime('now', '+8 hours')");
+  values.push(id);
+
+  const result = db.prepare(`UPDATE pre_actions SET ${fields.join(', ')} WHERE id = ?`).run(...values);
+  return result.changes > 0;
+}
+
+export function deletePreAction(id: number): boolean {
+  const result = db.prepare('DELETE FROM pre_actions WHERE id = ?').run(id);
+  return result.changes > 0;
+}

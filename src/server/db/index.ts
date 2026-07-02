@@ -178,6 +178,21 @@ db.exec(`
   );
 
   CREATE INDEX IF NOT EXISTS idx_scenario_logs_scenario_id ON scenario_logs(scenario_id);
+
+  CREATE TABLE IF NOT EXISTS pre_actions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    api_id INTEGER NOT NULL,
+    type TEXT NOT NULL DEFAULT 'script',
+    description TEXT DEFAULT '',
+    content TEXT DEFAULT '',
+    extract_rules TEXT DEFAULT '[]',
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL DEFAULT (datetime('now', '+8 hours')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now', '+8 hours')),
+    FOREIGN KEY (api_id) REFERENCES apis(id) ON DELETE CASCADE
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_pre_actions_api_id ON pre_actions(api_id);
 `);
 
 export default db;

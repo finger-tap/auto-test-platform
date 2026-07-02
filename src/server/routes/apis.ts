@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { authMiddleware } from '../auth/middleware.js';
-import { findApisByUserId, findApiById, createApi, updateApi, deleteApi, createApiLog, findLogsByApiId } from '../db/apis.js';
+import { findApisByUserId, findApiById, createApi, updateApi, deleteApi, createApiLog, findLogsByApiId, findPreActionsByApiId, createPreAction, updatePreAction, deletePreAction } from '../db/apis.js';
 import type { AssertionRule } from '../db/apis.js';
 import { evaluateAssertions } from '../engine/api-executor.js';
 import { findUserById } from '../db/users.js';
@@ -232,4 +232,72 @@ apiRoutes.get('/:id/logs', (req: Request, res: Response) => {
   const limit = Math.min(Number(req.query.limit) || 10, 100);
   const logs = findLogsByApiId(api.id, limit);
   res.json({ code: 200, message: 'ok', data: logs });
+});
+
+// ── Pre-Action CRUD ──
+
+// GET /api/apis/:id/pre-actions
+apiRoutes.get('/:id/pre-actions', (req: Request, res: Response) => {
+  const api = checkOwnership(req, res);
+  if (!api) return;
+  const preActions = findPreActionsByApiId(api.id);
+  res.json({ code: 200, message: 'ok', data: preActions });
+});
+
+// POST /api/apis/:id/pre-actions
+apiRoutes.post('/:id/pre-actions', (req: Request, res: Response) => {
+  const api = checkOwnership(req, res);
+  if (!api) return;
+
+  const { type, description, content, extract_rules, sort_order } = req.body;
+  if (!type || !['script', 'database'].includes(type)) {
+    res.status(400).json({ code: 400, message: 'Invalid type' });
+    return;
+  }
+
+  const id = createPreAction({
+    api_id: api.id,
+    type,
+    description,
+    content,
+    extract_rules,
+    sort_order,
+  });
+  res.status(201).json({ code: 201, message: 'Created', data: { id } });
+});
+
+// PUT /api/apis/:id/pre-actions/:paId
+apiRoutes.put('/:id/pre-actions/:paId', (req: Request, res: Response) => {
+  const api = checkOwnership(req, res);
+  if (!api) return;
+
+  const paId = Number(req.params.paId);
+  if (!paId) {
+    res.status(400).json({ code: 400, message: 'Invalid pre-action id' });
+    return;
+  }
+
+  const { type, description, content, extract_rules, sort_order } = req.body;
+  if (type && !['script', 'database'].includes(type)) {
+    res.status(400).json({ code: 400, message: 'Invalid type' });
+    return;
+  }
+
+  updatePreAction(paId, { type, description, content, extract_rules, sort_order });
+  res.json({ code: 200, message: 'Updated' });
+});
+
+// DELETE /api/apis/:id/pre-actions/:paId
+apiRoutes.delete('/:id/pre-actions/:paId', (req: Request, res: Response) => {
+  const api = checkOwnership(req, res);
+  if (!api) return;
+
+  const paId = Number(req.params.paId);
+  if (!paId) {
+    res.status(400).json({ code: 400, message: 'Invalid pre-action id' });
+    return;
+  }
+
+  deletePreAction(paId);
+  res.json({ code: 200, message: 'Deleted' });
 });

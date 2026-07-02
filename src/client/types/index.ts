@@ -65,6 +65,22 @@ export interface AssertionResult {
   actual: string;
 }
 
+// ── Pre-Action Types ──
+
+export type PreActionType = 'script' | 'database';
+
+export interface PreAction {
+  id?: number;
+  api_id: number;
+  type: PreActionType;
+  description: string;
+  content: string;
+  extract_rules: AssertionRule[]; // 复用现有规则结构，assert=flase时纯提取
+  sort_order: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
 // ── Scenario Types ──
 
 export interface Scenario {
