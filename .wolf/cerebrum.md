@@ -338,3 +338,10 @@
 - **覆盖导入前先备份**: overwrite 策略先把团队当前版写进 resource_versions(origin=import-backup)再覆盖——任何路径都不丢历史。
 - **前端 LOCAL_ONLY 白名单**: /auth/* /midscene-config /web-browser-config /user-preferences /export-package 永远打本地(身份是本机概念);AuthContext 全换 apiFetchLocal。否则团队模式下刷新页面会把 /auth/me 发到中心→401→误登出。
 - **TiDB 本地验证**: scripts/team-verify-db.sh 一键全链路(建库迁移→注册→组织→CRUD→409→回滚→审计→权限)。DB_URL=mysql://root@127.0.0.1:4000/autotest_team。
+
+## Key Learnings (2026-07-02 团队执行镜像桥)
+- **执行镜像桥模式**: 团队(TiDB)用例执行时把行镜像到本机 SQLite(team_case_mirror 表维护映射,宿主用户=第一个非 guest 本地账号),复用现有执行器/设备/报告;执行记录读回时深度改写 ID(api_id/case_id/scenario_id/device_id)。避免重写 4 个执行器对接双库——中心部署本来就是全功能实例,执行发生在中心机器是自然语义。
+- **镜像行 upsert 关键**: 检查 local id 仍存在(可能被本地清理删除),不存在则重新 INSERT;每次执行前全列刷新(镜像是缓存不是真相源)。SQLite 表列用 PRAGMA table_info 缓存。
+- **宿主用户概念**: 中心实例的 per-user 配置(midscene 模型/浏览器)归属宿主本地账号,团队执行复用之——在中心个人空间配置一次即可,文档必须写明。
+- **routes 内部函数复用**: executeWs(api, req, res) 只依赖 req.body.environmentId 和 req.user,export 后可用 shim req({body:{...mapped}, user:{userId:hostId}})直接复用,不必复制其内部逻辑。
+- **dispatcher sub-path 顺序坑**: execute/versions/rollback 等 sub 分支必须在 `const id = Number(idStr)` 声明之后(或用 Number(idStr)),否则 TS2448 used-before-declaration。

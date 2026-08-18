@@ -1,0 +1,1 @@
+ALTER TABLE `t_apis` ADD `ssl_cert_name` varchar(128);

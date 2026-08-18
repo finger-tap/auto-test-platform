@@ -8,6 +8,13 @@
       "when": 1787064683413,
       "tag": "0000_superb_blink",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "5",
+      "when": 1787066273756,
+      "tag": "0001_perfect_sentry",
+      "breakpoints": true
     }
   ]
 }

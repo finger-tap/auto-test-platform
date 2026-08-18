@@ -100,6 +100,21 @@ echo "$AUDIT" | grep -q "验证接口" && ok "audit trail" || bad "audit: $AUDIT
 DEL=$(curl -s -X DELETE "$BASE/apis/$API_ID" -H "$AUTH" -H "$CTX" -H "$PRJ")
 echo "$DEL" | grep -q '"code":200' && ok "delete api" || bad "delete: $DEL"
 
+step "3b/4 团队模式执行（镜像桥）"
+EXEC_CASE=$(curl -s -X POST "$BASE/apis" -H 'Content-Type: application/json' -H "$AUTH" -H "$CTX" -H "$PRJ" \
+  -d '{"name":"执行验证","method":"GET","url":"http://127.0.0.1:'"$PORT"'/api/health","protocol":"http","assertions":"[]"}')
+EXEC_ID=$(echo "$EXEC_CASE" | sed -n 's/.*"id":\([0-9]*\).*/\1/p')
+[ -n "$EXEC_ID" ] && ok "create exec-case id=$EXEC_ID" || bad "create exec-case: $EXEC_CASE"
+
+EXEC_RES=$(curl -s -X POST "$BASE/apis/$EXEC_ID/execute" -H 'Content-Type: application/json' -H "$AUTH" -H "$CTX" -H "$PRJ" -d '{}')
+echo "$EXEC_RES" | grep -q '"code":200' && ok "team execute ran" || bad "team execute: $(echo "$EXEC_RES" | head -c 160)"
+echo "$EXEC_RES" | grep -q '"api_id":'"$EXEC_ID" && ok "execute response maps team id" || bad "id mapping in execute response"
+
+EXECS=$(curl -s "$BASE/apis/$EXEC_ID/executions?limit=5" -H "$AUTH" -H "$CTX" -H "$PRJ")
+echo "$EXECS" | grep -q '"api_id":'"$EXEC_ID" && ok "executions read-through (id mapped)" || bad "executions: $(echo "$EXECS" | head -c 160)"
+
+curl -s -X DELETE "$BASE/apis/$EXEC_ID" -H "$AUTH" -H "$CTX" -H "$PRJ" > /dev/null
+
 step "4/4 权限隔离"
 # no-team-header request with team token → 400
 NOCTX=$(curl -s "$BASE/apis" -H "$AUTH")

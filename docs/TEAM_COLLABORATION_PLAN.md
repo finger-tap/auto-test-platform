@@ -88,3 +88,5 @@
 | 2026-07-02 22:45 | Phase 1 完成（修全部幽灵依赖） |
 | 2026-07-02 23:00 | client tsc 0 错；等 midscene 构建 |
 | 2026-07-02 24:30 | **Phase 2/3/4 代码全部完成**：business schema（snake_case 对齐本地形状）+ teamResourceDispatcher（18 资源通用 CRUD+乐观锁+版本+审计+通知）+ team-extras（presence/审计/通知渠道/导入引擎）+ export-package（依赖闭包+脱敏）+ 前端（ConflictBanner/ResourceFab/ManageModal/ImportToTeamModal）+ team-smoke 8/8 + 完整启动冒烟 ✓。tsc 双 0 错 + vite build ✓。新增 scripts/team-verify-db.sh（TiDB 装好后一键验证） |
+| 2026-07-02 25:10 | TiDB 真库验证 14/14；TEXT 默认值兼容修复；.env 支持 |
+| 2026-07-02 26:00 | **Phase 5 完成**：执行镜像桥（6 类执行全接入+ID 回映射）+ 部署文档；TiDB 验证 **18/18**（含团队执行真实跑通）；tsc 双 0 错 + build ✓ |

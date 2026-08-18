@@ -3,6 +3,10 @@ import { and, asc, desc, eq, like, sql, getTableColumns, type SQL } from 'drizzl
 import type { AnyMySqlTable } from 'drizzle-orm/mysql-core';
 import { createHash, randomUUID } from 'node:crypto';
 import { verifyTeamToken } from '../auth/team-jwt.js';
+import {
+  executeTeamApi, executeTeamScenario, executeTeamWebCase, executeTeamPcCase, executeTeamMobileCase,
+  teamLogsAndExecutions,
+} from './team-execute.js';
 import { isTeamDbEnabled, isTeamReady, getTeamDb } from '../db-team/client.js';
 import { getMembership } from '../db-team/repo/org.js';
 import { hasRole } from '../db-team/util.js';
@@ -245,16 +249,33 @@ export async function teamResourceDispatcher(req: Request, res: Response, next: 
       return;
     }
 
-    // /:id sub-resource endpoints
-    if (sub && /^(execute|preview|push|refresh|stop|export)/.test(sub)) {
-      res.status(501).json({ code: 501, message: '该操作在团队模式下暂未开放（中心执行器接入后启用）' });
+    // id-level path that isn't a number → treat as unsupported sub-endpoint
+    const id = Number(idStr);
+    if (!Number.isInteger(id) || id <= 0) {
+      res.status(400).json({ code: 400, message: '无效 ID' });
       return;
+    }
+
+    // /:id sub-resource endpoints
+    // ── execution bridge: run on THIS instance via SQLite mirror ──
+    if (sub === 'execute' && req.method === 'POST') {
+      const p = def.path;
+      if (p === 'apis') return await executeTeamApi(req, res, ctx.teamId, ctx.projectId, id);
+      if (p === 'scenarios') return await executeTeamScenario(req, res, ctx.teamId, ctx.projectId, id);
+      if (p === 'web-cases') return await executeTeamWebCase(req, res, ctx.teamId, ctx.projectId, id);
+      if (p === 'pc-cases') return await executeTeamPcCase(req, res, ctx.teamId, ctx.projectId, id);
+      if (p === 'mobile-tests') return await executeTeamMobileCase(req, res, ctx.teamId, ctx.projectId, id);
     }
     if (sub === 'logs' || sub === 'executions') {
       if (req.method === 'GET') {
+        if (await teamLogsAndExecutions(req, res, ctx.teamId, ctx.projectId, def.type, id, sub)) return;
         res.json({ code: 200, message: 'ok', data: [] });
         return;
       }
+    }
+    if (sub && /^(preview|push|refresh|stop|export)/.test(sub)) {
+      res.status(501).json({ code: 501, message: '该操作在团队模式下暂未开放（设备推送/预览请在个人空间的设备库操作）' });
+      return;
     }
     if (sub === 'agent-info' && req.method === 'GET') {
       const row = await rowById(ctx, Number(idStr));
@@ -271,13 +292,7 @@ export async function teamResourceDispatcher(req: Request, res: Response, next: 
       return await handleRollback(req, res, ctx, Number(idStr));
     }
     if (sub === 'flow' && req.method === 'PUT' && def.scenarioChildren) {
-      return await handleFlowSave(req, res, ctx, Number(idStr));
-    }
-    // id-level path that isn't a number → treat as unsupported sub-endpoint
-    const id = Number(idStr);
-    if (!Number.isInteger(id) || id <= 0) {
-      res.status(400).json({ code: 400, message: '无效 ID' });
-      return;
+      return await handleFlowSave(req, res, ctx, id);
     }
 
     if (req.method === 'GET') return await handleDetail(req, res, ctx, id);

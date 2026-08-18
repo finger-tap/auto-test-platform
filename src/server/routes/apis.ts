@@ -14,7 +14,7 @@ const VALID_METHODS = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'];
 
 // ── WebSocket Executor ──────────────────────────────────
 
-async function executeWs(api: ApiRow, req: Request, res: Response) {
+export async function executeWs(api: ApiRow, req: Request, res: Response) {
   const executor = findUserById(req.user!.userId);
   const executedBy = executor?.nickname || executor?.account || 'unknown';
   const start = Date.now();

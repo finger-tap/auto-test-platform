@@ -58,6 +58,7 @@ export const tApis = mysqlTable('t_apis', {
   final_assertions: text('final_assertions'),
   ws_send: text('ws_send'),
   ws_expect: text('ws_expect'),
+  ssl_cert_name: varchar('ssl_cert_name', { length: 128 }),
   pre_actions: text('pre_actions'),
   post_actions: text('post_actions'),
   parameters: text('parameters'),
