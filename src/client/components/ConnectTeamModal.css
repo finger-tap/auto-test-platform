@@ -1,0 +1,59 @@
+/* ConnectTeamModal — thin layer over the shared modal/form systems. */
+
+.connect-team-modal .ctm-url-row {
+  display: flex;
+  gap: 8px;
+}
+.connect-team-modal .ctm-url-row .form-input {
+  flex: 1;
+}
+.ctm-ok-hint {
+  color: var(--success);
+}
+.ctm-error {
+  margin-top: 8px;
+}
+
+.ctm-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0;
+}
+.ctm-tab {
+  padding: 8px 14px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--fg-secondary);
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  transition: color 0.15s, border-color 0.15s;
+}
+.ctm-tab:hover {
+  color: var(--fg);
+}
+.ctm-tab.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+  font-weight: 500;
+}
+
+.ctm-resume {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 12px;
+  margin-bottom: 16px;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  color: var(--fg-secondary);
+  background: var(--surface-raised);
+}
+.ctm-resume .btn-text {
+  white-space: nowrap;
+}

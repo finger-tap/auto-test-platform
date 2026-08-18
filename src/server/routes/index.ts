@@ -27,6 +27,9 @@ import { agentRoutes } from './agents.js';
 import { pcPreviewRoutes } from './pc-preview.js';
 import { dashboardRoutes } from './dashboard.js';
 import { prefRoutes } from './user-preferences.js';
+import { teamPingHandler, teamAuthRoutes } from './team-auth.js';
+import { teamOrgRoutes } from './team-org.js';
+import { isTeamDbEnabled, isTeamReady } from '../db-team/client.js';
 
 export const routes = Router();
 
@@ -97,6 +100,24 @@ routes.use('/agents', agentRoutes);
 routes.use('/midscene-config', midsceneConfigRoutes);
 routes.use('/web-browser-config', webBrowserConfigRoutes);
 routes.use('/user-preferences', prefRoutes);
+
+// ── Team collaboration (center-server feature) ─────────────────────────
+// /team/ping is always available (no DB, no auth) — the ConnectTeamModal
+// uses it to probe a center URL before login. Everything below the guard
+// requires DB_URL configured AND startup migrations applied.
+routes.get('/team/ping', (req, res, next) => {
+  // async handler, keep express happy
+  teamPingHandler(req, res).catch(next);
+});
+routes.use('/team', function teamDbGuard(_req, res, next) {
+  if (!isTeamDbEnabled() || !isTeamReady()) {
+    res.status(503).json({ code: 503, message: '团队功能未启用（中心数据库未配置或尚未就绪）' });
+    return;
+  }
+  next();
+});
+routes.use('/team/auth', teamAuthRoutes);
+routes.use('/team', teamOrgRoutes);
 // 调度 — 按测试类型拆 4 张表
 // (api 用 scenario_set_id 列指向 scenario_sets.id;web/pc/mobile 用 case_set_id 列指向各自 case_sets_*.id)
 routes.use('/schedule-sets-api', scheduleSetApiRoutes);

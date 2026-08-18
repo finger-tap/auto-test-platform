@@ -2,3 +2,23 @@ packages:
   - .
   - ../midscene/apps/*
   - ../midscene/packages/*
+
+# pnpm v10+ reads these here (not from package.json "pnpm" field).
+onlyBuiltDependencies:
+  - better-sqlite3
+  - '@tailwindcss/oxide'
+  - esbuild
+  - sharp
+  - ssh2
+  - node-mac-permissions
+
+overrides:
+  '@codemirror/view': 6.43.4
+  '@midscene/core': workspace:*
+  '@midscene/web': workspace:*
+  '@midscene/computer': workspace:*
+  '@midscene/android': workspace:*
+  '@midscene/ios': workspace:*
+  '@midscene/harmony': workspace:*
+  '@midscene/visualizer': workspace:*
+  '@midscene/shared': workspace:*

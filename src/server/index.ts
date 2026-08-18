@@ -18,6 +18,8 @@ import cors from 'cors';
 import { existsSync } from 'node:fs';
 import './db/index.js';
 import { routes } from './routes/index.js';
+import { runTeamMigrations } from './db-team/migrate.js';
+import { isTeamDbEnabled } from './db-team/client.js';
 import { startScheduler } from './scheduler/scheduler.js';
 import { checkMock } from './mock-proxy.js';
 import { serveMidsceneReport } from './midscene-reports-static.js';
@@ -38,6 +40,19 @@ console.log(`[playwright] drivers exists=${existsSync(process.env.PLAYWRIGHT_BRO
 // it's a non-fatal warning at startup. The crypto module logs its own
 // warning; this is just a "yes/no" status line for ops.
 console.log(`[agent-push] SSH push enabled=${isPushEnabled()} (set AGENT_SSH_KEY_SECRET to enable)`);
+
+// Team (center-server) database: apply drizzle migrations in the background.
+// Local mode (no DB_URL) skips this entirely; a failed migration keeps the
+// team feature disabled without impacting the local instance.
+if (isTeamDbEnabled()) {
+  console.log('[team-db] DB_URL configured — running migrations...');
+  runTeamMigrations().then((r) => {
+    if (r.ok) console.log('[team-db] migrations applied, team feature ready');
+    else console.error(`[team-db] team feature NOT ready: ${r.error}`);
+  });
+} else {
+  console.log('[team-db] DB_URL not set — team feature disabled (local mode)');
+}
 
 const app = express();
 const PORT = process.env.PORT || 3000;

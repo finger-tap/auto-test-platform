@@ -19,8 +19,8 @@ export default function MidsceneReportViewer({ reportPath, label = 'Midscene 报
 
   // Always pass darkMode explicitly so the URL param overrides the report's
   // internal localStorage, keeping the report theme in sync with the platform.
-  const themedReportUrl = useMemo(() => {
-    if (!reportPath) return reportPath;
+  const themedReportUrl = useMemo((): string | undefined => {
+    if (!reportPath) return undefined;
     const url = new URL(reportPath, window.location.origin);
     url.searchParams.set('darkMode', theme === 'dark' ? 'true' : 'false');
     return url.pathname + url.search;

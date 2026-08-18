@@ -1,0 +1,238 @@
+/* WorkspaceSwitcher — header dropdown. Mirrors the hdr-env-switcher layout
+ * patterns but with its own ws- prefix (per CSS-centralization rules this
+ * file only holds switcher-specific styles; shared modal/form/button classes
+ * come from styles/modals|forms|buttons.css). */
+
+.ws-switcher {
+  position: relative;
+}
+
+.ws-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--fg);
+  font-size: 13px;
+  cursor: pointer;
+  max-width: 320px;
+  transition: border-color 0.15s, background 0.15s;
+}
+.ws-trigger:hover {
+  border-color: var(--accent);
+  background: var(--surface-raised);
+}
+.ws-trigger-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
+}
+.ws-trigger-user {
+  font-size: 11px;
+  color: var(--fg-tertiary);
+  max-width: 96px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ws-caret {
+  font-size: 10px;
+  color: var(--fg-tertiary);
+}
+
+.ws-mode-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex: none;
+}
+.ws-mode-dot.local {
+  background: var(--fg-tertiary);
+}
+.ws-mode-dot.team {
+  background: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-subtle);
+}
+
+.ws-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 260px;
+  max-width: 360px;
+  max-height: 420px;
+  overflow-y: auto;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.14);
+  z-index: 1000;
+  padding: 6px;
+  animation: wsIn 0.15s ease;
+}
+@keyframes wsIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.ws-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 10px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--fg);
+  font-size: 13px;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.12s;
+}
+.ws-item:hover {
+  background: var(--surface-raised);
+}
+.ws-item.active {
+  background: var(--accent-subtle);
+  color: var(--accent);
+  font-weight: 500;
+}
+.ws-item-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ws-item-hint {
+  font-size: 11px;
+  color: var(--fg-tertiary);
+}
+
+.ws-sep {
+  height: 1px;
+  background: var(--border);
+  margin: 6px 4px;
+}
+
+.ws-loading,
+.ws-empty,
+.ws-error {
+  padding: 8px 10px;
+  font-size: 12px;
+  color: var(--fg-tertiary);
+}
+.ws-error {
+  color: var(--danger);
+}
+
+.ws-team-row {
+  display: flex;
+  align-items: center;
+}
+.ws-team-main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+  padding: 8px 6px 8px 10px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--fg);
+  font-size: 13px;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.12s;
+}
+.ws-team-main:hover {
+  background: var(--surface-raised);
+}
+.ws-team.active > .ws-team-row .ws-team-main {
+  color: var(--accent);
+  font-weight: 500;
+}
+.ws-role-badge {
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  color: var(--fg-tertiary);
+  flex: none;
+}
+.ws-team-expand {
+  border: none;
+  background: none;
+  color: var(--fg-tertiary);
+  cursor: pointer;
+  padding: 6px 8px;
+  font-size: 11px;
+  border-radius: var(--radius-sm);
+  transition: transform 0.15s, background 0.12s;
+}
+.ws-team-expand:hover {
+  background: var(--surface-raised);
+}
+.ws-team-expand.open {
+  transform: rotate(90deg);
+}
+
+.ws-projects {
+  padding: 2px 0 6px 26px;
+  border-left: 2px solid var(--border);
+  margin-left: 12px;
+}
+.ws-project {
+  display: block;
+  width: 100%;
+  padding: 6px 10px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--fg-secondary);
+  font-size: 12.5px;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.12s, color 0.12s;
+}
+.ws-project:hover {
+  background: var(--surface-raised);
+  color: var(--fg);
+}
+.ws-project.active {
+  color: var(--accent);
+  background: var(--accent-subtle);
+  font-weight: 500;
+}
+.ws-new-project {
+  display: block;
+  width: 100%;
+  padding: 6px 10px;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--fg-tertiary);
+  font-size: 12px;
+  cursor: pointer;
+  text-align: left;
+  margin-top: 4px;
+  transition: color 0.12s, border-color 0.12s;
+}
+.ws-new-project:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.ws-action {
+  color: var(--fg-secondary);
+}
+.ws-danger {
+  color: var(--danger);
+}

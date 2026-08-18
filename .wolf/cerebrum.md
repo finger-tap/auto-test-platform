@@ -306,3 +306,25 @@
 - **OS 类型映射**:`uname -s` 输出经 `resolveOs` 映射:`linux→linux, darwin→darwin, {win,windows,windows_nt}→win`。push.ts effectiveOs 已有 `linux|macos` 分支,`macos → darwin`(node prebuilt 命名用 darwin 不用 macos)。
 - **Windows 完整推送未实现**:node-runtime.ts 框架支持 win 包下载,但 push.ts 没有 win 分支(Win 没有 systemd/launchd,要用 `sc.exe` 注册 Windows Service 或 `schtasks`,SSH exec 走 cmd/PowerShell,bundle 解压用 `Expand-Archive`,路径用 `C:\auto-test-agent\`)。当前 push.ts 只 wire 了 Linux/macOS。
 
+
+## Team Collaboration Requirements (2026-07-02)
+- 用户需求:一人可属多团队,团队下多项目(User-Team-Project 三级)
+- 不需要实时协同编辑,但必须防并发覆盖(乐观锁)+完整版本管理
+- 双模式:登录后可切团队/本地独立模式;团队数据存远程库,本地模式存本地;需要"本地导入团队"功能
+- 关注国产数据库与数据库迁移/扩展能力
+
+## Team Collaboration Decisions (2026-07-02, 用户拍板)
+- 数据库: **TiDB**(MySQL 协议, mysql2 驱动项目已有)
+- ORM: **引入 Drizzle ORM**(用户明确要求,方便操作)
+- 团队功能直接写远程库版本,不做 SQLite 上团队功能过渡;用户后续部署 TiDB 提供链接,开发期用 docker MySQL 验证
+- 导入必须细粒度:可勾选个别用例;导入场景/场景集/用例集时解析依赖,同步导入引用的用例(依赖闭包+ID重映射+JSON内引用改写)
+- partial unique index(设备busy锁)MySQL/TiDB 不支持 → 生成列 busy_slot 方案
+
+## Key Learnings (2026-07-02 团队协作 Phase 0/1)
+- **pnpm 严格模式暴露幽灵依赖**: 项目从 npm 迁到 pnpm workspace 后,所有"npm 扁平 node_modules 侥幸可见"的直接 import 都会解析失败。本次补齐: @apidevtools/swagger-parser(swagger-parser@10 只是转发 shim,真包是前者)/openapi-types/undici/@yume-chan/adb-server-node-tcp/@yume-chan/stream-extra/screenshot-desktop/@codemirror/{lint,state,view,commands,language,autocomplete,search}。新装依赖必须 -w (workspace root)。
+- **pnpm v10+ 配置迁移**: package.json 的 pnpm 字段(onlyBuiltDependencies/overrides)不再被读取,必须写到 pnpm-workspace.yaml。
+- **better-sqlite3 prebuild 恢复**: --ignore-scripts 安装后缺原生绑定时,cd node_modules/better-sqlite3 && npx prebuild-install 即可,不需要完整 node-gyp。
+- **pnpm install 卡死**: postinstall 会跑 scripts/install-playwright-drivers.mjs 下载 firefox/webkit(~网络慢),加 --ignore-scripts 跳过,驱动由用户手动 npm run setup:drivers。
+- **团队路由挂载顺序**: routes/index.ts 中 /team/ping 恒挂(免 DB 免认证)→ teamDbGuard(503) → teamAuthRoutes → teamOrgRoutes。guard 在 auth 之前,DB 未配置时所有 /team/* 返回 503 而非 401。
+- **团队双 token 设计**: 本地 token(key:token) 与中心 token(key:teamAuth:<centerUrl>) 独立存储;apiFetchJSON 的 resolveTarget() 按 workspace 分流;team 401 绝不误清本地 token。
+- **计划持久化**: docs/TEAM_COLLABORATION_PLAN.md 是团队功能唯一任务清单,中断恢复从"进度快照"读起。

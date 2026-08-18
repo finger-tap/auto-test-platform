@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { EnvironmentProvider } from './contexts/EnvironmentContext';
+import { WorkspaceProvider } from './contexts/WorkspaceContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import HomeLayout from './components/HomeLayout';
 import Layout from './components/Layout';
@@ -42,6 +43,7 @@ function App() {
     <BrowserRouter>
       <ThemeProvider>
       <AuthProvider>
+        <WorkspaceProvider>
         <EnvironmentProvider>
           <Routes>
             <Route path="/login" element={<Login />} />
@@ -122,6 +124,7 @@ function App() {
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </EnvironmentProvider>
+        </WorkspaceProvider>
       </AuthProvider>
       </ThemeProvider>
     </BrowserRouter>

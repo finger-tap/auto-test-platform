@@ -290,10 +290,10 @@ export default function Home() {
                     <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 11, fill: 'var(--fg-tertiary)' }} tickLine={false} axisLine={false} />
                     <Tooltip
                       contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', fontSize: 12 }}
-                      formatter={(value: number, name: string) => {
+                      formatter={((value: number, name: string): [string, string] => {
                         if (name === 'passRate') return [`${value}%`, '通过率'];
-                        return [value, '执行次数'];
-                      }}
+                        return [String(value), '执行次数'];
+                      }) as never}
                       labelFormatter={label => label}
                     />
                     <Area yAxisId="left" type="monotone" dataKey="passRate" stroke="var(--accent)" strokeWidth={2} fill="url(#gradRate)" dot={false} />
