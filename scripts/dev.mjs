@@ -1,7 +1,19 @@
 import { spawn } from 'child_process';
 import http from 'http';
+import { existsSync, readFileSync } from 'node:fs';
 
 const PORT = process.env.PORT || 3000;
+
+// Load .env (gitignored) into this process + the tsx child, so DB_URL etc.
+// work with a plain `npm run dev`. Minimal parser: KEY=VALUE lines, # comments.
+if (existsSync('.env')) {
+  for (const line of readFileSync('.env', 'utf8').split('\n')) {
+    const m = line.match(/^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)\s*$/);
+    if (m && !line.trim().startsWith('#') && process.env[m[1]] === undefined) {
+      process.env[m[1]] = m[2];
+    }
+  }
+}
 
 // Start tsx watch as child process (add --inspect to enable debugging)
 const server = spawn('npx', ['tsx', 'watch', '--inspect=9229', '--ignore', 'vite.config.ts.timestamp-*', 'src/server/index.ts'], {

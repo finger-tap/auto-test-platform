@@ -75,6 +75,23 @@ const BY_PATH = new Map(RESOURCES.map((r) => [r.path, r]));
 
 const META_COLS = new Set(['id', 'team_id', 'project_id', 'owner_id', 'version', 'created_at', 'updated_at']);
 
+/**
+ * App-level defaults for TEXT columns — TiDB strict mode forbids TEXT
+ * defaults in DDL, so the dispatcher injects them at insert time.
+ */
+const TEXT_DEFAULTS: Record<string, string> = {
+  scenario_ids: '[]',
+  test_case_ids: '[]',
+  variables: '[]',
+  ssl_certs: '[]',
+  metadata: '{}',
+  response_headers: '{"Content-Type":"application/json"}',
+  response_body: '{}',
+  conditions: '[]',
+  pre_actions: '[]',
+  post_actions: '[]',
+};
+
 type Cols = Record<string, { name: string; dataType: string }>;
 
 function colsOf(table: AnyMySqlTable): Cols {
@@ -380,7 +397,14 @@ async function handleCreate(req: Request, res: Response, ctx: Ctx): Promise<void
     created_at: now,
     updated_at: now,
   };
+  // inject TEXT defaults for missing NOT NULL text columns (TiDB has no TEXT defaults)
   const cols = colsOf(ctx.table);
+  for (const [colName, col] of Object.entries(cols)) {
+    if (META_COLS.has(colName)) continue;
+    if (col.dataType === 'string' && values[colName] === undefined && TEXT_DEFAULTS[colName] !== undefined) {
+      values[colName] = TEXT_DEFAULTS[colName];
+    }
+  }
   if ('created_by' in cols && !values.created_by) values.created_by = ctx.account;
   if ('updated_by' in cols) values.updated_by = ctx.account;
   if (ctx.def.path === 'devices') {

@@ -347,6 +347,8 @@ teamExtrasRoutes.post('/import/commit', ah(async (req, res) => {
         team_id: teamId, project_id: projectId,
         owner_id: userId, created_at: now, updated_at: now,
       };
+      // TEXT defaults — remapIdList already guarantees scenario_ids/test_case_ids;
+      // other TEXT defaults come from the exported row itself.
 
       if (cur && (strategy === 'overwrite' || isSame)) {
         // snapshot the CURRENT team version before overwriting (never lose history)

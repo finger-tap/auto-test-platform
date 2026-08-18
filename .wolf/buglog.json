@@ -10538,6 +10538,25 @@
       "related_bugs": [],
       "occurrences": 1,
       "last_seen": "2026-07-01T14:18:24.426Z"
+    },
+    {
+      "id": "bug-647",
+      "timestamp": "2026-07-02",
+      "error_message": "TiDB 迁移失败: BLOB/TEXT/JSON column can't have a default value (t_case_sets_mobile test_case_ids text NOT NULL DEFAULT ('[]'))",
+      "file": "src/server/db-team/schema/business.ts",
+      "root_cause": "TiDB(严格模式,同 MySQL 8)禁止 TEXT/MEDIUMTEXT 列在 DDL 中带 DEFAULT。Drizzle 的 .default() 会生成 DEFAULT 子句导致整批迁移失败。另注意 drizzle 生成的括号形式 DEFAULT ('[]') 本身在 TiDB 也报语法错。",
+      "fix": "schema 中所有 text/mediumtext 列移除 .default();dispatcher (team-resources.ts TEXT_DEFAULTS) 在 insert 时应用层注入默认值;删除 drizzle 目录+DROP DATABASE 后重新 generate。",
+      "tags": [
+        "tidb",
+        "mysql",
+        "drizzle",
+        "text-default",
+        "migration",
+        "team"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-02"
     }
   ]
 }

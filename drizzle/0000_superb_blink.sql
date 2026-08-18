@@ -1,3 +1,80 @@
+CREATE TABLE `center_users` (
+	`id` int AUTO_INCREMENT NOT NULL,
+	`account` varchar(128) NOT NULL,
+	`password_hash` varchar(255) NOT NULL,
+	`account_type` varchar(16) NOT NULL DEFAULT 'email',
+	`nickname` varchar(128),
+	`avatar` varchar(512),
+	`email` varchar(128),
+	`phone` varchar(32),
+	`created_at` varchar(32) NOT NULL,
+	`updated_at` varchar(32) NOT NULL,
+	CONSTRAINT `center_users_id` PRIMARY KEY(`id`),
+	CONSTRAINT `uk_center_users_account` UNIQUE(`account`)
+);
+--> statement-breakpoint
+CREATE TABLE `projects` (
+	`id` int AUTO_INCREMENT NOT NULL,
+	`team_id` int NOT NULL,
+	`name` varchar(128) NOT NULL,
+	`description` varchar(512),
+	`created_by` int NOT NULL,
+	`created_at` varchar(32) NOT NULL,
+	`updated_at` varchar(32) NOT NULL,
+	CONSTRAINT `projects_id` PRIMARY KEY(`id`),
+	CONSTRAINT `uk_projects_team_name` UNIQUE(`team_id`,`name`)
+);
+--> statement-breakpoint
+CREATE TABLE `team_members` (
+	`id` int AUTO_INCREMENT NOT NULL,
+	`team_id` int NOT NULL,
+	`user_id` int NOT NULL,
+	`role` varchar(16) NOT NULL DEFAULT 'editor',
+	`created_at` varchar(32) NOT NULL,
+	CONSTRAINT `team_members_id` PRIMARY KEY(`id`),
+	CONSTRAINT `uk_team_members_team_user` UNIQUE(`team_id`,`user_id`)
+);
+--> statement-breakpoint
+CREATE TABLE `teams` (
+	`id` int AUTO_INCREMENT NOT NULL,
+	`name` varchar(128) NOT NULL,
+	`description` varchar(512),
+	`created_by` int NOT NULL,
+	`created_at` varchar(32) NOT NULL,
+	`updated_at` varchar(32) NOT NULL,
+	CONSTRAINT `teams_id` PRIMARY KEY(`id`),
+	CONSTRAINT `uk_teams_name` UNIQUE(`name`)
+);
+--> statement-breakpoint
+CREATE TABLE `presence` (
+	`id` int AUTO_INCREMENT NOT NULL,
+	`resource_type` varchar(64) NOT NULL,
+	`resource_id` int NOT NULL,
+	`team_id` int NOT NULL,
+	`user_id` int NOT NULL,
+	`nickname` varchar(128),
+	`last_seen_at` varchar(32) NOT NULL,
+	CONSTRAINT `presence_id` PRIMARY KEY(`id`),
+	CONSTRAINT `uk_presence_resource_user` UNIQUE(`resource_type`,`resource_id`,`user_id`)
+);
+--> statement-breakpoint
+CREATE TABLE `resource_versions` (
+	`id` int AUTO_INCREMENT NOT NULL,
+	`resource_type` varchar(64) NOT NULL,
+	`resource_id` int NOT NULL,
+	`team_id` int NOT NULL,
+	`project_id` int,
+	`version` int NOT NULL,
+	`snapshot` mediumtext NOT NULL,
+	`content_hash` varchar(64) NOT NULL,
+	`change_summary` varchar(512),
+	`origin` varchar(128),
+	`changed_by` int NOT NULL,
+	`created_at` varchar(32) NOT NULL,
+	CONSTRAINT `resource_versions_id` PRIMARY KEY(`id`),
+	CONSTRAINT `uk_resource_versions_rid` UNIQUE(`resource_type`,`resource_id`,`version`)
+);
+--> statement-breakpoint
 CREATE TABLE `t_apis` (
 	`id` int AUTO_INCREMENT NOT NULL,
 	`team_id` int NOT NULL,
@@ -59,7 +136,7 @@ CREATE TABLE `t_case_sets_mobile` (
 	`version` int NOT NULL DEFAULT 1,
 	`name` varchar(255) NOT NULL,
 	`description` text,
-	`test_case_ids` text NOT NULL DEFAULT ('[]'),
+	`test_case_ids` text NOT NULL,
 	`tags` text,
 	`status` varchar(32) NOT NULL DEFAULT 'active',
 	`created_at` varchar(32) NOT NULL,
@@ -75,7 +152,7 @@ CREATE TABLE `t_case_sets_pc` (
 	`version` int NOT NULL DEFAULT 1,
 	`name` varchar(255) NOT NULL,
 	`description` text,
-	`test_case_ids` text NOT NULL DEFAULT ('[]'),
+	`test_case_ids` text NOT NULL,
 	`tags` text,
 	`status` varchar(32) NOT NULL DEFAULT 'active',
 	`created_at` varchar(32) NOT NULL,
@@ -91,7 +168,7 @@ CREATE TABLE `t_case_sets_web` (
 	`version` int NOT NULL DEFAULT 1,
 	`name` varchar(255) NOT NULL,
 	`description` text,
-	`test_case_ids` text NOT NULL DEFAULT ('[]'),
+	`test_case_ids` text NOT NULL,
 	`tags` text,
 	`status` varchar(32) NOT NULL DEFAULT 'active',
 	`created_at` varchar(32) NOT NULL,
@@ -112,7 +189,7 @@ CREATE TABLE `t_devices` (
 	`host` varchar(512),
 	`status` varchar(16) NOT NULL DEFAULT 'unknown',
 	`last_heartbeat` varchar(32),
-	`metadata` text DEFAULT ('{}'),
+	`metadata` text,
 	`agent_token` varchar(128),
 	`agent_endpoint` varchar(512),
 	`agent_version` varchar(64),
@@ -143,10 +220,10 @@ CREATE TABLE `t_environments` (
 	`owner_id` int NOT NULL,
 	`version` int NOT NULL DEFAULT 1,
 	`name` varchar(255) NOT NULL,
-	`variables` text NOT NULL DEFAULT ('[]'),
+	`variables` text NOT NULL,
 	`ssl_cert` text,
 	`ssl_key` text,
-	`ssl_certs` text NOT NULL DEFAULT ('[]'),
+	`ssl_certs` text NOT NULL,
 	`timeout` int DEFAULT 30000,
 	`sort_order` int DEFAULT 0,
 	`is_default` int DEFAULT 0,
@@ -198,10 +275,10 @@ CREATE TABLE `t_mocks_api` (
 	`tags` text,
 	`status` varchar(32),
 	`response_status` int DEFAULT 200,
-	`response_headers` text DEFAULT ('{"Content-Type":"application/json"}'),
-	`response_body` mediumtext DEFAULT '{}',
+	`response_headers` text,
+	`response_body` mediumtext,
 	`response_delay_ms` int DEFAULT 0,
-	`conditions` text DEFAULT ('[]'),
+	`conditions` text,
 	`match_mode` varchar(16) NOT NULL DEFAULT 'exact',
 	`enabled` int NOT NULL DEFAULT 1,
 	`hit_count` int NOT NULL DEFAULT 0,
@@ -224,10 +301,10 @@ CREATE TABLE `t_mocks_mobile` (
 	`tags` text,
 	`status` varchar(32),
 	`response_status` int DEFAULT 200,
-	`response_headers` text DEFAULT ('{"Content-Type":"application/json"}'),
-	`response_body` mediumtext DEFAULT '{}',
+	`response_headers` text,
+	`response_body` mediumtext,
 	`response_delay_ms` int DEFAULT 0,
-	`conditions` text DEFAULT ('[]'),
+	`conditions` text,
 	`match_mode` varchar(16) NOT NULL DEFAULT 'exact',
 	`enabled` int NOT NULL DEFAULT 1,
 	`hit_count` int NOT NULL DEFAULT 0,
@@ -250,10 +327,10 @@ CREATE TABLE `t_mocks_pc` (
 	`tags` text,
 	`status` varchar(32),
 	`response_status` int DEFAULT 200,
-	`response_headers` text DEFAULT ('{"Content-Type":"application/json"}'),
-	`response_body` mediumtext DEFAULT '{}',
+	`response_headers` text,
+	`response_body` mediumtext,
 	`response_delay_ms` int DEFAULT 0,
-	`conditions` text DEFAULT ('[]'),
+	`conditions` text,
 	`match_mode` varchar(16) NOT NULL DEFAULT 'exact',
 	`enabled` int NOT NULL DEFAULT 1,
 	`hit_count` int NOT NULL DEFAULT 0,
@@ -276,10 +353,10 @@ CREATE TABLE `t_mocks_web` (
 	`tags` text,
 	`status` varchar(32),
 	`response_status` int DEFAULT 200,
-	`response_headers` text DEFAULT ('{"Content-Type":"application/json"}'),
-	`response_body` mediumtext DEFAULT '{}',
+	`response_headers` text,
+	`response_body` mediumtext,
 	`response_delay_ms` int DEFAULT 0,
-	`conditions` text DEFAULT ('[]'),
+	`conditions` text,
 	`match_mode` varchar(16) NOT NULL DEFAULT 'exact',
 	`enabled` int NOT NULL DEFAULT 1,
 	`hit_count` int NOT NULL DEFAULT 0,
@@ -296,7 +373,7 @@ CREATE TABLE `t_notify_channels` (
 	`type` varchar(32) NOT NULL,
 	`webhook_url` text NOT NULL,
 	`secret` text,
-	`events` text NOT NULL DEFAULT ('["resource.update","resource.delete"]'),
+	`events` text NOT NULL,
 	`enabled` int NOT NULL DEFAULT 1,
 	`created_by` int NOT NULL,
 	`created_at` varchar(32) NOT NULL,
@@ -371,7 +448,7 @@ CREATE TABLE `t_scenario_sets` (
 	`version` int NOT NULL DEFAULT 1,
 	`name` varchar(255) NOT NULL,
 	`description` text,
-	`scenario_ids` text NOT NULL DEFAULT ('[]'),
+	`scenario_ids` text NOT NULL,
 	`created_at` varchar(32) NOT NULL,
 	`updated_at` varchar(32) NOT NULL,
 	CONSTRAINT `t_scenario_sets_id` PRIMARY KEY(`id`)
@@ -501,6 +578,11 @@ CREATE TABLE `t_web_cases` (
 	CONSTRAINT `t_web_cases_id` PRIMARY KEY(`id`)
 );
 --> statement-breakpoint
+CREATE INDEX `idx_projects_team` ON `projects` (`team_id`);--> statement-breakpoint
+CREATE INDEX `idx_team_members_user` ON `team_members` (`user_id`);--> statement-breakpoint
+CREATE INDEX `idx_presence_resource` ON `presence` (`resource_type`,`resource_id`);--> statement-breakpoint
+CREATE INDEX `idx_resource_versions_team_project` ON `resource_versions` (`team_id`,`project_id`);--> statement-breakpoint
+CREATE INDEX `idx_resource_versions_changed_by` ON `resource_versions` (`changed_by`);--> statement-breakpoint
 CREATE INDEX `idx_t_apis_scope` ON `t_apis` (`team_id`,`project_id`);--> statement-breakpoint
 CREATE INDEX `idx_t_audit_team` ON `t_audit_logs` (`team_id`,`project_id`);--> statement-breakpoint
 CREATE INDEX `idx_t_audit_resource` ON `t_audit_logs` (`resource_type`,`resource_id`);--> statement-breakpoint
@@ -521,7 +603,7 @@ CREATE INDEX `idx_t_scenario_edges_sid` ON `t_scenario_edges` (`scenario_id`);--
 CREATE INDEX `idx_t_scenario_nodes_sid` ON `t_scenario_nodes` (`scenario_id`);--> statement-breakpoint
 CREATE INDEX `idx_t_scenario_sets_scope` ON `t_scenario_sets` (`team_id`,`project_id`);--> statement-breakpoint
 CREATE INDEX `idx_t_scenarios_scope` ON `t_scenarios` (`team_id`,`project_id`);--> statement-breakpoint
-CREATE INDEX `idx_t_sched_api` ON `t_schedule_sets_api` (`team_id`,`project_id`,`scenario_set_id`);--> statement-breakpoint
+CREATE INDEX `idx_t_schedule_sets_api_scope` ON `t_schedule_sets_api` (`team_id`,`project_id`);--> statement-breakpoint
 CREATE INDEX `idx_t_schedule_sets_mobile_scope` ON `t_schedule_sets_mobile` (`team_id`,`project_id`);--> statement-breakpoint
 CREATE INDEX `idx_t_schedule_sets_pc_scope` ON `t_schedule_sets_pc` (`team_id`,`project_id`);--> statement-breakpoint
 CREATE INDEX `idx_t_schedule_sets_web_scope` ON `t_schedule_sets_web` (`team_id`,`project_id`);--> statement-breakpoint

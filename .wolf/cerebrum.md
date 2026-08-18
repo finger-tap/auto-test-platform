@@ -328,3 +328,13 @@
 - **团队路由挂载顺序**: routes/index.ts 中 /team/ping 恒挂(免 DB 免认证)→ teamDbGuard(503) → teamAuthRoutes → teamOrgRoutes。guard 在 auth 之前,DB 未配置时所有 /team/* 返回 503 而非 401。
 - **团队双 token 设计**: 本地 token(key:token) 与中心 token(key:teamAuth:<centerUrl>) 独立存储;apiFetchJSON 的 resolveTarget() 按 workspace 分流;team 401 绝不误清本地 token。
 - **计划持久化**: docs/TEAM_COLLABORATION_PLAN.md 是团队功能唯一任务清单,中断恢复从"进度快照"读起。
+
+## Key Learnings (2026-07-02 团队协作 Phase 2/3/4)
+- **团队资源调度器模式**: 单个 express middleware 挂在所有本地业务路由之前,按"团队 JWT + X-Team-Id/X-Project-Id 头"分流到中心库(Drizzle),否则 next() 穿透本地 SQLite。**业务表列属性必须 snake_case 且与本地 SQLite 列名一致**(Drizzle select 返回行形状=本地行形状) → 现有前端页面零改动即可双模式。这是"不改 40 个页面前提下接远程库"的最省路径。
+- **drizzle-orm 的 getTableColumns 从 'drizzle-orm' 导出**,不在 'drizzle-orm/mysql-core'(0.45.x)。mysql-core 只导出表构建器。
+- **进程内乐观锁 LRU**: dispatcher 在 GET /:id 时记 (userId:type:id)→version,PUT 时与库中 version 不符 → 409+当前行。Map 超 8000 条删前一半(插入序)。多实例场景靠 PUT body version 兜底。
+- **409 冲突全局横幅**: apiFetch 检测 409+data.conflict 时 res.clone().json() 读 body 再 dispatchEvent('team-conflict')。clone 是关键——body 只能读一次。
+- **导入 ID 重映射**: 拓扑序(environments→cases→scenarios→sets)+ remapIdList(JSON 数组改写)+ remapConfigRefs(深度遍历 node config 的 apiId/caseId 字段)。场景的 nodes/edges 作为 __nodes/__edges 私有字段搭主行传输。
+- **覆盖导入前先备份**: overwrite 策略先把团队当前版写进 resource_versions(origin=import-backup)再覆盖——任何路径都不丢历史。
+- **前端 LOCAL_ONLY 白名单**: /auth/* /midscene-config /web-browser-config /user-preferences /export-package 永远打本地(身份是本机概念);AuthContext 全换 apiFetchLocal。否则团队模式下刷新页面会把 /auth/me 发到中心→401→误登出。
+- **TiDB 本地验证**: scripts/team-verify-db.sh 一键全链路(建库迁移→注册→组织→CRUD→409→回滚→审计→权限)。DB_URL=mysql://root@127.0.0.1:4000/autotest_team。

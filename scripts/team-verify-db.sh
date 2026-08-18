@@ -27,7 +27,15 @@ step "1/4 启动 server(自动建库+迁移)"
 PORT=$PORT npx tsx src/server/index.ts > /tmp/team-verify.log 2>&1 &
 SRV=$!
 trap 'kill $SRV 2>/dev/null || true' EXIT
-sleep 10
+
+# Wait for teamReady (migrations on a fresh TiDB playground take a while).
+READY=""
+for i in $(seq 1 60); do
+  sleep 2
+  P=$(curl -s --max-time 3 "$BASE/team/ping" 2>/dev/null || true)
+  if echo "$P" | grep -q '"teamReady":true'; then READY=1; break; fi
+done
+[ -n "$READY" ] || { echo "  migrations never became ready — log tail:"; tail -20 /tmp/team-verify.log; exit 1; }
 
 PING=$(curl -s --max-time 5 "$BASE/team/ping")
 echo "  ping: $PING"
