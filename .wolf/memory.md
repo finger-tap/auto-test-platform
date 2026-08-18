@@ -4129,3 +4129,4 @@ Task #122 (SSE 401) 和 Task #124 (scrcpy H.264) 主体代码已合,这一 sessi
 | 21:47 | 协作设计拍板:TiDB+Drizzle+直连远程库+细粒度导入含依赖解析 | .wolf/cerebrum.md | ok | ~0 |
 | 22:45 | 团队协作 Phase 0+1 完成：db-team(Drizzle/TiDB)+org/auth 路由+前端 Workspace 全套+team-smoke 5/5 | docs/TEAM_COLLABORATION_PLAN.md 等 ~20 文件 | ok | ~0 |
 | 24:35 | Phase 2/3/4 全量完成: dispatcher 18 资源+导入导出+治理; tsc 双0错+smoke 8/8; 等用户装 TiDB | ~30 文件 | ok | ~0 |
+| 25:10 | TiDB 真库全链路验证 14/14 通过;修复 TEXT 默认值兼容;dev.mjs 支持 .env;已提交 | .env, scripts/dev.mjs, schema/business.ts | ok | ~0 |

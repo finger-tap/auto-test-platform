@@ -10,13 +10,12 @@
 
 | 项 | 值 |
 | --- | --- |
-| 更新时间 | 2026-07-02 24:30 |
-| 当前阶段 | **Phase 0-4 代码全部完成；等待本地 TiDB 做真库验证** |
-| 活跃任务 | 无（等用户装 TiDB） |
-| 下一步 | ① 用户跑 tiup 装 TiDB（命令见下）② `DB_URL=mysql://root@127.0.0.1:4000/autotest_team npm run team:verify-db` 全链路验证 ③ 浏览器 UI 走查（连接团队→建团队/项目→导入）④ 修问题 ⑤ Phase 5 部署文档 |
-| 阻塞项 | TiDB 未装（tiup 命令已给用户） |
-| 验收状态 | server tsc 0 错 + client tsc 0 错 + vite build ✓ + team-smoke 8/8 ✓ + 完整服务启动冒烟 ✓（health/ping/export-auth 全对） |
-| TiDB 安装命令 | `curl --proto '=https' --tlsv1.2 -sSL https://tiup-mirrors.pingcap.com/install.sh \| sh` → `source ~/.zshrc` → `tiup playground v8.5.2 --db 1 --kv 1 --pd 1 --without-monitor --host 127.0.0.1` |
+| 更新时间 | 2026-07-02 25:10 |
+| 当前阶段 | **全部完成，TiDB 真库验证通过（14/14）** |
+| 活跃任务 | 无 |
+| 下一步 | ① 浏览器 UI 走查（npm run dev → 连接团队 http://localhost:3000 → 建团队/项目 → 导入本机资源）② 反馈问题修复 ③ Phase 5（中心执行器/部署文档）按需启动 |
+| 阻塞项 | 无（TiDB 固定 127.0.0.1:4000，.env 已配 DB_URL） |
+| 验收状态 | server/client tsc 双 0 错 + vite build ✓ + team-smoke 8/8 + **TiDB 真库全链路 14/14**（建库迁移/注册登录/团队项目/CRUD/乐观锁 409/版本快照/回滚/审计/权限隔离） |
 
 ---
 
