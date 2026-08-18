@@ -8,6 +8,8 @@ import type { TeamSummary, ProjectInfo } from '../types/team';
 import { TEAM_ROLE_LABELS } from '../types/team';
 import ConnectTeamModal from './ConnectTeamModal';
 import TeamOrgModal from './TeamOrgModal';
+import TeamManageModal from './TeamManageModal';
+import ImportToTeamModal from './ImportToTeamModal';
 import './WorkspaceSwitcher.css';
 
 /**
@@ -41,6 +43,8 @@ export default function WorkspaceSwitcher() {
     workspace.mode === 'team' ? workspace.teamId : null,
   );
   const [showConnect, setShowConnect] = useState(false);
+  const [showManage, setShowManage] = useState(false);
+  const [showImport, setShowImport] = useState(false);
   const [orgModal, setOrgModal] = useState<null | { mode: 'create-team' } | { mode: 'create-project'; teamId: number }>(null);
 
   const rootRef = useRef<HTMLDivElement>(null);
@@ -230,6 +234,16 @@ export default function WorkspaceSwitcher() {
               ＋ 新建团队
             </button>
           )}
+          {isTeamMode && workspace.projectId && (
+            <button className="ws-item ws-action" onClick={() => { setOpen(false); setShowImport(true); }}>
+              ⬆ 导入本机资源到当前项目…
+            </button>
+          )}
+          {isTeamMode && (
+            <button className="ws-item ws-action" onClick={() => { setOpen(false); setShowManage(true); }}>
+              ⚙ 团队管理（成员 / 通知 / 审计）
+            </button>
+          )}
           <button className="ws-item ws-action" onClick={() => { setOpen(false); setShowConnect(true); }}>
             🔗 连接团队服务…
           </button>
@@ -255,6 +269,9 @@ export default function WorkspaceSwitcher() {
           onSubmit={orgModal.mode === 'create-team' ? createTeam : createProject}
         />
       )}
+
+      {showManage && <TeamManageModal onClose={() => setShowManage(false)} />}
+      {showImport && <ImportToTeamModal onClose={() => { setShowImport(false); }} />}
     </div>
   );
 }

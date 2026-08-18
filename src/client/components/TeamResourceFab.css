@@ -1,0 +1,128 @@
+/* TeamResourceFab — route-aware floating tool (presence + versions). */
+
+.trfab {
+  position: fixed;
+  right: 20px;
+  bottom: 24px;
+  z-index: 11000;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+}
+.trfab-dock {
+  display: flex;
+  gap: 8px;
+}
+.trfab-btn {
+  height: 40px;
+  min-width: 40px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--fg);
+  font-size: 15px;
+  cursor: pointer;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14);
+  transition: border-color 0.15s, transform 0.15s;
+}
+.trfab-btn:hover {
+  border-color: var(--accent);
+  transform: translateY(-1px);
+}
+.trfab-presence {
+  border-color: var(--success);
+}
+
+.trfab-panel {
+  width: 340px;
+  max-height: 380px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.18);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: trfabIn 0.15s ease;
+}
+@keyframes trfabIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.trfab-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 8px 0 12px;
+  border-bottom: 1px solid var(--border);
+}
+.trfab-tabs {
+  display: flex;
+}
+.trfab-tab {
+  padding: 8px 10px;
+  border: none;
+  background: none;
+  font-size: 12.5px;
+  color: var(--fg-secondary);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+}
+.trfab-tab.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+  font-weight: 500;
+}
+.trfab-panel-body {
+  overflow-y: auto;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.trfab-empty {
+  font-size: 12px;
+  color: var(--fg-tertiary);
+  padding: 12px 4px;
+  text-align: center;
+}
+.trfab-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+  font-size: 12.5px;
+  color: var(--fg);
+}
+.trfab-row:hover {
+  background: var(--surface-raised);
+}
+.trfab-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--success);
+  flex: none;
+}
+.trfab-ver {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--accent);
+  flex: none;
+  min-width: 34px;
+}
+.trfab-summary {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.trfab-hint {
+  font-size: 11px;
+  color: var(--fg-tertiary);
+  flex: none;
+}

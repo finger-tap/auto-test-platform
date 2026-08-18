@@ -5,15 +5,39 @@ import { getTeamAuth } from './teamAuth';
 const API_BASE = '/api';
 
 /**
+ * Endpoints that must ALWAYS hit the LOCAL instance with the LOCAL token,
+ * regardless of workspace: identity management (the local account is who
+ * you are on this machine), per-user local prefs/model/browser configs,
+ * avatar serving. Prevents a persisted team workspace from breaking login.
+ */
+const LOCAL_ONLY_PREFIXES = [
+  '/auth/',
+  '/midscene-config',
+  '/web-browser-config',
+  '/user-preferences',
+  '/export-package',
+];
+
+function isLocalOnly(path: string): boolean {
+  return LOCAL_ONLY_PREFIXES.some((p) => path === p.slice(0, -1) || path.startsWith(p));
+}
+
+/**
  * Where should this request go + which token to attach?
- * team workspace → center server absolute URL + center token.
+ * team workspace → center server absolute URL + center token + team ctx headers.
  * local workspace → same-origin relative URL + local token (existing behavior).
  */
-function resolveTarget(): { base: string; token: string | null; team: boolean } {
+function resolveTarget(path: string): { base: string; token: string | null; team: boolean; teamId?: number; projectId?: number } {
   const ws = readWorkspace();
-  if (ws.mode === 'team') {
+  if (ws.mode === 'team' && !isLocalOnly(path)) {
     const auth = getTeamAuth(ws.centerUrl);
-    return { base: `${ws.centerUrl.replace(/\/+$/, '')}/api`, token: auth?.token ?? null, team: true };
+    return {
+      base: `${ws.centerUrl.replace(/\/+$/, '')}/api`,
+      token: auth?.token ?? null,
+      team: true,
+      teamId: ws.teamId,
+      projectId: ws.projectId ?? undefined,
+    };
   }
   return { base: API_BASE, token: getToken(), team: false };
 }
@@ -56,13 +80,18 @@ export async function apiFetchJSON<T>(
   path: string,
   options: RequestInit = {},
 ): Promise<ApiResponse<T>> {
-  const target = resolveTarget();
+  const target = resolveTarget(path);
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     ...(options.headers as Record<string, string>),
   };
   if (target.token) {
     headers['Authorization'] = `Bearer ${target.token}`;
+  }
+  // Team context for the center resource dispatcher.
+  if (target.team) {
+    if (target.teamId) headers['X-Team-Id'] = String(target.teamId);
+    if (target.projectId) headers['X-Project-Id'] = String(target.projectId);
   }
 
   const res = await fetch(`${target.base}${path}`, { ...options, headers });
@@ -80,6 +109,20 @@ export async function apiFetchJSON<T>(
     // Router, avoiding the infinite reload loop caused by
     // window.location.href on a page that itself triggers API calls).
     return Promise.reject(new Error('登录已过期，请重新登录'));
+  }
+  if (res.status === 409) {
+    // Optimistic-lock conflict — broadcast so the global conflict banner can
+    // offer "load latest". Body still flows to the caller for inline handling.
+    const body = (await res.clone().json().catch(() => null)) as ApiResponse<T> & {
+      data?: { conflict?: boolean; currentVersion?: number };
+    } | null;
+    if (body?.data?.conflict) {
+      window.dispatchEvent(
+        new CustomEvent('team-conflict', { detail: { message: body.message || '资源已被他人修改' } }),
+      );
+    }
+    if (!body) throw new Error('服务器响应异常');
+    return body;
   }
 
   const body = await res.json().catch(() => null) as ApiResponse<T> | null;
@@ -99,12 +142,39 @@ export async function apiFetchBlob(
   path: string,
   options: RequestInit = {},
 ): Promise<Response> {
-  const target = resolveTarget();
+  const target = resolveTarget(path);
   const headers: Record<string, string> = {};
   if (target.token) {
     headers['Authorization'] = `Bearer ${target.token}`;
   }
+  if (target.team) {
+    if (target.teamId) headers['X-Team-Id'] = String(target.teamId);
+    if (target.projectId) headers['X-Project-Id'] = String(target.projectId);
+  }
   return fetch(`${target.base}${path}`, { ...options, headers });
+}
+
+/** Always-local request — identity endpoints etc., never rerouted to center. */
+export async function apiFetchLocal<T>(
+  path: string,
+  options: RequestInit = {},
+): Promise<ApiResponse<T>> {
+  const token = getToken();
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...(options.headers as Record<string, string>),
+  };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+  const res = await fetch(`${API_BASE}${path}`, { ...options, headers });
+  if (res.status === 401) {
+    removeToken();
+    removeUserInfo();
+    return Promise.reject(new Error('登录已过期，请重新登录'));
+  }
+  const body = await res.json().catch(() => null) as ApiResponse<T> | null;
+  if (!body) throw new Error('服务器响应异常');
+  if (!res.ok) throw new Error(body.message || `请求失败 (${res.status})`);
+  return body;
 }
 
 /** Legacy alias — now delegates to apiFetchJSON for backwards compat */

@@ -1,0 +1,81 @@
+/* TeamManageModal */
+
+.tmm-modal {
+  min-width: 640px;
+}
+.tmm-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 0 24px;
+  border-bottom: 1px solid var(--border);
+}
+.tmm-tab {
+  padding: 10px 14px;
+  border: none;
+  background: none;
+  font-size: 13px;
+  color: var(--fg-secondary);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+}
+.tmm-tab:hover { color: var(--fg); }
+.tmm-tab.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+  font-weight: 500;
+}
+.tmm-body {
+  max-height: 60vh;
+  overflow-y: auto;
+}
+.tmm-add-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.tmm-add-row .form-input { flex: 1; }
+.tmm-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.tmm-table th {
+  text-align: left;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--fg-tertiary);
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+}
+.tmm-table td {
+  padding: 8px;
+  border-bottom: 1px solid var(--border-subtle, var(--border));
+  vertical-align: middle;
+}
+.tmm-muted { color: var(--fg-tertiary); }
+.tmm-ellipsis {
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tmm-role {
+  font-size: 12px;
+  color: var(--fg-secondary);
+}
+.tmm-empty {
+  padding: 28px 12px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--fg-tertiary);
+}
+.tmm-action {
+  font-size: 12px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--surface-raised);
+}
+.tmm-action-delete { color: var(--danger); }
+.tmm-action-create { color: var(--success); }
+.tmm-action-import, .tmm-action-rollback { color: var(--accent); }

@@ -29,9 +29,20 @@ import { dashboardRoutes } from './dashboard.js';
 import { prefRoutes } from './user-preferences.js';
 import { teamPingHandler, teamAuthRoutes } from './team-auth.js';
 import { teamOrgRoutes } from './team-org.js';
+import { teamResourceDispatcher } from './team-resources.js';
+import { teamExtrasRoutes } from './team-extras.js';
+import { exportPackageRoutes } from './export-package.js';
 import { isTeamDbEnabled, isTeamReady } from '../db-team/client.js';
 
 export const routes = Router();
+
+// ── Team business-resource dispatcher ─────────────────────────────────
+// Runs FIRST: when the request carries a valid TEAM token + X-Team-Id /
+// X-Project-Id headers (team workspace mode), business CRUD (apis,
+// web-cases, ...) is served from the center DB and never reaches the local
+// SQLite routes below. Everything else (local JWT, /auth, /team/*) falls
+// through untouched.
+routes.use(teamResourceDispatcher);
 
 routes.get('/health', (_req: Request, res: Response) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
@@ -118,6 +129,10 @@ routes.use('/team', function teamDbGuard(_req, res, next) {
 });
 routes.use('/team/auth', teamAuthRoutes);
 routes.use('/team', teamOrgRoutes);
+routes.use('/team', teamExtrasRoutes);
+
+// Local-instance export (reads SQLite; used by the import-to-team wizard)
+routes.use('/export-package', exportPackageRoutes);
 // 调度 — 按测试类型拆 4 张表
 // (api 用 scenario_set_id 列指向 scenario_sets.id;web/pc/mobile 用 case_set_id 列指向各自 case_sets_*.id)
 routes.use('/schedule-sets-api', scheduleSetApiRoutes);

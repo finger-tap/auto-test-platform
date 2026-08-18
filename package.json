@@ -20,7 +20,8 @@
     "postinstall": "node scripts/install-playwright-drivers.mjs",
     "db:generate": "drizzle-kit generate",
     "db:studio": "drizzle-kit studio",
-    "team:smoke": "tsx scripts/team-smoke.ts"
+    "team:smoke": "tsx scripts/team-smoke.ts",
+    "team:verify-db": "bash scripts/team-verify-db.sh"
   },
   "engines": {
     "node": ">=18.0.0"

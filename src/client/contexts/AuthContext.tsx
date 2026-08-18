@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
-import { apiFetch, getToken, setToken, removeToken, getUserInfo, setUserInfo, removeUserInfo } from '../utils/api';
+import { apiFetchLocal, getToken, setToken, removeToken, getUserInfo, setUserInfo, removeUserInfo } from '../utils/api';
 import type { UserInfo, LoginResponse } from '../types';
 
 interface AuthContextType {
@@ -31,7 +31,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(false);
       return;
     }
-    apiFetch<UserInfo>('/auth/me')
+    apiFetchLocal<UserInfo>('/auth/me')
       .then((res) => {
         const r = res as { code?: number; data?: UserInfo };
         if (r.code === 200 && r.data) {
@@ -52,7 +52,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = async (account: string, password: string) => {
-    const res = await apiFetch<LoginResponse>('/auth/login', {
+    const res = await apiFetchLocal<LoginResponse>('/auth/login', {
       method: 'POST',
       body: JSON.stringify({ account, password }),
     }) as { code: number; message?: string; data?: LoginResponse };
@@ -80,7 +80,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const data = await res.json() as { code: number; message?: string };
       if (data.code !== 201) throw new Error(data.message);
     } else {
-      const res = await apiFetch<{ userId: number }>('/auth/register', {
+      const res = await apiFetchLocal<{ userId: number }>('/auth/register', {
         method: 'POST',
         body: JSON.stringify({ account, password, nickname }),
       }) as { code: number; message?: string; data?: { userId: number } };
@@ -89,7 +89,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const guestLogin = async () => {
-    const res = await apiFetch<LoginResponse>('/auth/guest', {
+    const res = await apiFetchLocal<LoginResponse>('/auth/guest', {
       method: 'POST',
     }) as { code: number; message?: string; data?: LoginResponse };
     if (res.code !== 200) throw new Error(res.message);
@@ -112,7 +112,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const changePassword = async (oldPassword: string, newPassword: string) => {
-    const res = await apiFetch('/auth/change-password', {
+    const res = await apiFetchLocal('/auth/change-password', {
       method: 'POST',
       body: JSON.stringify({ oldPassword, newPassword }),
     }) as { code: number; message?: string };
@@ -120,7 +120,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const resetPassword = async (oldPassword: string, newPassword: string) => {
-    const res = await apiFetch('/auth/reset-password', {
+    const res = await apiFetchLocal('/auth/reset-password', {
       method: 'POST',
       body: JSON.stringify({ oldPassword, newPassword }),
     }) as { code: number; message?: string };

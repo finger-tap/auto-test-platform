@@ -2,6 +2,8 @@ import { useEffect, useState, useRef } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useEnvironment } from '../contexts/EnvironmentContext';
 import SysHeader from './SysHeader';
+import TeamConflictBanner from './TeamConflictBanner';
+import TeamResourceFab from './TeamResourceFab';
 import './Layout.css';
 
 // SVG icons for nav items
@@ -231,6 +233,8 @@ export default function Layout() {
         <div className="sys-content">
           <Outlet />
         </div>
+        <TeamConflictBanner />
+        <TeamResourceFab />
         <div className="sys-footer">
           <span className="sys-footer-name">OpenAutoTest</span>
           <span className="sys-footer-sep">·</span>
