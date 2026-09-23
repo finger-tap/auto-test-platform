@@ -317,6 +317,7 @@ async function runExecute(
     report_path: result.report_path || null,
     report_type: result.report_path ? 'midscene-html' : null,
     error_message: result.error_message || null,
+    error_stack: result.error_stack || null,
   });
   // finish 后清(让其他用户看到设备变 idle)
   invalidateAllMergedCache();

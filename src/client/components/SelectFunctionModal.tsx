@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import './SelectFunctionModal.css';
+import { useModalKeyboard } from '../hooks/useModalKeyboard';
 
 interface FunctionInfo {
   name: string;
@@ -86,6 +87,8 @@ interface SelectFunctionModalProps {
 }
 
 export default function SelectFunctionModal({ open, onClose, onInsert }: SelectFunctionModalProps) {
+  // Esc 关闭统一 (2026-08-27)
+  useModalKeyboard(open, onClose);
   const [search, setSearch] = useState('');
   const [activeGroup, setActiveGroup] = useState(FUNCTION_GROUPS[0].group);
 

@@ -276,13 +276,17 @@ export async function runCaseSet(
 
     // Create the per-case execution row (so the report / error can be associated
     // with a single case_execution_id, just like running a case standalone).
-    const caseExecId = dispatcher.createCaseExecution(caseId, set.user_id, {
-      started_at: new Date().toISOString(),
-      executed_by: executedBy,
-      device_id: deviceId ?? null,
-    });
-
+    // 2026-08-25: 移入 try 块 — 绑定设备的用例撞 partial UNIQUE INDEX(设备已有
+    // running 执行, 如上次服务重启的残留行)时, 此前异常直接冲出 runCaseSet,
+    // 整个 set execution 卡在 running。
+    let caseExecIdRef: number | null = null;
     try {
+      const caseExecId = dispatcher.createCaseExecution(caseId, set.user_id, {
+        started_at: new Date().toISOString(),
+        executed_by: executedBy,
+        device_id: deviceId ?? null,
+      });
+      caseExecIdRef = caseExecId;
       // Re-fetch the full case row for the executor (the dispatcher.findCase
       // only returned id+name; the executors need the full row).
       let fullTestCase: unknown = null;
@@ -339,7 +343,11 @@ export async function runCaseSet(
         `[case-set-executor] setId=${setId} caseId=${caseId} end status=${caseStatus} duration=${result.duration_ms ?? caseDuration}ms`
       );
     } catch (err) {
-      const errMsg = err instanceof Error ? err.message : 'Unknown error';
+      const rawErrMsg = err instanceof Error ? err.message : 'Unknown error';
+      // 设备 busy 撞 UNIQUE INDEX 时给出可读信息(而不是裸 SQL 错误)
+      const errMsg = rawErrMsg.includes('UNIQUE constraint failed')
+        ? '设备已有正在执行的用例（设备忙），本次跳过'
+        : rawErrMsg;
       const caseEndMs = Date.now();
       const caseDuration = caseEndMs - caseStartMs;
       totalDuration += caseDuration;
@@ -347,24 +355,26 @@ export async function runCaseSet(
       console.error(`[case-set-executor] setId=${setId} caseId=${caseId} ERROR duration=${caseDuration}ms err="${errMsg}"`);
 
       // Best-effort: close the per-case execution row so it doesn't sit at 'running' forever.
-      try {
-        dispatcher.finishCaseExecution(caseExecId, {
-          status: 'error',
-          finished_at: new Date().toISOString(),
-          duration_ms: caseDuration,
-          report_path: null,
-          report_type: null,
-          error_message: errMsg,
-        });
-      } catch (closeErr) {
-        console.error(`[case-set-executor] setId=${setId} caseId=${caseId} finishCaseExecution threw: ${closeErr instanceof Error ? closeErr.message : String(closeErr)}`);
+      if (caseExecIdRef !== null) {
+        try {
+          dispatcher.finishCaseExecution(caseExecIdRef, {
+            status: 'error',
+            finished_at: new Date().toISOString(),
+            duration_ms: caseDuration,
+            report_path: null,
+            report_type: null,
+            error_message: errMsg,
+          });
+        } catch (closeErr) {
+          console.error(`[case-set-executor] setId=${setId} caseId=${caseId} finishCaseExecution threw: ${closeErr instanceof Error ? closeErr.message : String(closeErr)}`);
+        }
       }
 
       dispatcher.updateSetItem(itemId, {
         status: 'failed',
         duration_ms: caseDuration,
         error_message: errMsg,
-        case_execution_id: caseExecId,
+        case_execution_id: caseExecIdRef,
         report_path: null,
         finished_at: new Date().toISOString(),
       });

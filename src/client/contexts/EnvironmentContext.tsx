@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef, type ReactNode } from 'react';
-import { apiFetch, getToken } from '../utils/api';
+import { apiFetch, getToken, is2xx } from '../utils/api';
 import type { Environment, EnvVariable } from '../types';
 
 interface EnvironmentContextValue {
@@ -51,7 +51,7 @@ export function EnvironmentProvider({ children }: { children: ReactNode }) {
     const tt = testType || testTypeRef.current;
     apiFetch<Environment[]>('/environments').then(res => {
       const r = res as { code?: number; data?: Environment[] };
-      if (r.code !== 200) return;
+      if (!is2xx(r.code)) return;
       const envs = (r.data || []).map(parseEnv);
       setEnvironments(envs);
 

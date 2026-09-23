@@ -112,11 +112,12 @@ function gcExpired(): void {
     console.log(`[preview:proxy] 30min hard GC local scrcpy serial=${s}`);
     void forceCloseSharedLocalScrcpy(s);
   }
-  // 2. SSE 截图 session 30min 硬 GC
+  // 2. 全部 session 30min 硬 GC(2026-08-25 起 scrcpy 条目也纳入 — 正常路径
+  //    是 WS close 清理, 这里只兜底异常长寿的条目)
   const now = Date.now();
   for (const [id, s] of activeSessions) {
-    if (s.kind !== 'scrcpy' && now - s.startedAt > SSE_HARD_GC_MS) {
-      console.log(`[preview:proxy] 30min hard GC SSE session id=${id} age=${Math.round((now - s.startedAt) / 1000)}s`);
+    if (now - s.startedAt > SSE_HARD_GC_MS) {
+      console.log(`[preview:proxy] 30min hard GC session id=${id} kind=${s.kind} age=${Math.round((now - s.startedAt) / 1000)}s`);
       stopSession(id);
     }
   }
@@ -135,6 +136,7 @@ async function buildScreencapFetcher(
   deviceId: number | string,
   kind: 'screenshot' | 'mjpeg',
   serialHint: string | undefined,
+  userId: number,
 ): Promise<{
   fetcher: ScreenshotFetcher;
   deviceMeta: { name: string; platform: string; serial: string };
@@ -162,6 +164,11 @@ async function buildScreencapFetcher(
   const device = getDevice(numericId);
   if (!device) {
     console.log(`[preview:proxy] remote device id=${numericId} not found`);
+    return null;
+  }
+  // 设备归属校验:否则任何登录用户可枚举 deviceId 观看他人远端手机的屏幕
+  if (device.user_id !== userId) {
+    console.log(`[preview:proxy] remote device id=${numericId} belongs to user ${device.user_id}, not ${userId}`);
     return null;
   }
   if (device.test_type !== 'mobile') {
@@ -200,6 +207,7 @@ type ScrcpySource =
 function buildScrcpyEntry(
   deviceId: number | string,
   serialHint: string | undefined,
+  userId: number,
 ): { entry: ScrcpySource; deviceMeta: { name: string; platform: string; serial: string } } | null {
   // 本地 Android:serial 从 deviceId 解析,不再要求 caller 单独传
   if (typeof deviceId === 'string' && deviceId.startsWith('local:android:')) {
@@ -216,6 +224,11 @@ function buildScrcpyEntry(
   const device = getDevice(numericId);
   if (!device) {
     console.log(`[preview:proxy] scrcpy remote device id=${numericId} not found`);
+    return null;
+  }
+  // 设备归属校验 — 同 buildScreencapFetcher, 防止跨用户观看他人手机屏幕
+  if (device.user_id !== userId) {
+    console.log(`[preview:proxy] scrcpy device id=${numericId} belongs to user ${device.user_id}, not ${userId}`);
     return null;
   }
   if (device.test_type !== 'mobile') {
@@ -245,7 +258,7 @@ function buildScrcpyEntry(
 export async function startPreviewSession(input: StartPreviewInput): Promise<StartPreviewResult | null> {
   const sessionId = crypto.randomUUID();
   if (input.kind === 'screenshot' || input.kind === 'mjpeg') {
-    const built = await buildScreencapFetcher(input.deviceId, input.kind, input.serial);
+    const built = await buildScreencapFetcher(input.deviceId, input.kind, input.serial, input.userId);
     if (!built) return null;
     // mjpeg 走 5 FPS,screenshot 走 1.6 FPS(都是单帧 polling,
     // 真正的 multipart/x-mixed-replace MJPEG 留 wda-mjpeg shim)
@@ -272,7 +285,7 @@ export async function startPreviewSession(input: StartPreviewInput): Promise<Sta
     };
   }
   if (input.kind === 'scrcpy') {
-    const built = buildScrcpyEntry(input.deviceId, input.serial);
+    const built = buildScrcpyEntry(input.deviceId, input.serial, input.userId);
     if (!built) return null;
     // 2026-06-10: 共享模型 — local 走 getOrCreateSharedLocalScrcpy(幂等,已有则复用),
     // 真正的 scrcpy 进程生命周期由 local-scrcpy.ts 管理。这里只负责把订阅者挂上。

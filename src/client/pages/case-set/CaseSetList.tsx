@@ -1,12 +1,14 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { apiFetch } from '../../utils/api';
+import { apiFetch, is2xx } from '../../utils/api';
 import { formatDateTime } from '../../utils/datetime';
 import notification from '../../utils/notification';
 import TagFilterSelect from '../../components/TagFilterSelect';
 import FormSelect from '../../components/FormSelect';
+import PageSizeSelect from '../../components/PageSizeSelect';
 import { useTagColors, tagBadgeStyle } from '../../hooks/useTagColors';
 import './CaseSetList.css';
+import { useViewportPageSize } from '../../hooks/useViewportPageSize';
 
 interface SetItem {
   id: number;
@@ -55,7 +57,12 @@ export default function CaseSetList({ basePath = '/api-test', testType = 'api' }
   const [sets, setSets] = useState<SetItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  // 每页行数自适应视口: 按表格容器真实高度算, 保证表格恰好填满一屏不滚动;
+  // 用户在分页条手动选择条数后以手动值为准。
+  const [autoPageSize, tableWrapRef] = useViewportPageSize();
+  const [userPageSize, setUserPageSize] = useState<number | null>(null);
+  const pageSize = userPageSize ?? autoPageSize;
+  const setPageSize = setUserPageSize;
   const [total, setTotal] = useState(0);
   // Filter states
   const [filterName, setFilterName] = useState('');
@@ -70,7 +77,10 @@ export default function CaseSetList({ basePath = '/api-test', testType = 'api' }
   const isCaseSet = testType !== 'api';
   const title = isCaseSet ? '用例集' : '场景集';
 
+  const loadSeq = useRef(0);
   function load() {
+    // 竞态守卫: 仅最新一次请求的响应可以落地(StrictMode/行数校准都会并发重拉)
+    const seq = ++loadSeq.current;
     setLoading(true);
     const params = new URLSearchParams({
       page: String(page),
@@ -83,11 +93,12 @@ export default function CaseSetList({ basePath = '/api-test', testType = 'api' }
     if (filterStatus) params.set('status', filterStatus);
 
     apiFetch<{ items: SetItem[]; total: number }>(`${apiPaths.list}?${params}`).then(res => {
-      if (res.code === 200) {
+      if (seq !== loadSeq.current) return;
+      if (is2xx(res.code)) {
         setSets(res.data?.items || []);
         setTotal(res.data?.total || 0);
       }
-    }).finally(() => setLoading(false));
+    }).finally(() => { if (seq === loadSeq.current) setLoading(false); });
   }
 
   useEffect(() => { load(); }, [page, pageSize, sortField, sortOrder, forceLoad]);
@@ -155,22 +166,35 @@ export default function CaseSetList({ basePath = '/api-test', testType = 'api' }
       </div>
 
       {/* Table */}
-      <div className="alist-table-wrap">
+      <div className="alist-table-wrap" ref={tableWrapRef}>
         {loading ? (
           <div className="alist-empty">加载中...</div>
         ) : sets.length === 0 ? (
-          <div className="alist-empty">暂无数据</div>
+          <div className="alist-empty">
+            {total === 0 ? (
+              <>
+                <p>暂无用例集</p>
+                <p className="alist-empty-hint">把多个用例组成集合，支持批量执行与定时调度</p>
+                <button className="sset-btn-create" onClick={() => navigate(routePaths.create)}>+ 新建第一个用例集</button>
+              </>
+            ) : (
+              <>
+                <p>没有匹配的用例集</p>
+                <p className="alist-empty-hint">换个关键词试试，或点击「重置」清空筛选条件</p>
+              </>
+            )}
+          </div>
         ) : (
           <table className="alist-table">
             <thead>
               <tr>
                 <th className="sortable" onClick={() => toggleSort('name')}>{title}名称 {sortIcon('name')}</th>
-                <th>标签</th>
-                <th>状态</th>
-                <th>执行统计</th>
-                <th>最近执行时间</th>
-                <th className="sortable" onClick={() => toggleSort('created_at')}>创建时间 {sortIcon('created_at')}</th>
-                <th style={{ width: 120 }}></th>
+                <th style={{ width: 184 }}>标签</th>
+                <th style={{ width: 92 }}>状态</th>
+                <th style={{ width: 152 }}>执行统计</th>
+                <th style={{ width: 152 }}>最近执行时间</th>
+                <th className="sortable" style={{ width: 152 }} onClick={() => toggleSort('created_at')}>创建时间 {sortIcon('created_at')}</th>
+                <th style={{ width: 96 }}></th>
               </tr>
             </thead>
             <tbody>
@@ -184,8 +208,8 @@ export default function CaseSetList({ basePath = '/api-test', testType = 'api' }
                     style={{ '--delay': `${index * 30}ms`, cursor: 'pointer' } as React.CSSProperties}
                     onClick={() => navigate(`${routePaths.list}/${s.id}`)}
                   >
-                    <td>{s.name}</td>
-                    <td>
+                    <td className="td-name" title={s.name}>{s.name}</td>
+                    <td className="td-tags" title={s.tags || undefined}>
                       {tagList.length > 0 ? (
                         tagList.map((t, i) => <span key={i} className="sslist-tag" style={tagBadgeStyle(tagColors.get(t.trim()) || '')}>{t.trim()}</span>)
                       ) : '-'}
@@ -228,7 +252,7 @@ export default function CaseSetList({ basePath = '/api-test', testType = 'api' }
         <span className="page-info">共 {total} 条，第 {page} / {Math.ceil(total / pageSize) || 1} 页</span>
         <button className="btn btn-sm" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>上一页</button>
         <button className="btn btn-sm" disabled={page >= Math.ceil(total / pageSize) || total === 0} onClick={() => setPage(p => p + 1)}>下一页</button>
-        <FormSelect value={String(pageSize)} options={[{value:"10",label:"10条/页"},{value:"20",label:"20条/页"},{value:"50",label:"50条/页"},{value:"100",label:"100条/页"}]} onChange={val => { setPageSize(Number(val)); setPage(1); }} />
+        <PageSizeSelect autoSize={autoPageSize} value={pageSize} onChange={n => { setPageSize(n); setPage(1); }} />
       </div>
 
     </div>

@@ -13,9 +13,14 @@ export interface TeamUserInfo {
   avatar: string | null;
   email: string | null;
   phone: string | null;
+  /** 1 = platform admin of the center deployment (first registered account). */
+  isPlatformAdmin: number;
   createdAt: string;
   updatedAt: string;
 }
+
+/** Who may create teams on this center: 'admin' = platform admin only (default), 'self' = anyone. */
+export type TeamCreatePolicy = 'admin' | 'self';
 
 export interface TeamSummary {
   id: number;
@@ -51,6 +56,28 @@ export interface TeamPingResult {
   teamReady: boolean;
   dbOk: boolean;
 }
+
+/** Team invite code (owner/admin view - full code visible for re-sharing). */
+export interface TeamInviteInfo {
+  id: number;
+  code: string;
+  role: TeamRole;
+  note: string | null;
+  maxUses: number;
+  usedCount: number;
+  expiresAt: string | null;
+  revoked: boolean;
+  createdBy: number;
+  createdAt: string;
+  status: 'valid' | 'revoked' | 'expired' | 'exhausted';
+}
+
+export const INVITE_STATUS_LABELS: Record<TeamInviteInfo['status'], string> = {
+  valid: '有效',
+  revoked: '已撤销',
+  expired: '已过期',
+  exhausted: '已用完',
+};
 
 export const TEAM_ROLE_LABELS: Record<TeamRole, string> = {
   owner: '所有者',

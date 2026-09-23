@@ -81,6 +81,8 @@ export interface ExecuteResult {
   duration_ms: number;
   steps: StepResult[];
   error_message?: string;
+  /** 异常堆栈 — 执行中止时随结果落库 (2026-08-28) */
+  error_stack?: string;
   report_path?: string;
   report_url?: string;
 }
@@ -861,6 +863,8 @@ export async function executeWebCase(
           duration_ms: Date.now() - start,
         };
       } catch (err) {
+    // 2026-08-28: 与 api-executor 对齐 — 异常堆栈打印控制台并随结果返回落库
+    console.error(`[executor:web] ❌ case=${opts.caseId} exec=${opts.execId} 执行异常:`, err);
         const errorMsg = err instanceof Error ? err.message : 'Unknown error';
         const ms = Date.now() - start;
         console.log(`[executor:web] case=${opts.caseId} exec=${opts.execId} checkpoint[${idx}] THREW ${ms}ms err="${errorMsg}"`);
@@ -1018,6 +1022,7 @@ export async function executeWebCase(
       duration_ms: totalMs,
       steps: results,
       error_message: errorMsg,
+      error_stack: err instanceof Error ? err.stack : String(err),
       report_path: reportPath,
     };
   } finally {

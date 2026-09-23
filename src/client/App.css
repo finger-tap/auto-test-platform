@@ -5,7 +5,9 @@
   --surface-raised: #fcfcff;
   --fg: #27272a;
   --fg-secondary: #71717a;
-  --fg-tertiary: #a1a1aa;
+  /* 2026-08-27: #a1a1aa 对白底只有 2.56:1(WCAG AA 需 4.5), 却被大量用于
+     表头/label 等阅读文字 — 提到达标的 #71717a */
+  --fg-tertiary: #71717a;
   --border: #e8e8ec;
   --border-subtle: #f1f1f3;
   --accent: #6366f1;
@@ -50,7 +52,7 @@
   --surface-raised: #1e1e22;
   --fg: #fafafa;
   --fg-secondary: #a1a1aa;
-  --fg-tertiary: #71717a;
+  --fg-tertiary: #8e8e96;
   --border: #3f3f46;
   --border-subtle: #2a2a30;
   --accent: #818cf8;
@@ -162,6 +164,13 @@ body {
   color: var(--fg);
   -webkit-font-smoothing: antialiased;
   line-height: 1.5;
+}
+
+/* 2026-08-28: 按钮文字禁止竖排换行 — 窄容器里"添加"/"浏览器配置"曾被挤成
+   一字一行的竖排(标签管理页/设置抽屉)。按钮文案应单行, 容器不够宽时
+   应该由布局收缩, 而不是折断文字。 */
+button {
+  white-space: nowrap;
 }
 
 /* ── Shared Form Elements ── */

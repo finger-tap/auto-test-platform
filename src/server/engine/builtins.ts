@@ -288,15 +288,17 @@ export function evalBuiltin(text: string, context?: Record<string, string>): str
   if (!text) return text;
 
   // First, substitute {{variable}} placeholders
-  let result = text.replace(/\{\{(\w+)\}\}/g, (_, key) => {
-    return context && context[key] !== undefined ? String(context[key]) : text;
+  // 未定义变量保留占位符原样 — replace 是逐个匹配替换的, 返回整个 text
+  // 会让含多个占位符的内容被灾难性拼接(如 "{{a}}-{{b}}" → "1{{a}}-{{b}}")
+  let result = text.replace(/\{\{(\w+)\}\}/g, (matched, key) => {
+    return context && context[key] !== undefined ? String(context[key]) : matched;
   });
 
   // Then evaluate ${funcName(...)} expressions
   const funcPattern = /\$\{([a-zA-Z_]\w*)\(([^)]*)\)\}/g;
-  result = result.replace(funcPattern, (_, funcName, argsStr) => {
+  result = result.replace(funcPattern, (matched, funcName, argsStr) => {
     const fn = BUILTINS[funcName];
-    if (!fn) return text; // unknown function → return original
+    if (!fn) return matched; // unknown function → keep the original expression
 
     // Parse args (handle quoted strings)
     const args = parseArgs(argsStr);

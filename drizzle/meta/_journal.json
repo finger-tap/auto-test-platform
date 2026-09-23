@@ -15,6 +15,34 @@
       "when": 1787066273756,
       "tag": "0001_perfect_sentry",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1787406400072,
+      "tag": "0002_chief_chronomancer",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "5",
+      "when": 1787465584737,
+      "tag": "0003_robust_cargill",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "5",
+      "when": 1787500000000,
+      "tag": "0004_add_env_databases",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "5",
+      "when": 1787667000000,
+      "tag": "0005_add_center_user_prefs",
+      "breakpoints": true
     }
   ]
 }

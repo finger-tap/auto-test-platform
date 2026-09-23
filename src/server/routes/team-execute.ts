@@ -1,5 +1,6 @@
 import type { Request, Response } from 'express';
 import { and, eq } from 'drizzle-orm';
+import type { AnyMySqlTable } from 'drizzle-orm/mysql-core';
 import { randomBytes } from 'node:crypto';
 import db from '../db/index.js';
 import { getTeamDb } from '../db-team/client.js';
@@ -127,12 +128,34 @@ function upsertMirror(resourceType: string, sqliteTable: string, teamCaseId: num
   return localId;
 }
 
-function removeMirror(resourceType: string, teamCaseId: number): void {
+export function removeMirror(resourceType: string, teamCaseId: number): void {
   const local = mirrorLocalId(resourceType, teamCaseId);
   if (local === null) return;
   const table = MIRROR_TABLES[resourceType];
   if (table) db.prepare(`DELETE FROM ${table} WHERE id = ?`).run(local);
   db.prepare('DELETE FROM team_case_mirror WHERE resource_type = ? AND team_case_id = ?').run(resourceType, teamCaseId);
+}
+
+/**
+ * 2026-08-25: 删除团队时级联清掉该团队所有业务资源的本地镜像行 —
+ * 此前镜像只进不出, 团队删除后宿主 SQLite 里永久残留幽灵行。
+ */
+export async function removeMirrorsForTeam(teamId: number): Promise<void> {
+  const dbT = getTeamDb();
+  if (!dbT) return;
+  const typeTables: Array<[string, AnyMySqlTable]> = [
+    ['api', tApis],
+    ['scenario', tScenarios],
+    ['web_case', tWebCases],
+    ['pc_case', tPcCases],
+    ['mobile_case', tMobileCases],
+  ];
+  for (const [type, table] of typeTables) {
+    const t = table as unknown as Record<string, never>;
+    const rows = (await dbT.select({ id: t.id }).from(table as never)
+      .where(eq(t.team_id as never, teamId))) as unknown as Array<{ id: number }>;
+    for (const r of rows) removeMirror(type, Number(r.id));
+  }
 }
 
 const MIRROR_TABLES: Record<string, string> = {
@@ -584,4 +607,4 @@ export async function teamLogsAndExecutions(req: Request, res: Response, teamId:
   return false;
 }
 
-void removeMirror; void TeamApiError; void findUserById; void envToSslCerts;
+void TeamApiError; void findUserById; void envToSslCerts;

@@ -142,3 +142,28 @@
   padding: 7px 8px;
   border-bottom: 1px solid var(--border-subtle, var(--border));
 }
+
+/* ── pick-account 模式 (2026-08-23) ── */
+.itm-account-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  margin-bottom: 8px;
+  cursor: pointer;
+  text-align: left;
+  font-size: 13px;
+  color: var(--fg);
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.itm-account-row:hover {
+  border-color: var(--accent);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
+}
+.itm-account-name { font-weight: 500; }
+.itm-account-sub { color: var(--fg-tertiary); font-size: 12px; }
+.itm-account-stats { margin-left: auto; color: var(--fg-secondary); font-size: 12px; }

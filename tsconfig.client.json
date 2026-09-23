@@ -15,5 +15,5 @@
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true
   },
-  "include": ["src/client"]
+  "include": ["src/client", "src/shared"]
 }

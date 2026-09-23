@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { apiFetch } from '../../utils/api';
+import { apiFetch, is2xx } from '../../utils/api';
 import notification from '../../utils/notification';
 import './WebBrowserConfig.css';
 
@@ -91,7 +91,7 @@ export default function WebBrowserConfig() {
         method: 'PUT',
         body: JSON.stringify(payloadFromForm(form)),
       });
-      if (res.code === 200) {
+      if (is2xx(res.code)) {
         notification.success('浏览器配置已保存,下次执行生效');
         setForm(formFromRow(res.data ?? null));
       } else {

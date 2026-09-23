@@ -1,9 +1,20 @@
 /* ── Unified Filter Bar ── */
 
 .alist-filter {
-  padding: 16px;
-  border-bottom: 1px solid var(--border-subtle);
+  padding: 12px 16px;
 }
+
+/* 2026-08-31 列表页连体卡片组: 筛选卡是首段 — 自带上边框和上圆角,
+   不带下边框(与表格区的分隔线由表格区的上边框充当, 只保留 1px)。
+   作用域限定列表页根容器, 不影响其他使用 .alist-filter 的场景。 */
+.alist .alist-filter,
+.mock-list-root .alist-filter {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-bottom: none;
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+}
+
 .alist-filter-row {
   display: flex;
   gap: 12px;

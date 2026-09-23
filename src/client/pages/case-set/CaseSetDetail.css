@@ -15,22 +15,7 @@
 
 .sset-btn-add:hover { background: var(--accent-hover); }
 
-/* Status Badge */
-.sset-status-badge {
-  display: inline-block;
-  padding: 0.125rem 0.625rem;
-  border-radius: 0.75rem;
-  font-size: 0.75rem;
-  font-weight: 500;
-}
-
-.sset-status-badge.status-active { background: var(--success-subtle); color: var(--success); border: 1px solid var(--success-subtle); }
-.sset-status-badge.status-draft { background: var(--warning-subtle); color: var(--warning); border: 1px solid var(--warning-subtle); }
-.sset-status-badge.status-disabled { background: var(--bg); color: var(--fg-tertiary); border: 1px solid var(--border); }
-.sset-status-badge.status-success { background: var(--success-subtle); color: var(--success); border: 1px solid var(--success-subtle); }
-.sset-status-badge.status-failed { background: var(--danger-subtle); color: var(--danger); border: 1px solid var(--danger-subtle); }
-.sset-status-badge.status-skipped { background: var(--bg); color: var(--fg-tertiary); border: 1px solid var(--border); }
-.sset-status-badge.status-error { background: var(--danger-subtle); color: var(--danger); border: 1px solid var(--danger-subtle); }
+/* 状态徽章已统一到 styles/badges.css 的 .st-badge (2026-08-28) */
 
 .scenario-log-status {
   display: inline-block;
@@ -444,23 +429,9 @@
 
 /* Tab Navigation - 全局 tabs.css 统一管理 */
 
-/* Pagination */
-.alist-pagination {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 0.625rem;
-  margin-top: 1rem;
-  padding: 0.625rem 0;
-}
-
-.page-size-select {
-  padding: 0.25rem 0.5rem;
-  border: 1px solid var(--border);
-  border-radius: 0.25rem;
-  font-size: 0.8125rem;
-  cursor: pointer;
-}
+/* 2026-08-31: 删除死代码 .alist-pagination { ...; margin-top: 1rem } 与
+   .page-size-select — 本页 tsx 已不使用这些类, 但无作用域的全局规则会
+   泄漏到所有列表页(给分页条强加 margin-top: 1rem, 破坏卡片贴接布局) */
 
 .page-info {
   font-size: 0.8125rem;

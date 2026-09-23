@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useEnvironment } from '../contexts/EnvironmentContext';
+import { confirmLeave } from '../utils/dirtyGuard';
 import SysHeader from './SysHeader';
 import TeamConflictBanner from './TeamConflictBanner';
 import TeamResourceFab from './TeamResourceFab';
@@ -185,7 +186,7 @@ export default function Layout() {
                     type="button"
                     role="menuitem"
                     className={`sys-brand-dropdown-item ${testType === t.key ? 'active' : ''}`}
-                    onClick={() => { setTypeDropdownOpen(false); navigate(t.path); }}
+                    onClick={async () => { setTypeDropdownOpen(false); if (await confirmLeave()) navigate(t.path); }}
                   >
                     {t.label}
                   </button>
@@ -195,7 +196,7 @@ export default function Layout() {
             <button
               type="button"
               className="sys-brand-icon-btn"
-              onClick={() => navigate('/')}
+              onClick={async () => { if (await confirmLeave()) navigate('/'); }}
               title="返回项目主页"
               aria-label="返回项目主页"
             >
@@ -215,7 +216,7 @@ export default function Layout() {
                 <button
                   key={item.path}
                   className={`sys-nav-item ${isActive(item.path) ? 'active' : ''}`}
-                  onClick={() => navigate(item.path)}
+                  onClick={async () => { if (await confirmLeave()) navigate(item.path); }}
                 >
                   {icons[item.icon]}
                   <span>{item.label}</span>
@@ -236,7 +237,7 @@ export default function Layout() {
         <TeamConflictBanner />
         <TeamResourceFab />
         <div className="sys-footer">
-          <span className="sys-footer-name">OpenAutoTest</span>
+          <span className="sys-footer-name">AutoTest Platform</span>
           <span className="sys-footer-sep">·</span>
           <span className="sys-footer-ver">v1.0.0</span>
         </div>

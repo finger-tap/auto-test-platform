@@ -11,23 +11,25 @@ import DevicePickerModal from '../../components/DevicePickerModal';
 import MobilePreviewPanel from '../../components/MobilePreviewPanel';
 import { usePreviewSession, type SseFrameEvent, type ScrcpyEvent } from '../../hooks/usePreviewSession';
 import { useScrcpyDecoder, type ScrcpyMetadata } from '../../hooks/useScrcpyDecoder';
-import { apiFetch } from '../../utils/api';
+import { apiFetch, is2xx } from '../../utils/api';
 import { useEnvironment } from '../../contexts/EnvironmentContext';
 import { formatDateTime, formatDuration } from '../../utils/datetime';
 import notification from '../../utils/notification';
 import type { MobileTestCase, AssertionRule, TextAssertion, PreviewKind, MobileExecuteResult, MobileApp, MobileAppVersion } from '../../types';
 import type { PickerDevice } from '../../components/DevicePickerModal';
 import './MobileTestDetail.css';
+import { useUnsavedGuard } from '../../utils/dirtyGuard';
+import TabIcon from '../../components/TabIcon';
 
 const TABS = [
-  { key: 'detail', label: '详情' },
-  { key: 'precondition', label: '前置动作' },
-  { key: 'device', label: '设备配置' },
-  { key: 'app', label: '应用配置' },
-  { key: 'content', label: '用例内容' },
-  { key: 'assertions', label: '断言' },
-  { key: 'advanced', label: '高级配置' },
-  { key: 'logs', label: '执行记录' },
+  { key: 'detail', label: '详情', icon: 'detail' },
+  { key: 'precondition', label: '前置动作', icon: 'pre' },
+  { key: 'device', label: '设备配置', icon: 'device' },
+  { key: 'app', label: '应用配置', icon: 'app' },
+  { key: 'content', label: '用例内容', icon: 'content' },
+  { key: 'assertions', label: '断言', icon: 'checkpoints' },
+  { key: 'advanced', label: '高级配置', icon: 'params' },
+  { key: 'logs', label: '执行记录', icon: 'history' },
 ];
 
 // Legacy migration: convert the old 10-action JSON shape (test_script) into
@@ -94,6 +96,11 @@ export default function MobileTestDetail() {
   // Dirty state tracking — true when current form diverges from last saved snapshot
   const originalSnapshotRef = useRef<string>('');
   const [dirty, setDirty] = useState(false);
+  // 详情加载失败态 — 防止失败后把空表单保存回去覆盖原数据 (2026-08-27)
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [reloadTick, setReloadTick] = useState(0);
+  // 未保存修改离开保护(刷新/关闭弹浏览器确认; 侧边栏导航由 Layout 弹确认)
+  useUnsavedGuard(dirty);
 
   // 2026-06-09: 执行流 — 选设备 → 启动预览
   const [selectedDeviceId, setSelectedDeviceId] = useState<number | string | null>(null);
@@ -244,7 +251,7 @@ export default function MobileTestDetail() {
   useEffect(() => {
     if (isNew) return;
     apiFetch<MobileTestCase>(`/mobile-tests/${id}`).then(res => {
-      if (res.code === 200 && res.data) {
+      if (is2xx(res.code) && res.data) {
         const d = res.data;
         setName(d.name);
         setDescription(d.description || '');
@@ -308,15 +315,18 @@ export default function MobileTestDetail() {
         queueMicrotask(() => {
           originalSnapshotRef.current = buildSnapshot();
         });
+      } else {
+        setLoadError(res.message || '加载用例失败');
       }
-    });
-  }, [id, isNew]);
+      })
+      .catch((err: unknown) => setLoadError(err instanceof Error ? err.message : '网络错误，加载失败'));
+  }, [id, isNew, reloadTick]);
 
   // Load all executions with report_url
   useEffect(() => {
     if (isNew) return;
     apiFetch<any[]>(`/mobile-tests/${id}/executions?limit=20`).then(res => {
-      if (res.code === 200 && res.data) {
+      if (is2xx(res.code) && res.data) {
         setExecutions(res.data);
       }
     }).catch(() => setExecutions([]));
@@ -325,7 +335,7 @@ export default function MobileTestDetail() {
   // Fetch available mobile apps for the association dropdown
   useEffect(() => {
     apiFetch<MobileApp[]>('/mobile-apps').then(res => {
-      if (res.code === 200 && res.data) setAvailableApps(res.data);
+      if (is2xx(res.code) && res.data) setAvailableApps(res.data);
     }).catch(() => {});
   }, []);
 
@@ -374,7 +384,7 @@ export default function MobileTestDetail() {
           method: 'POST',
           body: JSON.stringify(body),
         });
-        if (res.code === 201 && res.data) {
+        if (is2xx(res.code) && res.data) {
           notification.success('创建成功');
           navigate(`/mobile-test/case/${res.data.id}`, { replace: true });
         }
@@ -399,6 +409,9 @@ export default function MobileTestDetail() {
   // 预览已经在 streaming → 直接执行;已选设备但未就绪 → 等 streaming 再执行;没有设备 → 先选设备。
   const handleExecute = async () => {
     if (isNew) { notification.error('请先保存用例'); return; }
+    // 未保存的修改不会进入执行 — 静默跑"已保存旧版本"会让结果与屏幕配置
+    // 不一致, 用户可能据错误结论排查被测系统 (2026-08-27)
+    if (dirty) { notification.warning('存在未保存的修改，请先保存后再执行'); return; }
     // 预览已经在流式传输 → 直接执行,不需要重新选设备/重连
     if (preview.open && preview.device && previewSessionState === 'streaming') {
       setExecuting(true);
@@ -412,7 +425,7 @@ export default function MobileTestDetail() {
           method: 'POST',
           body: JSON.stringify({ environmentId: activeEnv?.id }),
         });
-        if (res.code !== 200 || !res.data) {
+        if (!is2xx(res.code) || !res.data) {
           notification.error(res.message || '执行启动失败');
           return;
         }
@@ -426,7 +439,7 @@ export default function MobileTestDetail() {
         setPreview(p => ({ ...p, caseExecutionId: newExecId }));
         if (newExecId) {
           apiFetch<any[]>(`/mobile-tests/${id}/executions?limit=20`).then(execRes => {
-            if (execRes.code === 200 && execRes.data) {
+            if (is2xx(execRes.code) && execRes.data) {
               setExecutions(execRes.data);
             }
           }).catch(() => {});
@@ -496,7 +509,7 @@ export default function MobileTestDetail() {
       method: 'POST',
       body: JSON.stringify({ environmentId: activeEnv?.id }),
     }).then(res => {
-      if (res.code !== 200 || !res.data) {
+      if (!is2xx(res.code) || !res.data) {
         notification.error(res.message || '执行启动失败');
         return;
       }
@@ -533,7 +546,7 @@ export default function MobileTestDetail() {
           method: 'POST',
           body: JSON.stringify({ environmentId: activeEnv?.id }),
         });
-        if (res.code !== 200 || !res.data) {
+        if (!is2xx(res.code) || !res.data) {
           notification.error(res.message || '执行启动失败');
           if (res.code === 409) {
             setPreview(p => ({ ...p, open: false, pendingExecute: false }));
@@ -551,7 +564,7 @@ export default function MobileTestDetail() {
         // Re-fetch executions then auto-select the new one
         if (newExecId) {
           apiFetch<any[]>(`/mobile-tests/${id}/executions?limit=20`).then(execRes => {
-            if (execRes.code === 200 && execRes.data) {
+            if (is2xx(execRes.code) && execRes.data) {
               setExecutions(execRes.data);
             }
           }).catch(() => {});
@@ -622,6 +635,15 @@ export default function MobileTestDetail() {
     return withReport?.report_url ?? null;
   }, [executions]);
 
+  if (!isNew && loadError) {
+    return (
+      <div className="api-empty">
+        <p style={{ marginBottom: 12 }}>⚠️ {loadError}</p>
+        <button className="btn btn-primary" onClick={() => { setLoadError(null); setReloadTick(t => t + 1); }}>重试</button>
+      </div>
+    );
+  }
+
   return (
     <div className="api-detail page-enter">
 
@@ -639,7 +661,7 @@ export default function MobileTestDetail() {
         </div>
         <div className="api-detail-meta">
           {!isNew && (
-            <span className={`status-badge-light ${status}`}>
+            <span className={`st-badge st-${status}`}>
               {STATUS_OPTIONS.find(o => o.value === status)?.label || status}
             </span>
           )}
@@ -677,7 +699,7 @@ export default function MobileTestDetail() {
                 className={`tab-btn ${activeTab === tab.key ? 'active' : ''}`}
                 onClick={() => setActiveTab(tab.key)}
               >
-                {tab.label}
+                <TabIcon name={tab.icon} />{tab.label}{tab.key === 'logs' && execRecords.length > 0 && (<span className="tab-count">{execRecords.length}</span>)}
               </button>
             ))}
           </div>

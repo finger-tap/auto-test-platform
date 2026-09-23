@@ -65,6 +65,7 @@ midsceneConfigRoutes.put('/', async (req: Request, res: Response) => {
     model_reasoning_enabled: normalizeNumber(body.model_reasoning_enabled),
     model_reasoning_effort: normalizeString(body.model_reasoning_effort),
     model_reasoning_budget: normalizeNumber(body.model_reasoning_budget),
+    model_response_format: normalizeString(body.model_response_format),
     insight_model_name: normalizeString(body.insight_model_name),
     insight_model_api_key: normalizeString(body.insight_model_api_key),
     insight_model_base_url: normalizeString(body.insight_model_base_url),
@@ -80,6 +81,7 @@ midsceneConfigRoutes.put('/', async (req: Request, res: Response) => {
     insight_model_reasoning_enabled: normalizeNumber(body.insight_model_reasoning_enabled),
     insight_model_reasoning_effort: normalizeString(body.insight_model_reasoning_effort),
     insight_model_reasoning_budget: normalizeNumber(body.insight_model_reasoning_budget),
+    insight_model_response_format: normalizeString(body.insight_model_response_format),
     planning_model_name: normalizeString(body.planning_model_name),
     planning_model_api_key: normalizeString(body.planning_model_api_key),
     planning_model_base_url: normalizeString(body.planning_model_base_url),
@@ -95,7 +97,12 @@ midsceneConfigRoutes.put('/', async (req: Request, res: Response) => {
     planning_model_reasoning_enabled: normalizeNumber(body.planning_model_reasoning_enabled),
     planning_model_reasoning_effort: normalizeString(body.planning_model_reasoning_effort),
     planning_model_reasoning_budget: normalizeNumber(body.planning_model_reasoning_budget),
+    planning_model_response_format: normalizeString(body.planning_model_response_format),
     preferred_language: normalizeString(body.preferred_language),
+    // 2026-09-01: Midscene v1.12 global options. record_model_call is a 0/1
+    // flag; android_screenshot_strategy is 'auto' | 'always-yadb'.
+    record_model_call: normalizeNumber(body.record_model_call),
+    android_screenshot_strategy: normalizeString(body.android_screenshot_strategy),
     report_storage_path: normalizeString(body.report_storage_path),
     replanning_cycle_limit: normalizeNumber(body.replanning_cycle_limit),
     wait_after_action: normalizeNumber(body.wait_after_action),

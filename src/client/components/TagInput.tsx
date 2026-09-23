@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { apiFetch } from '../utils/api';
+import { apiFetch, is2xx } from '../utils/api';
 import './TagInput.css';
 
 interface TagInfo {
@@ -46,7 +46,7 @@ export default function TagInput({ value, onChange, onDirty, placeholder = '点�
   // 加载所有标签
   useEffect(() => {
     apiFetch<TagInfo[]>('/tags').then((res) => {
-      if (res.code === 200 && res.data) setAllTags(res.data);
+      if (is2xx(res.code) && res.data) setAllTags(res.data);
     }).catch(() => { /* ignore */ });
   }, []);
 

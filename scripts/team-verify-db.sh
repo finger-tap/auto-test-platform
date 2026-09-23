@@ -13,6 +13,8 @@ set -euo pipefail
 
 DB_URL="${DB_URL:-mysql://root@127.0.0.1:4000/autotest_team}"
 export DB_URL
+# 验证脚本自建账号+建团队；默认策略 admin 下非首个账号不能建队，放开为 self
+export TEAM_CREATE_POLICY=self
 echo "[verify] DB_URL=$DB_URL"
 
 PORT=3997

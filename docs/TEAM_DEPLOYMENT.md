@@ -26,7 +26,7 @@
 
 | 变量 | 必填 | 说明 |
 | --- | --- | --- |
-| `DB_URL` | 中心实例必填 | `mysql://user:pass@host:4000/autotest_team`。未配置 = 本地模式。启动时自动建库（`CREATE DATABASE IF NOT EXISTS`）并应用迁移 |
+| `DB_URL` | 中心实例必填 | `mysql://user:pass@host:4000/autotest_team`。未配置 = 本地模式。启动时自动建库（`CREATE DATABASE IF NOT EXISTS`）并应用迁移。**云实例（TiDB Cloud 等）强制 TLS，结尾必须带 `?ssl={}`**（mysql2 的 URI 写法，启用证书校验；写 `?ssl=true` 会报错）。密码含 `@ : / % #` 等字符需 URL 百分号编码（`@`→`%40`） |
 | `TEAM_JWT_SECRET` | 中心生产必填 | ≥32 字符。中心 JWT 签名密钥（与本地 JWT 独立）。`openssl rand -hex 32` 生成 |
 | `CORS_ORIGINS` | 多实例部署建议 | 允许访问中心 API 的前端来源，逗号分隔。本地单实例开发无需配置（dev 反射任意来源） |
 | `JWT_SECRET` | 生产建议 | 本地实例 JWT（原有变量，不变） |
@@ -34,16 +34,30 @@
 `.env` 文件（gitignored）会被 `npm run dev` 自动加载，例如本地开发：
 
 ```bash
+# 本地 TiDB playground（无密码，无需 TLS）
 DB_URL=mysql://root@127.0.0.1:4000/autotest_team
+
+# 云平台 TiDB Cloud——必须带 ?ssl={} 启用 TLS
+DB_URL=mysql://<user>:<password>@<host>:4000/autotest_team?ssl={}
 ```
+
+**保密规则（务必遵守）**：
+
+- 真实连接串/密钥**只放 `.env`**（已被 `.gitignore` 排除，可用 `git check-ignore .env` 验证），绝不写进代码、文档、提交信息、shell 历史（避免 `DB_URL=... npm run xxx` 这种命令行前缀写法）或聊天/日志
+- **pre-commit 防呆拦截（已启用）**：`githooks/pre-commit` 拒绝提交任何 `.env*` 密钥文件（即使被 `git add -f` 强加、即使 `.gitignore` 被误改），仅放行 `.env.example` 模板。钩子由 `npm install`（postinstall -> `scripts/setup-git-hooks.mjs`）自动挂载（`git config core.hooksPath githooks`），新克隆装完依赖即生效。确认要强提时用 `git commit --no-verify`
+- 给同事/仓库提供配置说明时用 `.env.example` 模板（占位符，可入库）
+- 云控制台侧：强制 TLS 保持开启、使用强密码；Serverless/Dedicated 实例如支持流量过滤（IP 白名单）建议一并开启
+- 若疑似泄漏（如误提交过一次）：先在云控制台改密码，再清理 git 历史——仅删除工作区文件不够，历史里仍可见
 
 ## 三、本地开发（单机体验团队功能）
 
-```bash
-# 1. 启动本地 TiDB（固定端口 4000）
-tiup playground v8.5.2 --db 1 --kv 1 --pd 1 --without-monitor --host 127.0.0.1
+数据库二选一：**云平台 TiDB**（在 `.env` 里配 `DB_URL=...?ssl={}`，推荐，无需本机服务）或**本地 TiDB**：
 
-# 2. 项目根目录 .env 写入 DB_URL（见上），然后
+```bash
+# 本地 TiDB（固定端口 4000；停掉后数据保留，重启加 --tag）
+tiup playground v8.5.2 --tag VSf2vFd --db 1 --kv 1 --pd 1 --without-monitor --host 127.0.0.1
+
+# 项目根目录 .env 写入 DB_URL（见上），然后
 npm run dev
 
 # 3. 一键全链路验证（可选）
@@ -73,21 +87,70 @@ NODE_ENV=production \
 node dist/server/index.js
 ```
 
+**`npm run start` 的三条规则**（2026-08-22 起服务端也会自动加载 `.env`，语义与 dev 一致：不覆盖已导出的 shell 变量）：
+
+1. **先 `npm run build`**：`start` 跑的是 `dist/server/index.js`，只有 `dist/client`（前端）没有 `dist/server` 时会报 `Cannot find module`。改过代码要重新 build。
+2. **生产模式必须 `NODE_ENV=production`**：不设置时服务端会挂 Vite 开发中间件（前端走源码热更新而非构建产物，且 JWT 用开发默认密钥、CORS 全放开）--本地凑合可用，部署一律要加。
+3. **生产模式启动强校验 JWT 密钥**：`NODE_ENV=production` 且配了 `DB_URL` 时，`JWT_SECRET` / `TEAM_JWT_SECRET` 缺失直接启动失败（提前写进 `.env` 即可，见上文环境变量表）。
+
 - 中心实例即是"团队数据的家"，也是**团队用例的执行宿主**（执行发生在中心机器上）
 - 执行宿主的本地账号（第一个非 guest 用户）的 per-user 配置（Midscene 模型、浏览器配置）即团队执行所用的配置——在中心实例的个人空间里配置一次即可
 - 多实例/高可用：目前单中心实例；调度 leader 锁与对象存储为后续项
 
 ## 五、成员与权限
 
+### 5.1 平台管理员（谁是管理员？）
+
+- **全新部署自动播种默认管理员**：中心库首次初始化（`center_users` 为空）时自动创建 `admin / admin123`（`is_platform_admin=1`），**首次登录后请立即修改密码**（启动日志会警告）
+- 兜底规则：若播种被跳过（库非空），**首个注册的中心账号**自动成为平台管理员
+- 平台管理员决定**谁能建团队**，由环境变量 `TEAM_CREATE_POLICY` 控制：
+
+| 策略 | 行为 | 适用 |
+| --- | --- | --- |
+| `admin`（默认） | 仅平台管理员可建团队，其他人凭邀请码加入 | 公司内部（一个公司一个团队，人员由管理员管控） |
+| `self` | 任何中心账号可自建团队 | 社区/多团队自服务模式 |
+
+### 5.2 团队内角色（挂团队级，非全局）
+
 | 角色 | 能力 |
 | --- | --- |
-| owner 所有者 | 管成员/删团队 + 全部 |
-| admin 管理员 | 管成员/项目/通知渠道 + 全部 |
+| owner 所有者 | 管成员/删团队 + 全部（建团队的人即 owner） |
+| admin 管理员 | 管成员/邀请码/项目/通知渠道 + 全部 |
 | editor 编辑者 | 增删改资源、执行、导入 |
 | viewer 查看者 | 只读 + 可执行 |
 
-- 角色挂团队级，项目继承；接口层 `requireRole`/`hasRole` 强制（403）
+- 项目继承团队角色；接口层 `requireRole`/`hasRole` 每次请求实时校验（403）
 - 中心账号体系独立（center_users），与本地实例账号无关
+
+### 5.3 邀请码与邀请链接（成员怎么进来）
+
+- owner/admin 在「团队管理 → 邀请码」随时生成：可配**角色**（管理员/编辑者/查看者）、**有效期**（默认**永久**）、**次数**（默认不限）、备注
+- 邀请码**永久保留**在列表里，随时查看/复制/撤销--时间长了忘记也找得回来
+- 每条邀请码可复制**完整邀请链接** `http://中心地址/join/XXXX-XXXX-XXXX`：链接自带服务器地址，同事**打开或粘贴链接即可入队**，不需要知道/手填任何服务地址
+- 新同事点链接的完整流程：未登录 → 引导登录/注册 → 自动连接当前中心 → 自动兑换邀请码 → 直接进入团队
+- 兑换保护：码格式校验 400 / 已是成员 409 / 已撤销、过期、用尽 410；兑换成功记入操作审计
+
+### 5.4 两种账户类型（2026-08-23 重构）
+
+登录/注册页可切换账户类型，普通用户无需理解"中心服务器地址"：
+
+| 类型 | 存储 | 用途 |
+| --- | --- | --- |
+| 👤 个人账户 | 本实例 SQLite | 个人空间（本地数据，按 user_id 隔离） |
+| 👥 团队账户 | 中心库（本部署 origin） | 团队协作空间；登录后直接进入所在团队 |
+
+- 团队账户可**独立登录**使用平台（不要求先有个人账户）；两种会话可并存，退出登录时全部清除
+- 多中心高级场景仍走工作区切换器的「连接团队服务…」（可填任意中心地址）
+
+### 5.5 同步本地账号数据到团队（2026-08-23）
+
+团队空间（editor 及以上）-> 工作区切换器 -> **🔄 同步本地账号数据到团队…**：
+
+1. 选择本地账号（列出本实例所有个人账户及其资源统计）
+2. 勾选要同步的资源（自动带上依赖闭包：场景集带场景、场景带接口）
+3. 冲突处理（同名跳过/覆盖/副本，覆盖前自动备份进版本历史）-> 完成
+
+权限：需要目标团队 editor 及以上；服务端桥接（`/team/local-accounts/*`），数据不经过浏览器额外存储。
 
 ## 六、并发保护与版本管理
 
@@ -130,3 +193,18 @@ A: 后保存者收到冲突横幅（409），可选择「加载最新版本」�
 
 **Q: TiDB 报 "TEXT column can't have a default value"？**
 A: 已修复（TEXT 默认值全部改为应用层注入）。若用旧版迁移文件初始化过库，删库重建或重跑 `npm run db:generate`。
+
+## 反向代理部署与登录限流（2026-08-27 补充）
+
+登录/注册/重置密码接口带 express-rate-limit 限流（默认每 IP 每分钟 5 次）。
+放到 Nginx / SLB 之后部署时必须注意：
+
+1. **务必设置 `app.set('trust proxy', 1)`**（src/server/index.ts 中按需开启）。
+   不设置时限流按 TCP 对端（即代理 IP）计数，办公室 NAT 下全体用户共享
+   额度，表现为"所有人莫名其妙登不上"。
+2. 同时确认代理层会**覆盖（而非追加）`X-Forwarded-For`**：若代理不清洗该头，
+   开启 trust proxy 后攻击者可伪造 XFF 绕过限流。
+3. 建议额外在代理层对 `/api/auth/*` 配置独立限流（如 30次/分钟/IP），
+   形成双层防护。
+
+当前代码刻意未默认开启 trust proxy：直连部署语义最安全；上反代时再显式打开。

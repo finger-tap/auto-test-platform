@@ -1,4 +1,4 @@
-import type { TeamUserInfo } from '../types/team';
+import type { TeamUserInfo, TeamCreatePolicy } from '../types/team';
 
 /**
  * Center-server credentials, stored per center URL so a browser can hold
@@ -9,6 +9,8 @@ import type { TeamUserInfo } from '../types/team';
 export interface TeamAuth {
   token: string;
   user: TeamUserInfo;
+  /** team-creation policy of this center, captured at login/register time */
+  createPolicy?: TeamCreatePolicy;
 }
 
 function keyFor(centerUrl: string): string {
@@ -60,4 +62,20 @@ export function listKnownCenters(): string[] {
     if (k && k.startsWith('teamAuth:')) out.push(k.slice('teamAuth:'.length));
   }
   return out;
+}
+
+/**
+ * Wipe ALL center sessions + last-center pointer (2026-08-22).
+ * Called on LOCAL logout / account switch: center credentials must never
+ * outlive the local session that created them - otherwise the next local
+ * user on a shared browser inherits team access (privilege leak).
+ */
+export function clearAllTeamAuth(): void {
+  const keys: string[] = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const k = localStorage.key(i);
+    if (k && k.startsWith('teamAuth:')) keys.push(k);
+  }
+  for (const k of keys) localStorage.removeItem(k);
+  localStorage.removeItem(LAST_CENTER_KEY);
 }

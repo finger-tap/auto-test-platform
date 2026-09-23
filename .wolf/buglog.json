@@ -10557,6 +10557,232 @@
       "related_bugs": [],
       "occurrences": 1,
       "last_seen": "2026-07-02"
+    },
+    {
+      "id": "bug-648",
+      "timestamp": "2026-08-21T22:42:00.000Z",
+      "error_message": "连接 TiDB Cloud 时启动迁移报 TLS/SSL 相关错误（CREATE DATABASE 连接被云拒绝），团队功能被禁用。本地 TiDB 正常",
+      "file": "src/server/db-team/migrate.ts",
+      "root_cause": "ensureDatabase() 手工重建去掉库名的连接串时只拼 protocol//user:pass@host，丢掉了 URL 查询参数（?ssl={}）。TiDB Cloud 强制 TLS，无 ssl 参数的连接直接被拒",
+      "fix": "改用 URL 对象：u.pathname='/' 后 u.toString()，完整保留凭据编码、端口和查询参数。顺带修复了手工拼接会二次解码密码的隐患（密码含 @ : % 等字符时会错）",
+      "tags": [
+        "tidb-cloud",
+        "tls",
+        "ssl",
+        "mysql2",
+        "db-url",
+        "url-rebuild"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-08-21T22:42:00.000Z"
+    },
+    {
+      "id": "bug-649",
+      "timestamp": "2026-08-21T23:20:00.000Z",
+      "error_message": "npm run db:init 逻辑全部完成后进程不退出(120s 超时被 SIGTERM); 修复时又报 closeTeamDb is not exported from migrate.js",
+      "file": "scripts/team-db-init.ts",
+      "root_cause": "runTeamMigrations() 成功路径不关闭 client.ts 的单例 mysql2 pool,事件循环被吊住; closeTeamDb 导出自 client.ts 而非 migrate.ts",
+      "fix": "脚本末尾 finally 里 await closeTeamDb()(从 client.js 导入); 修复后幂等重跑 exit 0",
+      "tags": [
+        "mysql2",
+        "pool",
+        "event-loop",
+        "hang",
+        "db-init"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-08-21T23:20:00.000Z"
+    },
+    {
+      "id": "bug-650",
+      "timestamp": "2026-08-22T20:15:00.000Z",
+      "error_message": "npm run start -> Error: Cannot find module '.../dist/server/index.js' (MODULE_NOT_FOUND)",
+      "file": "dist/server/ (missing) + package.json start script",
+      "root_cause": "项目从未跑过完整 npm run build--dist/ 里只有 vite 的 dist/client 前端产物,tsc 的 dist/server 从未生成。附带发现: .env 加载只在 scripts/dev.mjs, npm run start(生产入口)根本读不到 DB_URL/JWT 密钥,团队功能会被静默禁用",
+      "fix": "1) npm run build 生成 dist/server(113 个文件); 2) 新增 src/server/env.ts 作为 index.ts 第一顺位 import,生产模式同样加载 .env(不覆盖已导出变量); 3) .env 写入 openssl rand -hex 32 生成的 JWT_SECRET/TEAM_JWT_SECRET(生产模式强校验,缺失会启动抛错)。两种模式实测通过: 无 NODE_ENV(vite 中间件混跑)与 NODE_ENV=production(静态产物+严格 CORS+真密钥)",
+      "tags": [
+        "build",
+        "npm-start",
+        "dist",
+        "env-loading",
+        "production",
+        "jwt"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-08-22T20:15:00.000Z"
+    },
+    {
+      "id": "bug-list-pagesize-hardcoded-offset",
+      "timestamp": "2026-08-31T13:08:28.920Z",
+      "error_message": "列表页每页行数按 innerHeight-310 硬编码偏移估算: 偏大→末行截半+滚动条; 偏小→表格下方大片空白; 且 setPageSize(res.data.pageSize) 把自动值 pin 死, resize 永不生效",
+      "file": "src/client/hooks/useViewportPageSize.ts",
+      "root_cause": "视口行数估算依赖固定像素偏移(310)与假设行高(42, 实际操作列按钮撑到~45), 无法适应各页不同 chrome 高度; 服务端回写 pageSize 覆盖了 userOverride 语义",
+      "fix": "重写为真实 DOM 测量: callback ref 挂到表格滚动容器, ResizeObserver+MutationObserver 实测容器/表头/平均行高算 capacity; 页面侧 userPageSize ?? autoPageSize, resize 重拉取",
+      "tags": [
+        "layout",
+        "pagination",
+        "measurement"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-08-31T13:08:28.920Z"
+    },
+    {
+      "id": "bug-list-fetch-race",
+      "timestamp": "2026-08-31T13:08:28.920Z",
+      "error_message": "行数自适应校准触发第二次拉取时, 第一次(旧行数)响应后到并覆盖新响应: 页面显示 11条/页 但表格仍是 12 行, 末行被截半且不再自愈(DOM 稳定后无 mutation 触发重算)",
+      "file": "src/client/pages/api-test/ApiList.tsx",
+      "root_cause": "fetch 函数无请求序列守卫, StrictMode 双发 + 校准重拉并发时响应乱序落地",
+      "fix": "9 个列表页 fetch/load 全部加 seq 守卫(fetchSeq.current 自增, 过期响应直接丢弃, loading 只由最新请求复位)",
+      "tags": [
+        "race-condition",
+        "react",
+        "pagination"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-08-31T13:08:28.920Z"
+    },
+    {
+      "id": "bug-list-column-stretch",
+      "timestamp": "2026-08-31T13:08:28.920Z",
+      "error_message": "标签/名称等列随内容变宽: 列宽总和超出容器出现横向滚动条, 需横向滚动才能看更新时间列",
+      "file": "src/client/styles/tables.css",
+      "root_cause": "auto 表格布局下 nowrap 单元格 min-content=整行文本, td max-width 只是软约束, 列只增不减",
+      "fix": ".alist-table 改 table-layout:fixed(列宽只由表头决定, 与内容无关) + 全列 td white-space:nowrap/overflow:hidden/text-overflow:ellipsis; 每页给刚性列补 th 宽度(标签180/日期150/操作110-200)",
+      "tags": [
+        "css",
+        "table-layout",
+        "ellipsiss"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-08-31T13:08:28.920Z"
+    },
+    {
+      "id": "bug-schedule-pagination-drops-filter",
+      "timestamp": "2026-08-31T13:08:28.920Z",
+      "error_message": "定时任务列表筛选后翻页, 结果变回未筛选数据",
+      "file": "src/client/pages/schedule/ScheduleList.tsx",
+      "root_cause": "fetchList 的 flt 参数默认 {}, 翻页按钮 fetchList(page±1) 不带筛选",
+      "fix": "flt 默认值改为读取已应用的 appliedName/appliedStatus/appliedCreator",
+      "tags": [
+        "pagination",
+        "filter"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-08-31T13:08:28.920Z"
+    },
+    {
+      "id": "bug-page-css-global-leak-list-layout",
+      "timestamp": "2026-08-31T13:38:17.869Z",
+      "error_message": "列表页筛选卡与表格间 10.5px、表格与分页条间 14px 莫名间隙+双边框, 挤占行数(用户反馈卡片应贴接)",
+      "file": "pages/case-set/CaseSetDetail.css, pages/mock/MockList.css",
+      "root_cause": "页面级 CSS 定义了无作用域的共享类规则: CaseSetDetail.css 死代码 .alist-pagination{margin-top:1rem}; MockList.css 无前缀复制整套 .alist-filter/.alist-table/.alist-pagination/.row-action-btn 体系。Vite 中所有页面 CSS 全局注入且永不卸载, 一旦加载即泄漏覆盖所有列表页",
+      "fix": "删 CaseSetDetail 死代码; MockList.css 重写为 .mock-list-root 作用域(sset-btn-create 迁 styles/empty.css); 连体卡片组放共享 filters/tables/pagination.css, 用 :is(.alist,.mock-list-root) 结构作用域 + :has(+.alist-pagination) 无分页变体",
+      "tags": [
+        "css",
+        "global-leak",
+        "vite",
+        "layout"
+      ],
+      "related_bugs": [
+        "bug-list-pagesize-hardcoded-offset"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-08-31T13:38:17.869Z"
+    },
+    {
+      "id": "bug-checkbox-col-squeezed",
+      "timestamp": "2026-08-31T14:50:14.514Z",
+      "error_message": "接口用例列表勾选框列宽 36px 小于内容需要的 50px, 复选框被裁切(用户: 这一列就不要隐藏什么了)",
+      "file": "src/client/pages/api-test/ApiList.tsx",
+      "root_cause": "固定宽度是拍脑袋值, 未按实测内容宽度(checkbox input 16px + td padding 24px + 余量)",
+      "fix": "先用浏览器实测各列 td scrollWidth 最小需求, 再定宽: 勾选52/时间152/操作124-204; 每表留一个无宽度弹性列吸收屏宽差异, 任何屏宽不出横向滚动",
+      "tags": [
+        "css",
+        "table-layout",
+        "column-width"
+      ],
+      "related_bugs": [
+        "bug-list-column-stretch"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-08-31T14:50:14.514Z"
+    },
+    {
+      "id": "bug-floor-residual-blank",
+      "timestamp": "2026-08-31T15:18:00.809Z",
+      "error_message": "列表页每页行数 floor 取整后, 余数(最多接近一整行)留在表格底部成空白(用户截图反馈)",
+      "file": "src/client/hooks/useViewportPageSize.ts",
+      "root_cause": "capacity=floor(可用高/行高) 只保证不溢出, 不保证填满; 浏览器缩放导致行高带小数时 floor 可能差一整行",
+      "fix": "满页时把行高微拉伸到 (可用高-1px)/capacity(设 --row-h CSS 变量, tr height 使用, 上限+8px); 自然行高只在未拉伸时测一次并缓存防反馈回路; 行数不满页/手动选大页保持自然行高",
+      "tags": [
+        "layout",
+        "pagination",
+        "css-var"
+      ],
+      "related_bugs": [
+        "bug-list-pagesize-hardcoded-offset"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-08-31T15:18:00.809Z"
+    },
+    {
+      "id": "bug-observers-killed-by-strictmode-cleanup",
+      "timestamp": "2026-08-31T15:18:00.809Z",
+      "error_message": "useViewportPageSize 的 MutationObserver/ResizeObserver 在整页加载后全部失效: 行数校准不触发、窗口缩放不重算(MO/RO 触发计数为 0, 调试 data-* 属性证实)",
+      "file": "src/client/hooks/useViewportPageSize.ts",
+      "root_cause": "观察器在 callback ref(attachWrap)里创建, 却在 useEffect cleanup 里 disconnect — StrictMode 的挂载→清理→重挂会把观察器杀掉, 而 callback ref 因元素未变不会重跑, 无人重建观察器。热更新(HMR)路径 ref 会重跑所以此前未暴露",
+      "fix": "容器元素存 state(setWrapEl), 观察器完全由 useEffect 拥有并在自身 cleanup 释放 — 元素挂载/卸载/StrictMode 重挂都正确重建",
+      "tags": [
+        "react",
+        "strictmode",
+        "observers",
+        "lifecycle"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-08-31T15:18:00.809Z"
+    },
+    {
+      "id": "bug-raf-paused-in-hidden-tab",
+      "timestamp": "2026-08-31T15:18:00.809Z",
+      "error_message": "窗口缩放后每页行数不重算(resize 路径死), 移除 rAF 后在正常标签页恢复",
+      "file": "src/client/hooks/useViewportPageSize.ts",
+      "root_cause": "resize 处理经 requestAnimationFrame 合并计算, 被遮挡/后台的浏览器标签页 rAF 会被暂停, 回调永不执行",
+      "fix": "去掉 rAF, RO/resize 回调直接同步 compute(只读几个 rect, 开销可接受)",
+      "tags": [
+        "rAF",
+        "hidden-tab",
+        "resize"
+      ],
+      "related_bugs": [
+        "bug-observers-killed-by-strictmode-cleanup"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-08-31T15:18:00.809Z"
+    },
+    {
+      "id": "bug-pagesize-dropdown-opens-downward-at-bottom",
+      "timestamp": "2026-08-31T15:27:29.848Z",
+      "error_message": "分页条贴着屏幕底部, 每页条数下拉仍向下展开被裁切(且选项固定 [10,20,50,100] 与视口自适应行数脱节, 无法自定义)",
+      "file": "src/client/components/FormSelect.tsx",
+      "root_cause": "下拉方向写死向下(top:100%); .alist overflow:hidden 裁掉超出部分; 选项硬编码",
+      "fix": "FormSelect 打开时测量 trigger 底部空间, 不足放下拉高度则 flip-up 向上(absolute/fixed 两种模式都支持); 新增 PageSizeSelect: 选项=自动满屏行数的1~4倍动态生成, allowCustom 自定义输入行(5-100 回车生效)",
+      "tags": [
+        "dropdown",
+        "flip",
+        "pagination",
+        "ux"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-08-31T15:27:29.848Z"
     }
   ]
 }

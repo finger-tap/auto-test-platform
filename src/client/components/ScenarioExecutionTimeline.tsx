@@ -33,7 +33,13 @@ const statusLabel = (status: string) => {
 const tryParseJson = (text: string | null | Record<string, unknown>): Record<string, unknown> | null => {
   if (!text) return null;
   if (typeof text === 'object') return text;
-  try { return JSON.parse(text); } catch { return null; }
+  try {
+    // 存量执行记录的 log_data 存在双重 JSON 转义(写入侧 2026-08-30 已修) —
+    // parse 一次若得到的仍是字符串则再 parse 一层, 保证历史数据也能读取 status
+    let parsed: unknown = JSON.parse(text);
+    if (typeof parsed === 'string') parsed = JSON.parse(parsed);
+    return typeof parsed === 'object' && parsed !== null ? (parsed as Record<string, unknown>) : null;
+  } catch { return null; }
 };
 
 interface Props {
@@ -55,19 +61,32 @@ export default function ScenarioExecutionTimeline({ steps, apiLinks, cacheKeyPre
         const logData = tryParseJson(step.log_data);
         const stepApiLinks = step.node_id ? apiLinks.filter(l => l.node_id === step.node_id) : [];
 
+        // 2026-08-29: 颜色跟随真实执行状态而非步骤类型 — 此前 node_end/scenario_end
+        // 恒为绿色, 失败场景里"一片绿"分不清哪个节点失败 (executor 在 log_data.status
+        // 写入了 success/failed/error)。
+        const execStatus = String(logData?.status ?? '');
+        const statusSuffix = execStatus === 'error' ? 'error'
+          : execStatus === 'failed' ? 'failed'
+          : execStatus === 'running' ? 'running'
+          : '';
+        const typeClass = LOG_TYPE_CLASS[step.log_type] || '';
+        const colorClass = statusSuffix ? `${typeClass} step-status-${statusSuffix}` : typeClass;
+
         return (
-          <div key={step.id} className={`scenario-step ${LOG_TYPE_CLASS[step.log_type] || ''}`}>
+          <div key={step.id} className={`scenario-step ${colorClass}`}>
             <div className="step-indicator">
-              <div className="step-dot" />
+              <div className={`step-dot ${statusSuffix ? `dot-${statusSuffix}` : ''}`} />
               {idx < steps.length - 1 && <div className="step-line" />}
             </div>
 
             <div className="step-content">
               <div className="step-header" onClick={() => setExpandedStep(isExpanded ? null : step.id)}>
-                <span className={`step-type-badge ${LOG_TYPE_CLASS[step.log_type] || ''}`}>
+                <span className={`step-type-badge ${colorClass}`}>
                   {LOG_TYPE_LABELS[step.log_type] || step.log_type}
                 </span>
                 <span className="step-node-id">{step.node_id || '—'}</span>
+                {statusSuffix === 'error' && <span className="step-fail-flag">执行异常</span>}
+                {statusSuffix === 'failed' && <span className="step-fail-flag">断言失败</span>}
                 <span className="step-toggle">{isExpanded ? '收起' : '展开'}</span>
               </div>
 

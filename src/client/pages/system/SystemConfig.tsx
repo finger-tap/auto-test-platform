@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { apiFetch } from '../../utils/api';
+import { apiFetch, is2xx } from '../../utils/api';
 import notification from '../../utils/notification';
 import './SystemConfig.css';
 
@@ -30,7 +30,7 @@ export default function SystemConfig() {
   const fetchTags = () => {
     setLoading(true);
     apiFetch<TagInfo[]>('/tags').then(res => {
-      if (res.code === 200 && res.data) setTags(res.data);
+      if (is2xx(res.code) && res.data) setTags(res.data);
     }).catch(() => notification.error('加载失败')).finally(() => setLoading(false));
   };
 

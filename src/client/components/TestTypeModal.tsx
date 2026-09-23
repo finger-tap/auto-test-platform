@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import './TestTypeModal.css';
+import { useModalKeyboard } from '../hooks/useModalKeyboard';
 
 const TEST_TYPES = [
   { key: 'api', label: '接口测试', icon: '🔌', desc: 'HTTP/WebSocket 接口调试与自动化' },
@@ -14,6 +15,8 @@ interface TestTypeModalProps {
 }
 
 export default function TestTypeModal({ open, onClose }: TestTypeModalProps) {
+  // Esc 关闭统一 (2026-08-27)
+  useModalKeyboard(open, onClose);
   const navigate = useNavigate();
 
   if (!open) return null;

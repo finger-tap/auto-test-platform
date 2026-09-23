@@ -15,6 +15,7 @@ import {
   updateProject,
   deleteProject,
 } from '../db-team/repo/org.js';
+import { createInvite, listInvites, revokeInvite, redeemInvite } from '../db-team/repo/invites.js';
 import { TeamApiError } from '../db-team/util.js';
 
 /**
@@ -84,6 +85,14 @@ teamOrgRoutes.delete(
   '/teams/:teamId',
   ah(async (req, res) => {
     const teamId = parseId(req.params.teamId, '团队');
+    // 先清本地镜像再删团队行(删完就查不到该团队的资源 id 列表了) —
+    // 失败不阻塞团队删除, 只留日志
+    try {
+      const { removeMirrorsForTeam } = await import('./team-execute.js');
+      await removeMirrorsForTeam(teamId);
+    } catch (err) {
+      console.error(`[team-org] removeMirrorsForTeam(${teamId}) failed:`, err);
+    }
     await deleteTeam(teamId, req.teamUser!.userId);
     res.json({ code: 200, message: '已删除', data: null });
   }),
@@ -136,6 +145,60 @@ teamOrgRoutes.delete(
     const targetUserId = parseId(req.params.userId, '用户');
     await removeMember(teamId, req.teamUser!.userId, targetUserId);
     res.json({ code: 200, message: '已移除', data: null });
+  }),
+);
+
+// ── invites（邀请码）────────────────────────────────────────────────────────
+
+teamOrgRoutes.get(
+  '/teams/:teamId/invites',
+  ah(async (req, res) => {
+    const teamId = parseId(req.params.teamId, '团队');
+    const invites = await listInvites(teamId, req.teamUser!.userId);
+    res.json({ code: 200, message: 'ok', data: { invites } });
+  }),
+);
+
+teamOrgRoutes.post(
+  '/teams/:teamId/invites',
+  ah(async (req, res) => {
+    const teamId = parseId(req.params.teamId, '团队');
+    const { role, note, maxUses, expiresInDays } = req.body || {};
+    const invite = await createInvite(teamId, req.teamUser!.userId, {
+      role: typeof role === 'string' ? role : undefined,
+      note: typeof note === 'string' ? note : undefined,
+      maxUses: typeof maxUses === 'number' ? maxUses : undefined,
+      // null/undefined = 永不过期（默认）；数字 = N 天后过期
+      expiresInDays: expiresInDays === null ? null : typeof expiresInDays === 'number' ? expiresInDays : undefined,
+    });
+    res.status(201).json({ code: 201, message: '邀请码已生成', data: { invite } });
+  }),
+);
+
+teamOrgRoutes.delete(
+  '/teams/:teamId/invites/:inviteId',
+  ah(async (req, res) => {
+    const teamId = parseId(req.params.teamId, '团队');
+    const inviteId = parseId(req.params.inviteId, '邀请码');
+    await revokeInvite(teamId, req.teamUser!.userId, inviteId);
+    res.json({ code: 200, message: '已撤销', data: null });
+  }),
+);
+
+// Redeem: any logged-in center user joins a team by code. NOTE: mounted
+// before the member-add route on purpose? No - different path, order is
+// irrelevant. But it MUST stay outside teams/:teamId so no membership is
+// required to call it.
+teamOrgRoutes.post(
+  '/invites/redeem',
+  ah(async (req, res) => {
+    const { code } = req.body || {};
+    if (typeof code !== 'string' || !code.trim()) {
+      res.status(400).json({ code: 400, message: '邀请码不能为空' });
+      return;
+    }
+    const result = await redeemInvite(code, req.teamUser!.userId);
+    res.status(201).json({ code: 201, message: `已加入团队「${result.team.name}」`, data: result });
   }),
 );
 

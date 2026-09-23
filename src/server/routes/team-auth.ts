@@ -6,7 +6,9 @@ import {
   verifyCenterPassword,
   findCenterUserById,
   toPublicUser,
+  getTeamCreatePolicy,
 } from '../db-team/repo/auth.js';
+import { getPref, setPref, isPrefKey } from '../db-team/repo/prefs.js';
 import { TeamApiError } from '../db-team/util.js';
 
 declare global {
@@ -84,7 +86,7 @@ teamAuthRoutes.post(
       return;
     }
     const user = await createCenterUser({ account: account.trim(), password, nickname });
-    res.status(201).json({ code: 201, message: '注册成功', data: { user } });
+    res.status(201).json({ code: 201, message: '注册成功', data: { user, createPolicy: getTeamCreatePolicy() } });
   }),
 );
 
@@ -98,7 +100,7 @@ teamAuthRoutes.post(
     }
     const user = await verifyCenterPassword(account, password);
     const token = signTeamToken({ userId: user.id, account: user.account });
-    res.json({ code: 200, message: '登录成功', data: { token, user: toPublicUser(user) } });
+    res.json({ code: 200, message: '登录成功', data: { token, user: toPublicUser(user), createPolicy: getTeamCreatePolicy() } });
   }),
 );
 
@@ -111,7 +113,51 @@ teamAuthRoutes.get(
       res.status(401).json({ code: 401, message: '账号不存在' });
       return;
     }
-    res.json({ code: 200, message: 'ok', data: { user: toPublicUser(user) } });
+    res.json({ code: 200, message: 'ok', data: { user: toPublicUser(user), createPolicy: getTeamCreatePolicy() } });
+  }),
+);
+
+// ── account preferences (2026-08-25) ────────────────────────────────────────
+// Per-user key-value store on the center DB. Requires only center login (no
+// team context) — the login flow reads these BEFORE a team is selected.
+// Keys are whitelisted in repo/prefs.ts; not an arbitrary client-side store.
+
+const MAX_PREF_BYTES = 2048;
+
+teamAuthRoutes.get(
+  '/prefs/:key',
+  teamAuthMiddleware,
+  ah(async (req, res) => {
+    const key = String(req.params.key);
+    if (!isPrefKey(key)) {
+      res.status(404).json({ code: 404, message: '未知的偏好项' });
+      return;
+    }
+    const value = await getPref(req.teamUser!.userId, key);
+    res.json({ code: 200, message: 'ok', data: { value } });
+  }),
+);
+
+teamAuthRoutes.put(
+  '/prefs/:key',
+  teamAuthMiddleware,
+  ah(async (req, res) => {
+    const key = String(req.params.key);
+    if (!isPrefKey(key)) {
+      res.status(404).json({ code: 404, message: '未知的偏好项' });
+      return;
+    }
+    const { value } = (req.body ?? {}) as { value?: unknown };
+    if (typeof value !== 'string' || !value) {
+      res.status(400).json({ code: 400, message: 'value 必须是非空字符串' });
+      return;
+    }
+    if (Buffer.byteLength(value, 'utf8') > MAX_PREF_BYTES) {
+      res.status(400).json({ code: 400, message: 'value 过大（上限 2KB）' });
+      return;
+    }
+    await setPref(req.teamUser!.userId, key, value);
+    res.json({ code: 200, message: 'ok', data: null });
   }),
 );
 

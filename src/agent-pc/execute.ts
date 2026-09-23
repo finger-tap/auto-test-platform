@@ -124,8 +124,13 @@ export async function executeOnAgent(req: ExecuteRequest): Promise<PcAgentExecRe
   let agent: ComputerAgent | null = null;
   try {
     const remoteConfig = await fetchRemoteMidsceneConfig(req.executorUserId);
-    overrideAIConfig(remoteConfig.env, true);
-    console.log(`[pc-agent:execute] Midscene config applied keys=${Object.keys(remoteConfig.env).length} ${JSON.stringify(maskEnvForLog(remoteConfig.env))}`);
+    // Midscene v1.12: MIDSCENE_RECORD_MODEL_CALL is a BASIC env key that is
+    // read from process.env only — overrideAIConfig would throw on it. Route
+    // it to process.env and pass the rest through overrideAIConfig.
+    const { MIDSCENE_RECORD_MODEL_CALL: recordModelCall, ...overrideEnv } = remoteConfig.env;
+    if (recordModelCall) process.env.MIDSCENE_RECORD_MODEL_CALL = recordModelCall;
+    overrideAIConfig(overrideEnv, true);
+    console.log(`[pc-agent:execute] Midscene config applied keys=${Object.keys(overrideEnv).length} ${JSON.stringify(maskEnvForLog(overrideEnv))}`);
 
     agent = await agentForComputer({
       ...req.deviceOpt,

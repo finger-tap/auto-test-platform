@@ -7,9 +7,54 @@
   background: var(--surface);
 }
 
+/* 2026-08-31 列表页连体卡片组: 表格区是中段 — 顶部方角接筛选卡
+   (自身上边框就是分隔线); 后面紧跟分页条时去掉下边框并方角,
+   由分页条的上边框充当分隔线。整组只有单层 1px 边框, 无间隙。 */
+.alist .alist-table-wrap,
+.mock-list-root .alist-table-wrap {
+  border-radius: 0 0 var(--radius-md) var(--radius-md);
+}
+.alist .alist-table-wrap:has(+ .alist-pagination),
+.mock-list-root .alist-table-wrap:has(+ .alist-pagination) {
+  border-bottom: none;
+  border-radius: 0;
+}
+
+/* 2026-08-28: 名称列通用截断 — 超长名(如参数化生成的 300 字符名)会把表格
+   撑出视口, 状态/操作列被挤到屏幕外。hover/title 显示全名由单元格内
+   title 属性提供。 */
+.alist-table .td-name {
+  max-width: 360px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 2026-08-31: 标签列单行截断 — 一行几十个标签会把列撑宽、行撑高,
+   连带每页行数自适应算不准。超出部分省略号, title 悬浮看全量。 */
+.alist-table td.td-tags {
+  max-width: 300px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 2026-08-31: 通用单行截断列(描述/路径/创建人等), 由 ScenarioList 的
+   .td-desc 泛化而来; 需要更窄/更宽的列在页面 CSS 覆盖 max-width。 */
+.alist-table td.td-ellipsis {
+  max-width: 280px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .alist-table {
   width: 100%;
   border-collapse: collapse;
+  /* 2026-08-31: fixed 布局 — 列宽只由表头宽度决定, 内容再长也不会把列撑大
+     (auto 布局下 nowrap 单元格的 min-content 是整行文本, 列宽总和超出
+     容器就会出现横向滚动条)。未指定宽度的列平分剩余空间。 */
+  table-layout: fixed;
 }
 .alist-table th {
   padding: 10px 12px;
@@ -25,6 +70,8 @@
   position: sticky;
   top: 0;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .alist-table th:last-child { border-right: none; }
 .alist-table td {
@@ -33,9 +80,21 @@
   border-right: 1px solid var(--border-subtle);
   color: var(--fg);
   font-size: 13px;
+  /* 2026-08-31: 全列单行截断 — 配合 table-layout:fixed, 任何列超长都显示
+     省略号, 行高恒定 uniform(每页行数自适应也因此更稳)。
+     需要看全文的列在 td 上加 title 悬浮提示。 */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .alist-table td:last-child { border-right: none; }
 .alist-table tbody tr:last-child td { border-bottom: none; }
+/* 2026-08-31: 行高恰好填满 — useViewportPageSize 在满页时把 --row-h 设为
+   可用高度/行数(每行微拉伸 1~2px), 消除取整余数在表格底部留下的空白;
+   未设置时 auto = 自然行高。tr 的 height 在表格布局中是最小行高。 */
+.alist-table tbody tr {
+  height: var(--row-h, auto);
+}
 .alist-table tr {
   transition: background-color 0.1s;
 }
@@ -85,16 +144,18 @@
 }
 
 /* Text action buttons */
+/* 2026-08-28: 操作列色彩语义化 — 执行(主题色)/删除(红)一眼可分,
+   不再是两坨灰色文字; hover 底色随语义。 */
 .row-action-btn {
-  height: 26px;
+  height: 24px;
   padding: 0 8px;
-  border: none;
+  border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   font-size: 12px;
   cursor: pointer;
-  transition: background 0.12s, color 0.12s;
-  background: none;
-  color: var(--fg-secondary);
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+  background: var(--surface);
+  color: var(--accent);
   display: inline-flex;
   align-items: center;
   gap: 3px;
@@ -102,10 +163,16 @@
 }
 .row-action-btn:hover {
   background: var(--accent-subtle);
+  border-color: var(--accent-subtle);
   color: var(--accent);
+}
+.row-action-del {
+  color: var(--danger);
+  border-color: var(--border);
 }
 .row-action-del:hover {
   background: var(--danger-subtle);
+  border-color: var(--danger-subtle);
   color: var(--danger);
 }
 .row-action-btn:disabled {

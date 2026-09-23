@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { apiFetch, apiFetchBlob } from '../../utils/api';
+import { apiFetch, apiFetchBlob, is2xx } from '../../utils/api';
 import { toLocalDateTime, formatDateTime } from '../../utils/datetime';
 import notification from '../../utils/notification';
 import { useEnvironment } from '../../contexts/EnvironmentContext';
@@ -10,6 +10,7 @@ import TagInput from '../../components/TagInput';
 import DevicePickerModal, { type PickerDevice } from '../../components/DevicePickerModal';
 import type { Scenario, WebTestCase, PcTestCase, MobileTestCase, CaseSetExecution, CaseSetExecutionItem } from '../../types';
 import './CaseSetDetail.css';
+import { useUnsavedGuard } from '../../utils/dirtyGuard';
 
 type TestCase = Scenario | WebTestCase | PcTestCase | MobileTestCase;
 
@@ -96,6 +97,8 @@ export default function CaseSetDetail({ basePath = '/api-test', testType = 'api'
   const { activeEnv } = useEnvironment();
   const originalRef = useRef({ name: '', description: '', tags: '', status: 'draft', selectedIds: [] as number[] });
   const [isDirty, setIsDirty] = useState(false);
+  // 未保存修改离开保护(刷新/关闭弹浏览器确认; 侧边栏导航由 Layout 弹确认)
+  useUnsavedGuard(isDirty);
   const [activeTab, setActiveTab] = useState('detail');
 
   const isCaseSet = testType !== 'api';
@@ -135,7 +138,7 @@ export default function CaseSetDetail({ basePath = '/api-test', testType = 'api'
     if (!isNew && id) {
       const apiPath = API_PATH_MAP[testType] || API_PATH_MAP.api;
       apiFetch<SetDetail>(`${apiPath.detail}/${id}`).then(res => {
-        if (res.code === 200 && res.data) {
+        if (is2xx(res.code) && res.data) {
           setSetData(res.data); setName(res.data.name); setDescription(res.data.description || '');
           setTags(res.data.tags || ''); setStatus(res.data.status || 'draft'); setSelectedIds(res.data.test_case_ids);
           originalRef.current = { name: res.data.name, description: res.data.description || '', tags: res.data.tags || '', status: res.data.status || 'draft', selectedIds: [...res.data.test_case_ids] };
@@ -143,7 +146,7 @@ export default function CaseSetDetail({ basePath = '/api-test', testType = 'api'
         }
       }).finally(() => setLoading(false));
       apiFetch<CaseSetExecution[]>(`${apiPath.detail}/${id}/executions`).then(res => {
-        if (res.code === 200 && res.data && res.data.length > 0) {
+        if (is2xx(res.code) && res.data && res.data.length > 0) {
           setSetExecutions(res.data);
         }
       });
@@ -152,7 +155,7 @@ export default function CaseSetDetail({ basePath = '/api-test', testType = 'api'
 
   useEffect(() => {
     const caseApiPath = TEST_CASE_API_PATH_MAP[testType] || TEST_CASE_API_PATH_MAP.api;
-    apiFetch<{ items: TestCase[] }>(`${caseApiPath.list}?page=1&pageSize=1000`).then(res => { if (res.code === 200) setAllCases(res.data?.items || []); });
+    apiFetch<{ items: TestCase[] }>(`${caseApiPath.list}?page=1&pageSize=1000`).then(res => { if (is2xx(res.code)) setAllCases(res.data?.items || []); });
   }, []);
 
   // Fetch full execution detail with items when an execution row is expanded
@@ -160,7 +163,7 @@ export default function CaseSetDetail({ basePath = '/api-test', testType = 'api'
     if (!expandedSetExec || !id) return;
     const apiPath = API_PATH_MAP[testType] || API_PATH_MAP.api;
     apiFetch<CaseSetExecution>(`${apiPath.detail}/${id}/executions/${expandedSetExec}`).then(res => {
-      if (res.code === 200 && res.data) {
+      if (is2xx(res.code) && res.data) {
         setSetExecutions(prev => prev.map(exec => exec.id === expandedSetExec ? res.data! : exec));
       }
     });
@@ -179,7 +182,7 @@ export default function CaseSetDetail({ basePath = '/api-test', testType = 'api'
         const body: Record<string, unknown> = { name: name.trim(), description, tags, status };
         body[fieldName] = selectedIds;
         const res = await apiFetch<{ id: number }>(apiPath.list, { method: 'POST', body: JSON.stringify(body) });
-        if (res.code === 201 && res.data) { notification.success('保存成功'); setTimeout(() => navigate(`${routeBase}/${res.data!.id}`), 300); }
+        if (is2xx(res.code) && res.data) { notification.success('保存成功'); setTimeout(() => navigate(`${routeBase}/${res.data!.id}`), 300); }
       } else {
         const body: Record<string, unknown> = { name: name.trim(), description, tags, status };
         body[fieldName] = selectedIds;
@@ -203,10 +206,10 @@ export default function CaseSetDetail({ basePath = '/api-test', testType = 'api'
         body.deviceId = selectedDevice.id;
       }
       const res = await apiFetch<CaseSetExecution>(`${apiPath.detail}/${id}/execute`, { method: 'POST', body: JSON.stringify(body) });
-      if (res.code === 200) {
+      if (is2xx(res.code)) {
         setActiveTab('reports');
         const execRes = await apiFetch<CaseSetExecution[]>(`${apiPath.detail}/${id}/executions`);
-        if (execRes.code === 200 && execRes.data && execRes.data.length > 0) {
+        if (is2xx(execRes.code) && execRes.data && execRes.data.length > 0) {
           setSetExecutions(execRes.data);
         }
       }
@@ -225,7 +228,7 @@ export default function CaseSetDetail({ basePath = '/api-test', testType = 'api'
       setAddModalLoading(true);
       const caseApiPath = TEST_CASE_API_PATH_MAP[testType] || TEST_CASE_API_PATH_MAP.api;
       const res = await apiFetch<{ items: TestCase[]; total: number }>(`${caseApiPath.list}?page=${pageNum}&pageSize=${pageSz}`);
-      if (res.code === 200 && res.data) {
+      if (is2xx(res.code) && res.data) {
         let items = res.data.items.filter(s => !selectedIds.includes(s.id));
         if (addModalKeyword) { const kw = addModalKeyword.toLowerCase(); items = items.filter(s => s.name.toLowerCase().includes(kw)); }
         if (addModalDesc) { const kw = addModalDesc.toLowerCase(); items = items.filter(s => ((s as any).description || '').toLowerCase().includes(kw)); }
@@ -273,7 +276,7 @@ export default function CaseSetDetail({ basePath = '/api-test', testType = 'api'
               placeholder="输入标签，回车确认"
             />
           </div>
-          <div className="field"><label>状态</label><InlineSelect value={status} options={STATUS_OPTIONS} onChange={handleStatusChange} renderDisplay={(v, label) => <span className={`sset-status-badge status-${v}`}>{label}</span>} /></div>
+          <div className="field"><label>状态</label><InlineSelect value={status} options={STATUS_OPTIONS} onChange={handleStatusChange} renderDisplay={(v, label) => <span className={`st-badge st-${v}`}>{label}</span>} /></div>
         </div>
         {!isNew && (
           <div className="api-detail-row">
@@ -305,7 +308,7 @@ export default function CaseSetDetail({ basePath = '/api-test', testType = 'api'
               <tr key={s.id}>
                 <td><input type="checkbox" checked={selectedForRemoval.has(s.id)} onChange={() => toggleCheck(s.id)} /></td>
                 <td>{s.name}</td>
-                <td><span className={`sset-status-badge status-${(s as any).status}`}>{(s as any).status === 'active' ? '启用' : (s as any).status === 'disabled' ? '禁用' : '草稿'}</span></td>
+                <td><span className={`st-badge st-${(s as any).status}`}>{(s as any).status === 'active' ? '启用' : (s as any).status === 'disabled' ? '禁用' : '草稿'}</span></td>
                 <td>
                   <button className="sset-btn-text" onClick={() => navigate(`${caseRouteBase}/${s.id}`)}>查看详情</button>
                   <button className="sset-btn-text sset-btn-text-danger" onClick={() => toggleCase(s.id)}>移除</button>
@@ -437,7 +440,7 @@ export default function CaseSetDetail({ basePath = '/api-test', testType = 'api'
           <input className="api-detail-name-input" value={name} onChange={e => handleFieldChange(setName, e.target.value)} placeholder="输入用例集名称" />
         </div>
         <div className="api-detail-meta">
-          {!isNew && <span className={`status-badge-light ${status}`}>{STATUS_OPTIONS.find(o => o.value === status)?.label || status}</span>}
+          {!isNew && <span className={`st-badge st-${status}`}>{STATUS_OPTIONS.find(o => o.value === status)?.label || status}</span>}
           {setData?.updated_at && <span className="meta-time">更新于 {toLocalDateTime(setData.updated_at)}</span>}
         </div>
         <div className="api-detail-actions">
@@ -509,7 +512,7 @@ export default function CaseSetDetail({ basePath = '/api-test', testType = 'api'
                       <td>{s.name}</td>
                       <td className="td-desc">{(s as any).description || '-'}</td>
                       <td>{(s as any).tags ? (s as any).tags.split(',').filter(Boolean).map((t: string) => (<span key={t} className="tag-badge">{t.trim()}</span>)) : '-'}</td>
-                      <td><span className={`sset-status-badge status-${(s as any).status}`}>{(s as any).status === 'active' ? '启用' : (s as any).status === 'disabled' ? '禁用' : '草稿'}</span></td>
+                      <td><span className={`st-badge st-${(s as any).status}`}>{(s as any).status === 'active' ? '启用' : (s as any).status === 'disabled' ? '禁用' : '草稿'}</span></td>
                       <td>{formatDateTime((s as any).created_at)}</td>
                     </tr>
                   ))}</tbody>

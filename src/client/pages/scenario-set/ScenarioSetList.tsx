@@ -1,12 +1,14 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { apiFetch } from '../../utils/api';
+import { apiFetch, is2xx } from '../../utils/api';
 import { formatDateTime } from '../../utils/datetime';
 import notification from '../../utils/notification';
 import TagFilterSelect from '../../components/TagFilterSelect';
 import FormSelect from '../../components/FormSelect';
+import PageSizeSelect from '../../components/PageSizeSelect';
 import { useTagColors, tagBadgeStyle } from '../../hooks/useTagColors';
 import './ScenarioSetList.css';
+import { useViewportPageSize } from '../../hooks/useViewportPageSize';
 
 interface SetItem {
   id: number;
@@ -51,7 +53,12 @@ export default function ScenarioSetList({ basePath = '/api-test', testType = 'ap
   const [sets, setSets] = useState<SetItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  // 每页行数自适应视口: 按表格容器真实高度算, 保证表格恰好填满一屏不滚动;
+  // 用户在分页条手动选择条数后以手动值为准。
+  const [autoPageSize, tableWrapRef] = useViewportPageSize();
+  const [userPageSize, setUserPageSize] = useState<number | null>(null);
+  const pageSize = userPageSize ?? autoPageSize;
+  const setPageSize = setUserPageSize;
   const [total, setTotal] = useState(0);
   // Filter states
   const [filterName, setFilterName] = useState('');
@@ -64,7 +71,10 @@ export default function ScenarioSetList({ basePath = '/api-test', testType = 'ap
   const apiPaths = API_PATH_MAP[testType] || API_PATH_MAP.api;
   const routePaths = ROUTE_PATH_MAP[testType] || ROUTE_PATH_MAP.api;
 
+  const loadSeq = useRef(0);
   function load() {
+    // 竞态守卫: 仅最新一次请求的响应可以落地(StrictMode/行数校准都会并发重拉)
+    const seq = ++loadSeq.current;
     setLoading(true);
     const params = new URLSearchParams({
       page: String(page),
@@ -77,11 +87,12 @@ export default function ScenarioSetList({ basePath = '/api-test', testType = 'ap
     if (filterStatus) params.set('status', filterStatus);
 
     apiFetch<{ items: SetItem[]; total: number }>(`${apiPaths.list}?${params}`).then(res => {
-      if (res.code === 200) {
+      if (seq !== loadSeq.current) return;
+      if (is2xx(res.code)) {
         setSets(res.data?.items || []);
         setTotal(res.data?.total || 0);
       }
-    }).finally(() => setLoading(false));
+    }).finally(() => { if (seq === loadSeq.current) setLoading(false); });
   }
 
   useEffect(() => { load(); }, [page, pageSize, sortField, sortOrder, forceLoad]);
@@ -91,6 +102,35 @@ export default function ScenarioSetList({ basePath = '/api-test', testType = 'ap
     if (!ok) return;
     await apiFetch(`${apiPaths.delete}/${id}`, { method: 'DELETE' });
     load();
+  }
+
+  // 2026-08-29: 列表直接执行 — 此前操作列只有删除, 想执行必须进详情;
+  // 同步等待结果(小规模场景集毫秒~秒级), 完成后刷新执行统计列。
+  const [executingId, setExecutingId] = useState<number | null>(null);
+  async function doExecute(id: number, name: string) {
+    if (executingId != null) return;
+    setExecutingId(id);
+    try {
+      const res = await apiFetch<{ data?: { status: string; passed_count?: number; failed_count?: number } }>(
+        `${apiPaths.list}/${id}/execute`,
+        { method: 'POST', body: JSON.stringify({}) },
+      );
+      const d = res.data?.data;
+      if (is2xx(res.code) && d) {
+        if (d.status === 'success') {
+          notification.success(`「${name}」执行完成：通过 ${d.passed_count ?? 0} 个场景`);
+        } else {
+          notification.warning(`「${name}」执行完成：${d.passed_count ?? 0} 通过 / ${d.failed_count ?? 0} 失败 — 详情进入集合查看执行记录`);
+        }
+      } else {
+        notification.error(res.message || '执行失败');
+      }
+      load();
+    } catch (err) {
+      notification.error(err instanceof Error ? err.message : '执行出错');
+    } finally {
+      setExecutingId(null);
+    }
   }
 
   function handleCreate() {
@@ -149,22 +189,35 @@ export default function ScenarioSetList({ basePath = '/api-test', testType = 'ap
       </div>
 
       {/* Table */}
-      <div className="alist-table-wrap">
+      <div className="alist-table-wrap" ref={tableWrapRef}>
         {loading ? (
           <div className="alist-empty">加载中...</div>
         ) : sets.length === 0 ? (
-          <div className="alist-empty">暂无数据</div>
+          <div className="alist-empty">
+            {total === 0 ? (
+              <>
+                <p>暂无场景集</p>
+                <p className="alist-empty-hint">把多个场景组成集合，支持批量执行与定时调度</p>
+                <button className="sset-btn-create" onClick={() => navigate(`{$}{basePath}/case-set/new`)}>+ 新建第一个场景集</button>
+              </>
+            ) : (
+              <>
+                <p>没有匹配的场景集</p>
+                <p className="alist-empty-hint">换个关键词试试，或点击「重置」清空筛选条件</p>
+              </>
+            )}
+          </div>
         ) : (
           <table className="alist-table">
             <thead>
               <tr>
                 <th className="sortable" onClick={() => toggleSort('name')}>场景集名称 {sortIcon('name')}</th>
-                <th>标签</th>
-                <th>状态</th>
-                <th>执行统计</th>
-                <th>最近执行时间</th>
-                <th className="sortable" onClick={() => toggleSort('created_at')}>创建时间 {sortIcon('created_at')}</th>
-                <th style={{ width: 120 }}></th>
+                <th style={{ width: 184 }}>标签</th>
+                <th style={{ width: 92 }}>状态</th>
+                <th style={{ width: 152 }}>执行统计</th>
+                <th style={{ width: 152 }}>最近执行时间</th>
+                <th className="sortable" style={{ width: 152 }} onClick={() => toggleSort('created_at')}>创建时间 {sortIcon('created_at')}</th>
+                <th style={{ width: 96 }}></th>
               </tr>
             </thead>
             <tbody>
@@ -178,8 +231,8 @@ export default function ScenarioSetList({ basePath = '/api-test', testType = 'ap
                     style={{ '--delay': `${index * 30}ms`, cursor: 'pointer' } as React.CSSProperties}
                     onClick={() => navigate(`${routePaths.detail}/${s.id}`)}
                   >
-                    <td>{s.name}</td>
-                    <td>
+                    <td className="td-name" title={s.name}>{s.name}</td>
+                    <td className="td-tags" title={s.tags || undefined}>
                       {tagList.length > 0 ? (
                         tagList.map((t, i) => <span key={i} className="sslist-tag" style={tagBadgeStyle(tagColors.get(t.trim()) || '')}>{t.trim()}</span>)
                       ) : '-'}
@@ -191,13 +244,14 @@ export default function ScenarioSetList({ basePath = '/api-test', testType = 'ap
                     </td>
                     <td>
                       {s.execution_summary ? (
-                        <span style={{ fontSize: 13 }}>
-                          <span style={{ color: '#999' }}>{s.execution_summary.total - s.execution_summary.passed - s.execution_summary.failed}</span>
-                          <span style={{ color: '#52c41a' }}>/{s.execution_summary.passed}</span>
-                          <span style={{ color: '#ff4d4f' }}>/{s.execution_summary.failed}</span>
+                        // 2026-08-28: 语义化展示(原 1/0/0 三段斜杠数字无标签, 用户无法理解)
+                        <span style={{ fontSize: 12, display: 'inline-flex', gap: 8, alignItems: 'center' }}>
+                          <span>共 {s.execution_summary.total}</span>
+                          <span style={{ color: 'var(--success)' }}>✓ {s.execution_summary.passed}</span>
+                          <span style={{ color: 'var(--danger)' }}>✗ {s.execution_summary.failed}</span>
                         </span>
                       ) : (
-                        <span style={{ color: '#999', fontSize: 13 }}>—</span>
+                        <span style={{ color: 'var(--fg-tertiary)', fontSize: 13 }}>—</span>
                       )}
                     </td>
                     <td style={{ fontSize: 12, color: '#666' }}>
@@ -206,6 +260,7 @@ export default function ScenarioSetList({ basePath = '/api-test', testType = 'ap
                     <td>{formatDateTime(s.created_at)}</td>
                     <td>
                       <div className="row-actions">
+                        <button className="row-action-btn" title="执行" onClick={(e) => { e.stopPropagation(); doExecute(s.id, s.name); }}>{executingId === s.id ? '执行中…' : '执行'}</button>
                         <button className="row-action-btn row-action-del" title="删除" onClick={(e) => { e.stopPropagation(); doDelete(s.id, s.name); }}>删除</button>
                       </div>
                     </td>
@@ -222,7 +277,7 @@ export default function ScenarioSetList({ basePath = '/api-test', testType = 'ap
         <span className="page-info">共 {total} 条，第 {page} / {Math.ceil(total / pageSize) || 1} 页</span>
         <button className="btn btn-sm" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>上一页</button>
         <button className="btn btn-sm" disabled={page >= Math.ceil(total / pageSize) || total === 0} onClick={() => setPage(p => p + 1)}>下一页</button>
-        <FormSelect value={String(pageSize)} options={[{value:"10",label:"10条/页"},{value:"20",label:"20条/页"},{value:"50",label:"50条/页"},{value:"100",label:"100条/页"}]} onChange={val => { setPageSize(Number(val)); setPage(1); }} />
+        <PageSizeSelect autoSize={autoPageSize} value={pageSize} onChange={n => { setPageSize(n); setPage(1); }} />
       </div>
 
     </div>

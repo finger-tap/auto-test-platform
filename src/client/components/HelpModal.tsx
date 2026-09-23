@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import './HelpModal.css';
+import { useModalKeyboard } from '../hooks/useModalKeyboard';
 
 interface FuncDoc {
   name: string;
@@ -85,6 +86,8 @@ const CATEGORIES: Category[] = [
 ];
 
 export default function HelpModal({ onClose }: { onClose: () => void }) {
+  // Esc 关闭统一 (2026-08-27)
+  useModalKeyboard(true, onClose);
   const [activeTab, setActiveTab] = useState(0);
   const [search, setSearch] = useState('');
 

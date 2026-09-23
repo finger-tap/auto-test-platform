@@ -82,14 +82,15 @@
 .hdr-avatar {
   width: 32px;
   height: 32px;
-  border-radius: 50%;
+  /* 2026-08-31: 圆形改方形圆角, 与测试页顶栏头像统一 */
+  border-radius: 8px;
   object-fit: cover;
 }
 
 .hdr-avatar-ph {
   width: 32px;
   height: 32px;
-  border-radius: 50%;
+  border-radius: 8px;
   background: var(--primary);
   color: #fff;
   display: flex;

@@ -5,7 +5,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { verifyTeamToken } from '../auth/team-jwt.js';
 import {
   executeTeamApi, executeTeamScenario, executeTeamWebCase, executeTeamPcCase, executeTeamMobileCase,
-  teamLogsAndExecutions,
+  teamLogsAndExecutions, removeMirror,
 } from './team-execute.js';
 import { isTeamDbEnabled, isTeamReady, getTeamDb } from '../db-team/client.js';
 import { getMembership } from '../db-team/repo/org.js';
@@ -88,6 +88,7 @@ const TEXT_DEFAULTS: Record<string, string> = {
   test_case_ids: '[]',
   variables: '[]',
   ssl_certs: '[]',
+  databases: '[]',
   metadata: '{}',
   response_headers: '{"Content-Type":"application/json"}',
   response_body: '{}',
@@ -118,6 +119,33 @@ function pickWritable(body: Record<string, unknown>, table: AnyMySqlTable): Reco
     }
   }
   return out;
+}
+
+/**
+ * Normalize TEXT columns before insert/update:
+ *  1. 数组/对象 → JSON.stringify (客户端对 variables/ssl_certs/conditions 等
+ *     JSON 文本列发的是 JS 数组, 直接透传会给 drizzle 空数组 → MySQL 语法错误
+ *     "near ', default, default, , 30000...'").
+ *  2. NOT NULL 文本列若为 undefined/null/'' 则注入 TEXT_DEFAULTS 默认值
+ *     (TiDB 不允许 TEXT 列在 DDL 里写 DEFAULT)。
+ * @param injectMissing 创建时为 true (所有 NOT NULL 文本列都补齐); 更新时为
+ *   false (只处理 body 里显式出现的列, 未出现的保持原值, 不覆盖)。
+ */
+function normalizeTextValues(values: Record<string, unknown>, table: AnyMySqlTable, injectMissing: boolean): void {
+  const cols = colsOf(table);
+  for (const [colName, col] of Object.entries(cols)) {
+    if (META_COLS.has(colName)) continue;
+    if (col.dataType !== 'string') continue;
+    if (!(colName in values) && !injectMissing) continue;
+    let v = values[colName];
+    if (v !== undefined && v !== null && typeof v === 'object') {
+      v = JSON.stringify(v);
+      values[colName] = v;
+    }
+    if (TEXT_DEFAULTS[colName] !== undefined && (v === undefined || v === null || v === '')) {
+      values[colName] = TEXT_DEFAULTS[colName];
+    }
+  }
 }
 
 // ── optimistic-lock LRU ───────────────────────────────────────────────────
@@ -193,9 +221,22 @@ export async function teamResourceDispatcher(req: Request, res: Response, next: 
   // Special team-mode-only endpoints that are NOT table resources.
   if (!def) {
     if (!Number.isInteger(teamHdr) || teamHdr <= 0) return next();
-    if (head === 'tags') return await handleTags(req, res, teamHdr);
-    if (head === 'dashboard' && Number.isInteger(Number(req.headers['x-project-id']))) {
-      return await handleDashboard(req, res, Number(req.headers['x-project-id']));
+    if (head === 'tags') {
+      // 成员校验 + 写权限: 此分支不经过 teamCtxFrom, 不校验则任何中心
+      // 账号可读写任意团队的标签; 写操作与其它资源一致要求 editor。
+      const role = await getMembership(teamHdr, req.teamUser!.userId);
+      if (!role) {
+        res.status(404).json({ code: 404, message: '团队不存在或你不是该团队成员' });
+        return;
+      }
+      return await handleTags(req, res, teamHdr, hasRole(role, 'editor'));
+    }
+    // dashboard 只要是团队工作区请求(X-Team-Id 已在上面校验)就返回团队零值。
+    // 此前还要求 X-Project-Id 是整数, 没选项目时会穿透到本地 dashboard 路由,
+    // 团队 token 被本地 authMiddleware 当无效本地 JWT 拒掉 → 401 刷屏
+    // (2026-08-25 用户报告"登录之后还是提示未认证"的根因之一)。
+    if (head === 'dashboard') {
+      return await handleDashboard(req, res);
     }
     if (/^batch-reports/.test(head)) {
       // batch reports live on the executing instance; team mode has none yet.
@@ -209,6 +250,11 @@ export async function teamResourceDispatcher(req: Request, res: Response, next: 
   if (!ctxInfo) {
     if (!Number.isInteger(teamHdr) || teamHdr <= 0) {
       res.status(400).json({ code: 400, message: '缺少团队上下文（请在顶栏选择团队）' });
+      return;
+    }
+    // 区分两种失败: 未选项目 vs 真的不是成员, 避免误导用户
+    if (!Number.isInteger(Number(req.headers['x-project-id'])) || Number(req.headers['x-project-id']) <= 0) {
+      res.status(400).json({ code: 400, message: '缺少项目上下文（请先在切换器里选中一个项目）' });
       return;
     }
     res.status(404).json({ code: 404, message: '团队不存在或你不是该团队成员' });
@@ -268,6 +314,10 @@ export async function teamResourceDispatcher(req: Request, res: Response, next: 
     }
     if (sub === 'logs' || sub === 'executions') {
       if (req.method === 'GET') {
+        // 归属校验: 镜像表按 (resource_type, team_case_id) 全局寻址, 不先
+        // 校验 id 属于当前团队/项目的话, 任何成员可读其它团队的执行记录
+        const row = await rowById(ctx, id);
+        if (!row) { res.status(404).json({ code: 404, message: '不存在' }); return; }
         if (await teamLogsAndExecutions(req, res, ctx.teamId, ctx.projectId, def.type, id, sub)) return;
         res.json({ code: 200, message: 'ok', data: [] });
         return;
@@ -412,14 +462,10 @@ async function handleCreate(req: Request, res: Response, ctx: Ctx): Promise<void
     created_at: now,
     updated_at: now,
   };
-  // inject TEXT defaults for missing NOT NULL text columns (TiDB has no TEXT defaults)
+  // 序列化 JSON 字段(数组/对象→字符串) + 为 NOT NULL 文本列注入默认值。
+  // 客户端对 variables/ssl_certs 发的是数组, 不序列化会触发 MySQL 语法错误。
+  normalizeTextValues(values, ctx.table, true);
   const cols = colsOf(ctx.table);
-  for (const [colName, col] of Object.entries(cols)) {
-    if (META_COLS.has(colName)) continue;
-    if (col.dataType === 'string' && values[colName] === undefined && TEXT_DEFAULTS[colName] !== undefined) {
-      values[colName] = TEXT_DEFAULTS[colName];
-    }
-  }
   if ('created_by' in cols && !values.created_by) values.created_by = ctx.account;
   if ('updated_by' in cols) values.updated_by = ctx.account;
   if (ctx.def.path === 'devices') {
@@ -485,6 +531,8 @@ async function handleUpdate(req: Request, res: Response, ctx: Ctx, id: number): 
   }
 
   const writable = pickWritable((req.body ?? {}) as Record<string, unknown>, ctx.table);
+  // 序列化 JSON 字段 + 补齐 body 里显式出现的空 NOT NULL 文本列 (不覆盖未出现的列)
+  normalizeTextValues(writable, ctx.table, false);
   if ('updated_by' in colsOf(ctx.table)) writable.updated_by = ctx.account;
   writable.updated_at = nowSql();
 
@@ -523,6 +571,14 @@ async function handleDelete(req: Request, res: Response, ctx: Ctx, id: number): 
     await db.delete(tScenarioEdges).where(eq(tScenarioEdges.scenario_id, id));
   }
 
+  // 2026-08-25: 删除资源时同步清掉本地镜像行与映射 — 镜像表只进不出的话,
+  // 已删除团队资源在宿主 SQLite 里永久残留
+  try {
+    removeMirror(ctx.def.type, id);
+  } catch (mirrorErr) {
+    console.error(`[team-resources] removeMirror(${ctx.def.type}, ${id}) failed:`, mirrorErr);
+  }
+
   await writeAudit({ teamId: ctx.teamId, projectId: ctx.projectId, userId: ctx.userId, account: ctx.account, action: 'delete', resourceType: ctx.def.type, resourceId: id, resourceName: nameOf(current) });
   void notifyResourceEvent({ teamId: ctx.teamId, event: 'resource.delete', resourceType: ctx.def.type, resourceName: nameOf(current), account: ctx.account });
 
@@ -547,43 +603,76 @@ async function handleFlowSave(req: Request, res: Response, ctx: Ctx, id: number)
   }
   const db = getTeamDb()!;
   const t = ctx.table as unknown as Record<string, never>;
+
+  // 2026-08-25: 补上与 handleUpdate 一致的乐观锁 — 此前后写者无提示地
+  // 整表覆盖先写者的 nodes/edges, 连 409 都不给。
+  const seen = seenVersions.get(`${ctx.userId}:${ctx.def.type}:${id}`);
+  const bodyVersion = Number((req.body as Record<string, unknown>)?.version);
+  const currentVersion = Number(scenario.version ?? 1);
+  if (
+    (Number.isInteger(seen) && seen !== currentVersion) ||
+    (Number.isInteger(bodyVersion) && bodyVersion > 0 && bodyVersion !== currentVersion)
+  ) {
+    res.status(409).json({
+      code: 409,
+      message: '该场景已被其他人修改，请刷新页面加载最新版本后再保存',
+      data: { conflict: true, current: scenario, currentVersion },
+    });
+    return;
+  }
+
   const now = nowSql();
-  await db.delete(tScenarioNodes).where(eq(tScenarioNodes.scenario_id, id));
-  await db.delete(tScenarioEdges).where(eq(tScenarioEdges.scenario_id, id));
-  if (nodes.length > 0) {
-    await db.insert(tScenarioNodes).values(nodes.map((n) => {
-      const nd = n as Record<string, unknown>;
-      return {
-        scenario_id: id,
-        node_id: String(nd.node_id ?? nd.id ?? ''),
-        type: String(nd.type ?? 'start'),
-        position_x: Number(nd.position_x ?? 0) || 0,
-        position_y: Number(nd.position_y ?? 0) || 0,
-        label: nd.label == null ? null : String(nd.label),
-        config: nd.config == null ? null : (typeof nd.config === 'string' ? nd.config : JSON.stringify(nd.config)),
-        created_at: now,
-        updated_at: now,
-      };
-    }));
+  // DELETE+INSERT+版本推进包进事务: 中途失败不再留下空画布; UPDATE 带
+  // version 条件, 并发写同一 nextVersion 时后者 affectedRows=0 → 回滚。
+  const nextVersion = currentVersion + 1;
+  const updated = await db.transaction(async (tx) => {
+    await tx.delete(tScenarioNodes).where(eq(tScenarioNodes.scenario_id, id));
+    await tx.delete(tScenarioEdges).where(eq(tScenarioEdges.scenario_id, id));
+    if (nodes.length > 0) {
+      await tx.insert(tScenarioNodes).values(nodes.map((n) => {
+        const nd = n as Record<string, unknown>;
+        return {
+          scenario_id: id,
+          node_id: String(nd.node_id ?? nd.id ?? ''),
+          type: String(nd.type ?? 'start'),
+          position_x: Number(nd.position_x ?? 0) || 0,
+          position_y: Number(nd.position_y ?? 0) || 0,
+          label: nd.label == null ? null : String(nd.label),
+          config: nd.config == null ? null : (typeof nd.config === 'string' ? nd.config : JSON.stringify(nd.config)),
+          created_at: now,
+          updated_at: now,
+        };
+      }));
+    }
+    if (edges.length > 0) {
+      await tx.insert(tScenarioEdges).values(edges.map((e) => {
+        const ed = e as Record<string, unknown>;
+        return {
+          scenario_id: id,
+          edge_id: String(ed.edge_id ?? ed.id ?? ''),
+          source_node_id: String(ed.source_node_id ?? ed.source ?? ''),
+          target_node_id: String(ed.target_node_id ?? ed.target ?? ''),
+          source_handle: ed.source_handle == null ? null : String(ed.source_handle),
+          label: ed.label == null ? null : String(ed.label),
+          created_at: now,
+        };
+      }));
+    }
+    const upd = await tx.update(ctx.table as never)
+      .set({ version: nextVersion, updated_at: now } as never)
+      .where(and(eq(t.id as never, id), eq(t.version as never, currentVersion) as never));
+    return Number(upd[0].affectedRows) === 1;
+  });
+  if (!updated) {
+    // 版本在事务开后被并发推进 — 提示冲突(事务已回滚, 画布未被清空)
+    const freshRow = await rowById(ctx, id);
+    res.status(409).json({
+      code: 409,
+      message: '该场景已被其他人修改，请刷新页面加载最新版本后再保存',
+      data: { conflict: true, current: freshRow, currentVersion: Number(freshRow?.version ?? currentVersion) },
+    });
+    return;
   }
-  if (edges.length > 0) {
-    await db.insert(tScenarioEdges).values(edges.map((e) => {
-      const ed = e as Record<string, unknown>;
-      return {
-        scenario_id: id,
-        edge_id: String(ed.edge_id ?? ed.id ?? ''),
-        source_node_id: String(ed.source_node_id ?? ed.source ?? ''),
-        target_node_id: String(ed.target_node_id ?? ed.target ?? ''),
-        source_handle: ed.source_handle == null ? null : String(ed.source_handle),
-        label: ed.label == null ? null : String(ed.label),
-        created_at: now,
-      };
-    }));
-  }
-  const nextVersion = Number(scenario.version ?? 1) + 1;
-  await db.update(ctx.table as never)
-    .set({ version: nextVersion, updated_at: now } as never)
-    .where(eq(t.id as never, id));
   const fresh = await rowById(ctx, id);
   const nodesAfter = await db.select().from(tScenarioNodes).where(eq(tScenarioNodes.scenario_id, id));
   const edgesAfter = await db.select().from(tScenarioEdges).where(eq(tScenarioEdges.scenario_id, id));
@@ -663,7 +752,7 @@ async function handleRollback(req: Request, res: Response, ctx: Ctx, id: number)
 
 // ── team tags (shape-compatible with local /api/tags) ─────────────────────
 
-async function handleTags(req: Request, res: Response, teamId: number): Promise<void> {
+async function handleTags(req: Request, res: Response, teamId: number, canWrite: boolean): Promise<void> {
   const db = getTeamDb()!;
   if (req.method === 'GET') {
     const rows = await db.select().from(tTags).where(eq(tTags.team_id, teamId));
@@ -676,6 +765,7 @@ async function handleTags(req: Request, res: Response, teamId: number): Promise<
     return;
   }
   if (req.method === 'POST') {
+    if (!canWrite) { res.status(403).json({ code: 403, message: '需要 editor 及以上角色' }); return; }
     const { name, color } = (req.body ?? {}) as { name?: string; color?: string };
     if (!name?.trim()) {
       res.status(400).json({ code: 400, message: '标签名不能为空' });
@@ -691,6 +781,7 @@ async function handleTags(req: Request, res: Response, teamId: number): Promise<
     return;
   }
   if (req.method === 'PUT') {
+    if (!canWrite) { res.status(403).json({ code: 403, message: '需要 editor 及以上角色' }); return; }
     // rename / recolor: /tags/:name with { name?, color? }
     const segs = req.path.replace(/^\//, '').split('/').filter(Boolean);
     const oldName = decodeURIComponent(segs[1] ?? '');
@@ -705,6 +796,7 @@ async function handleTags(req: Request, res: Response, teamId: number): Promise<
     return;
   }
   if (req.method === 'DELETE') {
+    if (!canWrite) { res.status(403).json({ code: 403, message: '需要 editor 及以上角色' }); return; }
     const segs = req.path.replace(/^\//, '').split('/').filter(Boolean);
     const name = decodeURIComponent(segs[1] ?? '');
     await db.delete(tTags).where(and(eq(tTags.team_id, teamId), eq(tTags.name, name)));
@@ -716,7 +808,7 @@ async function handleTags(req: Request, res: Response, teamId: number): Promise<
 
 // ── dashboard (team-mode zeros until center executions exist) ──────────────
 
-async function handleDashboard(_req: Request, res: Response, _projectId: number): Promise<void> {
+async function handleDashboard(_req: Request, res: Response): Promise<void> {
   const sub = _req.path.replace(/^\/dashboard\/?/, '');
   if (sub === 'recent-executions' || sub === 'pending') {
     res.json({ code: 200, message: 'ok', data: [] });

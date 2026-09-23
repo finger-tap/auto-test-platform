@@ -1,13 +1,15 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { apiFetch } from '../../utils/api';
+import { apiFetch, is2xx } from '../../utils/api';
 import { formatDateTime } from '../../utils/datetime';
 import notification from '../../utils/notification';
 import TagFilterSelect from '../../components/TagFilterSelect';
 import FormSelect from '../../components/FormSelect';
+import PageSizeSelect from '../../components/PageSizeSelect';
 import CollapsibleFilter, { FilterItem } from '../../components/CollapsibleFilter';
 import { useTagColors, tagBadgeStyle } from '../../hooks/useTagColors';
 import '../../pages/api-test/ApiList.css';
+import { useViewportPageSize } from '../../hooks/useViewportPageSize';
 
 interface CaseItem {
   id: number;
@@ -56,7 +58,12 @@ export default function WebCaseList() {
   const [loading, setLoading] = useState(true);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  // 每页行数自适应视口: 按表格容器真实高度算, 保证表格恰好填满一屏不滚动;
+  // 用户在分页条手动选择条数后以手动值为准。
+  const [autoPageSize, tableWrapRef] = useViewportPageSize();
+  const [userPageSize, setUserPageSize] = useState<number | null>(null);
+  const pageSize = userPageSize ?? autoPageSize;
+  const setPageSize = setUserPageSize;
   const [fName, setFName] = useState('');
   const [fDesc, setFDesc] = useState('');
   const [fTag, setFTag] = useState('');
@@ -67,7 +74,10 @@ export default function WebCaseList() {
   const [sortField, setSortField] = useState('updated_at');
   const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC'>('DESC');
 
+  const fetchSeq = useRef(0);
   const fetchList = (p = page, ps = pageSize) => {
+    // 竞态守卫: 仅最新一次请求的响应可以落地(StrictMode/行数校准都会并发重拉)
+    const seq = ++fetchSeq.current;
     setLoading(true);
     const params = new URLSearchParams({
       page: String(p),
@@ -85,18 +95,25 @@ export default function WebCaseList() {
 
     apiFetch<ListResponse>(`/web-cases?${params}`)
       .then(res => {
-        if (res.code === 200 && res.data) {
+        if (seq !== fetchSeq.current) return;
+        if (is2xx(res.code) && res.data) {
           setItems(res.data.items || []);
           setTotal(res.data.total || 0);
           setPage(res.data.page);
-          setPageSize(res.data.pageSize);
         }
       })
       .catch(() => {})
-      .finally(() => setLoading(false));
+      .finally(() => { if (seq === fetchSeq.current) setLoading(false); });
   };
 
   useEffect(() => { fetchList(); }, [sortField, sortOrder]);
+
+  // 每页条数变化(视口自适应/手动选择)时刷新; 首次由上面的 effect 拉取, 跳过
+  const sizeFirstRun = useRef(true);
+  useEffect(() => {
+    if (sizeFirstRun.current) { sizeFirstRun.current = false; return; }
+    fetchList();
+  }, [pageSize]);
 
   const handleQuery = () => {
     setPage(1);
@@ -120,7 +137,7 @@ export default function WebCaseList() {
     const ok = await notification.confirm('确认删除此用例？');
     if (!ok) return;
     const res = await apiFetch(`/web-cases/${id}`, { method: 'DELETE' });
-    if (res.code === 200) fetchList(page);
+    if (is2xx(res.code)) fetchList(page);
   };
 
   const toggleSort = (field: string) => {
@@ -173,35 +190,44 @@ export default function WebCaseList() {
         }
       />
 
-      <div className="alist-table-wrap">
+      <div className="alist-table-wrap" ref={tableWrapRef}>
         {loading ? (
           <div className="alist-empty">加载中...</div>
+        ) : items.length === 0 && total === 0 ? (
+          <div className="alist-empty">
+            <p>暂无Web 用例</p>
+            <p className="alist-empty-hint">创建第一个用例，开始你的自动化测试</p>
+            <button className="sset-btn-create" onClick={() => navigate('/web-test/case/new')}>+ 新建第一个用例</button>
+          </div>
         ) : items.length === 0 ? (
-          <div className="alist-empty">暂无数据</div>
+          <div className="alist-empty">
+            <p>没有匹配的用例</p>
+            <p className="alist-empty-hint">换个关键词试试，或点击「重置」清空筛选条件</p>
+          </div>
         ) : (
           <table className="alist-table">
             <thead>
               <tr>
                 <th className="sortable" onClick={() => toggleSort('name')}>名称 {sortIcon('name')}</th>
-                <th>浏览器</th>
-                <th>标签</th>
-                <th>步骤数</th>
-                <th>状态</th>
-                <th className="sortable" onClick={() => toggleSort('created_at')}>创建时间 {sortIcon('created_at')}</th>
-                <th className="sortable" onClick={() => toggleSort('updated_at')}>更新时间 {sortIcon('updated_at')}</th>
-                <th style={{ width: 120 }}></th>
+                <th style={{ width: 84 }}>浏览器</th>
+                <th style={{ width: 184 }}>标签</th>
+                <th style={{ width: 72 }}>步骤数</th>
+                <th style={{ width: 72 }}>状态</th>
+                <th className="sortable" style={{ width: 152 }} onClick={() => toggleSort('created_at')}>创建时间 {sortIcon('created_at')}</th>
+                <th className="sortable" style={{ width: 152 }} onClick={() => toggleSort('updated_at')}>更新时间 {sortIcon('updated_at')}</th>
+                <th style={{ width: 124 }}></th>
               </tr>
             </thead>
             <tbody>
               {items.map((c, index) => (
                 <tr key={c.id} className="row-enter" style={{ '--delay': `${index * 30}ms`, cursor: 'pointer' } as React.CSSProperties} onClick={() => navigate(`/web-test/case/${c.id}`)}>
-                  <td style={{ fontWeight: 500 }}>{c.name}</td>
+                  <td className="td-name" style={{ fontWeight: 500 }} title={c.name}>{c.name}</td>
                   <td>
                     <span className={`status-text status-${c.browser || 'chromium'}`}>
                       {c.browser === 'firefox' ? 'Firefox' : c.browser === 'webkit' ? 'WebKit' : 'Chromium'}
                     </span>
                   </td>
-                  <td>
+                  <td className="td-tags" title={c.tags || undefined}>
                     {c.tags ? c.tags.split(',').filter(Boolean).map(t => (
                       <span key={t} className="tag-badge" style={tagBadgeStyle(tagColors.get(t.trim()) || '')}>{t.trim()}</span>
                     )) : '-'}
@@ -227,7 +253,7 @@ export default function WebCaseList() {
         <span className="page-info">共 {total} 条，第 {page} / {Math.ceil(total / pageSize) || 1} 页</span>
         <button className="btn btn-sm" disabled={page <= 1} onClick={() => fetchList(page - 1)}>上一页</button>
         <button className="btn btn-sm" disabled={page >= Math.ceil(total / pageSize) || total === 0} onClick={() => fetchList(page + 1)}>下一页</button>
-        <FormSelect value={String(pageSize)} options={[{value:"10",label:"10条/页"},{value:"20",label:"20条/页"},{value:"50",label:"50条/页"},{value:"100",label:"100条/页"}]} onChange={val => fetchList(1, Number(val))} />
+        <PageSizeSelect autoSize={autoPageSize} value={pageSize} onChange={n => { setPageSize(n); setPage(1); }} />
       </div>
     </div>
   );

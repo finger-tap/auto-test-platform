@@ -1,5 +1,43 @@
 /* ── Unified Badge / Status System ── */
 
+/* ── 统一状态徽章 (2026-08-28) ─────────────────────────────────────────────
+ * 全项目唯一的执行/资源状态样式。取代此前的四套并存实现:
+ *   .status-badge(白字彩底, 对比度不达标) / .status-badge-light /
+ *   .sset-status-badge(两份重复) / .schedule-status-badge
+ * 方案: 浅底 + 语义字 + 同色描边 — 亮/暗两主题对比度均达标(WCAG AA),
+ * 全部走 CSS 变量。变体覆盖执行结果(success/failed/error/running/pending/
+ * skipped)与资源状态(active/paused/draft/disabled/none), 未匹配时兜底灰。
+ * 用法: <span className={`st-badge st-${status}`}>…</span>
+ */
+.st-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.125rem 0.625rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+  line-height: 1.4;
+  background: var(--border-subtle);
+  color: var(--fg-secondary);
+  border: 1px solid transparent;
+}
+
+/* ── 执行结果 ── */
+.st-badge.st-success { background: var(--success-subtle); color: var(--success); border-color: var(--success-subtle); }
+.st-badge.st-failed  { background: var(--danger-subtle);  color: var(--danger);  border-color: var(--danger-subtle); }
+.st-badge.st-error   { background: var(--danger-subtle);  color: var(--danger);  border-color: var(--danger-subtle); }
+.st-badge.st-running { background: var(--accent-subtle);  color: var(--accent);  border-color: var(--accent-subtle); }
+.st-badge.st-pending { background: var(--warning-subtle); color: var(--warning); border-color: var(--warning-subtle); }
+.st-badge.st-skipped { background: var(--bg); color: var(--fg-tertiary); border-color: var(--border); }
+
+/* ── 资源状态(用例/场景/集合/调度) ── */
+.st-badge.st-active   { background: var(--success-subtle); color: var(--success); border-color: var(--success-subtle); }
+.st-badge.st-paused   { background: var(--warning-subtle); color: var(--warning); border-color: var(--warning-subtle); }
+.st-badge.st-draft    { background: var(--warning-subtle); color: var(--warning); border-color: var(--warning-subtle); }
+.st-badge.st-disabled { background: var(--bg); color: var(--fg-tertiary); border-color: var(--border); }
+.st-badge.st-none     { background: var(--bg); color: var(--fg-tertiary); border-color: var(--border); }
+
 .badge {
   display: inline-flex;
   align-items: center;

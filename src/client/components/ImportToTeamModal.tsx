@@ -3,6 +3,7 @@ import { useWorkspace } from '../contexts/WorkspaceContext';
 import { apiFetch, apiFetchLocal } from '../utils/api';
 import { notification } from '../utils/notification';
 import './ImportToTeamModal.css';
+import { useModalKeyboard } from '../hooks/useModalKeyboard';
 
 /**
  * Local → Team import wizard:
@@ -38,9 +39,31 @@ const TYPE_LABELS: Record<string, string> = {
 
 const ORDER = ['apis', 'scenarios', 'scenario_sets', 'web_cases', 'pc_cases', 'mobile_cases', 'case_sets_web', 'case_sets_pc', 'case_sets_mobile', 'environments', 'mocks_api', 'mocks_web', 'mocks_pc', 'mocks_mobile'];
 
-export default function ImportToTeamModal({ onClose }: { onClose: () => void }) {
+interface LocalAccount {
+  id: number;
+  account: string;
+  nickname: string | null;
+  stats: { apis: number; scenarios: number; webCases: number; pcCases: number; mobileCases: number; environments: number };
+}
+
+/**
+ * mode 'self'         - 导入"我自己"的本机资源 (原行为)
+ * mode 'pick-account' - 2026-08-23 用户设计: 团队空间里选一个本地账号, 把它的
+ *                        个人数据同步进团队项目 (走 /team/local-accounts/* 桥)。
+ */
+export default function ImportToTeamModal({
+  onClose,
+  mode = 'self',
+}: {
+  onClose: () => void;
+  mode?: 'self' | 'pick-account';
+}) {
+  // Esc 关闭统一 (2026-08-27)
+  useModalKeyboard(true, onClose);
   const { workspace, projects } = useWorkspace();
-  const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [step, setStep] = useState<0 | 1 | 2 | 3>(mode === 'pick-account' ? 0 : 1);
+  const [accounts, setAccounts] = useState<LocalAccount[]>([]);
+  const [picked, setPicked] = useState<LocalAccount | null>(null);
   const [tree, setTree] = useState<PreviewTree | null>(null);
   const [checked, setChecked] = useState<Record<string, Set<number>>>({});
   const [includeSecrets, setIncludeSecrets] = useState(false);
@@ -56,6 +79,12 @@ export default function ImportToTeamModal({ onClose }: { onClose: () => void }) 
   const projectName = projects.find((p) => p.id === projectId)?.name ?? '';
 
   useEffect(() => {
+    if (mode === 'pick-account') {
+      apiFetch<{ accounts: LocalAccount[] }>('/team/local-accounts')
+        .then((res) => setAccounts(res.data?.accounts ?? []))
+        .catch((e) => notification.error(e instanceof Error ? e.message : '读取本地账号列表失败'));
+      return;
+    }
     apiFetchLocal<PreviewTree>('/export-package/preview')
       .then((res) => {
         const t = res.data as PreviewTree | null;
@@ -67,6 +96,25 @@ export default function ImportToTeamModal({ onClose }: { onClose: () => void }) 
       })
       .catch((e) => notification.error(e instanceof Error ? e.message : '读取本机资源失败'));
   }, []);
+
+  /** 选中本地账号后加载它的资源树 (团队桥端点, 走中心会话)。 */
+  const pickAccount = async (a: LocalAccount) => {
+    setBusy(true);
+    try {
+      const res = await apiFetch<PreviewTree>(`/team/local-accounts/${a.id}/preview?teamId=${teamId}`);
+      const t = res.data as PreviewTree | null;
+      setTree(t ?? null);
+      const c: Record<string, Set<number>> = {};
+      for (const [k, list] of Object.entries(t ?? {})) c[k] = new Set(list.map((i) => i.id));
+      setChecked(c);
+      setPicked(a);
+      setStep(1);
+    } catch (e) {
+      notification.error(e instanceof Error ? e.message : '读取该账号资源失败');
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const totalCount = useMemo(
     () => ORDER.reduce((n, t) => n + (checked[t]?.size ?? 0), 0),
@@ -91,6 +139,14 @@ export default function ImportToTeamModal({ onClose }: { onClose: () => void }) 
   const buildPackage = async (): Promise<Record<string, unknown> | null> => {
     const body: Record<string, unknown> = { includeSecrets };
     for (const t of ORDER) body[t] = [...(checked[t] ?? [])];
+    if (mode === 'pick-account') {
+      if (!picked) return null;
+      const res = await apiFetch<Record<string, unknown>>(`/team/local-accounts/${picked.id}/build`, {
+        method: 'POST',
+        body: JSON.stringify({ teamId, selections: body, includeSecrets }),
+      });
+      return res.data ?? null;
+    }
     const res = await apiFetchLocal<Record<string, unknown>>('/export-package/build', {
       method: 'POST',
       body: JSON.stringify(body),
@@ -178,6 +234,12 @@ export default function ImportToTeamModal({ onClose }: { onClose: () => void }) 
         </div>
 
         <div className="itm-steps">
+          {mode === 'pick-account' && (
+            <>
+              <span className={`itm-step ${step >= 0 ? 'on' : ''}`}>0 选择账号</span>
+              <span className="itm-step-arrow">{'->'}</span>
+            </>
+          )}
           <span className={`itm-step ${step >= 1 ? 'on' : ''}`}>1 选择资源</span>
           <span className="itm-step-arrow">→</span>
           <span className={`itm-step ${step >= 2 ? 'on' : ''}`}>2 冲突处理</span>
@@ -186,13 +248,41 @@ export default function ImportToTeamModal({ onClose }: { onClose: () => void }) 
         </div>
 
         <div className="modal-body itm-body">
+          {step === 0 && (
+            <>
+              <div className="itm-hint">选择要把哪个本地账号的个人数据同步进团队（公司服务器上的所有个人账户都在这里）。</div>
+              {accounts.length === 0 && <div className="itm-empty">没有本地账号</div>}
+              {accounts.map((a) => {
+                const s = a.stats;
+                const total = s.apis + s.scenarios + s.webCases + s.pcCases + s.mobileCases;
+                return (
+                  <button
+                    key={a.id}
+                    className="itm-account-row"
+                    disabled={busy}
+                    onClick={() => void pickAccount(a)}
+                  >
+                    <span className="itm-account-name">{a.nickname || a.account}</span>
+                    <span className="itm-account-sub">{a.account}</span>
+                    <span className="itm-account-stats">
+                      {total === 0
+                        ? '无数据'
+                        : `接口 ${s.apis} · 场景 ${s.scenarios} · Web ${s.webCases} · PC ${s.pcCases} · 移动 ${s.mobileCases}`}
+                    </span>
+                  </button>
+                );
+              })}
+            </>
+          )}
+
           {step === 1 && (
             !tree ? (
               <div className="itm-empty">读取本机资源中…</div>
             ) : (
               <>
                 <div className="itm-hint">
-                  勾选要导入的本机资源。导入场景集/用例集时会自动带上其引用的场景和用例（依赖闭包）。
+                  {mode === 'pick-account' && picked && <b>账号「{picked.nickname || picked.account}」- </b>}
+                  勾选要导入{mode === 'pick-account' ? '的该账号' : '的本机'}资源。导入场景集/用例集时会自动带上其引用的场景和用例（依赖闭包）。
                   <label className="itm-secrets">
                     <input type="checkbox" checked={includeSecrets} onChange={(e) => setIncludeSecrets(e.target.checked)} />
                     包含环境中的敏感变量（数据库密码等，默认脱敏）
@@ -302,6 +392,10 @@ export default function ImportToTeamModal({ onClose }: { onClose: () => void }) 
         </div>
 
         <div className="modal-footer">
+          {step === 0 && (
+            <button className="btn btn-default" onClick={onClose}>取消</button>
+          )}
+
           {step === 1 && (
             <>
               <button className="btn btn-default" onClick={() => void downloadPkg()}>⬇ 下载 .atpkg</button>

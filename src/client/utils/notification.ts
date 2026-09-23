@@ -34,6 +34,9 @@ function getContainer(): HTMLElement {
       align-items: center;
       gap: 8px;
       pointer-events: none;
+      /* 连续报错时 toast 堆叠会超出视口 — 限高滚动 */
+      max-height: calc(100vh - 6rem);
+      overflow-y: auto;
     `;
     document.body.appendChild(container);
   }
@@ -57,10 +60,12 @@ const COLORS: Record<NotificationType, string> = {
 };
 
 // 默认时长（毫秒）
+// 2026-08-27: 错误/警告信息往往比较长(服务端回显、校验明细), 3-4 秒一闪而过
+// 用户来不及读 — error 提到 10s、warning 6s; 且下方支持悬停暂停与手动关闭。
 const DEFAULT_DURATION: Record<NotificationType, number> = {
   success: 2000,
-  error: 4000,
-  warning: 3000,
+  error: 10000,
+  warning: 6000,
   info: 3000,
 };
 
@@ -72,9 +77,9 @@ function createNotification(message: string, options: NotificationOptions = {}) 
   const toast = document.createElement('div');
   toast.style.cssText = `
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: 8px;
-    padding: 10px 20px;
+    padding: 10px 12px 10px 20px;
     border-radius: 8px;
     font-size: 14px;
     font-weight: 500;
@@ -84,23 +89,56 @@ function createNotification(message: string, options: NotificationOptions = {}) 
     cursor: pointer;
     pointer-events: auto;
     animation: notificationSlideIn 0.2s ease;
-    white-space: nowrap;
+    /* 长错误信息(服务端回显/校验明细)折行显示而不是横向溢出 */
+    white-space: normal;
+    word-break: break-word;
+    max-width: min(560px, calc(100vw - 4rem));
+    line-height: 1.5;
     font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Inter', system-ui, sans-serif;
   `;
-  toast.innerHTML = `
-    <span style="font-size: 14px; font-weight: bold; flex-shrink: 0;">${ICONS[type]}</span>
-    <span>${message}</span>
-  `;
+  // icon 是内部常量可安全 innerHTML; message 走 textContent — 它常携带
+  // 用户可控文本(资源名/服务端回显), 拼进 innerHTML 是存储型 XSS
+  const icon = document.createElement('span');
+  icon.style.cssText = 'font-size: 14px; font-weight: bold; flex-shrink: 0; line-height: 1.5;';
+  icon.innerHTML = ICONS[type];
+  const text = document.createElement('span');
+  text.textContent = message;
+  text.style.cssText = 'flex: 1; min-width: 0;';
+  toast.appendChild(icon);
+  toast.appendChild(text);
 
-  // 点击关闭
+  // 手动关闭按钮 — 错误信息不能只靠"等它消失"来摆脱
+  const closeBtn = document.createElement('span');
+  closeBtn.textContent = '×';
+  closeBtn.title = '关闭';
+  closeBtn.style.cssText = `
+    flex-shrink: 0; margin-left: 4px; padding: 0 6px;
+    font-size: 16px; line-height: 1.4; border-radius: 4px;
+    opacity: 0.75; cursor: pointer;
+  `;
+  closeBtn.addEventListener('click', (e) => { e.stopPropagation(); removeToast(toast); });
+  toast.appendChild(closeBtn);
+
+  // 点击 toast 主体也可关闭
   toast.addEventListener('click', () => removeToast(toast));
 
-  // 自动消失
-  const timer = setTimeout(() => removeToast(toast), resolvedDuration);
+  let removed = false;
+  // 自动消失; 悬停暂停计时 — 阅读长错误时不会中途消失 (2026-08-27)
+  let timer: ReturnType<typeof setTimeout> | null = setTimeout(() => removeToast(toast), resolvedDuration);
+  const pauseTimer = () => {
+    if (timer) { clearTimeout(timer); timer = null; }
+  };
+  const resumeTimer = () => {
+    if (!timer) timer = setTimeout(() => removeToast(toast), 4000);
+  };
+  toast.addEventListener('mouseenter', pauseTimer);
+  toast.addEventListener('mouseleave', resumeTimer);
 
   // 动画移除
   function removeToast(el: HTMLElement) {
-    clearTimeout(timer);
+    pauseTimer();
+    if (removed) return;
+    removed = true;
     el.style.animation = 'notificationFadeOut 0.25s ease forwards';
     setTimeout(() => el.remove(), 250);
   }
@@ -118,21 +156,26 @@ function showConfirm(message: string, options: ConfirmOptions = {}): Promise<boo
 
     const btnColor = type === 'danger' ? '#ef4444' : 'var(--accent, #6366f1)';
 
+    // 模板中仅放内部常量; title/message 是用户可控文本, 用 textContent 填充防 XSS
     overlay.innerHTML = `
       <div class="ncf-dialog">
         <div class="ncf-header">
           <span class="ncf-icon ncf-icon-${type}">${type === 'danger' ? '✕' : '!'}</span>
-          <span class="ncf-title">${title}</span>
+          <span class="ncf-title"></span>
         </div>
-        <div class="ncf-body">${message}</div>
+        <div class="ncf-body"></div>
         <div class="ncf-actions">
           <button class="ncf-btn ncf-btn-cancel">取消</button>
           <button class="ncf-btn ncf-btn-ok" style="background:${btnColor}">确定</button>
         </div>
       </div>
     `;
+    (overlay.querySelector('.ncf-title') as HTMLElement).textContent = title;
+    (overlay.querySelector('.ncf-body') as HTMLElement).textContent = message;
 
-    const close = (result: boolean) => {
+    // let: 下方注册键盘监听后会包一层" settled 保护"(见注释), 预先注册的
+    // 按钮/遮罩 handler 引用同一变量绑定, 调用时同样经过保护层
+    let close = (result: boolean) => {
       overlay.classList.add('ncf-closing');
       setTimeout(() => {
         overlay.remove();
@@ -148,15 +191,27 @@ function showConfirm(message: string, options: ConfirmOptions = {}): Promise<boo
 
     document.body.appendChild(overlay);
 
-    // 聚焦确定按钮，支持 Enter/Esc
+    // 聚焦确定按钮，支持 Enter/Esc。
+    // 2026-08-27: once:true 的监听在鼠标关闭后不会被消费, 残留到下一次任意
+    // 按键时还会 preventDefault 吃掉一次默认行为; 且多弹窗叠开时会连坐
+    // (一次按键触发所有对话框)。改为随 overlay 移除而注销, 且只作用于
+    // 当前这个 overlay 尚未关闭的情况。
     const okBtn = overlay.querySelector('.ncf-btn-ok') as HTMLElement;
     okBtn.focus();
+    let settled = false;
     const handleKey = (e: KeyboardEvent) => {
-      if (e.key === 'Enter') { e.preventDefault(); close(true); }
-      if (e.key === 'Escape') { e.preventDefault(); close(false); }
+      if (settled) return;
+      if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); close(true); }
+      if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); close(false); }
     };
-    document.addEventListener('keydown', handleKey, { once: true });
-  });
+    document.addEventListener('keydown', handleKey);
+    const origClose = close;
+    close = (result: boolean) => {
+      if (settled) return;
+      settled = true;
+      document.removeEventListener('keydown', handleKey);
+      origClose(result);
+    };  });
 }
 
 // 导出快捷方法

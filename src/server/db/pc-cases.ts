@@ -285,10 +285,11 @@ export function finishPcCaseExecution(id: number, data: {
   report_path: string | null;
   report_type: string | null;
   error_message: string | null;
+  error_stack?: string | null;
 }): number {
   const result = db.prepare(
-    `UPDATE pc_case_executions SET status = ?, finished_at = ?, duration_ms = ?, report_path = ?, report_type = ?, error_message = ? WHERE id = ?`
-  ).run(data.status, data.finished_at, data.duration_ms, data.report_path, data.report_type, data.error_message, id);
+    `UPDATE pc_case_executions SET status = ?, finished_at = ?, duration_ms = ?, report_path = ?, report_type = ?, error_message = ?, error_stack = ? WHERE id = ?`
+  ).run(data.status, data.finished_at, data.duration_ms, data.report_path, data.report_type, data.error_message, data.error_stack ?? null, id);
   return result.changes;
 }
 

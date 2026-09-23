@@ -3,7 +3,8 @@
   top: calc(var(--header-h, 48px) + 12px);
   left: 50%;
   transform: translateX(-50%);
-  z-index: 12000;
+  /* 低于全局 modal(9999) */
+  z-index: 9500;
   max-width: min(640px, calc(100vw - 48px));
   background: var(--surface);
   border: 1px solid var(--warning, #d97706);

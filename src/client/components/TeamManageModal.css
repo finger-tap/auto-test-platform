@@ -79,3 +79,61 @@
 .tmm-action-delete { color: var(--danger); }
 .tmm-action-create { color: var(--success); }
 .tmm-action-import, .tmm-action-rollback { color: var(--accent); }
+
+/* ── invites tab ── */
+.tmm-invite-form {
+  margin-bottom: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.tmm-code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 13px;
+  letter-spacing: 1px;
+  background: var(--surface-secondary, #f4f5f6);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 2px 8px;
+  cursor: copy;
+  color: var(--fg);
+}
+.tmm-code:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.tmm-row-dim td { opacity: 0.55; }
+.tmm-inv-status {
+  font-size: 12px;
+  padding: 1px 8px;
+  border-radius: 10px;
+}
+.tmm-inv-valid {
+  color: #16a34a;
+  background: rgba(22, 163, 74, 0.1);
+}
+.tmm-inv-revoked,
+.tmm-inv-expired,
+.tmm-inv-exhausted {
+  color: var(--fg-tertiary);
+  background: var(--surface-secondary, #f4f5f6);
+}
+
+/* ── 数据页签 (2026-08-23) ── */
+.tmm-data-tab { padding: 4px 0; }
+.tmm-data-card {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px 16px;
+  margin-bottom: 10px;
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.tmm-data-card:hover {
+  border-color: var(--accent);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
+}
+.tmm-data-title { font-weight: 500; margin-bottom: 6px; }
+.tmm-data-desc { font-size: 12px; color: var(--fg-secondary); line-height: 1.6; }
+.tmm-data-warn { color: var(--warning, #d97706); margin-left: 4px; }
+.tmm-data-hint { font-size: 12px; color: var(--fg-tertiary); margin-top: 6px; }

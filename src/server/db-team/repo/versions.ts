@@ -11,9 +11,28 @@ import { nowSql, TeamApiError } from '../util.js';
 
 export function contentHashOf(row: Record<string, unknown>): string {
   // Strip identity/meta columns — only business content participates.
-  const { id, teamId, projectId, ownerId, version, createdAt, updatedAt, ...content } = row;
+  // 2026-08-25: 兼容两种键名 — DB 行是 snake_case(team_id/project_id/...),
+  // 导入包里的本地行没有这些键; 此前只剥 camelCase, meta 列全部参与哈希,
+  // "内容相同"检测永远为 false(重复导入一律生成副本, 空 PUT 也写快照)。
+  const {
+    id, teamId, projectId, ownerId, version, createdAt, updatedAt,
+    team_id, project_id, owner_id, created_at, updated_at,
+    ...content
+  } = row;
   void id; void teamId; void projectId; void ownerId; void version; void createdAt; void updatedAt;
-  const stable = JSON.stringify(content, (k, v) => (v === undefined ? null : v));
+  void team_id; void project_id; void owner_id; void created_at; void updated_at;
+  // 递归排序键: 两侧行的来源不同(SQLite SELECT * vs drizzle SELECT), 列序
+  // 不一致会让 JSON.stringify 结果不同 — 键序无关才能稳定比对
+  const sortKeys = (v: unknown): unknown => {
+    if (Array.isArray(v)) return v.map(sortKeys);
+    if (v && typeof v === 'object') {
+      return Object.fromEntries(
+        Object.entries(v as Record<string, unknown>).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)).map(([k, val]) => [k, sortKeys(val)]),
+      );
+    }
+    return v;
+  };
+  const stable = JSON.stringify(sortKeys(content), (k, v) => (v === undefined ? null : v));
   return createHash('sha256').update(stable).digest('hex');
 }
 

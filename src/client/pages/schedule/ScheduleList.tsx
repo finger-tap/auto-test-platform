@@ -1,11 +1,13 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { apiFetch } from '../../utils/api';
+import { apiFetch, is2xx } from '../../utils/api';
 import { formatDateTime } from '../../utils/datetime';
 import notification from '../../utils/notification';
 import FormSelect from '../../components/FormSelect';
+import PageSizeSelect from '../../components/PageSizeSelect';
 import DevicePickerModal, { type PickerDevice } from '../../components/DevicePickerModal';
 import './ScheduleList.css';
+import { useViewportPageSize } from '../../hooks/useViewportPageSize';
 
 // 2026-06-06 (#78): backend split into 4 per-type endpoints
 // (/schedule-sets-api|web|pc|mobile) after the scenario→case refactor.
@@ -199,7 +201,7 @@ function InlineScheduleConfig({ item, onClose, onUpdated }: {
       }
       const data = await res;
       setSaving(false);
-      if (data.code === 200) {
+      if (is2xx(data.code)) {
         setModalType('success'); setModalMsg(enableImmediately ? '已保存并启用' : '保存成功'); setModalOpen(true);
         setTimeout(() => { onUpdated(); onClose(); }, 1500);
       } else {
@@ -212,7 +214,7 @@ function InlineScheduleConfig({ item, onClose, onUpdated }: {
 
   return (
     <>
-      <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 500, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={onClose}>
+      <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 9998, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={onClose}>
         <div style={{ background: 'var(--surface)', borderRadius: 12, padding: 28, width: 640, maxWidth: '95vw', boxShadow: '0 8px 32px rgba(0,0,0,0.2)', maxHeight: '90vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
             <h3 style={{ margin: 0, fontSize: 16, color: 'var(--fg)' }}>配置定时任务</h3>
@@ -229,7 +231,7 @@ function InlineScheduleConfig({ item, onClose, onUpdated }: {
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
               {CRON_PRESETS.map(p => (
                 <button key={p.value} onClick={() => applyPreset(p.value)}
-                  style={{ padding: '4px 12px', borderRadius: 16, border: `1px solid ${cronExpr === p.value ? 'var(--accent)' : '#d9d9d9'}`, background: cronExpr === p.value ? 'var(--accent)' : 'var(--surface)', color: cronExpr === p.value ? 'var(--surface)' : 'var(--fg)', cursor: 'pointer', fontSize: 13 }}>
+                  style={{ padding: '4px 12px', borderRadius: 16, border: `1px solid ${cronExpr === p.value ? 'var(--accent)' : 'var(--border)'}`, background: cronExpr === p.value ? 'var(--accent)' : 'var(--surface)', color: cronExpr === p.value ? '#fff' : 'var(--fg)', cursor: 'pointer', fontSize: 13 }}>
                   {p.label}
                 </button>
               ))}
@@ -354,7 +356,12 @@ export default function ScheduleList({ basePath = '/api-test' }: { basePath?: st
   const [list, setList] = useState<ScheduleSetItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  // 每页行数自适应视口: 按表格容器真实高度算, 保证表格恰好填满一屏不滚动;
+  // 用户在分页条手动选择条数后以手动值为准。
+  const [autoPageSize, tableWrapRef] = useViewportPageSize();
+  const [userPageSize, setUserPageSize] = useState<number | null>(null);
+  const pageSize = userPageSize ?? autoPageSize;
+  const setPageSize = setUserPageSize;
   const [total, setTotal] = useState(0);
   // Modal expects the enriched row (testType + normalized setId/setName/setCount).
   // list items are stamped with those in fetchList so this assignment is safe.
@@ -366,23 +373,43 @@ export default function ScheduleList({ basePath = '/api-test' }: { basePath?: st
   const [appliedStatus, setAppliedStatus] = useState('');
   const [appliedCreator, setAppliedCreator] = useState('');
 
-  const fetchList = async (pageNum = 1, pageSz = pageSize) => {
+  const fetchSeq = useRef(0);
+  const fetchList = async (
+    pageNum = 1,
+    pageSz = pageSize,
+    // 默认带上已应用的筛选: 翻页/每页条数变化不再丢失筛选条件 (2026-08-31)
+    flt: { name?: string; status?: string; creator?: string } = { name: appliedName, status: appliedStatus, creator: appliedCreator },
+  ) => {
+    // 竞态守卫: 仅最新一次请求的响应可以落地(StrictMode/行数校准都会并发重拉)
+    const seq = ++fetchSeq.current;
     setLoading(true);
     try {
-      const res = await apiFetch<{ items: ScheduleSetItem[]; total: number; page: number; pageSize: number }>(`${ep}?page=${pageNum}&pageSize=${pageSz}`);
-      if (res.code === 200 && res.data) {
+      // 2026-08-25: 筛选走服务端(此前本地只过滤当前页, 其他页的数据永远搜不到)
+      const qs = new URLSearchParams({ page: String(pageNum), pageSize: String(pageSz) });
+      if (flt.name) qs.set('name', flt.name);
+      if (flt.status) qs.set('status', flt.status);
+      if (flt.creator) qs.set('creator', flt.creator);
+      const res = await apiFetch<{ items: ScheduleSetItem[]; total: number; page: number; pageSize: number }>(`${ep}?${qs.toString()}`);
+      if (seq !== fetchSeq.current) return;
+      if (is2xx(res.code) && res.data) {
         // Stamp each row with its testType so child components (modal/buttons)
         // can build the right endpoint without prop-drilling basePath.
         const items = (res.data.items || []).map(it => ({ ...it, testType, ...normalizeItem(it, testType) }));
         setList(items);
         setTotal(res.data.total || 0);
         setPage(res.data.page || 1);
-        setPageSize(res.data.pageSize || 10);
       } else { setList([]); }
-    } finally { setLoading(false); }
+    } finally { if (seq === fetchSeq.current) setLoading(false); }
   };
 
   useEffect(() => { fetchList(); }, []);
+
+  // 每页条数变化(视口自适应/手动选择)时刷新; 首次由上面的 effect 拉取, 跳过
+  const sizeFirstRun = useRef(true);
+  useEffect(() => {
+    if (sizeFirstRun.current) { sizeFirstRun.current = false; return; }
+    fetchList(page, pageSize);
+  }, [pageSize]);
 
   const handlePause = async (item: ScheduleSetItem) => {
     if (item.id <= 0) return;
@@ -404,23 +431,21 @@ export default function ScheduleList({ basePath = '/api-test' }: { basePath?: st
     fetchList(page);
   };
 
-  const filtered = list.filter(item => {
-    if (appliedName && !(item.setName || '').includes(appliedName)) return false;
-    if (appliedStatus && item.status !== appliedStatus) return false;
-    if (appliedCreator && !(item.creator_name || '').includes(appliedCreator)) return false;
-    return true;
-  });
-
-  const getBadgeClass = (status: string) => {
-    if (status === 'active') return 'schedule-status-badge status-active';
-    if (status === 'paused') return 'schedule-status-badge status-paused';
-    return 'schedule-status-badge status-none';
-  };
+  // 筛选已由服务端执行, 直接渲染接口结果
+  const filtered = list;
 
   const handleQuery = () => {
     setAppliedName(nameFilter);
     setAppliedStatus(statusFilter);
     setAppliedCreator(creatorFilter);
+    setPage(1);
+    fetchList(1, pageSize, { name: nameFilter, status: statusFilter, creator: creatorFilter });
+  };
+
+  const getBadgeClass = (status: string) => {
+    if (status === 'active') return 'st-badge st-active';
+    if (status === 'paused') return 'st-badge st-paused';
+    return 'st-badge st-none';
   };
 
   const handleReset = () => {
@@ -430,7 +455,7 @@ export default function ScheduleList({ basePath = '/api-test' }: { basePath?: st
     setAppliedName('');
     setAppliedStatus('');
     setAppliedCreator('');
-    fetchList(1);
+    fetchList(1, pageSize, {});
   };
 
   return (
@@ -458,30 +483,33 @@ export default function ScheduleList({ basePath = '/api-test' }: { basePath?: st
       </div>
 
       {/* Table */}
-      <div className="alist-table-wrap">
+      <div className="alist-table-wrap" ref={tableWrapRef}>
         {loading ? (
           <div className="alist-empty">加载中...</div>
         ) : filtered.length === 0 ? (
-          <div className="alist-empty">暂无数据</div>
+          <div className="alist-empty">
+            <p>暂无定时任务</p>
+            <p className="alist-empty-hint">在左侧「用例集」或「场景集」的详情页可为集合配置 cron 定时执行</p>
+          </div>
         ) : (
           <table className="alist-table">
             <thead>
               <tr>
                 <th>{testType === 'api' ? '场景集名称' : '用例集名称'}</th>
-                <th>{testType === 'api' ? '场景数' : '用例数'}</th>
-                <th>创建人</th>
-                <th>任务状态</th>
-                <th>下次执行时间</th>
-                <th>最近执行</th>
-                <th>操作</th>
+                <th style={{ width: 84 }}>{testType === 'api' ? '场景数' : '用例数'}</th>
+                <th style={{ width: 124 }}>创建人</th>
+                <th style={{ width: 92 }}>任务状态</th>
+                <th style={{ width: 162 }}>下次执行时间</th>
+                <th style={{ width: 162 }}>最近执行</th>
+                <th style={{ width: 204 }}>操作</th>
               </tr>
             </thead>
             <tbody>
               {filtered.map((item, index) => (
                 <tr key={item.setId} className="row-enter" style={{ '--delay': `${index * 30}ms` } as React.CSSProperties}>
-                  <td>{item.setName}</td>
+                  <td className="td-name" title={item.setName}>{item.setName}</td>
                   <td>{item.setCount}</td>
-                  <td>{item.creator_name}</td>
+                  <td className="td-ellipsis" title={item.creator_name}>{item.creator_name}</td>
                   <td><span className={getBadgeClass(item.status)}>{STATUS_LABELS[item.status]}</span></td>
                   <td className="td-next-run">{item.status === 'active' && item.next_run_at ? formatDateTime(item.next_run_at) : '—'}</td>
                   <td className="td-next-run">{item.last_run_at ? formatDateTime(item.last_run_at) : '—'}</td>
@@ -506,7 +534,7 @@ export default function ScheduleList({ basePath = '/api-test' }: { basePath?: st
         <span className="page-info">共 {total} 条，第 {page} / {Math.ceil(total / pageSize) || 1} 页</span>
         <button className="btn btn-sm" disabled={page <= 1} onClick={() => fetchList(page - 1)}>上一页</button>
         <button className="btn btn-sm" disabled={page >= Math.ceil(total / pageSize) || total === 0} onClick={() => fetchList(page + 1)}>下一页</button>
-        <FormSelect value={String(pageSize)} options={[{value:"10",label:"10条/页"},{value:"20",label:"20条/页"},{value:"50",label:"50条/页"},{value:"100",label:"100条/页"}]} onChange={val => { setPageSize(Number(val)); setPage(1); fetchList(1); }} />
+        <PageSizeSelect autoSize={autoPageSize} value={pageSize} onChange={n => { setPageSize(n); setPage(1); }} />
       </div>
 
       {/* Inline schedule config */}

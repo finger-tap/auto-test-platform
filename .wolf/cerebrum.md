@@ -16,8 +16,13 @@
 - **(2026-06-26) SSH 推送不要用固定总超时误杀正常上传**：agent 包可能很大、内网也可能慢；除非用户明确要求，否则前端/后端不要设置 broad wall-clock timeout。异常应由具体步骤(connect/upload/write-env/deploy)即时返回；长耗时通过进度条/日志反馈。
 - **(2026-06-26) 顶部用户菜单统一为头像入口**：主页和各测试类型页应使用同一个头像菜单组件；默认只展示头像，点击后展示用户名/账号和设置、退出登录等操作，避免不同页面表现不一致。
 
+- **(2026-08-31) 列表页交互铁律「撑满不滚动」**: 列表页每页行数必须按表格容器真实高度动态计算, 恰好填满一屏——不多(末行截半/出滚动条)不少(下方空白)。能一次操作绝不让用户操作两次(如翻页丢筛选、横向滚动才能看到列都算违规)。列内容超长一律省略号+title 悬浮, 列宽不允许随内容撑大。
+
 ## Key Learnings
 
+- **(2026-08-21) 项目的保密配置机制**：真实密钥/连接串只放根目录 `.env`（已 gitignore 且历史从未提交，`git check-ignore .env` 可验证）；`scripts/dev.mjs` 启动时用极简 KEY=VALUE 解析器加载它（不覆盖已 export 的 shell 变量）；模板放 `.env.example`（占位符，入库给同事看）。给用户演示/文档示例一律用占位符，不贴真实连接串。
+- **(2026-08-21) mysql2 连接串 TLS 的正确写法**：`mysql2@3.22.5` 解析 URI 时 query 参数先 `JSON.parse` 再回退字符串：`?ssl={}` -> 空对象 -> 启用 TLS 且 `rejectUnauthorized` 默认 true；`?ssl=true` -> boolean -> **直接抛 "SSL profile must be an object"**。TiDB Cloud 强制 TLS，DB_URL 结尾必须 `?ssl={}`。密码含 `@ : / % #` 需 URL 百分号编码（URL 对象 toString 往返无损保留编码）。
+- **(2026-08-21) 重建"去库名"连接串必须保留 query**：从 DB_URL 派生"只连 server 不连库"的连接串（如 CREATE DATABASE）时，手工拼 `${protocol}//${user}:${pass}@${host}` 会丢掉 `?ssl={}`（云实例直接被拒）且对已解码密码二次拼接（特殊字符即坏）。正解：`new URL(url); u.pathname='/'; u.toString()`。
 - **CSS 组件复用铁律**：发现相同或相似的组件样式时，必须抽取到公共 CSS 文件，禁止在各页面 CSS 中重复定义。公共样式放在 `src/client/styles/` 目录下，页面级 CSS 只保留该页面特有的样式。
 - **ad-section-head 边框延伸技巧**：当 `.ad-section` 有 `padding` 时，`.ad-section-head` 需要 `margin-left/right/top: -padding` 来使边框延伸到整个宽度。
 - **页面级 CSS 禁止全局覆盖共享类**：CaseSetDetail.css 中 `.detail-action-bar`（无父类前缀）是全局覆盖，影响所有页面。页面级 CSS 中覆盖共享类必须加父类前缀（如 `.case-set-detail .detail-action-bar`）。发现时应删除或加前缀。同理 WebCaseDetail.css/PcCaseDetail.css 的 `.web-case-detail .detail-action-bar` 虽有前缀，但 `position: fixed` 模式已弃用。
@@ -33,6 +38,15 @@
 - **共享资源表不应带 test_type 字段**: environments（DB连接/SSL/变量）等被 4 种测试类型共用的资源表，无 test_type 字段。带 test_type 列的表必须能按测试类型独立查询，否则应拆为专用表。
 - **Node.js VM 沙箱硬化模式**: 用 `node:vm.createContext(sandbox, { codeGeneration: { strings: false, wasm: false } })` + `new vm.Script(code).runInContext(sandbox)` 替代 `new Function(...keys, body)`。`codeGeneration.strings:false` 阻断沙箱内 `eval()` / `new Function()` / `Function.prototype.constructor`，从而封堵 `({}).constructor.constructor('return process')()` 经典逃逸。脚本输出用 `Promise.race([promise, timeoutPromise])` 二次保险（vm.Script 的 timeout 只覆盖同步段）。`setVar`/`getVar` 闭包持有 host 端 `scriptVars`，结果通过 `result.vars` 回传，保持 API 兼容。
 - **Midscene `overrideAIConfig` 运行时重载模式**: `MIDSCENE_*` 环境变量只在 `ModelConfigManager.initialize()` 启动时读一次,运行中改 process.env 不会生效。Midscene 暴露 `overrideAIConfig(envMap, extendMode?)` 强制重建 global ModelConfigManager。**`extendMode: true` 保留已有 env 值**(例如 Docker 设置的 OPENAI_API_KEY),只覆盖传入的键,避免误清空。实操:从 DB 读 per-user 配置,buildEnvMap 时跳过 null/空字符串/纯空格,直接 set `process.env[k] = v` 然后 await `overrideAIConfig(map, true)`,这样保留 ENV-var 默认值 + 注入用户覆盖值。web/pc/mobile executor 都在 case 起始调用一次,下次执行即生效
+
+- **(2026-08-31) 表格列宽防撑大唯一可靠解是 table-layout:fixed**: auto 布局下 nowrap 单元格 min-content=整行文本, td max-width 只是软提示, 列宽只增不减→横向滚动条。fixed 布局列宽只由表头决定, 配合全列 `td{nowrap+hidden+ellipsis}` 与刚性列 th 宽度(标签180/日期150/操作110-200), 内容永远不影响列宽。
+- **(2026-08-31) 每页行数自适应=实测而非估算**: useViewportPageSize 用 callback ref 挂表格滚动容器, ResizeObserver(容器尺寸/筛选展开)+MutationObserver(行渲染后校准真实行高) 计算容量, 有防震荡上限。页面侧 `userPageSize ?? autoPageSize`, 手动选择后 resize 不覆盖、刷新恢复自动。注意: fetch 必须带请求序列守卫, 否则 StrictMode 双发+校准重拉的乱序响应会把新行数钉死在旧行数据上。
+
+- **(2026-08-31) Vite 页面 CSS 全局泄漏是列表布局疑难杂症的元凶**: 页面 CSS 里任何无作用域的共享类规则(.alist-*、.row-action-btn 等)会在模块加载后全局生效且永不卸载, 泄漏到所有页面(跨路由累积)。排查手段: 浏览器里枚举 document.styleSheets 找 margin 来源(inline sheet 名即泄漏文件)。修复原则: 页面 CSS 一律加页面根类前缀; 共享外观放 styles/ 并用 :is(.alist, .mock-list-root) 结构作用域 + :has(+ .alist-pagination) 处理"后随兄弟才生效"的连体变体。
+- **(2026-08-31) 列表页三卡连体布局**: 筛选卡(上圆角/无下边框) + 表格区(中段/方角/:has(+分页) 去底边) + 分页条(尾段/下圆角/上边框即分隔线), 接缝全部单层 1px、margin 0; 配合实测行高自适应, 同屏比分离卡片多展示 1 行。
+
+- **(2026-08-31) DOM 观察器生命周期铁律**: 观察器(MutationObserver/ResizeObserver)必须"谁创建谁释放"— 在 useEffect 里创建就在同一 effect 的 cleanup 里 disconnect; 不要在 callback ref 里创建、在 effect cleanup 里断开 — StrictMode 的挂载→清理→重挂会杀掉观察器而 callback ref(元素未变)不会重跑, 造成"整页加载后观察器全部失效"(HMR 热更新路径会掩盖此 bug)。容器元素要触发 effect 重建, 用 setWrapEl 存 state 而非 ref。同理: **resize/滚动等回调里不要依赖 requestAnimationFrame** — 遮挡/后台标签页的 rAF 被浏览器暂停, 回调永不执行; 轻量同步计算直接做。
+- **(2026-08-31) IAB 标签页 guest 崩溃后会假死**: 症状=JS 还能跑(定位器读取/MO 正常)但 resize 事件不达、点击超时、截图 "capture failed for guest"。排障先换新标签页排除环境再怀疑代码。
 
 ## Do-Not-Repeat
 
@@ -345,3 +359,100 @@
 - **宿主用户概念**: 中心实例的 per-user 配置(midscene 模型/浏览器)归属宿主本地账号,团队执行复用之——在中心个人空间配置一次即可,文档必须写明。
 - **routes 内部函数复用**: executeWs(api, req, res) 只依赖 req.body.environmentId 和 req.user,export 后可用 shim req({body:{...mapped}, user:{userId:hostId}})直接复用,不必复制其内部逻辑。
 - **dispatcher sub-path 顺序坑**: execute/versions/rollback 等 sub 分支必须在 `const id = Number(idStr)` 声明之后(或用 Number(idStr)),否则 TS2448 used-before-declaration。
+
+## Decision Log
+
+- **(2026-08-21) 团队数据库迁到云平台（TiDB Cloud），本地 TiDB playground 停用**：本地 tiup playground（tag VSf2vFd，数据保留在 ~/works/tidb/.tiup/data/VSf2vFd，319MB，可随时 --tag 重启）已停；.env 的 DB_URL 换成云连接模板（必须 ?ssl={} 启 TLS）；新增 .env.example 入库作配置模板；migrate.ts 修复丢 query 的重建逻辑（bug-648）。保密约定：密钥只进 .env，模板/文档/聊天一律占位符。
+
+## Key Learnings
+
+- **(2026-08-21) 密钥防泄漏三件套（本项目标准做法）**：`.env`（gitignore，dev.mjs/drizzle-kit 自动加载）+ `.env.example`（占位符模板，入库）+ `githooks/pre-commit` 拦截钩子（`git config core.hooksPath githooks` 挂载，postinstall 自动设置，拒绝提交任何 `.env*`，仅放行 `.env.example`）。三层任何一层失效仍有兜底。注意 hooksPath 会整体替换 .git/hooks 查找路径，切换前确认无其他自定义钩子。edit 工具对长中文多行 old_string 偶发匹配失败--改用单行短锚点即可。
+- **anatomy.md 条目分隔符是 em dash（—, U+2014），不是 ASCII 连字符**：`- \`file\` — 描述`。edit/python 匹配 anatomy 行时用 `—` 才能命中；read 工具渲染出来肉眼看和 `-` 无差别。这是本 session 多次 edit "old_string not found" 的根因。
+
+## Key Learnings
+
+- **(2026-08-21) 团队库现用云 TiDB**：`62.234.127.90:4000`（root，自建 TiDB v8.5.0，非 TiDB Cloud），库 autotest_team 已初始化（31 表 + 2 迁移）。**服务端未启用 TLS**（实测 `HANDSHAKE_NO_SSL_SUPPORT`），DB_URL 不能带 `?ssl={}`，密码走公网明文--待用户在服务端开启 TiDB TLS 后再加回该参数。一键初始化：`npm run db:init`（幂等，读 .env）。
+- **(2026-08-21) runTeamMigrations 成功后不关连接池**：client.ts 的单例 pool 会吊住进程事件循环，一次性脚本（db:init）调用后必须 `closeTeamDb()`（从 client.js 导入，migrate.ts 只 re-export runTeamMigrations/closeTeamDb 部分函数--closeTeamDb 实际在 client.ts）。症状：脚本逻辑全部完成但不 exit。
+
+## Key Learnings
+
+- **(2026-08-21) 云服务器(62.234.127.90)上还部署着监控栈**：Grafana 端口 3000（匿名访问关闭，API 返回 401），带 Prometheus。用户会误把 `prometheus-2-0-stats`（Prometheus 自监控面板，Grafana 官方 ID 893）当成数据库面板--解答时直接指出该看 TiDB-Overview/TiDB/TiKV/PD 面板。TiDB 大概率是 tiup 带监控组件部署的。注意:云服务器 3000 端口被 Grafana 占了,以后中心实例部署上去要用别的端口。
+
+## Key Learnings
+
+- **(2026-08-22) npm run start 的三件套**：1) 必须先 `npm run build`（dist/server 是 tsc 产物，vite build 只产 dist/client，且 vite 先跑会清空 dist 再写入，顺序不能反）；2) 生产模式必须显式 `NODE_ENV=production`，否则 index.ts 会挂 Vite 开发中间件（前端走源码、JWT 用开发默认密钥、CORS 全开）；3) 生产模式+DB_URL 下 JWT_SECRET/TEAM_JWT_SECRET 缺失直接启动抛错（auth/jwt.ts 与 team-jwt.ts 双重强校验）。
+- **(2026-08-22) .env 加载统一走 src/server/env.ts**：index.ts 的第一顺位 import（ESM 按序求值，team-jwt.ts 在模块级读 TEAM_JWT_SECRET，必须让 env.ts 先跑）。语义与 dev.mjs 相同：不覆盖已导出变量。dist 布局下 __dirname(dist/server)->../../.env 与 src 布局等价。scripts/dev.mjs 仍保留自己的加载（无害重复）。
+- **(2026-08-22) 生产模式判定陷阱**：`isDev = NODE_ENV !== 'production'`，影响三处行为--前端服务方式（vite 中间件 vs dist/client 静态）、CORS（反射任意来源 vs 白名单）、JWT 密钥（开发默认 vs 强制）。用户裸跑 npm run start 时是"混跑模式"，能连云库但不是真生产。
+
+## Key Learnings
+
+- **(2026-08-22) 团队邀请码机制**：team_invites 表（code 唯一 XXXX-XXXX-XXXX 无混淆字母表、max_uses 0=不限、expires_at null=永久默认、revoked 软撤销）。设计要点：邀请码对 owner/admin 全文可见（可随时查看/再分享，对应用户"时间长了忘记"的需求）；兑换入口 POST /team/invites/redeem 挂在 teams/:id 之外（无需先有关系）；兑换成功写 audit(action=create, resource_type=team_member)。前端：TeamManageModal 第四个 tab + WorkspaceSwitcher "🎟 邀请码加入团队…"（无凭据先弹 ConnectTeamModal）。新增迁移走 npm run db:generate -> db:init 应用到云库。
+- **(2026-08-22) apiFetchCenter 的用途**：连接了中心但还在 local 工作区时（未入任何团队），请求要用 apiFetchCenter(centerUrl, path)（带该中心 token 直连），apiFetch 此时只会打到本地。RedeemInviteModal 用它。
+
+## Key Learnings (2026-08-22 夜)
+
+- **平台管理员引导模式**：拒绝内置固定 admin 账号（安全），用"空库首个注册自动 is_platform_admin=1"引导（Grafana/TiUP 同款）。注意：e2e 测试建过账号的库必须清空 center_users，否则真实用户的首注册拿不到管理员。TEAM_CREATE_POLICY 默认 admin（公司模型：管理员建团+邀请码进人），self 为自服务模式；策略在请求时读 env（改了要重启）。
+- **邀请链接是地址的分发载体**：公司模型下普通成员永远不该手填服务器地址。管理员复制的链接 `{center}/join/{CODE}` 自带地址；成员粘贴链接或直接点开（JoinPage 落地页：未登录先 bounce 到 /login 带 state.from 回跳）。ConnectTeamModal 地址栏预填优先级 initialUrl > lastCenterUrl > window.location.origin（单部署模型下 origin 即中心）。
+- **bash 子壳后台启动服务必须显式 cd**：`(cmd &)` 在个别调用里 workdir 未生效落到默认目录，npx 还会去网装 tsx；凡后台起服务一律 `cd 项目 && (...)` 双保险。
+
+## Key Learnings (2026-08-23)
+
+- **本地会话与中心会话必须同生命周期**：本地 logout 只清本地 token 时，浏览器里的 teamAuth:*（中心凭据）+ 团队工作区 localStorage 会整体传给下一个本地账号——共用电脑场景直接越权（普通账号看到别人的团队 + 管理员能力）。修复：logout 一律 clearAllTeamAuth()+writeWorkspace({mode:'local'})；login 时用 lastLocalAccount 对比，换号同样清理（同号重登保留，体验不倒退）。排障口诀：用户看到"别人的数据"，先分清是 DB 串号还是浏览器 localStorage 串会话（本次是后者：本地表审计全部 user_id 隔离，apis 里 uid1 行是团队镜像账号 __team_host__ 的产物）。
+
+## Key Learnings (2026-08-23 深夜)
+
+- **JSX 表达式容器内 fragment 里的裸 `>` 文本会触发 TS1382**（`<span>-></span>` 直接放 div 里没事，放进 `{cond && (<>...</>)}` 就报错）-- 统一写 `{'->'}` 规避。
+- **python 批量替换 JSX 时 old_string 若匹配多处会全部替换**：`{step === 1 && (` 同时命中 body 和 footer，footer 被误插整块 UI。改法：替换后必须 grep 结构断言（step===0/1/2/3 各出现次数），或用带上下文的唯一锚点。
+- **本地 SQLite 旧库可能缺新表**（mock_endpoints_web/pc/mobile 未迁移）：跨用户读库的代码必须 tableExists 防御，SELECT sqlite_master 而不是假设 schema 完整。
+- **数据同步桥的最优形态**：不做"复制 API"，把已有 export(build)→import(commit) 两个引擎用"以指定 userId 导出"的桥接端点连起来，冲突/版本/审计全部复用。bash 里 `source .env` 不可靠（环境差异），连库一律用 node 手动解析 .env 的模式。
+
+## Key Learnings (2026-08-23 凌晨续)
+
+- **生产 CORS 必须放行同源**：构建产物的 <script type="module" crossorigin> 即使同源也带 Origin 头，cors 白名单不放行就白屏。cors 包的 origin 回调拿不到 req - 在 cors 中间件**之前**加一层: origin 与 req.headers.host 同源就 delete req.headers.origin（同源本不需要 CORS）。E2E 必须以生产模式+无 CORS_ORIGINS 跑一遍才暴露得了。
+- **Playwright 测右上角控件要防 toast 遮挡**：notification 浮层盖住 header 按钮时点击会落到浮层上 - openSwitcher 一律写成"点击->等 dropdown->失败重试"循环。测试断言前先想清楚交互副作用（建项目后 pickProject 会关下拉，退出后 workspace 是 {"mode":"local"} 而非 null）。
+- **团队模式首页不能复用个人 dashboard**：/dashboard 是本地 SQLite 专用接口，团队账户独立登录后拉它=401 噪音。团队模式首页= 团队概览面板(角色/项目/引导文案)，kanban 卡保留导航功能但隐藏个人统计。
+
+## Bug 模式: 条件式清理的漏洞 (2026-08-23)
+
+- **"仅在变化时清理"是会话管理的经典坑**：resetTeamSessionIfNeeded(prev && prev !== account) 的盲区是 prev 为空时 - 而另一类登录路径恰好从不写这个键。会话互斥的正确写法是**登录动作本身无条件决定空间**：enterLocalSession/enterTeamSession 各自清另一类会话+写工作区。用户报告 bug 时先画出完整的状态迁移表(每类登录×每类残留)，逐格检查而不是只修报告的那一格。
+
+## Key Learning (2026-08-23 续)
+
+- **凭据清空≠UI状态清空**: AuthContext 清 localStorage 凭据后, WorkspaceContext 的 teams/projects 是 React 内存态, 靠 effect 重新求值才同步。effect 的 else 分支必须显式 setTeams([]), 不能"凭据没了就什么都不做"——那会让旧列表残留。修这类"切换后仍见旧数据"bug 时, 先查**数据在 localStorage 还是 React state**, 两者清理时机不同(一个立即, 一个靠 effect)。
+- **会话互斥要覆盖到派生状态**: 本地登录清团队凭据只是第一步, 团队列表/项目列表等派生状态也要在无会话时归零, 否则切换器还会渲染出"看得见但切不进去"的幽灵团队。
+
+## Key Learning (2026-08-23 续)
+
+- **团队分发器要 JSON 序列化数组/对象字段**: 客户端对 variables/ssl_certs/conditions 等 JSON 文本列发的是 JS 数组, 本地路由各自 JSON.stringify, 但通用 team-resources 分发器原样透传; 空数组 [] 给 drizzle mysql2 会渲染成空值 → MySQL 语法错误 "near ', default, default, , 30000'". 修法: 统一 normalizeTextValues, 数组/对象 JSON.stringify, NOT NULL 文本列空值注入 TEXT_DEFAULTS。
+- **"团队不存在或你不是该团队成员"的误导**: teamCtxFrom 在缺 project_id 时也返回 null, 原代码统一报"不是成员"。project 缺失应单独报 400 "缺少项目上下文"。区分"上下文缺失"(400) vs "无权限"(404/403) 能省用户大量排查时间。
+- **团队表是本地表的镜像但不完全**: 本地 environments 有 databases 列, 团队 t_environments 漏了 → 团队模式保存环境时 databases 字段被 pickWritable 静默丢弃(数据丢失)。镜像表时逐列比对本地 schema。
+
+## Key Learning (2026-08-23 续)
+
+- **本地/团队路由的响应码约定不一致会静默破坏客户端判断**: 本地 environments 路由 create 返回 code:200, 而团队分发器 handleCreate 返回 code:201(与其他资源一致)。客户端 EnvironmentDetail 只判 res.code===200, 团队模式下 201 落入 else → notification.error('创建成功')(红色) + setDirty(false) 不执行(呼吸效果残留)。**修法**: 客户端判 200||201(参照 PcCaseDetail/WebCaseDetail 已用模式)。教训: 新增团队资源端点时, 先核对同名本地端点的响应码约定, 让客户端判断覆盖两者。
+- **drizzle 手工迁移记账**: drizzle migrator 的 __drizzle_migrations 表 hash 列 = SQL 文件内容的 sha256, created_at = journal 的 when 毫秒时间戳。手工补迁移(ALTER + INSERT 记账)时必须用完全相同算法, 否则下次启动 migrate() 会重跑已应用迁移报错。验证法: node createHash('sha256').update(sql).digest('hex') 与已有行比对。
+- **团队表是本地表的镜像但不完整**: 本地 environments 有 databases 列, 团队 t_environments 漏了 → 团队模式保存环境 databases 字段被 pickWritable 静默丢弃。镜像表时逐列比对本地 schema。
+
+## Key Learning (2026-08-23 续)
+
+- **前端成功判定不要写死 code===200**: 后端 code 字段镜像 HTTP 状态码, 本地/团队不同资源 create 分别返回 200/201, 写死 200 会漏掉 201(呼吸效果不消失+误进 error 红色弹窗)。统一用 is2xx(code)(2xx=成功)、is4xx(客户端错误)、is5xx(服务端错误)。批量改这类判断时: 1) 先加 helper; 2) 正则折叠 X.code===200||X.code===201; 3) 自动在 import {..} from 'utils/api' 注入 helper; 4) grep 残留 + tsc 验证。
+- **apiFetch 已按 2xx 语义抛错**: !res.ok 时 throw body.message, 所以调用方拿到 resolve 结果时 code 必为 2xx(或 409 冲突特殊返回); 判断成功只需 is2xx, 失败走 catch。
+
+## Key Learning (2026-08-24)
+
+- **CodeMirror + Vite dev 的多实例崩溃**: "Unrecognized extension value in extension set / multiple instances of @codemirror/state" = 源码直接 import 的 @codemirror/* 与 @uiw/react-codemirror 预打包内嵌副本被拆成不同 chunk。修法: vite.config.ts optimizeDeps.include 全部 codemirror 包(对照 package.json + 实际 import, 别抄注释里的包名)。**vite.config 改动必须重启 dev server + 浏览器强刷**才生效。
+- **大规模 HMR 后的崩溃要怀疑 chunk 混载**: 改了 37 个文件后用户页面崩了 - 旧 chunk(浏览器已加载)与新 chunk(HMR 推送)同时引用同名模块的两份实例。遇到"改完代码用户页面莫名崩溃"先让用户硬刷新, 再查是不是结构性问题。
+- **验证脚本不要过滤错误类型**: 我最初只捕获 codemirror 相关错误, 差点漏掉 is2xx 未导入这类回归错误。E2E 验证一律捕获全部 pageerror + console.error 再人工分类。
+- **auth 接口限流 5次/分钟/IP**: E2E 批量注册/登录会撞 429, 表现为"登录后弹回 /login"(token undefined 注入)。测试脚本每轮之间 sleep 65s, 或直接注入会话跳过登录 UI。
+
+## Key Learning (2026-08-25 晚)
+
+- **会话过期必须"拆解"而非"只报错"**: 401 拒绝时若只 throw 不清理, localStorage 里的陈旧会话(workspace/teamAuth/陈旧 user 对象)会在下次刷新时骗过 ProtectedRoute, 渲染出所有请求都失败的"幽灵会话"。正确拆解顺序: 清凭据 → 退工作区 → 派发事件让 React 状态同步 → 一次性提示。最终去向交给 ProtectedRoute 裁决(有本地会话→留在应用, 都没有→登录页)。
+- **AuthContext 的 centerUser 之前只初始化不响应**: 外部清理 localStorage 后 React 状态不跟。会话类 Context 必须监听一个同步事件(auth-changed), 让状态永远镜像存储。
+- **apiFetchCenter 的 401 要区分"带 token 被拒"(会话过期→拆解) vs "登录接口密码错误"(不清理)**: 判据 = 请求发出前是否附带了已存 token。
+- **两个 Vite dev server 并存会抢 HMR 端口(24678)**: 第二个实例的页面会 "server connection lost → polling → 整页重载" 循环, 任何 DOM 断言(如 toast 存在性)都会假性失败。验证前端行为的测试服务器一律 NODE_ENV=production 走静态构建。
+
+## Key Learning (2026-08-25 深夜)
+
+- **401 ≠ 会话过期**: 团队模式下所有非 LOCAL_ONLY 请求都发往中心, 但中心只对资源 dispatcher + /team/* 验团队 JWT; /dashboard/* 等本地路由收到团队 token 会 401 'Authentication required'——这是"token 类型不对"而非"会话过期"。拆解/登出逻辑必须用报文语义(含'团队')精确判定, 否则一次导航就能把好会话清掉。判据三类: 团队认证拒绝(拆解) / 本地路由误击中(静默降级) / 登录密码错误(报错不清理)。
+- **destructive 操作上线路径必须先跑一遍"正常用户主流程"**: 昨天只测了过期场景, 没测"有效会话下正常浏览"——误踢就是这么漏掉的。回归清单要包含: 有效会话主流程 + 每个新失效路径 + 边界(错密码)。

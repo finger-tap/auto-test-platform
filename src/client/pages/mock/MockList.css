@@ -1,154 +1,42 @@
-/* MockList & Shared Alias List Styles */
+/* MockList — page-specific styles only. Shared styles via styles/index.css.
+   2026-08-31: 原文件把整套共享筛选/表格/分页体系复制了一份【无作用域】的全局
+   规则(.alist-filter margin、.alist-table th/td、.alist-pagination margin-top、
+   .row-action-btn 等), Vite 中页面 CSS 全局生效, 会泄漏覆盖所有其他列表页
+   (列表页卡片间距/行高异常的元凶之一)。已收敛为本页特有样式, 共享类一律
+   限定 .mock-list-root 作用域。 */
 
 .mock-list-root {
   display: flex;
   flex-direction: column;
   height: 100%;
   min-height: 0;
-  padding: 0;
 }
 
-/* ── Filter Area ── */
-.alist-filter {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 0.875rem 1rem;
-  margin-bottom: 0.75rem;
-}
-
-.alist-filter-row {
-  display: flex;
-  align-items: flex-end;
-  gap: 0.75rem;
-  flex-wrap: wrap;
-}
-
-.alist-filter-item {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
+/* ── 筛选区: 卡片外观由共享 filters.css 的连体卡片组提供,
+   这里只保留 Mock 特有的控件最小宽度 ── */
+.mock-list-root .alist-filter-item {
   min-width: 120px;
 }
-
-.alist-filter-item label {
-  font-size: 0.75rem;
-  color: var(--fg-tertiary);
-  font-weight: 500;
-}
-
-.alist-filter-item input,
-.alist-filter-item select {
-  padding: 0.3125rem 0.625rem;
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  font-size: 0.8125rem;
-  outline: none;
-  transition: border-color 0.2s;
+.mock-list-root .alist-filter-item input,
+.mock-list-root .alist-filter-item select {
   min-width: 100px;
 }
 
-.alist-filter-item input:focus,
-.alist-filter-item select:focus {
-  border-color: var(--primary);
+/* ── 表格区: 卡片外观由共享 tables.css 提供, 这里只补 flex 布局
+   (表格区吃满剩余高度, 分页条贴底) ── */
+.mock-list-root .alist-table-wrap {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
 }
 
-.alist-filter-actions {
-  display: flex;
-  gap: 0.5rem;
-  align-items: center;
-  margin-left: auto;
-}
-
-.alist-btn-query,
-.alist-btn-add {
-  padding: 0.3125rem 0.875rem;
-  border-radius: 4px;
-  font-size: 0.8125rem;
-  cursor: pointer;
-  border: 1px solid var(--border);
-  background: var(--surface);
-  color: var(--fg);
-  transition: all 0.15s;
-}
-
-.alist-btn-add {
-  background: var(--primary);
-  color: #fff;
-  border-color: var(--primary);
-}
-
-.alist-btn-add:hover {
-  background: var(--accent-hover);
-  border-color: var(--accent-hover);
-}
-
-.alist-btn-query:hover {
-  border-color: var(--primary);
-  color: var(--primary);
-}
-
-/* ── Table Wrapper ── */
-.alist-table-wrap {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  overflow: hidden;
-  overflow-x: auto;
-}
-
-/* ── Table ── */
-.alist-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-.alist-table thead tr {
-  background: var(--bg);
-  border-bottom: 1px solid var(--border);
-}
-
-.alist-table th {
-  padding: 0.625rem 0.75rem;
-  text-align: left;
-  font-size: 0.75rem;
-  color: var(--fg-secondary);
+/* ── 名称列/禁用行 ── */
+.mock-list-root .alist-name-col {
   font-weight: 500;
-  white-space: nowrap;
+  color: var(--accent) !important;
 }
-
-.alist-table td {
-  padding: 0.625rem 0.75rem;
-  font-size: 0.8125rem;
-  color: var(--fg);
-  border-bottom: 1px solid var(--bg);
-  white-space: nowrap;
-}
-
-.alist-table tbody tr:last-child td {
-  border-bottom: none;
-}
-
-.alist-row {
-  cursor: pointer;
-  transition: background 0.15s;
-}
-
-.alist-row:hover td {
-  background: var(--bg);
-}
-
-.alist-row-disabled td {
+.mock-list-root .alist-row-disabled td {
   opacity: 0.5;
-}
-
-.alist-name-col {
-  font-weight: 500;
-  color: var(--accent) !important;
-}
-
-.alist-name-col.mock-name {
-  color: var(--accent) !important;
 }
 
 /* ── Method Badge ── */
@@ -189,6 +77,7 @@
   background: var(--success-subtle);
 }
 
+/* ── Path / 状态码 / 时间 ── */
 .mock-path {
   font-family: 'Courier New', monospace;
   font-size: 0.75rem !important;
@@ -205,164 +94,19 @@
   font-size: 0.75rem !important;
 }
 
-/* ── Loading / Empty ── */
-.alist-loading {
+/* ── Loading / 空态: 本页这两个状态渲染在表格区外, 需自带连体卡片尾段
+   (其他列表页的空态在 .alist-table-wrap 内部, 由共享样式兜住) ── */
+.mock-list-root .alist-loading,
+.mock-list-root .alist-empty {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-top: none;
+  border-radius: 0 0 var(--radius-md) var(--radius-md);
+}
+
+.mock-list-root .alist-loading {
   text-align: center;
   padding: 3rem;
   color: var(--fg-tertiary);
   font-size: 0.875rem;
-}
-
-.alist-empty {
-  text-align: center;
-  padding: 3rem 1rem;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-}
-
-.alist-empty p {
-  margin: 0 0 0.5rem;
-  color: var(--fg-secondary);
-  font-size: 0.875rem;
-}
-
-.alist-empty-hint {
-  color: var(--fg-tertiary) !important;
-  font-size: 0.8125rem !important;
-  margin-bottom: 1rem !important;
-}
-
-/* ── Pagination ── */
-.alist-pagination {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 0.5rem;
-  padding: 0.75rem 0;
-}
-
-.page-btn {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  padding: 0.25rem 0.75rem;
-  font-size: 0.8125rem;
-  color: var(--fg);
-  cursor: pointer;
-  transition: all 0.15s;
-}
-
-.page-btn:hover:not(:disabled) {
-  border-color: var(--primary);
-  color: var(--primary);
-}
-
-.page-btn:disabled {
-  color: var(--border);
-  cursor: not-allowed;
-}
-
-.page-info {
-  font-size: 0.8125rem;
-  color: var(--fg-secondary);
-  padding: 0 0.25rem;
-}
-
-.page-size-select {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  padding: 0.25rem 0.5rem;
-  font-size: 0.8125rem;
-  cursor: pointer;
-}
-
-/* ── Row Actions ── */
-.row-actions { display: flex; gap: 4px; justify-content: flex-end; white-space: nowrap; }
-.row-action-btn { height: 26px; padding: 0 8px; border: none; border-radius: var(--radius-sm); font-size: 12px; cursor: pointer; transition: background 0.12s, color 0.12s; background: none; color: var(--fg-secondary); display: inline-flex; align-items: center; gap: 3px; white-space: nowrap; }
-.row-action-btn:hover { background: var(--accent-subtle); color: var(--accent); }
-.row-action-del:hover { background: var(--danger-subtle); color: var(--danger); }
-
-/* ── Floating Action Buttons ── */
-.alist-float {
-  position: fixed;
-  z-index: 1000;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  box-shadow: var(--shadow-lg);
-  overflow: hidden;
-  min-width: 120px;
-}
-
-.alist-float-btn {
-  display: block;
-  width: 100%;
-  padding: 0.5rem 0.875rem;
-  background: none;
-  border: none;
-  text-align: left;
-  font-size: 0.8125rem;
-  color: var(--fg);
-  cursor: pointer;
-  transition: background 0.15s;
-}
-
-.alist-float-btn:hover {
-  background: var(--bg);
-}
-
-.alist-float-view {
-  color: var(--primary);
-}
-
-.alist-float-del {
-  color: var(--danger);
-}
-
-.alist-float-del:hover {
-  background: var(--danger-subtle);
-}
-
-/* ── Create button (shared) ── */
-.sset-btn-create {
-  background: var(--primary);
-  color: #fff;
-  border: none;
-  border-radius: 6px;
-  padding: 0.5rem 1rem;
-  font-size: 0.875rem;
-  cursor: pointer;
-  transition: background 0.15s;
-}
-
-.sset-btn-create:hover {
-  background: var(--accent-hover);
-}
-
-/* ── Toast ── */
-.sset-msg-toast {
-  position: fixed;
-  bottom: 1.5rem;
-  left: 50%;
-  transform: translateX(-50%);
-  padding: 0.625rem 1.25rem;
-  border-radius: 6px;
-  font-size: 0.875rem;
-  z-index: 9999;
-  cursor: pointer;
-  box-shadow: var(--shadow-md);
-}
-
-.sset-msg-toast[data-type="success"] {
-  background: var(--success-subtle);
-  color: var(--success);
-  border: 1px solid var(--success-subtle);
-}
-
-.sset-msg-toast[data-type="error"] {
-  background: var(--danger-subtle);
-  color: var(--danger);
-  border: 1px solid var(--danger-subtle);
 }

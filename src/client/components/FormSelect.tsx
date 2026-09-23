@@ -18,6 +18,10 @@ interface FormSelectProps {
   size?: 'default' | 'sm' | 'compact';
   /** Use fixed positioning so the dropdown is not clipped by overflow ancestors */
   fixed?: boolean;
+  /** 下拉顶部显示自定义输入行(配合 onCustomSubmit 使用, 如分页条数) */
+  allowCustom?: boolean;
+  customPlaceholder?: string;
+  onCustomSubmit?: (raw: string) => void;
 }
 
 export default function FormSelect({
@@ -30,24 +34,53 @@ export default function FormSelect({
   disabled = false,
   size = 'default',
   fixed = false,
+  allowCustom = false,
+  customPlaceholder = '输入自定义值, 回车确认',
+  onCustomSubmit,
 }: FormSelectProps) {
   const [open, setOpen] = useState(false);
   const [focusIndex, setFocusIndex] = useState(-1);
+  const [flipUp, setFlipUp] = useState(false);
+  const [customRaw, setCustomRaw] = useState('');
   const wrapRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
+  const customInputRef = useRef<HTMLInputElement>(null);
   const [fixedPos, setFixedPos] = useState<{ top: number; left: number; width: number }>({ top: 0, left: 0, width: 0 });
+
+  // 估算下拉高度(选项行 ~33px + 自定义输入行), 上限 240(与 CSS max-height 一致)
+  const estDropdownH = Math.min((options.length + (allowCustom ? 1.3 : 0)) * 33 + 2, 240);
+
+  // 展开方向: 下方空间不够(如分页条贴着屏幕底)时向上翻, 避免被裁切
+  useLayoutEffect(() => {
+    if (!open || !triggerRef.current) return;
+    const rect = triggerRef.current.getBoundingClientRect();
+    const spaceBelow = window.innerHeight - rect.bottom;
+    setFlipUp(spaceBelow < estDropdownH + 8 && rect.top > estDropdownH + 8);
+  }, [open, estDropdownH]);
+
+  // 自定义输入行聚焦
+  useEffect(() => {
+    if (open && allowCustom && customInputRef.current) {
+      // 稍等下拉挂载完成
+      const t = setTimeout(() => customInputRef.current?.focus(), 30);
+      return () => clearTimeout(t);
+    }
+  }, [open, allowCustom]);
 
   // Calculate fixed position when dropdown opens
   useLayoutEffect(() => {
     if (!fixed || !open || !triggerRef.current) return;
     const rect = triggerRef.current.getBoundingClientRect();
-    setFixedPos({ top: rect.bottom + 4, left: rect.left, width: rect.width });
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const up = spaceBelow < estDropdownH + 8 && rect.top > estDropdownH + 8;
+    const top = up ? Math.max(rect.top - estDropdownH - 4, 8) : rect.bottom + 4;
+    setFixedPos({ top, left: rect.left, width: rect.width });
 
     const updatePos = () => {
       if (!triggerRef.current) return;
       const r = triggerRef.current.getBoundingClientRect();
-      setFixedPos({ top: r.bottom + 4, left: r.left, width: r.width });
+      setFixedPos({ top: up ? Math.max(r.top - estDropdownH - 4, 8) : r.bottom + 4, left: r.left, width: r.width });
     };
     window.addEventListener('scroll', updatePos, true);
     window.addEventListener('resize', updatePos);
@@ -55,7 +88,7 @@ export default function FormSelect({
       window.removeEventListener('scroll', updatePos, true);
       window.removeEventListener('resize', updatePos);
     };
-  }, [fixed, open]);
+  }, [fixed, open, estDropdownH]);
 
   // Close on outside click
   useEffect(() => {
@@ -147,6 +180,14 @@ export default function FormSelect({
     [disabled, open, focusIndex, options, handleSelect, handleOpen],
   );
 
+  const submitCustom = useCallback(() => {
+    const raw = customRaw.trim();
+    if (!raw) return;
+    onCustomSubmit?.(raw);
+    setCustomRaw('');
+    setOpen(false);
+  }, [customRaw, onCustomSubmit]);
+
   const sizeClass = size !== 'default' ? ` form-select-${size}` : '';
   const dropdownStyle: React.CSSProperties = fixed
     ? {
@@ -162,11 +203,30 @@ export default function FormSelect({
 
   const dropdown = open ? (
     <div
-      className="form-select-dropdown"
+      className={`form-select-dropdown${flipUp ? ' flip-up' : ''}`}
       ref={listRef}
       role="listbox"
       style={dropdownStyle}
     >
+      {allowCustom && onCustomSubmit && (
+        <div
+          className="form-select-custom"
+          // 输入行不是选项, 阻止键盘事件冒泡到 combobox 的方向键/回车处理
+          onKeyDown={(e) => {
+            e.stopPropagation();
+            if (e.key === 'Escape') { e.preventDefault(); setOpen(false); }
+            if (e.key === 'Enter') { e.preventDefault(); submitCustom(); }
+          }}
+        >
+          <input
+            ref={customInputRef}
+            value={customRaw}
+            placeholder={customPlaceholder}
+            onChange={(e) => setCustomRaw(e.target.value)}
+          />
+          <button type="button" onMouseDown={(e) => { e.preventDefault(); submitCustom(); }}>确定</button>
+        </div>
+      )}
       {options.map((opt, i) => (
         <div
           key={opt.value}

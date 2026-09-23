@@ -286,6 +286,7 @@ pcCaseRoutes.post('/:id/execute', async (req: Request, res: Response) => {
     report_path: result.report_path || null,
     report_type: result.report_path ? 'midscene-html' : null,
     error_message: result.error_message || null,
+    error_stack: result.error_stack || null,
   });
 
   // Backward-compat: also keep pc_case_logs writable (UI shows legacy logs).

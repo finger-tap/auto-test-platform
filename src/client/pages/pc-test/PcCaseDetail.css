@@ -1,26 +1,7 @@
 /* ── PcCaseDetail ── */
 /* Shared layout styles (api-detail-*) are in detail-components.css */
 
-.web-status-success {
-  background: var(--success);
-  color: #fff;
-}
-
-.web-status-failed {
-  background: var(--danger);
-  color: #fff;
-}
-
-.web-status-running {
-  background: var(--primary);
-  color: #fff;
-}
-
-.web-status-error {
-  background: var(--warning, #e6a817);
-  color: #fff;
-}
-
+/* 状态徽章已统一到 styles/badges.css 的 .st-badge (2026-08-28) */
 .api-detail .log-table {
   width: 100%;
   table-layout: fixed;

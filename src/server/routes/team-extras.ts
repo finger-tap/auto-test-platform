@@ -1,4 +1,4 @@
-import { Router, type Request, type Response, type NextFunction } from 'express';
+import express, { Router, type Request, type Response, type NextFunction } from 'express';
 import { and, eq, gt, ne, sql } from 'drizzle-orm';
 import { teamAuthMiddleware } from './team-auth.js';
 import { getTeamDb } from '../db-team/client.js';
@@ -88,7 +88,11 @@ teamExtrasRoutes.get('/presence', ah(async (req, res) => {
 
 teamExtrasRoutes.get('/teams/:teamId/stats', ah(async (req, res) => {
   const teamId = parseId(req.params.teamId, '团队');
-  await getMembership(teamId, req.teamUser!.userId);
+  // getMembership 对非成员返回 null 而不抛错 — 必须显式校验, 否则任何中心
+  // 账号都能读任意团队的资源统计
+  if (!(await getMembership(teamId, req.teamUser!.userId))) {
+    throw new TeamApiError(404, '非团队成员');
+  }
   const projectId = Number(req.query.projectId) || null;
   const stats = await teamStats(teamId, projectId);
   res.json({ code: 200, message: 'ok', data: stats });
@@ -108,7 +112,11 @@ teamExtrasRoutes.get('/teams/:teamId/audit', ah(async (req, res) => {
 
 teamExtrasRoutes.get('/teams/:teamId/channels', ah(async (req, res) => {
   const teamId = parseId(req.params.teamId, '团队');
-  await getMembership(teamId, req.teamUser!.userId);
+  // 同上: 非成员返回 null 不抛错 — 显式校验, 防止任意中心账号读他人的
+  // webhook 地址与签名密钥
+  if (!(await getMembership(teamId, req.teamUser!.userId))) {
+    throw new TeamApiError(404, '非团队成员');
+  }
   const rows = await listChannels(teamId);
   res.json({ code: 200, message: 'ok', data: rows });
 }));
@@ -206,11 +214,13 @@ function remapConfigRefs(config: string | null, remap: Map<string, Map<number, n
         const out: Record<string, unknown> = {};
         for (const [k, val] of Object.entries(v as Record<string, unknown>)) {
           if ((k === 'apiId' || k === 'caseId') && typeof val === 'number') {
-            const pkgType = k === 'apiId' ? 'apis' : null;
-            const m = pkgType ? remap.get(pkgType) : remap.get('apis')!;
-            // apiId always maps apis; caseId could be web/pc/mobile — try each
-            let mapped = m?.get(val);
-            if (mapped === undefined && k === 'caseId') {
+            // apiId 只查 apis; caseId 只查 web/pc/mobile 用例表 — 各表 id
+            // 独立自增高度重叠, caseId 若先查 apis 会把本指某 web 用例的
+            // 引用改写成同 id 的 api, 静默损坏场景 (2026-08-25 修复)。
+            let mapped: number | undefined;
+            if (k === 'apiId') {
+              mapped = remap.get('apis')?.get(val);
+            } else {
               for (const t of ['web_cases', 'pc_cases', 'mobile_cases']) {
                 const mm = remap.get(t)?.get(val);
                 if (mm !== undefined) { mapped = mm; break; }
@@ -254,7 +264,11 @@ function writableFor(table: AnyMySqlTable, row: Record<string, unknown>): Record
   return out;
 }
 
-teamExtrasRoutes.post('/import/preview', ah(async (req, res) => {
+// 2026-08-25: 导入收整个 .atpkg JSON(含全部选中资源行), 默认 express.json
+// 100kb 会让稍大的包 413 — 仅对这两个端点提高上限
+const importBodyLimit = express.json({ limit: '64mb' });
+
+teamExtrasRoutes.post('/import/preview', importBodyLimit, ah(async (req, res) => {
   const { package: pkg, teamId, projectId } = (req.body ?? {}) as { package?: Pkg; teamId?: number; projectId?: number };
   if (!pkg?.resources || !Number.isInteger(teamId) || !Number.isInteger(projectId)) {
     throw new TeamApiError(400, '导入包或团队/项目参数无效');
@@ -292,7 +306,7 @@ teamExtrasRoutes.post('/import/preview', ah(async (req, res) => {
   res.json({ code: 200, message: 'ok', data: { items } });
 }));
 
-teamExtrasRoutes.post('/import/commit', ah(async (req, res) => {
+teamExtrasRoutes.post('/import/commit', importBodyLimit, ah(async (req, res) => {
   const { package: pkg, teamId, projectId, strategies } = (req.body ?? {}) as {
     package?: Pkg; teamId?: number; projectId?: number;
     strategies?: Record<string, Record<string, string>>; // { [pkgType]: { [localId]: 'skip'|'overwrite'|'copy' } }

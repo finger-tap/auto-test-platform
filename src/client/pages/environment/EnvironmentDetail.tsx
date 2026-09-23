@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import FormSelect from '../../components/FormSelect';
-import { apiFetch } from '../../utils/api';
+import { apiFetch, is2xx } from '../../utils/api';
 import { useEnvironment } from '../../contexts/EnvironmentContext';
 import type { Environment, EnvVariable, SslCertEntry } from '../../types';
 import notification from '../../utils/notification';
 import './EnvironmentDetail.css';
+import { useUnsavedGuard } from '../../utils/dirtyGuard';
 
 // Database entry type (matches backend)
 interface DbEntry {
@@ -37,12 +38,14 @@ export default function EnvironmentDetail({ basePath = '/api-test' }: { basePath
   const [saving, setSaving] = useState(false);
   const [variables, setVariables] = useState<EnvVariable[]>([]);
   const [dirty, setDirty] = useState(false);
+  // 未保存修改离开保护(刷新/关闭弹浏览器确认; 侧边栏导航由 Layout 弹确认)
+  useUnsavedGuard(dirty);
   const { activeEnv, setActiveEnv } = useEnvironment();
 
   useEffect(() => {
     if (!isNew) {
       apiFetch<Environment>(`/environments/${id}`).then(res => {
-        if (res.code === 200 && res.data) {
+        if (is2xx(res.code) && res.data) {
           const e = res.data;
           setName(e.name || '');
           setReqTimeout(e.timeout || 30000);
@@ -220,7 +223,9 @@ export default function EnvironmentDetail({ basePath = '/api-test' }: { basePath
           body: JSON.stringify(payload),
         });
       }
-      if (res.code === 200) {
+      // 团队模式创建返回 code:201(本地模式返回 200), 都要按成功处理,
+      // 否则 setDirty(false) 不执行(呼吸效果不消失)且误进 error 分支(红色弹窗)。
+      if (is2xx(res.code)) {
         setDirty(false);
         if (res.data && activeEnv?.id === res.data.id) {
           setActiveEnv(res.data);

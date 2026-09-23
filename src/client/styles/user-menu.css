@@ -7,7 +7,8 @@
   border: none;
   cursor: pointer;
   padding: 2px;
-  border-radius: 50%;
+  /* 2026-08-31: 圆改方形圆角, 与头像/环境切换器统一 */
+  border-radius: 8px;
   transition: box-shadow 0.15s;
 }
 
@@ -18,7 +19,8 @@
 .user-menu__avatar {
   width: 30px;
   height: 30px;
-  border-radius: 50%;
+  /* 2026-08-31: 圆形改方形圆角(与环境切换器等顶栏元素统一) */
+  border-radius: 8px;
   background: var(--accent-subtle);
   display: grid;
   place-items: center;

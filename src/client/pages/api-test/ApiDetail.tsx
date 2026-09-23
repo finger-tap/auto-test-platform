@@ -7,7 +7,7 @@ import FormSelect from '../../components/FormSelect';
 import { javascript } from '@codemirror/lang-javascript';
 import { linter } from '@codemirror/lint';
 import type { Extension } from '@codemirror/state';
-import { apiFetch } from '../../utils/api';
+import { apiFetch, is2xx } from '../../utils/api';
 import { toLocalDateTime } from '../../utils/datetime';
 import { useEnvironment } from '../../contexts/EnvironmentContext';
 import { InlineText, InlineSelect } from '../../components/InlineEdit';
@@ -23,6 +23,8 @@ import ApiExecutionTimeline from '../../components/ApiExecutionTimeline';
 import BatchExecutionView from './BatchExecutionView';
 import './ApiDetail.css';
 import '../scenario/ScenarioDetail.css';
+import { useUnsavedGuard } from '../../utils/dirtyGuard';
+import TabIcon from '../../components/TabIcon';
 
 // 从环境配置解析数据库列表
 const getDatabasesFromEnv = (env: any): string[] => {
@@ -90,12 +92,12 @@ const STATUS_OPTIONS = [
   { value: 'draft', label: '草稿' },
 ];
 const TABS = [
-  { key: 'detail', label: '详情' },
-  { key: 'pre', label: '前置动作' },
-  { key: 'main', label: '主体动作' },
-  { key: 'post', label: '后置动作' },
-  { key: 'params', label: '参数化' },
-  { key: 'logs', label: '执行记录' },
+  { key: 'detail', label: '详情', icon: 'detail' },
+  { key: 'pre', label: '前置动作', icon: 'pre' },
+  { key: 'main', label: '主体动作', icon: 'main' },
+  { key: 'post', label: '后置动作', icon: 'post' },
+  { key: 'params', label: '参数化', icon: 'params' },
+  { key: 'logs', label: '执行记录', icon: 'history' },
 ];
 const defaultAssertion = (index: number): AssertionRule => ({ name: `规则${index}`, source: 'status', key: '', operator: 'equals', expected: '', assert: true });
 const defaultRule = (index: number): AssertionRule => ({ name: `规则${index}`, source: 'status', key: '', operator: 'equals', expected: '', assert: false });
@@ -122,12 +124,19 @@ export default function ApiDetail() {
   const isNew = !id || id === 'new';
   // For new pages, set api immediately to avoid "loading" state
   const [api, setApi] = useState<ApiItem | null>(null);
+  // 详情加载失败态: 失败时给错误卡片+重试, 而不是永远停在'加载中...'(2026-08-27)
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [reloadTick, setReloadTick] = useState(0);
   const [logs, setLogs] = useState<ApiLog[]>([]);
   const [executing, setExecuting] = useState(false);
   const [expandedLog, setExpandedLog] = useState<number | null>(null);
   const autoExecRef = useRef(false);
   const realIdRef = useRef<string | null>(isNew ? null : id!);
+  const creatingRef = useRef<Promise<string | null> | null>(null);
+  const savingRef = useRef(false);
   const [isDirty, setIsDirty] = useState(false);
+  // 未保存修改离开保护(刷新/关闭弹浏览器确认; 侧边栏导航由 Layout 弹确认)
+  useUnsavedGuard(isDirty);
   const [activeTab, setActiveTab] = useState('detail');
   const [fnModalOpen, setFnModalOpen] = useState(false);
   const [fnTarget, setFnTarget] = useState<'pre_script' | 'post_script' | null>(null);
@@ -207,26 +216,36 @@ export default function ApiDetail() {
 
   const ensureCreated = async (): Promise<string | null> => {
     if (realIdRef.current) return realIdRef.current;
+    // 并发调用(如双击保存)复用同一个 POST, 防止创建重复用例
+    if (!creatingRef.current) {
+      creatingRef.current = (async () => {
+        try {
+          const payload = { ...form,
+            assertions: JSON.stringify(mainRules),
+            pre_assertions: JSON.stringify([...preExtractionRules, ...preAssertionRules]),
+            post_assertions: JSON.stringify([...postExtractionRules, ...postAssertionRules]),
+            pre_actions: JSON.stringify(preActions),
+            post_actions: JSON.stringify(postActions),
+          };
+          const res = await apiFetch<{ id: number }>('/apis', { method: 'POST', body: JSON.stringify(payload) }) as { code: number; message?: string; data?: { id: number } };
+          if (is2xx(res.code) && res.data) {
+            realIdRef.current = String(res.data.id);
+            navigate(`/api-test/case/${res.data.id}`, { replace: true });
+            setApi(prev => prev ? { ...prev, id: res.data!.id } : prev);
+            return realIdRef.current;
+          }
+          notification.error(res.message || '创建失败');
+          return null;
+        } catch (err) {
+          notification.error(err instanceof Error ? err.message : '创建失败');
+          return null;
+        }
+      })();
+    }
     try {
-      const payload = { ...form,
-        assertions: JSON.stringify(mainRules),
-        pre_assertions: JSON.stringify([...preExtractionRules, ...preAssertionRules]),
-        post_assertions: JSON.stringify([...postExtractionRules, ...postAssertionRules]),
-        pre_actions: JSON.stringify(preActions),
-        post_actions: JSON.stringify(postActions),
-      };
-      const res = await apiFetch<{ id: number }>('/apis', { method: 'POST', body: JSON.stringify(payload) }) as { code: number; message?: string; data?: { id: number } };
-      if (res.code === 201 && res.data) {
-        realIdRef.current = String(res.data.id);
-        navigate(`/api-test/case/${res.data.id}`, { replace: true });
-        setApi(prev => prev ? { ...prev, id: res.data!.id } : prev);
-        return realIdRef.current;
-      }
-      notification.error(res.message || '创建失败');
-      return null;
-    } catch (err) {
-      notification.error(err instanceof Error ? err.message : '创建失败');
-      return null;
+      return await creatingRef.current;
+    } finally {
+      creatingRef.current = null;
     }
   };
 
@@ -234,11 +253,14 @@ export default function ApiDetail() {
 
   const handleExecute = async () => {
     if (!realIdRef.current) { notification.warning('请先保存案例后再执行'); return; }
+    // 未保存的修改不会进入执行 — 静默跑"已保存旧版本"会让结果与屏幕配置
+    // 不一致, 用户可能据错误结论排查被测系统 (2026-08-27)
+    if (isDirty) { notification.warning('存在未保存的修改，请先保存后再执行'); return; }
     setExecuting(true);
     try {
       await apiFetch<ApiLog>(`/apis/${realIdRef.current}/execute`, { method: 'POST', body: JSON.stringify({ environmentId: activeEnv?.id }) });
       const execRes = await apiFetch<ApiExecution[]>(`/apis/${realIdRef.current}/executions`) as { code: number; data?: ApiExecution[] };
-      if (execRes.code === 200 && execRes.data && execRes.data.length > 0) {
+      if (is2xx(execRes.code) && execRes.data && execRes.data.length > 0) {
         const firstExec = execRes.data[0];
         setExecutions(execRes.data);
 
@@ -261,7 +283,7 @@ export default function ApiDetail() {
           // 自动获取最新一条记录的详情
           if (!firstExec.steps) {
             const detailRes = await apiFetch<ApiExecution & { steps: ApiExecutionStep[] }>(`/apis/${realIdRef.current}/executions/${firstExec.id}`) as { code: number; data?: ApiExecution & { steps: ApiExecutionStep[] } };
-            if (detailRes.code === 200 && detailRes.data) {
+            if (is2xx(detailRes.code) && detailRes.data) {
               setExecutions(prev => prev.map(e => e.id === firstExec.id ? detailRes.data! : e));
               setSelectedExecution(detailRes.data!);
             }
@@ -278,9 +300,10 @@ export default function ApiDetail() {
   useEffect(() => {
     if (!id || isNew) return;
     apiFetch<ApiItem>(`/apis/${id}`).then((res) => {
-      const r = res as { code: number; data?: ApiItem };
-      if (r.code === 200 && r.data) {
+      const r = res as { code: number; message?: string; data?: ApiItem };
+      if (is2xx(r.code) && r.data) {
         const d = r.data;
+        setLoadError(null);
         setApi(d);
         setForm({
           name: d.name, method: d.method, url: d.url, protocol: d.protocol,
@@ -335,17 +358,20 @@ export default function ApiDetail() {
           }
         } catch { setParamConfig({ enabled: false, headers: [], headerDescs: [], rows: [], enabledRows: [] }); }
         if (searchParams.get('exec') === '1' && !autoExecRef.current) { autoExecRef.current = true; handleExecute(); }
+      } else {
+        setLoadError(r.message || '加载用例失败');
       }
-    });
-    apiFetch<ApiLog[]>(`/apis/${id}/logs`).then((res) => { const r = res as { code: number; data?: ApiLog[] }; if (r.code === 200 && r.data) setLogs(r.data); });
+      }).catch((err: unknown) => setLoadError(err instanceof Error ? err.message : '网络错误，加载失败'));
+    apiFetch<ApiLog[]>(`/apis/${id}/logs`).then((res) => { const r = res as { code: number; data?: ApiLog[] }; if (is2xx(r.code) && r.data) setLogs(r.data); });
     apiFetch<ApiExecution[]>(`/apis/${id}/executions`).then(async (res) => {
       const r = res as { code: number; data?: ApiExecution[] };
-      if (r.code === 200 && r.data && r.data.length > 0) {
+      if (is2xx(r.code) && r.data && r.data.length > 0) {
         setExecutions(r.data);
         const execParam = searchParams.get('exec');
         const paramRowParam = searchParams.get('paramRow');
-        if (execParam === '1') {
-          // auto execute
+        if (execParam === '1' && !autoExecRef.current) {
+          // auto execute — 必须判 autoExecRef: 详情请求回调可能已触发过,
+          // 两个回调都会到(响应顺序不定), 不判则同一次进入执行两遍
           autoExecRef.current = true;
           handleExecute();
         } else if (execParam && !isNaN(Number(execParam))) {
@@ -383,7 +409,7 @@ export default function ApiDetail() {
               // Single execution (no batch)
               apiFetch<ApiExecution & { steps: ApiExecutionStep[] }>(`/apis/${id}/executions/${targetExec.id}`).then((detailRes) => {
                 const detail = detailRes as unknown as { code: number; data?: ApiExecution & { steps: ApiExecutionStep[] } };
-                if (detail.code === 200 && detail.data) {
+                if (is2xx(detail.code) && detail.data) {
                   setExecutions(prev => prev.map(e => e.id === targetExec.id ? detail.data! : e));
                   setSelectedExecution(detail.data!);
                   setExpandedLog(targetExec.id);
@@ -399,7 +425,7 @@ export default function ApiDetail() {
           if (!firstExec.steps) {
             apiFetch<ApiExecution & { steps: ApiExecutionStep[] }>(`/apis/${id}/executions/${firstExec.id}`).then((detailRes) => {
               const detail = detailRes as unknown as { code: number; data?: ApiExecution & { steps: ApiExecutionStep[] } };
-              if (detail.code === 200 && detail.data) {
+              if (is2xx(detail.code) && detail.data) {
                 setExecutions(prev => prev.map(e => e.id === firstExec.id ? detail.data! : e));
                 setSelectedExecution(detail.data!);
               }
@@ -410,7 +436,7 @@ export default function ApiDetail() {
         }
       }
     });
-  }, [id]);
+  }, [id, reloadTick]);
 
   const handleSelectExecution = useCallback(async (exec: ApiExecution) => {
     if (selectedExecution?.id === exec.id) {
@@ -434,7 +460,7 @@ export default function ApiDetail() {
         if (!exec.steps) {
           apiFetch<ApiExecution & { steps: ApiExecutionStep[] }>(`/apis/${id}/executions/${exec.id}`).then((res) => {
             const r = res as unknown as { code: number; data?: ApiExecution & { steps: ApiExecutionStep[] } };
-            if (r.code === 200 && r.data) {
+            if (is2xx(r.code) && r.data) {
               setExecutions(prev => prev.map(e => e.id === exec.id ? r.data! : e));
               setSelectedExecution(r.data!);
             }
@@ -447,6 +473,17 @@ export default function ApiDetail() {
   
 
   const handleSave = async () => {
+    // 防重入: 双击保存会在首个 POST 返回前重复提交(创建两个用例)
+    if (savingRef.current) return;
+    savingRef.current = true;
+    try {
+      await doSave();
+    } finally {
+      savingRef.current = false;
+    }
+  };
+
+  const doSave = async () => {
     // 必填字段校验
     if (!form.name.trim()) {
       notification.warning('请输入接口名称');
@@ -469,7 +506,7 @@ export default function ApiDetail() {
         parameters: parametersJson,
       };
       const res = await apiFetch(`/apis/${rid}`, { method: 'PUT', body: JSON.stringify(payload) }) as { code: number; message?: string };
-      if (res.code !== 200) { notification.error(res.message || '保存失败'); return; }
+      if (!is2xx(res.code)) { notification.error(res.message || '保存失败'); return; }
       setApi({ ...api!, ...payload, updated_at: new Date().toISOString() } as ApiItem);
       setIsDirty(false);
       notification.success('保存成功');
@@ -480,7 +517,17 @@ export default function ApiDetail() {
     try { setForm({ ...form, [field]: JSON.stringify(JSON.parse(form[field]), null, 2) }); } catch { /* not JSON */ }
   }, [form]);
 
-  if (!api) return <div className="api-empty">加载中...</div>;
+  if (!api) {
+    if (loadError) {
+      return (
+        <div className="api-empty">
+          <p style={{ marginBottom: 12 }}>⚠️ {loadError}</p>
+          <button className="btn btn-primary" onClick={() => { setLoadError(null); setReloadTick(t => t + 1); }}>重试</button>
+        </div>
+      );
+    }
+    return <div className="api-empty">加载中...</div>;
+  }
 
   const statusClass = (code: number | null) => {
     if (!code) return 'status-0';
@@ -1195,7 +1242,7 @@ export default function ApiDetail() {
                     <Fragment key={exec.id}>
                       <tr className={isSelected ? 'log-row-selected' : ''}>
                         <td>{toLocalDateTime(exec.started_at)}</td>
-                        <td><span className={`status-badge ${exec.status === 'success' ? 'success' : exec.status === 'failed' ? 'failed' : 'error'}`}>{exec.status}</span>{isBatch && <span className="batch-badge">({exec.sub_executions!.length + 1}组)</span>}</td>
+                        <td><span className={`st-badge st-${exec.status === 'success' ? 'success' : exec.status === 'failed' ? 'failed' : 'error'}`}>{exec.status}</span>{isBatch && <span className="batch-badge">({exec.sub_executions!.length + 1}组)</span>}</td>
                         <td>{exec.duration_ms != null ? `${exec.duration_ms} ms` : '-'}</td>
                         <td>{exec.executed_by || '-'}</td>
                         <td><button className="log-view-btn" onClick={() => handleSelectExecution(exec)}>{isSelected ? '收起' : '查看'}</button></td>
@@ -1242,7 +1289,7 @@ export default function ApiDetail() {
           <input className="api-detail-name-input" value={form.name} onChange={e => { setForm({ ...form, name: e.target.value }); setIsDirty(true); }} placeholder="输入接口名称" />
         </div>
         <div className="api-detail-meta">
-          {!isNew && api && <span className={`status-badge-light ${form.status}`}>{STATUS_OPTIONS.find(o => o.value === form.status)?.label || form.status}</span>}
+          {!isNew && api && <span className={`st-badge st-${form.status}`}>{STATUS_OPTIONS.find(o => o.value === form.status)?.label || form.status}</span>}
           {api?.updated_at && <span className="meta-time">更新于 {toLocalDateTime(api.updated_at)}</span>}
         </div>
         <div className="api-detail-actions">
@@ -1252,7 +1299,7 @@ export default function ApiDetail() {
       </div>
       <div className="api-detail-content">
         <div className="api-detail-card" style={{ padding: 0 }}>
-          <div className="tab-nav">{TABS.map((tab) => (<button key={tab.key} className={`tab-btn ${activeTab === tab.key ? 'active' : ''}`} onClick={() => setActiveTab(tab.key)}>{tab.label}</button>))}</div>
+          <div className="tab-nav">{TABS.map((tab) => (<button key={tab.key} className={`tab-btn ${activeTab === tab.key ? 'active' : ''}`} onClick={() => setActiveTab(tab.key)}><TabIcon name={tab.icon} />{tab.label}{tab.key === 'logs' && executions.length > 0 && (<span className="tab-count">{executions.length}</span>)}</button>))}</div>
           <div className="tab-body">
             {activeTab === 'detail' && renderDetailTab()}
             {activeTab === 'pre' && renderPreTab()}

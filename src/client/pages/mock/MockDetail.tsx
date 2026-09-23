@@ -3,12 +3,14 @@ import { useParams, useNavigate } from 'react-router-dom';
 import ThemedCodeMirror from '../../components/ThemedCodeMirror';
 import FormSelect from '../../components/FormSelect';
 import { json } from '@codemirror/lang-json';
-import { apiFetch } from '../../utils/api';
+import { apiFetch, is2xx } from '../../utils/api';
 import { formatDateTime } from '../../utils/datetime';
 import { InlineText, InlineSelect } from '../../components/InlineEdit';
 import TagInput from '../../components/TagInput';
 import notification from '../../utils/notification';
 import './MockDetail.css';
+import { useUnsavedGuard } from '../../utils/dirtyGuard';
+import TabIcon from '../../components/TabIcon';
 
 interface MockCondition {
   id: string;
@@ -40,9 +42,9 @@ interface MockDetailData {
 }
 
 const TABS = [
-  { key: 'detail', label: '基本信息' },
-  { key: 'match', label: '匹配配置' },
-  { key: 'response', label: '响应配置' },
+  { key: 'detail', label: '基本信息', icon: 'detail' },
+  { key: 'match', label: '匹配配置', icon: 'checkpoints' },
+  { key: 'response', label: '响应配置', icon: 'post' },
 ];
 
 const METHODS = [
@@ -99,6 +101,8 @@ export default function MockDetail() {
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState('detail');
   const [dirty, setDirty] = useState(false);
+  // 未保存修改离开保护(刷新/关闭弹浏览器确认; 侧边栏导航由 Layout 弹确认)
+  useUnsavedGuard(dirty);
 
   // 基本信息
   const [name, setName] = useState('');
@@ -127,7 +131,7 @@ export default function MockDetail() {
   useEffect(() => {
     if (!isNew && id) {
       apiFetch<MockDetailData>(`${mocksPath}/${id}`).then(res => {
-        if (res.code === 200 && res.data) {
+        if (is2xx(res.code) && res.data) {
           const d = res.data;
           setName(d.name);
           setDescription(d.description || '');
@@ -205,7 +209,7 @@ export default function MockDetail() {
           method: 'POST',
           body: JSON.stringify(payload),
         });
-        if (res.code === 201 && res.data) {
+        if (is2xx(res.code) && res.data) {
           setDirty(false);
           setTimeout(() => navigate(`/api-test/mock/${res.data!.id}`), 300);
           return;
@@ -213,7 +217,7 @@ export default function MockDetail() {
         notification.error(res.message || '创建失败');
       } else {
         const res = await apiFetch(`${mocksPath}/${id}`, { method: 'PUT', body: JSON.stringify(payload) });
-        if (res.code === 200) {
+        if (is2xx(res.code)) {
           setDirty(false);
           notification.success('保存成功');
           return;
@@ -402,7 +406,7 @@ export default function MockDetail() {
           <input className="api-detail-name-input" value={name} onChange={e => { setName(e.target.value); dirtyRef(true); }} placeholder="输入 Mock 名称" />
         </div>
         <div className="api-detail-meta">
-          {!isNew && <span className={`status-badge-light ${status}`}>{STATUS_OPTIONS.find(o => o.value === status)?.label || status}</span>}
+          {!isNew && <span className={`st-badge st-${status}`}>{STATUS_OPTIONS.find(o => o.value === status)?.label || status}</span>}
         </div>
         <div className="api-detail-actions">
           <button className={`scenario-btn${dirty ? ' dirty' : ''}`} onClick={doSave} disabled={saving}>{saving ? '保存中...' : '保存'}</button>
@@ -416,7 +420,7 @@ export default function MockDetail() {
           <div className="tab-nav">
             {TABS.map(tab => (
               <button key={tab.key} className={`tab-btn ${activeTab === tab.key ? 'active' : ''}`} onClick={() => setActiveTab(tab.key)}>
-                {tab.label}
+                <TabIcon name={tab.icon} />{tab.label}
               </button>
             ))}
           </div>

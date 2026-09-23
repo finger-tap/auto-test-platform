@@ -28,7 +28,14 @@ scheduleSetMobileRoutes.use(authMiddleware);
 scheduleSetMobileRoutes.get('/', (req: Request, res: Response) => {
   const page = Math.max(1, Number(req.query.page) || 1);
   const pageSize = Math.min(100, Math.max(1, Number(req.query.pageSize) || 10));
-  const result = findScheduleSetsByUserIdPaginated(req.user!.userId, page, pageSize);
+  const name = typeof req.query.name === 'string' ? req.query.name.trim() : '';
+  const status = typeof req.query.status === 'string' ? req.query.status.trim() : '';
+  const creator = typeof req.query.creator === 'string' ? req.query.creator.trim() : '';
+  const result = findScheduleSetsByUserIdPaginated(req.user!.userId, page, pageSize, {
+    name: name || undefined,
+    status: /^(none|paused|active)$/.test(status) ? status : undefined,
+    creator: creator || undefined,
+  });
   res.json({ code: 200, message: 'ok', data: result });
 });
 

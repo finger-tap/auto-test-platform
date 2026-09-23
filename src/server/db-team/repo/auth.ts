@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import bcrypt from 'bcryptjs';
 import { getTeamDb } from '../client.js';
 import { centerUsers, type CenterUserRow } from '../schema/org.js';
@@ -50,6 +50,12 @@ export async function createCenterUser(input: {
   const existing = await findCenterUserByAccount(input.account);
   if (existing) throw new TeamApiError(409, '该账号已被注册');
 
+  // Bootstrap: on a fresh deployment the FIRST registered account becomes
+  // the platform admin (no built-in credentials - safer than a fixed admin
+  // account that port scanners would try first).
+  const [{ n }] = await db.select({ n: sql<number>`count(*)` }).from(centerUsers);
+  const isPlatformAdmin = Number(n) === 0 ? 1 : 0;
+
   const now = nowSql();
   const passwordHash = await bcrypt.hash(input.password, 10);
   const inserted = await db
@@ -59,12 +65,24 @@ export async function createCenterUser(input: {
       passwordHash,
       accountType: detectAccountType(input.account),
       nickname: input.nickname || null,
+      isPlatformAdmin,
       createdAt: now,
       updatedAt: now,
     });
   const id = Number(inserted[0].insertId);
   const row = (await db.select().from(centerUsers).where(eq(centerUsers.id, id)).limit(1))[0];
   return maskUser(row);
+}
+
+/**
+ * Team-creation policy for this deployment (env-configurable):
+ *   'admin' (default) - only platform admins may create teams; everyone
+ *                        else joins via invite codes (company model).
+ *   'self'             - any center account may create its own team
+ *                        (community/self-service model).
+ */
+export function getTeamCreatePolicy(): 'admin' | 'self' {
+  return process.env.TEAM_CREATE_POLICY === 'self' ? 'self' : 'admin';
 }
 
 export async function verifyCenterPassword(account: string, password: string): Promise<CenterUserRow> {

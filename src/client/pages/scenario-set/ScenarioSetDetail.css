@@ -18,22 +18,7 @@
 
 .sset-btn-add:hover { background: var(--accent-hover); }
 
-/* Status Badge */
-.sset-status-badge {
-  display: inline-block;
-  padding: 0.125rem 0.625rem;
-  border-radius: 0.75rem;
-  font-size: 0.75rem;
-  font-weight: 500;
-}
-
-.sset-status-badge.status-active { background: var(--success-subtle); color: var(--success); border: 1px solid var(--success-subtle); }
-.sset-status-badge.status-draft { background: var(--warning-subtle); color: var(--warning); border: 1px solid var(--warning-subtle); }
-.sset-status-badge.status-disabled { background: var(--bg); color: var(--fg-tertiary); border: 1px solid var(--border); }
-.sset-status-badge.status-success { background: var(--success-subtle); color: var(--success); border: 1px solid var(--success-subtle); }
-.sset-status-badge.status-failed { background: var(--danger-subtle); color: var(--danger); border: 1px solid var(--danger-subtle); }
-.sset-status-badge.status-skipped { background: var(--bg); color: var(--fg-tertiary); border: 1px solid var(--border); }
-.sset-status-badge.status-error { background: var(--danger-subtle); color: var(--danger); border: 1px solid var(--danger-subtle); }
+/* 状态徽章已统一到 styles/badges.css 的 .st-badge (2026-08-28) */
 
 .scenario-log-running { background: var(--accent-subtle); color: var(--primary); }
 .scenario-log-skipped { background: var(--bg); color: var(--fg-tertiary); }

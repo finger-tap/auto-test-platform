@@ -4,6 +4,11 @@
 // any executor) might import playwright through its dependency graph.
 // ESM hoists static imports to the top, so we set the env var via a
 // pre-import script-style side effect before any other import statement.
+// FIRST import: loads .env (gitignored) so DB_URL / JWT secrets work for
+// `npm run start` exactly like `npm run dev`. Never overrides exported
+// shell variables. Keep this before anything that reads env at
+// module-evaluation time (auth/team-jwt.ts etc).
+import './env.js';
 import { fileURLToPath } from 'url';
 import path from 'path';
 const __early_filename = fileURLToPath(import.meta.url);
@@ -71,6 +76,22 @@ if (isDev) {
 } else {
   console.log(`[cors] Production: allowing origins: ${CORS_ORIGINS.join(', ')}`);
 }
+
+// 2026-08-23: 模块脚本(crossorigin 属性)即使同源也带 Origin 头 - 部署在任意
+// 端口/域名的站点访问自己时, CORS 白名单会误杀静态资源(整页白屏)。
+// 同源请求本就不需要 CORS: 直接剥掉 Origin 头, 让下方 cors 中间件放行。
+app.use((req, _res, next) => {
+  const origin = req.headers.origin;
+  const host = req.headers.host;
+  if (origin && host) {
+    try {
+      if (new URL(String(origin)).host === String(host)) delete req.headers.origin;
+    } catch {
+      /* malformed origin -> let cors decide */
+    }
+  }
+  next();
+});
 
 app.use(
   cors(
@@ -141,6 +162,16 @@ if (isDev) {
     res.sendFile(path.join(clientDist, 'index.html'));
   });
 }
+
+// Express 4 不捕获 async handler 的 rejection — 没有这层兜底时, 任何路由里
+// 未 catch 的异常会让请求永久挂起(前端转圈直到超时)并触发 unhandledRejection。
+// 放在所有路由/中间件之后, 只处理冒泡到这里的错误。
+app.use((err: unknown, req: import('express').Request, res: import('express').Response, _next: unknown) => {
+  console.error(`[server] unhandled route error ${req.method} ${req.path}:`, err);
+  if (!res.headersSent) {
+    res.status(500).json({ code: 500, message: '服务器内部错误' });
+  }
+});
 
 const httpServer = app.listen(PORT, () => {
   const addr = httpServer.address();

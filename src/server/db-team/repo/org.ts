@@ -2,6 +2,7 @@ import { and, eq, sql, desc, asc } from 'drizzle-orm';
 import { getTeamDb } from '../client.js';
 import { teams, teamMembers, projects, centerUsers, type TeamRow, type ProjectRow } from '../schema/org.js';
 import { nowSql, hasRole, isTeamRole, TeamApiError, type TeamRole } from '../util.js';
+import { getTeamCreatePolicy } from './auth.js';
 
 /**
  * Teams / members / projects data access with role enforcement.
@@ -107,6 +108,21 @@ export async function createTeam(input: { name: string; description?: string; us
   const name = input.name.trim();
   if (!name) throw new TeamApiError(400, '团队名称不能为空');
   if (name.length > 128) throw new TeamApiError(400, '团队名称过长（≤128 字符）');
+
+  // Team-creation policy (2026-08-22): default 'admin' = only the platform
+  // admin (first account registered on this deployment) may create teams;
+  // everyone else joins via invite codes. Set TEAM_CREATE_POLICY=self to
+  // re-enable community-style self-service team creation.
+  if (getTeamCreatePolicy() === 'admin') {
+    const [u] = await db
+      .select({ isPlatformAdmin: centerUsers.isPlatformAdmin })
+      .from(centerUsers)
+      .where(eq(centerUsers.id, input.userId))
+      .limit(1);
+    if (!u || u.isPlatformAdmin !== 1) {
+      throw new TeamApiError(403, '当前部署仅平台管理员可创建团队，普通成员请通过邀请码加入（TEAM_CREATE_POLICY 可调整）');
+    }
+  }
 
   const dup = await db.select({ id: teams.id }).from(teams).where(eq(teams.name, name)).limit(1);
   if (dup[0]) throw new TeamApiError(409, '同名团队已存在');

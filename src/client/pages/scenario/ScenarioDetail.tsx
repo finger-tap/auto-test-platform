@@ -15,7 +15,7 @@ import {
   SelectionMode,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { apiFetch } from '../../utils/api';
+import { apiFetch, is2xx } from '../../utils/api';
 import { toLocalDateTime } from '../../utils/datetime';
 import { InlineText, InlineSelect } from '../../components/InlineEdit';
 import TagInput from '../../components/TagInput';
@@ -32,6 +32,26 @@ import ScenarioExecutionTimeline from '../../components/ScenarioExecutionTimelin
 import ScenarioBatchExecutionView from './ScenarioBatchExecutionView';
 import './nodes/NodeStyles.css';
 import './ScenarioDetail.css';
+import { useUnsavedGuard } from '../../utils/dirtyGuard';
+
+/** 从执行 steps 推导各节点最终状态 (2026-08-30)。
+ *  node_end/condition 步骤的 log_data.status 是节点级结论; 之前依赖的
+ *  node_results 字段从未有写入方(死代码), 画布着色因此从未生效。 */
+function buildNodeStatusMap(steps: Array<{ node_id?: string | null; log_type: string; log_data?: string | null }>): Record<string, string> {
+  const map: Record<string, string> = {};
+  for (const st of steps) {
+    if (!st.node_id) continue;
+    if (st.log_type !== 'node_end' && st.log_type !== 'condition') continue;
+    try {
+      let d: unknown = JSON.parse(String(st.log_data ?? '{}'));
+      if (typeof d === 'string') d = JSON.parse(d); // 存量双重转义兜底
+      const status = (d as Record<string, unknown>)?.status;
+      if (typeof status === 'string') map[st.node_id] = status;
+    } catch { /* 忽略坏行 */ }
+  }
+  return map;
+}
+
 
 const nodeTypes: NodeTypes = {
   start: StartNode,
@@ -95,6 +115,11 @@ export default function ScenarioDetail({ basePath = '/api-test', testType = 'api
   const autoExecRef = useRef(false);
   const realIdRef = useRef<string | null>(isNew ? null : id!);
   const [isDirty, setIsDirty] = useState(false);
+  // 详情加载失败态 (2026-08-27)
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [reloadTick, setReloadTick] = useState(0);
+  // 未保存修改离开保护(刷新/关闭弹浏览器确认; 侧边栏导航由 Layout 弹确认)
+  useUnsavedGuard(isDirty);
   const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'detail');
   // 场景级参数化配置
   const [paramConfig, setParamConfig] = useState<{
@@ -222,7 +247,32 @@ export default function ScenarioDetail({ basePath = '/api-test', testType = 'api
     return vars;
   };
 
+  // 按 id 精确查询并合入缓存(命中则跳过请求)
+  const ensureApiCached = useCallback(async (apiId: number): Promise<void> => {
+    if (!apiId || apis.some((a) => a.id === apiId)) return;
+    try {
+      const res = await apiFetch<ApiItem>(`/apis/${apiId}`);
+      if (is2xx(res.code) && res.data) {
+        const fetched = res.data;
+        setApis((prev) => (prev.some((a) => a.id === apiId) ? prev : [...prev, fetched]));
+      }
+    } catch { /* 单个查询失败不阻塞 */ }
+  }, [apis]);
+
   // ── Compute available variables from all upstream API nodes ──
+  // 2026-08-28: 上游节点的案例详情按需精确查询补缓存 — 缓存合入后本 memo
+  // 依赖 apis 自动重算, 无需预拉全量。
+  useEffect(() => {
+    if (!selectedNode) return;
+    const upstream = getUpstreamNodes(selectedNode.id, nodes, edges);
+    for (const n of upstream) {
+      if (n.type === 'api') {
+        const config = n.data as unknown as ApiNodeConfig;
+        if (config.api_id) void ensureApiCached(config.api_id);
+      }
+    }
+  }, [selectedNode, nodes, edges, ensureApiCached]);
+
   const currentNodeAvailableVars = useMemo((): AvailableVar[] => {
     if (!selectedNode) return [];
     const upstream = getUpstreamNodes(selectedNode.id, nodes, edges);
@@ -274,7 +324,7 @@ export default function ScenarioDetail({ basePath = '/api-test', testType = 'api
           status: scenario?.status || 'draft',
         }),
       });
-      if (res.code === 201 && res.data) {
+      if (is2xx(res.code) && res.data) {
         realIdRef.current = String(res.data.id);
         navigate(`${routeBase}/${res.data.id}`, { replace: true });
         setScenario(prev => prev ? { ...prev, id: res.data!.id } : prev);
@@ -291,7 +341,7 @@ export default function ScenarioDetail({ basePath = '/api-test', testType = 'api
     if (!id || isNew) return;
     const apiPath = API_PATH_MAP[testType] || API_PATH_MAP.api;
     apiFetch<{ scenario: Scenario; nodes: ScenarioNode[]; edges: ScenarioEdge[] }>(`${apiPath.detail}/${id}`).then((res) => {
-      if (res.code === 200 && res.data) {
+      if (is2xx(res.code) && res.data) {
         setScenario(res.data.scenario);
         const rfNodes: Node[] = res.data.nodes.map((n) => ({
           id: n.node_id, type: n.type,
@@ -321,18 +371,21 @@ export default function ScenarioDetail({ basePath = '/api-test', testType = 'api
             setParamConfig(extractColumnsFromNodes(rfNodes));
           }
         } catch { setParamConfig({ headers: [], rows: [], enabledRows: [] }); }
+      } else {
+        setLoadError(res.message || '加载场景失败');
       }
-    });
+      })
+      .catch((err: unknown) => setLoadError(err instanceof Error ? err.message : '网络错误，加载失败'));
     apiFetch<ScenarioLog[]>(`${apiPath.detail}/${id}/logs`).then((res) => {
-      if (res.code === 200 && res.data) setLogs(res.data);
+      if (is2xx(res.code) && res.data) setLogs(res.data);
     });
     apiFetch<ScenarioExecution[]>(`${apiPath.detail}/${id}/executions`).then((res) => {
-      if (res.code === 200 && res.data && res.data.length > 0) {
+      if (is2xx(res.code) && res.data && res.data.length > 0) {
         setScenarioExecutions(res.data);
         // Fetch steps for leader and all members
         const fetchDetail = (exec: ScenarioExecution): Promise<ScenarioExecution> => {
           return apiFetch<ScenarioExecution & { steps: ScenarioExecutionStep[] }>(`${apiPath.detail}/${id}/executions/${exec.id}`).then((detailRes) => {
-            if (detailRes.code === 200 && detailRes.data) {
+            if (is2xx(detailRes.code) && detailRes.data) {
               return { ...exec, ...detailRes.data };
             }
             return exec;
@@ -352,17 +405,14 @@ export default function ScenarioDetail({ basePath = '/api-test', testType = 'api
         });
       }
     });
-  }, [id]);
+  }, [id, reloadTick]);
 
   useEffect(() => {
-    apiFetch('/apis').then((res) => {
-      if (res.code === 200 && res.data) {
-        const data = res.data as unknown;
-        if (Array.isArray(data)) setApis(data as ApiItem[]);
-        else if (data && typeof data === 'object' && 'items' in data) setApis((data as { items: ApiItem[] }).items);
-      }
-    });
+    // 2026-08-28: apis 改为按需缓存 — 打开节点配置时按 id 精确查已选案例、
+    // 上游变量解析时按 id 补齐; 不再预拉全量(用例多时既慢又导致下拉反显缺失)。
+    // 节点面板的下拉列表由 NodeConfigPanel 自行远程分页/模糊查询。
   }, []);
+
 
   useEffect(() => {
     if (searchParams.get('exec') === '1' && !autoExecRef.current && scenario) {
@@ -431,7 +481,7 @@ export default function ScenarioDetail({ basePath = '/api-test', testType = 'api
           parameters: JSON.stringify(paramConfig),
         }),
       });
-      if (metaRes.code !== 200) { ok = false; throw new Error(metaRes.message || '保存基本信息失败'); }
+      if (!is2xx(metaRes.code)) { ok = false; throw new Error(metaRes.message || '保存基本信息失败'); }
 
       // 2. 保存流程图（节点+连线）
       const dbNodes = nodes.map((n) => ({
@@ -445,36 +495,40 @@ export default function ScenarioDetail({ basePath = '/api-test', testType = 'api
         source_handle: e.sourceHandle || null, label: typeof e.label === 'string' ? e.label : null,
       }));
       const flowRes = await apiFetch(`${apiPath.detail}/${rid}/flow`, { method: 'PUT', body: JSON.stringify({ nodes: dbNodes, edges: dbEdges }) });
-      if (flowRes.code !== 200) { ok = false; throw new Error(flowRes.message || '保存流程图失败'); }
+      if (!is2xx(flowRes.code)) { ok = false; throw new Error(flowRes.message || '保存流程图失败'); }
     } catch (err) { ok = false; notification.error(err instanceof Error ? err.message : '保存失败'); }
     finally { setSaving(false); if (ok) { setIsDirty(false); notification.success('保存成功'); } }
   };
 
   const handleExecute = async () => {
     if (!realIdRef.current) { notification.warning('请先保存场景后再执行'); return; }
+    // 未保存的修改不会进入执行 — 静默跑"已保存旧版本"会让结果与屏幕配置
+    // 不一致, 用户可能据错误结论排查被测系统 (2026-08-27)
+    if (isDirty) { notification.warning('存在未保存的修改，请先保存后再执行'); return; }
     setExecuting(true); setExecutionResult(null);
     try {
       const res = await apiFetch<ScenarioLog>(`${API_PATH_MAP[testType]?.detail || '/scenarios'}/${realIdRef.current}/execute`, { method: 'POST', body: JSON.stringify({ environmentId: activeEnv?.id }) });
-      if (res.code === 200 && res.data) {
+      if (is2xx(res.code) && res.data) {
         setExecutionResult(res.data);
-        if (res.data.node_results) {
-          const results: Record<string, NodeExecutionResult> = JSON.parse(res.data.node_results);
-          setNodes((nds) => nds.map((n) => ({ ...n, data: { ...n.data, executionStatus: results[n.id]?.status || 'skipped', conditionResult: results[n.id]?.condition_result } })));
+        // 画布节点按真实执行结果着色: 失败红/成功绿 (2026-08-30, 改用 steps 推导)
+        const statusMap = buildNodeStatusMap((res.data as unknown as { steps?: Array<{ node_id?: string | null; log_type: string; log_data?: string | null }> }).steps ?? []);
+        if (Object.keys(statusMap).length > 0) {
+          setNodes((nds) => nds.map((n) => ({ ...n, data: { ...n.data, executionStatus: statusMap[n.id] || 'skipped' } })));
         }
         const [logsRes, execRes] = await Promise.all([
           apiFetch<ScenarioLog[]>(`${API_PATH_MAP[testType]?.detail || '/scenarios'}/${realIdRef.current}/logs`),
           apiFetch<ScenarioExecution[]>(`${API_PATH_MAP[testType]?.detail || '/scenarios'}/${realIdRef.current}/executions`),
         ]);
-        if (logsRes.code === 200 && logsRes.data) {
+        if (is2xx(logsRes.code) && logsRes.data) {
           setLogs(logsRes.data);
           if (logsRes.data.length > 0) setExpandedLog(logsRes.data[0].id);
         }
-        if (execRes.code === 200 && execRes.data && execRes.data.length > 0) {
+        if (is2xx(execRes.code) && execRes.data && execRes.data.length > 0) {
           setScenarioExecutions(execRes.data);
           // Fetch detail for leader + sub_executions
           const fetchDetail = (exec: ScenarioExecution): Promise<ScenarioExecution> => {
             return apiFetch<ScenarioExecution & { steps: ScenarioExecutionStep[] }>(`${API_PATH_MAP[testType]?.detail || '/scenarios'}/${realIdRef.current}/executions/${exec.id}`).then((detailRes) => {
-              if (detailRes.code === 200 && detailRes.data) {
+              if (is2xx(detailRes.code) && detailRes.data) {
                 return { ...exec, ...detailRes.data };
               }
               return exec;
@@ -498,6 +552,14 @@ export default function ScenarioDetail({ basePath = '/api-test', testType = 'api
     finally { setExecuting(false); }
   };
 
+  if (loadError) {
+    return (
+      <div className="scenario-empty">
+        <p style={{ marginBottom: 12 }}>⚠️ {loadError}</p>
+        <button className="btn btn-primary" onClick={() => { setLoadError(null); setReloadTick(t => t + 1); }}>重试</button>
+      </div>
+    );
+  }
   if (!scenario) return <div className="scenario-empty">加载中...</div>;
 
   // ─── Tab: Detail ───
@@ -714,7 +776,7 @@ export default function ScenarioDetail({ basePath = '/api-test', testType = 'api
         if (!config.api_id) continue;
         try {
           const res = await apiFetch<ApiItem>(`/apis/${config.api_id}`);
-          if (res.code === 200 && res.data?.parameters) {
+          if (is2xx(res.code) && res.data?.parameters) {
             const params = JSON.parse(res.data.parameters);
             if (params.headers && Array.isArray(params.headers)) {
               params.headers.forEach((h: string) => {
@@ -831,12 +893,22 @@ export default function ScenarioDetail({ basePath = '/api-test', testType = 'api
           <tr className={isExpanded ? 'log-row-selected' : ''}>
             <td>{toLocalDateTime(execItem.started_at)}</td>
             <td>
-              <span className={`status-badge status-${execItem.status}`}>{execItem.status === 'success' ? '通过' : execItem.status === 'failed' ? '失败' : execItem.status}</span>
+              <span className={`st-badge st-${execItem.status}`}>{execItem.status === 'success' ? '通过' : execItem.status === 'failed' ? '失败' : execItem.status}</span>
               {batchLabel && <span className="scenario-log-batch">{batchLabel}</span>}
             </td>
             <td>{execItem.duration_ms != null ? `${execItem.duration_ms} ms` : '-'}</td>
             <td>{execItem.executed_by || '-'}</td>
-            <td><button className="log-view-btn" onClick={() => { setExpandedLog(isExpanded ? null : execItem.id); setActiveParamRow(1); }}>{isExpanded ? '收起' : '查看'}</button></td>
+            <td><button className="log-view-btn" onClick={() => {
+  setExpandedLog(isExpanded ? null : execItem.id);
+  setActiveParamRow(1);
+  // 查看历史执行时: 画布节点同步着色为该次执行的结果; 收起时还原 (2026-08-30)
+  if (!isExpanded) {
+    const statusMap = buildNodeStatusMap(execItem.steps ?? []);
+    setNodes((nds) => nds.map((n) => ({ ...n, data: { ...n.data, executionStatus: statusMap[n.id] || 'skipped' } })));
+  } else {
+    setNodes((nds) => nds.map((n) => ({ ...n, data: { ...n.data, executionStatus: undefined } })));
+  }
+}}>{isExpanded ? '收起' : '查看'}</button></td>
           </tr>
           {isExpanded && (
             <tr className="log-detail-row"><td colSpan={5}>
@@ -885,7 +957,7 @@ export default function ScenarioDetail({ basePath = '/api-test', testType = 'api
           <input className="api-detail-name-input" value={scenario?.name || ''} onChange={e => saveField('name', e.target.value)} placeholder="输入场景名称" />
         </div>
         <div className="api-detail-meta">
-          {!isNew && scenario && <span className={`status-badge-light ${scenario.status}`}>{STATUS_OPTIONS.find(o => o.value === scenario.status)?.label || scenario.status}</span>}
+          {!isNew && scenario && <span className={`st-badge st-${scenario.status}`}>{STATUS_OPTIONS.find(o => o.value === scenario.status)?.label || scenario.status}</span>}
           {scenario?.updated_at && <span className="meta-time">更新于 {toLocalDateTime(scenario.updated_at)}</span>}
         </div>
         <div className="api-detail-actions">

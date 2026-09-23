@@ -471,3 +471,20 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* ── 团队模式首页 (2026-08-23) ── */
+.home-hidden { display: none; }
+.kanban-team-hint {
+  margin-top: 10px;
+  font-size: 12px;
+  color: var(--fg-tertiary);
+}
+.home-team-panel { margin-top: 20px; padding: 20px 24px; }
+.home-team-facts {
+  display: flex;
+  gap: 32px;
+  margin: 14px 0;
+}
+.home-team-fact-val { font-size: 20px; font-weight: 600; }
+.home-team-fact-label { font-size: 12px; color: var(--fg-tertiary); margin-top: 2px; }
+.home-team-hint { font-size: 12px; color: var(--fg-secondary); line-height: 1.6; }

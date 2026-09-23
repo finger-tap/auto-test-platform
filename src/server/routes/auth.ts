@@ -18,9 +18,11 @@ export const authRoutes = Router();
 
 // Per-IP rate limit for sensitive auth endpoints to prevent credential stuffing
 // and account-enumeration abuse. 5 req / minute / IP is enough for legitimate use.
+// 2026-08-27: 支持 AUTH_RATE_MAX 环境变量覆盖 — 平台自测套件 7 个场景的登录节点
+// 会连续命中 429; 生产不配置保持严格默认。
 const authLimiter = rateLimit({
   windowMs: 60_000,
-  max: 5,
+  max: Number(process.env.AUTH_RATE_MAX) || 5,
   standardHeaders: true,
   legacyHeaders: false,
   message: { code: 429, message: 'Too many requests, please try again later.' },

@@ -1,9 +1,4 @@
 /* Scenario List - reuse ApiList styles */
 @import '../api-test/ApiList.css';
 
-.td-desc {
-  max-width: 200px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
+/* td-desc 已泛化到 styles/tables.css 的 .td-ellipsis (2026-08-31) */

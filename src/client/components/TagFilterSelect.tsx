@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { apiFetch } from '../utils/api';
+import { apiFetch, is2xx } from '../utils/api';
 import './TagFilterSelect.css';
 import './TagFilterSelect.css';
 interface TagInfo {
@@ -26,7 +26,7 @@ export default function TagFilterSelect({
 
   useEffect(() => {
     apiFetch<TagInfo[]>('/tags').then(res => {
-      if (res.code === 200 && res.data) setTags(res.data);
+      if (is2xx(res.code) && res.data) setTags(res.data);
     });
   }, []);
 

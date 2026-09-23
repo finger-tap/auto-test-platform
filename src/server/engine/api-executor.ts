@@ -258,7 +258,16 @@ export async function executeApi(
   if (!api) throw new Error(`API ${apiId} not found`);
 
   const timeout = options?.timeout ?? 30000;
-  const paramConfig = options?.paramConfig ?? null;
+  let paramConfig = options?.paramConfig ?? null;
+  // 2026-08-28: 场景节点执行此前不传 paramConfig — 用例自身的参数化在场景里
+  // 完全失效({{参数}} 原样发出 + 只执行一行)。这里兜底解析用例的 parameters;
+  // 场景级参数行循环(scnParamRowIndex >= 0)调用时不兜底, 避免场景×用例双重
+  // 参数化产生笛卡尔积。
+  if (!paramConfig && (options?.scenarioParamRowIndex === undefined || options?.scenarioParamRowIndex === null) && api.parameters) {
+    try {
+      paramConfig = JSON.parse(api.parameters) as typeof paramConfig;
+    } catch { paramConfig = null; }
+  }
   const executedBy = options?.executedBy ?? 'system';
 
   // Determine param rows
@@ -414,7 +423,10 @@ export async function executeApi(
                   dbResult = await pool.query(action.content, []) as unknown[];
                 }
               } catch (dbErr) {
-                dbResult = [];
+                // 2026-08-27: 前置 DB 异常视为执行中断 — 打印堆栈并抛给外层
+                // (外层统一: 落库 error step + error_message, 跳过全部检查点)
+                console.error(`[api-executor] 前置 DB 查询异常 [${api.name}/${actionName}]:`, dbErr);
+                throw dbErr;
               }
             } else {
               // Execute script
@@ -428,8 +440,16 @@ export async function executeApi(
                   Object.assign(paramContext, scriptResult.vars);
                   Object.assign(allExtracted, scriptResult.vars);
                 }
+                // 沙箱把脚本 throw 转成 {success:false, error} — 按异常语义中止
+                if (scriptResult && !scriptResult.success) {
+                  const msg = `前置脚本执行失败: ${(scriptResult as { error?: string }).error || '未知原因'}`;
+                  console.error(`[api-executor] ❌ [${api.name}/${actionName}] ${msg}`);
+                  throw new Error(msg);
+                }
               } catch (scriptErr) {
-                scriptResult = { success: false };
+                // 同上: 前置脚本运行时异常 → 中止本次执行
+                console.error(`[api-executor] 前置脚本异常 [${api.name}/${actionName}]:`, scriptErr);
+                throw scriptErr;
               }
             }
 
@@ -490,6 +510,16 @@ export async function executeApi(
         request_body: reqBody,
       });
 
+      // 2026-08-27: 控制台全量打印请求详情 — 排查 401/参数替换问题时
+      // 不必再翻数据库; 响应段同理打印响应头。
+      console.log(
+        `[api-executor] ▶ 开始执行案例 [${api.name}] (executionId=${executionId}` +
+        `${effectiveRowIdx >= 0 ? `, 参数行=${effectiveRowIdx}` : ''})\n` +
+        `  ${api.method} ${fullUrl}\n` +
+        `  请求头: ${requestHeadersStr}\n` +
+        `  请求报文: ${requestBodyStr ?? '(无)'}`,
+      );
+
       try {
         const fetchOptions: RequestInit & { dispatcher?: unknown } = {
           method: api.method,
@@ -527,7 +557,11 @@ export async function executeApi(
           respBody = respBody.slice(0, 1_000_000) + '\n\n[Response truncated at 1MB]';
         }
 
-        console.log(`[api-executor] 响应: ${statusCode} (${requestDuration}ms)\n${respBody}`);
+        console.log(
+          `[api-executor] ◀ 案例响应 [${api.name}]: ${statusCode} (${requestDuration}ms)\n` +
+          `  响应头: ${JSON.stringify(respHeadersObj)}\n` +
+          `  响应报文: ${(respBody ?? '').slice(0, 2000)}${(respBody ?? '').length > 2000 ? ' ...(截断，全文见执行历史)' : ''}`,
+        );
 
         addStep('main_action', '主体响应', `响应: ${statusCode} (${requestDuration}ms)`, {
           status_code: statusCode,
@@ -541,6 +575,12 @@ export async function executeApi(
         status = 'error';
         const stack = err instanceof Error ? err.stack : undefined;
         const cause = err instanceof Error ? (err as unknown as Record<string, unknown>).cause : undefined;
+        // 2026-08-30: "fetch failed" 只是个外壳 — 真正的特征(ECONNREFUSED/ENOTFOUND/host)
+        // 在 cause 链里。拼进 error_message 落库, 诊断规则与控制台才能直接使用。
+        const causeMsg = cause instanceof Error ? cause.message : (cause != null ? String(cause) : '');
+        if (causeMsg && !errorMessage.includes(causeMsg)) {
+          errorMessage = `${errorMessage} (${causeMsg})`;
+        }
         console.error(`[api-executor] 请求失败: ${api.method} ${fullUrl} — ${errorMessage}`, err);
         addStep('error', '请求错误', `请求失败: ${errorMessage}`, {
           error: errorMessage,
@@ -618,7 +658,9 @@ export async function executeApi(
                   dbResult = await pool.query(action.content, []) as unknown[];
                 }
               } catch (dbErr) {
-                dbResult = [];
+                // 后置 DB 异常同样中止本次执行 (2026-08-27)
+                console.error(`[api-executor] 后置 DB 查询异常 [${api.name}/${actionName}]:`, dbErr);
+                throw dbErr;
               }
             } else {
               // Execute script
@@ -632,8 +674,16 @@ export async function executeApi(
                   Object.assign(paramContext, scriptResult.vars);
                   Object.assign(allExtracted, scriptResult.vars);
                 }
+                // 后置脚本失败同样按异常中止
+                if (scriptResult && !scriptResult.success) {
+                  const msg = `后置脚本执行失败: ${(scriptResult as { error?: string }).error || '未知原因'}`;
+                  console.error(`[api-executor] ❌ [${api.name}/${actionName}] ${msg}`);
+                  throw new Error(msg);
+                }
               } catch (scriptErr) {
-                scriptResult = { success: false };
+                // 后置脚本运行时异常 → 中止本次执行
+                console.error(`[api-executor] 后置脚本异常 [${api.name}/${actionName}]:`, scriptErr);
+                throw scriptErr;
               }
             }
 
@@ -669,11 +719,21 @@ export async function executeApi(
       }
 
       // Final summary step before end — captures overall assertion outcome
-      addStep('final_check', '最终检查', `最终断言: ${totalPassed} 通过, ${totalFailed} 失败`, {
-        passed: totalPassed,
-        failed: totalFailed,
-        status,
-      });
+      // 2026-08-27: 执行异常(error)时不再执行最终检查点 — 按中止语义直接落
+      // 失败结论, 避免在残缺响应上继续断言产生误导性结果。
+      if (status === 'error') {
+        addStep('final_check', '最终检查', `执行已中止（异常），检查点未执行`, {
+          passed: totalPassed,
+          failed: totalFailed,
+          status,
+        });
+      } else {
+        addStep('final_check', '最终检查', `最终断言: ${totalPassed} 通过, ${totalFailed} 失败`, {
+          passed: totalPassed,
+          failed: totalFailed,
+          status,
+        });
+      }
 
       addStep('end', '完成', `执行${status === 'success' ? '成功' : status === 'failed' ? '失败' : '错误'}`, {
         status,
@@ -685,6 +745,10 @@ export async function executeApi(
       errorMessage = err instanceof Error ? err.message : 'Unknown error';
       const stack = err instanceof Error ? err.stack : undefined;
       const cause = err instanceof Error ? (err as unknown as Record<string, unknown>).cause : undefined;
+      const causeMsg2 = cause instanceof Error ? cause.message : (cause != null ? String(cause) : '');
+      if (causeMsg2 && !errorMessage.includes(causeMsg2)) {
+        errorMessage = `${errorMessage} (${causeMsg2})`;
+      }
       console.error(`[api-executor] 执行异常: ${api.name} — ${errorMessage}`, err);
       addStep('error', '错误', `执行异常: ${errorMessage}`, { error: errorMessage, stack, cause: cause != null ? String(cause) : undefined });
     }

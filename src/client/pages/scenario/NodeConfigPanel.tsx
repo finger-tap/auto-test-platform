@@ -1,8 +1,9 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import type { Node } from '@xyflow/react';
 import type { ApiItem, ApiNodeConfig, ConditionNodeConfig, ExtractRule, AssertionRule } from '../../types';
 import FormSelect from '../../components/FormSelect';
 import notification from '../../utils/notification';
+import { apiFetch, is2xx } from '../../utils/api';
 
 // Rich variable info with source tracking
 export interface AvailableVar {
@@ -137,6 +138,16 @@ function ApiNodeConfigPanel({ node, apis, availableVariables, onUpdate, onDelete
   // 下拉模糊搜索
   const [searchText, setSearchText] = useState('');
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  // 2026-08-28: 远程搜索模式 — 下拉数据不再依赖父组件预拉全量(>10 条就反显
+  // 失败), 改为: 打开/输入时按 name 分页查询; 已选案例按 id 精确查询反显。
+  const [remoteOptions, setRemoteOptions] = useState<ApiItem[]>([]);
+  const [remoteLoading, setRemoteLoading] = useState(false);
+  const searchSeqRef = useRef(0);
+  // 反显专用: 节点打开时按 id 精确查到的案例 — 不进下拉候选, 只用于
+  // 输入框回显与 api_name 回写
+  const [exactItem, setExactItem] = useState<ApiItem | null>(null);
+  // 搜索态: 聚焦期间显示 searchText(空则占位符), 失焦恢复反显已选案例名
+  const [searching, setSearching] = useState(false);
   // 提取规则（独立数组）
   const [extractions, setExtractions] = useState<ExtractRule[]>([]);
   // 断言规则（独立数组）
@@ -146,28 +157,55 @@ function ApiNodeConfigPanel({ node, apis, availableVariables, onUpdate, onDelete
   // 规则名称编辑值
   const [editingNameValue, setEditingNameValue] = useState('');
 
-  const filteredApis = useMemo(() => {
-    if (!searchText.trim()) return apiList;
-    const kw = searchText.toLowerCase();
-    return apiList.filter(
-      (a) => a.name.toLowerCase().includes(kw) || a.method.toLowerCase().includes(kw) || a.url.toLowerCase().includes(kw)
-    );
-  }, [apiList, searchText]);
+  // 全量查找池(反显/回写用): 父缓存 + 精确查 + 远程结果
+  const options = useMemo(() => {
+    const map = new Map<number, ApiItem>();
+    for (const a of apiList) map.set(a.id, a);
+    if (exactItem) map.set(exactItem.id, exactItem);
+    for (const a of remoteOptions) map.set(a.id, a);
+    return [...map.values()];
+  }, [apiList, exactItem, remoteOptions]);
 
-  const selectedApi = useMemo(() => apiList.find((a) => a.id === apiId), [apiList, apiId]);
+  // 下拉候选 = 仅远程查询结果 — 缓存/已选项不混入, 切换案例时不碍事
+  const filteredApis = remoteOptions;
 
-  // 初始化和切换节点时回显数据
+  const selectedApi = useMemo(() => options.find((a) => a.id === apiId), [options, apiId]);
+
+  // 远程查询: name 为空拉第一页, 有值模糊搜索 (300ms 防抖)
+  const fetchOptions = useCallback(async (name: string) => {
+    const seq = ++searchSeqRef.current;
+    setRemoteLoading(true);
+    try {
+      const qs = new URLSearchParams({ page: '1', pageSize: '20' });
+      if (name.trim()) qs.set('name', name.trim());
+      const res = await apiFetch<{ items: ApiItem[] }>(`/apis?${qs.toString()}`);
+      if (seq !== searchSeqRef.current) return; // 过期响应丢弃
+      if (is2xx(res.code)) setRemoteOptions(res.data?.items ?? []);
+    } catch { /* 网络错误保留下旧列表 */ } finally {
+      if (seq === searchSeqRef.current) setRemoteLoading(false);
+    }
+  }, []);
+
+  // 节点打开时: 已选案例不在本地 → 按 id 精确查一条用于反显
   useEffect(() => {
     setApiId(config.api_id || 0);
     setSearchText('');
     setDropdownOpen(false);
+    setSearching(false);
     setExtractions(migrateExtractions(config));
     setAssertions(migrateAssertions(config));
+    const wanted = config.api_id || 0;
+    setExactItem(null);
+    if (wanted > 0 && !apiList.some((a) => a.id === wanted)) {
+      apiFetch<ApiItem>(`/apis/${wanted}`).then((res) => {
+        if (is2xx(res.code) && res.data) setExactItem(res.data);
+      }).catch(() => {});
+    }
   }, [node.id]);
 
   // 保存完整数据到父组件
   const save = useCallback((updates?: Record<string, unknown>) => {
-    const selApi = apiList.find((a) => a.id === apiId);
+    const selApi = options.find((a) => a.id === apiId);
     onUpdate({
       api_id: apiId,
       api_name: selApi?.name || selectedApi?.name || '',
@@ -175,15 +213,16 @@ function ApiNodeConfigPanel({ node, apis, availableVariables, onUpdate, onDelete
       assertions: assertions.length > 0 ? assertions : undefined,
       ...updates,
     });
-  }, [apiId, selectedApi, extractions, assertions, onUpdate]);
+  }, [apiId, selectedApi, options, extractions, assertions, onUpdate]);
 
   const handleApiSelect = (id: number) => {
     setApiId(id);
     setSearchText('');
     setDropdownOpen(false);
+    setSearching(false);
     setExtractions([]);
     setAssertions([]);
-    const selApi = apiList.find((a) => a.id === id);
+    const selApi = options.find((a) => a.id === id);
     onUpdate({
       api_id: id,
       api_name: selApi?.name || '',
@@ -192,13 +231,30 @@ function ApiNodeConfigPanel({ node, apis, availableVariables, onUpdate, onDelete
     });
   };
 
+  // 输入即远程模糊搜索(防抖); 首次打开下拉拉第一页
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const handleApiSearchChange = (value: string) => {
     setSearchText(value);
     if (!dropdownOpen) setDropdownOpen(true);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => { void fetchOptions(value); }, 300);
+  };
+
+  const handleApiFocus = () => {
+    // 每次点击都查询(分页第一页) — 数据新鲜且不依赖缓存; 进入搜索态后
+    // 输入框清空可直接打关键词, 不用手动删掉反显的案例名
+    setSearching(true);
+    setDropdownOpen(true);
+    setSearchText('');
+    void fetchOptions('');
   };
 
   const handleApiBlur = () => {
-    setTimeout(() => setDropdownOpen(false), 200);
+    setTimeout(() => {
+      setDropdownOpen(false);
+      setSearching(false);
+      setSearchText('');
+    }, 200);
   };
 
   // 开始编辑规则名称
@@ -280,13 +336,13 @@ function ApiNodeConfigPanel({ node, apis, availableVariables, onUpdate, onDelete
             <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
               <input
                 className="api-search-input"
-                value={searchText || (selectedApi ? `${selectedApi.method} ${selectedApi.name}` : '')}
+                value={searching ? searchText : (selectedApi ? `${selectedApi.method} ${selectedApi.name}` : '')}
                 onChange={(e) => handleApiSearchChange(e.target.value)}
-                onFocus={() => setDropdownOpen(true)}
+                onFocus={handleApiFocus}
                 onBlur={handleApiBlur}
-                placeholder="输入名称查询"
+                placeholder="输入名称模糊查找"
               />
-              {(searchText || selectedApi) && (
+              {selectedApi && !searching && (
                 <button
                   type="button"
                   className="api-search-clear"
@@ -295,8 +351,9 @@ function ApiNodeConfigPanel({ node, apis, availableVariables, onUpdate, onDelete
                     setSearchText('');
                     setApiId(0);
                     setDropdownOpen(true);
+                    void fetchOptions('');
                   }}
-                  title="清除选择"
+                  title="清空选择"
                 >
                   ✕
                 </button>
@@ -304,13 +361,13 @@ function ApiNodeConfigPanel({ node, apis, availableVariables, onUpdate, onDelete
             </div>
             {dropdownOpen && (
               <div className="api-search-dropdown-list">
-                {!searchText && apiList.length === 0 && (
-                  <div className="api-search-empty">暂无比配接口</div>
+                {remoteLoading && (
+                  <div className="api-search-empty">查询中…</div>
                 )}
-                {filteredApis.length === 0 ? (
-                  <div className="api-search-empty">无匹配接口</div>
-                ) : (
-                  filteredApis.map((api) => (
+                {!remoteLoading && filteredApis.length === 0 && (
+                  <div className="api-search-empty">{searchText ? '无匹配接口，换个关键词试试' : '暂无接口'}</div>
+                )}
+                {filteredApis.map((api) => (
                     <div
                       key={api.id}
                       className={`api-search-item ${api.id === apiId ? 'selected' : ''}`}
@@ -319,8 +376,7 @@ function ApiNodeConfigPanel({ node, apis, availableVariables, onUpdate, onDelete
                       <span className={`api-method api-method-${api.method.toLowerCase()}`}>{api.method}</span>
                       <span className="api-name">{api.name}</span>
                     </div>
-                  ))
-                )}
+                  ))}
               </div>
             )}
           </div>

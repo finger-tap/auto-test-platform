@@ -112,6 +112,55 @@
   overscroll-behavior: contain;
 }
 
+/* 2026-08-31: 下方空间不够时向上展开(如贴着屏幕底部的分页条),
+   由组件测量后自动添加 flip-up */
+.form-select-dropdown.flip-up {
+  top: auto;
+  bottom: calc(100% + 4px);
+}
+
+/* ── 自定义输入行(配合 allowCustom, 如分页条数) ── */
+.form-select-custom {
+  display: flex;
+  gap: 6px;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border-subtle);
+  margin-bottom: 2px;
+  position: sticky;
+  top: 0;
+  background: var(--surface);
+}
+
+.form-select-custom input {
+  flex: 1;
+  min-width: 60px;
+  height: 26px;
+  padding: 0 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-family: var(--font-sans);
+  background: var(--surface);
+  color: var(--fg);
+  outline: none;
+}
+
+.form-select-custom input:focus {
+  border-color: var(--accent);
+}
+
+.form-select-custom button {
+  height: 26px;
+  padding: 0 10px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: var(--accent);
+  color: #fff;
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
 /* Scrollbar styling */
 .form-select-dropdown::-webkit-scrollbar {
   width: 6px;

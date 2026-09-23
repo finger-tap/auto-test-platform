@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useWorkspace } from '../contexts/WorkspaceContext';
-import { apiFetch } from '../utils/api';
-import { removeTeamAuth, setLastCenterUrl, getLastCenterUrl } from '../utils/teamAuth';
+import { apiFetch, apiFetchCenter, getToken } from '../utils/api';
+import { setLastCenterUrl, getLastCenterUrl, getTeamAuth } from '../utils/teamAuth';
 import { workspaceLabel } from '../utils/workspace';
 import { notification } from '../utils/notification';
 import type { TeamSummary, ProjectInfo } from '../types/team';
@@ -10,6 +10,7 @@ import ConnectTeamModal from './ConnectTeamModal';
 import TeamOrgModal from './TeamOrgModal';
 import TeamManageModal from './TeamManageModal';
 import ImportToTeamModal from './ImportToTeamModal';
+import RedeemInviteModal from './RedeemInviteModal';
 import './WorkspaceSwitcher.css';
 
 /**
@@ -45,6 +46,11 @@ export default function WorkspaceSwitcher() {
   const [showConnect, setShowConnect] = useState(false);
   const [showManage, setShowManage] = useState(false);
   const [showImport, setShowImport] = useState(false);
+  const [showSync, setShowSync] = useState(false);
+  const [showRedeem, setShowRedeem] = useState(false);
+  // 连接向导恢复邀请码流程时暂存 code — 不能只靠 pendingInviteCode:
+  // handleConnected 会把它清掉, 而弹窗的 initialCode 在下一轮渲染才读取
+  const [redeemInitialCode, setRedeemInitialCode] = useState<string | undefined>(undefined);
   const [orgModal, setOrgModal] = useState<null | { mode: 'create-team' } | { mode: 'create-project'; teamId: number }>(null);
 
   const rootRef = useRef<HTMLDivElement>(null);
@@ -72,8 +78,47 @@ export default function WorkspaceSwitcher() {
     setLastCenterUrl(url);
     setShowConnect(false);
     void refreshTeams(url);
+    if (pendingInviteCode) {
+      // Invite-link flow: credentials are in place - go redeem right away.
+      const code = pendingInviteCode;
+      setPendingInviteCode(null);
+      setConnectInitialUrl(undefined);
+      setRedeemInitialCode(code);
+      setShowRedeem(true);
+      return;
+    }
     setOpen(true);
     notification.success('已连接团队服务，请选择要进入的团队');
+  };
+
+  /** Invite-code entry: requires center credentials; otherwise connect first. */
+  const openRedeem = () => {
+    setOpen(false);
+    const url = currentCenterUrl();
+    if (url && getTeamAuth(url)) {
+      setShowRedeem(true);
+    } else {
+      // No center session yet - the login page's team tab creates one.
+      window.location.href = '/login?type=team';
+    }
+  };
+
+  /** Link pointed at a center we have no credentials for: connect, then resume. */
+  const [pendingInviteCode, setPendingInviteCode] = useState<string | null>(null);
+  const needConnectForInvite = (url: string, code: string) => {
+    setShowRedeem(false);
+    setPendingInviteCode(code);
+    setConnectInitialUrl(url);
+    setShowConnect(true);
+  };
+
+  /** initialUrl override for the connect wizard (invite-link flow). */
+  const [connectInitialUrl, setConnectInitialUrl] = useState<string | undefined>(undefined);
+
+  const handleJoined = async (team: TeamSummary) => {
+    setShowRedeem(false);
+    await refreshTeams();
+    enterTeam(team, null);
   };
 
   const pickProject = (project: ProjectInfo) => {
@@ -82,7 +127,14 @@ export default function WorkspaceSwitcher() {
   };
 
   const createTeam = async (name: string, description: string) => {
-    const res = await apiFetch<{ team: TeamSummary }>('/team/teams', {
+    const url = currentCenterUrl();
+    if (!url) {
+      notification.error('请先连接团队服务');
+      return;
+    }
+    // apiFetchCenter: this can be triggered while still in LOCAL workspace
+    // (fresh user, no teams yet) - plain apiFetch would hit the wrong target.
+    const res = await apiFetchCenter<{ team: TeamSummary }>(url, '/team/teams', {
       method: 'POST',
       body: JSON.stringify({ name, description }),
     });
@@ -112,16 +164,16 @@ export default function WorkspaceSwitcher() {
     }
   };
 
-  const disconnect = () => {
-    if (workspace.mode !== 'team') return;
-    removeTeamAuth(workspace.centerUrl);
-    switchToLocal();
-    setOpen(false);
-    notification.success('已断开团队，回到个人空间');
-  };
-
   const isTeamMode = workspace.mode === 'team';
   const activeTeamId = isTeamMode ? workspace.teamId : null;
+
+  // Center credentials exist (connected) even if we sit in local workspace -
+  // e.g. right after connect with zero teams. Used for entry visibility.
+  const lastUrl = currentCenterUrl();
+  const centerAuth = lastUrl ? getTeamAuth(lastUrl) : null;
+  const canCreateTeam =
+    !!centerAuth &&
+    (centerAuth.createPolicy === 'self' || centerAuth.user.isPlatformAdmin === 1);
 
   return (
     <div className="ws-switcher" ref={rootRef}>
@@ -144,6 +196,12 @@ export default function WorkspaceSwitcher() {
           <button
             className={`ws-item ${!isTeamMode ? 'active' : ''}`}
             onClick={() => {
+              // 团队账户独立登录(无本地会话)时, 引导去登录个人账户
+              if (!getToken()) {
+                setOpen(false);
+                window.location.href = '/login';
+                return;
+              }
               switchToLocal();
               setOpen(false);
             }}
@@ -228,28 +286,25 @@ export default function WorkspaceSwitcher() {
 
           <div className="ws-sep" />
 
-          {/* actions */}
-          {isTeamMode && (
+          {/* 2026-08-23 简化: 切换器只做"切换", 管理动作都在团队管理弹窗里。
+              有中心会话 -> 邀请码入口; 没有 -> 团队账户登录入口。 */}
+          {centerAuth ? (
+            <button className="ws-item ws-action" onClick={openRedeem}>
+              🎟 用邀请码加入团队…
+            </button>
+          ) : (
+            <button className="ws-item ws-action" onClick={() => { setOpen(false); window.location.href = '/login?type=team'; }}>
+              👥 登录团队账户…
+            </button>
+          )}
+          {canCreateTeam && (
             <button className="ws-item ws-action" onClick={() => setOrgModal({ mode: 'create-team' })}>
               ＋ 新建团队
             </button>
           )}
-          {isTeamMode && workspace.projectId && (
-            <button className="ws-item ws-action" onClick={() => { setOpen(false); setShowImport(true); }}>
-              ⬆ 导入本机资源到当前项目…
-            </button>
-          )}
           {isTeamMode && (
             <button className="ws-item ws-action" onClick={() => { setOpen(false); setShowManage(true); }}>
-              ⚙ 团队管理（成员 / 通知 / 审计）
-            </button>
-          )}
-          <button className="ws-item ws-action" onClick={() => { setOpen(false); setShowConnect(true); }}>
-            🔗 连接团队服务…
-          </button>
-          {isTeamMode && (
-            <button className="ws-item ws-action ws-danger" onClick={disconnect}>
-              断开团队（回到本地）
+              ⚙ 团队管理（成员 / 邀请码 / 数据 / 审计）
             </button>
           )}
         </div>
@@ -257,8 +312,19 @@ export default function WorkspaceSwitcher() {
 
       {showConnect && (
         <ConnectTeamModal
-          onClose={() => setShowConnect(false)}
+          initialUrl={connectInitialUrl}
+          onClose={() => { setShowConnect(false); setPendingInviteCode(null); setConnectInitialUrl(undefined); }}
           onConnected={handleConnected}
+        />
+      )}
+
+      {showRedeem && currentCenterUrl() && (
+        <RedeemInviteModal
+          centerUrl={currentCenterUrl()}
+          initialCode={redeemInitialCode ?? pendingInviteCode ?? undefined}
+          onClose={() => { setShowRedeem(false); setPendingInviteCode(null); setRedeemInitialCode(undefined); }}
+          onJoined={(t) => void handleJoined(t)}
+          onNeedConnect={needConnectForInvite}
         />
       )}
 
@@ -270,8 +336,20 @@ export default function WorkspaceSwitcher() {
         />
       )}
 
-      {showManage && <TeamManageModal onClose={() => setShowManage(false)} />}
+      {showManage && (
+        <TeamManageModal
+          onClose={() => setShowManage(false)}
+          onOpenImport={(mode) => {
+            setShowManage(false);
+            if (mode === 'pick-account') setShowSync(true);
+            else setShowImport(true);
+          }}
+        />
+      )}
       {showImport && <ImportToTeamModal onClose={() => { setShowImport(false); }} />}
+
+      {/* 2026-08-23: 选任意本地账号的数据同步进团队项目（用户设计） */}
+      {showSync && <ImportToTeamModal mode="pick-account" onClose={() => { setShowSync(false); }} />}
     </div>
   );
 }

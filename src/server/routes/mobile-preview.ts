@@ -170,10 +170,14 @@ async function handleScrcpyConnection(ws: WebSocket, req: IncomingMessage, sessi
   if (entry.kind === 'local') {
     // 2026-06-10: 本地 in-process scrcpy,device-keyed 共享。sessionId 只是 preview 的订阅 id,
     // 实际流由 local-scrcpy.ts 按 serial(deviceKey)共享,attachSharedScrcpySubscriber 把 ws 加入订阅者。
+    // 2026-08-25: WS 断开时清掉 activeSessions 里的 per-subscriber 条目 —
+    // 用户刷新/关页不会再调 /stop, 此前该条目(含 agentToken)永久残留。
+    ws.on('close', () => stopSession(sessionId));
     await bridgeLocalScrcpySession(ws, entry.serial);
     return;
   }
   // entry.kind === 'remote'
+  ws.on('close', () => stopSession(sessionId));
   await bridgeScrcpySession(ws, req, {
     agentBaseUrl: entry.agentBaseUrl,
     agentToken: entry.agentToken,

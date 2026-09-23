@@ -782,7 +782,13 @@ deviceRoutes.post('/:id/stop-agent', async (req: Request, res: Response) => {
     res.status(400).json({ code: 400, message: 'SSH host / user / auth type not configured for this device' });
     return;
   }
-  const result = await stopAgent(device);
+  let result: Awaited<ReturnType<typeof stopAgent>>;
+  try {
+    result = await stopAgent(device);
+  } catch (err) {
+    res.status(500).json({ code: 500, message: err instanceof Error ? err.message : 'stop failed' });
+    return;
+  }
   if (!result.ok) {
     res.status(500).json({ code: 500, message: result.error || 'stop failed', data: result });
     return;

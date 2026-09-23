@@ -1,0 +1,26 @@
+#!/bin/sh
+# Secret guard: refuse to commit local secret files (.env*), even if someone
+# force-added them with `git add -f` or the .gitignore rule got broken.
+#
+# Allowed exception: .env.example (placeholder template, meant to be committed).
+# Bypass (know what you are doing): git commit --no-verify
+#
+# Installed via `git config core.hooksPath githooks`
+# (set automatically by scripts/setup-git-hooks.mjs on npm install).
+
+blocked=$(git diff --cached --name-only --diff-filter=ACMR \
+  | grep -E '^\.env($|\.)' \
+  | grep -v '^\.env\.example$')
+
+if [ -n "$blocked" ]; then
+  echo "❌ pre-commit 拦截：检测到密钥文件被暂存，拒绝提交：" >&2
+  printf '    %s\n' $blocked >&2
+  echo "" >&2
+  echo "    真实连接串/密钥只放 .env（已 gitignore，不会入库）；" >&2
+  echo "    入库模板请用 .env.example（占位符）。" >&2
+  echo "" >&2
+  echo "    如确有必要强提：git commit --no-verify（请清楚自己在做什么）" >&2
+  exit 1
+fi
+
+exit 0

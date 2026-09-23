@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { apiFetch } from '../../utils/api';
+import { apiFetch, is2xx } from '../../utils/api';
 import { formatDateTime } from '../../utils/datetime';
 import notification from '../../utils/notification';
 import { useEnvironment } from '../../contexts/EnvironmentContext';
@@ -40,7 +40,7 @@ export default function EnvironmentList({ basePath = '/api-test' }: { basePath?:
     setLoading(true);
     // 环境是 4 种测试类型共享的基础设施，不按 test_type 过滤
     apiFetch<Environment[]>('/environments').then(res => {
-      if (res.code === 200) setEnvs(res.data || []);
+      if (is2xx(res.code)) setEnvs(res.data || []);
     }).finally(() => setLoading(false));
   }
 
@@ -58,7 +58,7 @@ export default function EnvironmentList({ basePath = '/api-test' }: { basePath?:
     load();
     if (activeEnv?.id === env.id) {
       apiFetch<Environment[]>('/environments').then(r => {
-        if (r.code === 200) {
+        if (is2xx(r.code)) {
           const def = r.data?.find(e => e.is_default === 1);
           setActiveEnv(def || null);
         }
@@ -79,7 +79,7 @@ export default function EnvironmentList({ basePath = '/api-test' }: { basePath?:
         is_default: true,
       }),
     });
-    if (res.code === 200) {
+    if (is2xx(res.code)) {
       setActiveEnv(env);
       load();
     }

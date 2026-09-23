@@ -5,7 +5,7 @@ import SettingsDrawer from './SettingsDrawer';
 
 export default function UserMenu() {
   const navigate = useNavigate();
-  const { user, logout } = useAuth();
+  const { user, centerUser, logout } = useAuth();
   const [open, setOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -18,7 +18,13 @@ export default function UserMenu() {
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  const displayName = user?.nickname || user?.account?.slice(0, 8) || '管理员';
+  // 2026-08-23: 团队账户独立登录时（无本地账号）显示中心身份
+  const identity = user
+    ? { name: user.nickname || user.account?.slice(0, 8) || '用户', account: user.account || '', tag: '个人账户' }
+    : centerUser
+      ? { name: centerUser.nickname || centerUser.account.slice(0, 8), account: centerUser.account, tag: '团队账户' }
+      : { name: '用户', account: '', tag: '' };
+  const displayName = identity.name;
   const firstChar = displayName.charAt(0).toUpperCase();
   const avatarSrc = user?.avatar && !user.avatar.startsWith('data:') ? user.avatar : null;
 
@@ -39,7 +45,7 @@ export default function UserMenu() {
         <div className="user-menu__dropdown">
           <div className="user-menu__info">
             <div className="user-menu__name">{displayName}</div>
-            <div className="user-menu__account">{user?.account || ''}</div>
+            <div className="user-menu__account">{identity.account}{identity.tag ? ` · ${identity.tag}` : ''}</div>
           </div>
           <div className="user-menu__divider" />
           <button className="user-menu__item" onClick={() => { setOpen(false); setSettingsOpen(true); }}>

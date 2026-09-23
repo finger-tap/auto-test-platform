@@ -97,9 +97,10 @@ export function startScheduler(): void {
   // 30s; if the last_seen_at is older than 90s the agent is presumed dead
   // (network blip, crash, machine off) and we flip its status to offline
   // so the UI doesn't keep trying to dispatch cases to a ghost agent.
-  // Run every minute. 1:13am-ish (off-the-hour, random pick) — we don't
-  // care about exact minute, just that it's not on a fleet-wide boundary.
-  const agentHeartbeatJob = cron.schedule('13 * * * *', async () => {
+  // Run every minute — agent 掉线后 90s 判死, 每小时才扫一次会让 UI 在最长
+  // 一小时里持续向"幽灵 agent"派发用例 (2026-08-25 修正: 此前误写为
+  // '13 * * * *' 即每小时第 13 分钟)。
+  const agentHeartbeatJob = cron.schedule('* * * * *', async () => {
     try {
       const { markStaleAgentsOffline } = await import('../db/devices.js');
       const stats = markStaleAgentsOffline(90);

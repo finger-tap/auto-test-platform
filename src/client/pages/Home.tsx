@@ -1,11 +1,14 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { useWorkspace } from '../contexts/WorkspaceContext';
 import { useEnvironment } from '../contexts/EnvironmentContext';
 import { useThemeContext } from '../contexts/ThemeContext';
 import { apiFetch } from '../utils/api';
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
 import UserMenu from '../components/UserMenu';
+import WorkspaceSwitcher from '../components/WorkspaceSwitcher';
+import { TEAM_ROLE_LABELS } from '../types/team';
 import './Home.css';
 
 // AutoTest Platform mark — content inlined from public/brand/autotest-mark-currentColor.svg
@@ -135,7 +138,8 @@ const testTypes = [
 
 export default function Home() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, centerUser } = useAuth();
+  const { workspace, teams, projects } = useWorkspace();
   const { environments, activeEnv, setActiveEnv } = useEnvironment();
   const [envOpen, setEnvOpen] = useState(false);
   const envRef = useRef<HTMLDivElement>(null);
@@ -158,7 +162,15 @@ export default function Home() {
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
+  const isTeamMode = workspace.mode === 'team';
+
+  // 2026-08-23: /dashboard 是个人空间(本地库)专用接口 - 团队模式下不拉取
+  // (避免无本地会话的团队账户触发 401 噪音), 首页改展示团队概览。
   useEffect(() => {
+    if (workspace.mode === 'team') {
+      setLoading(false);
+      return;
+    }
     Promise.all([
       apiFetch<Record<string, TestTypeStats>>('/dashboard/stats'),
       apiFetch<{ trend: TrendPoint[]; summary: TrendSummary }>('/dashboard/trend?days=14'),
@@ -172,9 +184,9 @@ export default function Home() {
       })
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, []);
+  }, [workspace.mode]);
 
-  const displayName = user?.nickname || user?.account?.slice(0, 8) || '管理员';
+  const displayName = user?.nickname || user?.account?.slice(0, 8) || centerUser?.nickname || centerUser?.account.slice(0, 8) || '用户';
   const today = new Date();
   const dateStr = `${today.getFullYear()}年${today.getMonth() + 1}月${today.getDate()}日`;
 
@@ -186,6 +198,8 @@ export default function Home() {
           <span>AutoTest Platform</span>
         </div>
         <div className="home-header-actions">
+          {/* 2026-08-22: 首页也能切换工作区/团队（原先必须进具体测试类型才能切） */}
+          <WorkspaceSwitcher />
           <button className="hdr-theme-btn" onClick={toggleTheme} title={theme === 'dark' ? '切换亮色' : '切换暗色'}>
             {theme === 'dark' ? (
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
@@ -232,22 +246,52 @@ export default function Home() {
               </div>
               <div className="kanban-name">{t.name}</div>
               <div className="kanban-desc">{t.desc}</div>
-              <div className="kanban-stats">
-                <div><div className="kanban-stat-val">{loading ? '-' : s.cases}</div><div className="kanban-stat-label">{t.casesLabel}</div></div>
-                <div><div className="kanban-stat-val">{loading ? '-' : s.sets}</div><div className="kanban-stat-label">{t.setsLabel}</div></div>
-              </div>
-              <div className="kanban-rate">
-                <div className="kanban-rate-bar">
-                  <div className="kanban-rate-fill" style={{ width: `${s.passRate}%`, background: rateColor }} />
-                </div>
-                <div className="kanban-rate-val" style={{ color: rateColor }}>{loading ? '-' : `${s.passRate}%`}</div>
-              </div>
+              {!isTeamMode && (
+                <>
+                  <div className="kanban-stats">
+                    <div><div className="kanban-stat-val">{loading ? '-' : s.cases}</div><div className="kanban-stat-label">{t.casesLabel}</div></div>
+                    <div><div className="kanban-stat-val">{loading ? '-' : s.sets}</div><div className="kanban-stat-label">{t.setsLabel}</div></div>
+                  </div>
+                  <div className="kanban-rate">
+                    <div className="kanban-rate-bar">
+                      <div className="kanban-rate-fill" style={{ width: `${s.passRate}%`, background: rateColor }} />
+                    </div>
+                    <div className="kanban-rate-val" style={{ color: rateColor }}>{loading ? '-' : `${Number(s.passRate).toFixed(2)}%`}</div>
+                  </div>
+                </>
+              )}
+              {isTeamMode && <div className="kanban-team-hint">团队项目工作区 →</div>}
             </div>
             );
           })}
         </div>
 
-        <div className="home-bottom-grid">
+        {isTeamMode && (
+          <div className="home-panel home-team-panel">
+            <div className="home-panel-head">
+              团队概览 <span className="home-panel-sub">{workspace.teamName}</span>
+            </div>
+            <div className="home-team-facts">
+              <div className="home-team-fact">
+                <div className="home-team-fact-val">{teams.find((t) => t.id === workspace.teamId)?.role ? TEAM_ROLE_LABELS[teams.find((t) => t.id === workspace.teamId)!.role] : '-'}</div>
+                <div className="home-team-fact-label">我的角色</div>
+              </div>
+              <div className="home-team-fact">
+                <div className="home-team-fact-val">{projects.length}</div>
+                <div className="home-team-fact-label">团队项目</div>
+              </div>
+              <div className="home-team-fact">
+                <div className="home-team-fact-val">{workspace.projectName || '未指定'}</div>
+                <div className="home-team-fact-label">当前项目</div>
+              </div>
+            </div>
+            <div className="home-team-hint">
+              测试用例与执行数据在各测试类型页面内查看；成员 / 邀请码 / 数据同步 / 审计在右上角「⚙ 团队管理」里。
+            </div>
+          </div>
+        )}
+
+        <div className={`home-bottom-grid ${isTeamMode ? 'home-hidden' : ''}`}>
           <div className="home-panel home-panel-chart">
             <div className="home-panel-head">执行趋势 <span className="home-panel-sub">近 14 天</span></div>
             <div className="trend-summary-row">

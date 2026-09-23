@@ -63,6 +63,10 @@ export default function PcTestHome() {
 
   return (
     <div className="dashboard-home page-enter">
+      <div className="dashboard-page-head">
+        <div className="dashboard-page-title">PC 端测试</div>
+        <div className="dashboard-page-sub">桌面客户端自动化测试管理</div>
+      </div>
       <div className="dashboard-cards">
         {statCards.map((c, i) => (
           <div key={i} className="dashboard-stat-card">

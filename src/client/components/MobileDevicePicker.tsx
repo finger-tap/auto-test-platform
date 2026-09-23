@@ -4,7 +4,7 @@
 // 数据源: GET /api/devices/:id/mobile-devices
 
 import { useEffect, useState } from 'react';
-import { apiFetch } from '../utils/api';
+import { apiFetch, is2xx } from '../utils/api';
 import './DevicePickerModal.css';
 
 interface MobileDevice {
@@ -34,7 +34,7 @@ export default function MobileDevicePicker({ open, deviceId, deviceName, onClose
     setError(null);
     apiFetch<MobileDevice[]>(`/devices/${deviceId}/mobile-devices`)
       .then(res => {
-        if (res.code === 200 && res.data) {
+        if (is2xx(res.code) && res.data) {
           setDevices(res.data);
         } else {
           setError(res.message || '获取设备列表失败');

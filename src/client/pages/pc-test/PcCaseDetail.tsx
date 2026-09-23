@@ -7,12 +7,14 @@ import DevicePickerModal from '../../components/DevicePickerModal';
 import LogTab, { type ExecRecord } from '../../components/tabs/LogTab';
 import { CaseContentEditor, type CaseContentType } from '../../components/CaseContentEditor';
 import PcPreviewPanel from '../../components/PcPreviewPanel';
-import { apiFetch } from '../../utils/api';
+import { apiFetch, is2xx } from '../../utils/api';
 import { useEnvironment } from '../../contexts/EnvironmentContext';
 import { formatDateTime, formatDuration } from '../../utils/datetime';
 import notification from '../../utils/notification';
 import type { NLStep } from '../../types';
 import './PcCaseDetail.css';
+import { useUnsavedGuard } from '../../utils/dirtyGuard';
+import TabIcon from '../../components/TabIcon';
 
 // ── Types ──
 interface Checkpoint extends NLStep {
@@ -46,13 +48,13 @@ const PLATFORM_OPTIONS = [
 ];
 
 const TABS = [
-  { key: 'detail', label: '详情' },
-  { key: 'precondition', label: '前置动作' },
-  { key: 'content', label: '用例内容' },
-  { key: 'checkpoints', label: '检查点' },
-  { key: 'data', label: '数据驱动' },
-  { key: 'env', label: '环境配置' },
-  { key: 'logs', label: '执行记录' },
+  { key: 'detail', label: '详情', icon: 'detail' },
+  { key: 'precondition', label: '前置动作', icon: 'pre' },
+  { key: 'content', label: '用例内容', icon: 'content' },
+  { key: 'checkpoints', label: '检查点', icon: 'checkpoints' },
+  { key: 'data', label: '数据驱动', icon: 'data' },
+  { key: 'env', label: '环境配置', icon: 'env' },
+  { key: 'logs', label: '执行记录', icon: 'history' },
 ];
 
 // Legacy migration: convert the old NLStep[] shape to a flat natural-language
@@ -118,6 +120,12 @@ export default function PcCaseDetail() {
   // and JSON-encode them in the dirty effect for cheap deep comparison.
   const originalSnapshotRef = useRef<string>('');
   const [dirty, setDirty] = useState(false);
+  const [saving, setSaving] = useState(false);
+  // 详情加载失败态 — 防止失败后把空表单保存回去覆盖原数据 (2026-08-27)
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [reloadTick, setReloadTick] = useState(0);
+  // 未保存修改离开保护(刷新/关闭弹浏览器确认; 侧边栏导航由 Layout 弹确认)
+  useUnsavedGuard(dirty);
 
   // Precondition: a single natural-language action handed to Midscene's
   // `aiAct` before the main case content runs. Old rows may store a JSON
@@ -175,7 +183,7 @@ export default function PcCaseDetail() {
     setLoading(true);
     apiFetch<any>(`/pc-cases/${id}`)
       .then(res => {
-        if (res.code === 200 && res.data) {
+        if (is2xx(res.code) && res.data) {
           const d = res.data;
           setForm({
             name: d.name || '',
@@ -272,17 +280,19 @@ export default function PcCaseDetail() {
             });
             setDirty(false);
           });
+        } else {
+          setLoadError(res.message || '加载用例失败');
         }
       })
-      .catch(() => {})
+      .catch((err: unknown) => setLoadError(err instanceof Error ? err.message : '网络错误，加载失败'))
       .finally(() => setLoading(false));
-  }, [id, isNew]);
+  }, [id, isNew, reloadTick]);
 
   // Load executions (has report_url) and build execRecords from them
   useEffect(() => {
     if (isNew || !id) return;
     apiFetch<any>(`/pc-cases/${id}/executions?limit=20`).then(res => {
-      if (res.code === 200 && res.data && res.data.length > 0) {
+      if (is2xx(res.code) && res.data && res.data.length > 0) {
         const execs = res.data;
         setExecRecords(execs.map((e: any) => ({
           id: e.id,
@@ -317,6 +327,9 @@ export default function PcCaseDetail() {
 
   const handleExecute = async () => {
     if (!id || isNew) { notification.error('请先保存用例'); return; }
+    // 未保存的修改不会进入执行 — 静默跑"已保存旧版本"会让结果与屏幕配置
+    // 不一致, 用户可能据错误结论排查被测系统 (2026-08-27)
+    if (dirty) { notification.warning('存在未保存的修改，请先保存后再执行'); return; }
     // 打开桌面实时预览（跟移动端逻辑一致：执行时自动开预览）
     setPreviewOpen(true);
     setExecuting(true);
@@ -330,7 +343,7 @@ export default function PcCaseDetail() {
         method: 'POST',
         body: JSON.stringify({ environmentId: activeEnv?.id }),
       });
-      if (res.code === 200 && res.data) {
+      if (is2xx(res.code) && res.data) {
         const data = res.data;
         if (data.status === 'success') {
           notification.success('执行完成');
@@ -342,7 +355,7 @@ export default function PcCaseDetail() {
         }
         // Reload executions
         const execRes = await apiFetch<any>(`/pc-cases/${id}/executions?limit=20`);
-        if (execRes.code === 200 && execRes.data) {
+        if (is2xx(execRes.code) && execRes.data) {
           setExecRecords(execRes.data.map((e: any) => ({
             id: e.id,
             time: formatDateTime(e.started_at),
@@ -372,6 +385,11 @@ export default function PcCaseDetail() {
   };
 
   const handleSave = () => {
+    // 防重入: 双击保存会在首个请求返回前重复提交(新建时创建两条用例);
+    // 失败必须 toast — 此前无 else 无 catch, 保存失败完全静默, 用户以为
+    // 已保存后离开 = 改动丢失 (2026-08-27)
+    if (saving) return;
+    if (!form.name.trim()) { notification.warning('请输入用例名称'); return; }
     const checkpointsForSave = checkpoints.map(({ passed: _p, ...rest }) => rest);
     const payload: any = {
       name: form.name,
@@ -393,9 +411,11 @@ export default function PcCaseDetail() {
     };
     const method = isNew ? 'POST' : 'PUT';
     const path = isNew ? '/pc-cases' : `/pc-cases/${id}`;
+    setSaving(true);
     apiFetch<{ id: number }>(path, { method, body: JSON.stringify(payload) })
       .then(res => {
-        if (res.code === 200 || res.code === 201) {
+        if (is2xx(res.code)) {
+          notification.success('保存成功');
           // Refresh snapshot to the just-saved state so the save button
           // stops pulsing.
           originalSnapshotRef.current = JSON.stringify({
@@ -411,8 +431,12 @@ export default function PcCaseDetail() {
           });
           setDirty(false);
           if (isNew && res.data?.id) navigate(`/pc-test/case/${res.data.id}`, { replace: true });
+        } else {
+          notification.error(res.message || '保存失败');
         }
-      });
+      })
+      .catch((err: unknown) => notification.error(err instanceof Error ? err.message : '保存失败'))
+      .finally(() => setSaving(false));
   };
 
   // -- Data drive helpers --
@@ -736,6 +760,16 @@ export default function PcCaseDetail() {
     </div>
   );
 
+  if (!isNew && loading) return <div className="api-empty">加载中...</div>;
+  if (!isNew && loadError) {
+    return (
+      <div className="api-empty">
+        <p style={{ marginBottom: 12 }}>⚠️ {loadError}</p>
+        <button className="btn btn-primary" onClick={() => { setLoadError(null); setReloadTick(t => t + 1); }}>重试</button>
+      </div>
+    );
+  }
+
   return (
     <div className={`api-detail page-enter ${previewOpen ? 'with-preview' : ''}`}>
       <div className="api-detail-header">
@@ -751,7 +785,7 @@ export default function PcCaseDetail() {
         </div>
         <div className="api-detail-meta">
           {!isNew && (
-            <span className={`status-badge-light ${form.status}`}>
+            <span className={`st-badge st-${form.status}`}>
               {STATUS_OPTIONS.find(o => o.value === form.status)?.label || form.status}
             </span>
           )}
@@ -778,7 +812,7 @@ export default function PcCaseDetail() {
           >
             {selectedDeviceName || '本机'}
           </button>
-          <button className={`scenario-btn ${dirty ? 'dirty' : ''}`} onClick={handleSave}>保存</button>
+          <button className={`scenario-btn ${dirty ? 'dirty' : ''}`} onClick={handleSave} disabled={saving}>{saving ? '保存中…' : '保存'}</button>
           <button className="sset-btn sset-btn-primary" onClick={handleExecute} disabled={executing || isNew}>
             {executing ? '执行中...' : selectedDeviceId ? '远程执行' : '执行'}
           </button>
@@ -793,7 +827,7 @@ export default function PcCaseDetail() {
                 className={`tab-btn ${activeTab === tab.key ? 'active' : ''}`}
                 onClick={() => setActiveTab(tab.key)}
               >
-                {tab.label}
+                <TabIcon name={tab.icon} />{tab.label}{tab.key === 'logs' && execRecords.length > 0 && (<span className="tab-count">{execRecords.length}</span>)}
               </button>
             ))}
           </div>

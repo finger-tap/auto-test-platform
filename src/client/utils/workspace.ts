@@ -94,3 +94,43 @@ export function updateWorkspaceTeamMeta(team: TeamSummary): void {
   if (ws.mode !== 'team' || ws.teamId !== team.id) return;
   writeWorkspace({ ...ws, teamName: team.name });
 }
+
+/**
+ * Last team/project selection — survives logout and re-login so the login
+ * flow can restore it (2026-08-25: 用户报告每次登录都被切到第一个团队,
+ * 上次手动选的团队/项目应被记住).
+ *
+ * Kept SEPARATE from the workspace entry on purpose: logout resets the
+ * workspace to local mode, but this record must outlive that reset.
+ */
+export interface LastTeamSelection {
+  centerUrl: string;
+  teamId: number;
+  teamName: string;
+  projectId: number | null;
+  projectName: string | null;
+}
+
+const LAST_TEAM_KEY = 'lastTeamSelection';
+
+export function readLastTeamSelection(): LastTeamSelection | null {
+  const raw = localStorage.getItem(LAST_TEAM_KEY);
+  if (!raw) return null;
+  try {
+    const sel = JSON.parse(raw) as LastTeamSelection;
+    if (
+      typeof sel?.centerUrl === 'string' &&
+      typeof sel?.teamId === 'number' &&
+      (sel.projectId === null || typeof sel.projectId === 'number')
+    ) {
+      return sel;
+    }
+  } catch {
+    /* fallthrough */
+  }
+  return null;
+}
+
+export function writeLastTeamSelection(sel: LastTeamSelection): void {
+  localStorage.setItem(LAST_TEAM_KEY, JSON.stringify(sel));
+}

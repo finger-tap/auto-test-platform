@@ -1,11 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import FormSelect from '../../components/FormSelect';
-import { apiFetch } from '../../utils/api';
+import { apiFetch, is2xx } from '../../utils/api';
 import notification from '../../utils/notification';
 import './MidsceneConfig.css';
 
-// Midscene v1.8.7 接受的 MIDSCENE_MODEL_FAMILY 取值。
-// 来自执行器运行时报错:Invalid MIDSCENE_MODEL_FAMILY value.
+// Midscene v1.12.2 接受的 MIDSCENE_MODEL_FAMILY 取值
+// (packages/shared/src/env/types.ts MODEL_FAMILY_VALUES)。
 // 改 family 不需要重启服务,保存后下一次执行即生效。
 const MIDSCENE_MODEL_FAMILIES = [
   'doubao-vision',
@@ -13,6 +13,7 @@ const MIDSCENE_MODEL_FAMILIES = [
   'gemini',
   'qwen2.5-vl',
   'qwen3-vl',
+  'qwen3',
   'qwen3.5',
   'qwen3.6',
   'vlm-ui-tars',
@@ -22,6 +23,10 @@ const MIDSCENE_MODEL_FAMILIES = [
   'auto-glm',
   'auto-glm-multilingual',
   'gpt-5',
+  'deepseek',
+  'kimi',
+  'kimi3',
+  'xiaomi-mimo',
 ] as const;
 
 // 推理力度可选值(对应 OpenAI/Anthropic reasoning effort 参数)
@@ -43,9 +48,11 @@ interface ModelSection {
   model_socks_proxy: string;
   model_extra_body_json: string;
   model_init_config_json: string;
-  model_reasoning_enabled: string;  // '0' / '1' / '' (空=默认)
+  model_reasoning_enabled: string;  // '0' / '1' / '2'(default) / '' (空=默认)
   model_reasoning_effort: string;
   model_reasoning_budget: string;
+  // 2026-09-01 Midscene v1.12: 结构化响应策略 'auto' / 'none',空=默认(auto)
+  model_response_format: string;
 }
 
 const EMPTY_SECTION: ModelSection = {
@@ -64,10 +71,15 @@ const EMPTY_SECTION: ModelSection = {
   model_reasoning_enabled: '',
   model_reasoning_effort: '',
   model_reasoning_budget: '',
+  model_response_format: '',
 };
 
 interface FormState {
   preferred_language: string;
+  // 2026-09-01 Midscene v1.12 全局调试开关: '1' 开 / '0' 关 / '' 默认(关)
+  record_model_call: string;
+  // 2026-09-01 Midscene v1.12 Android 截图策略: 'auto' / 'always-yadb' / '' 默认
+  android_screenshot_strategy: string;
   // Per-user absolute directory where Midscene HTML reports are written.
   // Empty string = use platform default (data/midscene-reports/).
   report_storage_path: string;
@@ -82,6 +94,8 @@ interface FormState {
 
 const INITIAL: FormState = {
   preferred_language: '',
+  record_model_call: '',
+  android_screenshot_strategy: '',
   report_storage_path: '',
   replanning_cycle_limit: '',
   wait_after_action: '',
@@ -107,6 +121,7 @@ interface ServerRow {
   model_reasoning_enabled: number | null;
   model_reasoning_effort: string | null;
   model_reasoning_budget: number | null;
+  model_response_format: string | null;
   insight_model_name: string | null;
   insight_model_api_key: string | null;
   insight_model_base_url: string | null;
@@ -122,6 +137,7 @@ interface ServerRow {
   insight_model_reasoning_enabled: number | null;
   insight_model_reasoning_effort: string | null;
   insight_model_reasoning_budget: number | null;
+  insight_model_response_format: string | null;
   planning_model_name: string | null;
   planning_model_api_key: string | null;
   planning_model_base_url: string | null;
@@ -137,7 +153,10 @@ interface ServerRow {
   planning_model_reasoning_enabled: number | null;
   planning_model_reasoning_effort: string | null;
   planning_model_reasoning_budget: number | null;
+  planning_model_response_format: string | null;
   preferred_language: string | null;
+  record_model_call: number | null;
+  android_screenshot_strategy: string | null;
   report_storage_path: string | null;
   replanning_cycle_limit: number | null;
   wait_after_action: number | null;
@@ -164,15 +183,19 @@ const sectionFromRow = (prefix: '' | 'insight_' | 'planning_', row: ServerRow | 
     model_init_config_json: row[`${prefix}model_init_config_json` as keyof ServerRow] as string ?? '',
     model_reasoning_enabled: (() => {
       const v = row[`${prefix}model_reasoning_enabled` as keyof ServerRow] as number | null;
-      return v == null ? '' : (v ? '1' : '0');
+      // 0=关 1=开 2=跟随模型族默认(default)
+      return v == null ? '' : String(v);
     })(),
     model_reasoning_effort: row[`${prefix}model_reasoning_effort` as keyof ServerRow] as string ?? '',
     model_reasoning_budget: numToStr(row[`${prefix}model_reasoning_budget` as keyof ServerRow] as number | null),
+    model_response_format: row[`${prefix}model_response_format` as keyof ServerRow] as string ?? '',
   };
 };
 
 const formFromRow = (row: ServerRow | null): FormState => ({
   preferred_language: row?.preferred_language ?? '',
+  record_model_call: row?.record_model_call == null ? '' : (row.record_model_call ? '1' : '0'),
+  android_screenshot_strategy: row?.android_screenshot_strategy ?? '',
   report_storage_path: row?.report_storage_path ?? '',
   replanning_cycle_limit: numToStr(row?.replanning_cycle_limit),
   wait_after_action: numToStr(row?.wait_after_action),
@@ -202,6 +225,7 @@ const sectionToPayload = (prefix: '' | 'insight_' | 'planning_', s: ModelSection
   [`${prefix}model_reasoning_enabled`]: s.model_reasoning_enabled === '' ? null : Number(s.model_reasoning_enabled),
   [`${prefix}model_reasoning_effort`]: strOrNull(s.model_reasoning_effort),
   [`${prefix}model_reasoning_budget`]: numOrNull(s.model_reasoning_budget),
+  [`${prefix}model_response_format`]: strOrNull(s.model_response_format),
 });
 
 export default function MidsceneConfig() {
@@ -250,6 +274,8 @@ export default function MidsceneConfig() {
     try {
       const payload = {
         preferred_language: strOrNull(form.preferred_language),
+        record_model_call: form.record_model_call === '' ? null : Number(form.record_model_call),
+        android_screenshot_strategy: strOrNull(form.android_screenshot_strategy),
         report_storage_path: strOrNull(form.report_storage_path),
         replanning_cycle_limit: numOrNull(form.replanning_cycle_limit),
         wait_after_action: numOrNull(form.wait_after_action),
@@ -263,7 +289,7 @@ export default function MidsceneConfig() {
         method: 'PUT',
         body: JSON.stringify(payload),
       });
-      if (res.code === 200) {
+      if (is2xx(res.code)) {
         notification.success('Midscene 配置已保存并立即生效');
         setForm(formFromRow(res.data ?? null));
       } else {
@@ -294,7 +320,8 @@ export default function MidsceneConfig() {
       section.model_retry_count || section.model_retry_interval ||
       section.model_http_proxy || section.model_socks_proxy ||
       section.model_extra_body_json || section.model_init_config_json ||
-      section.model_reasoning_enabled || section.model_reasoning_effort || section.model_reasoning_budget;
+      section.model_reasoning_enabled || section.model_reasoning_effort || section.model_reasoning_budget ||
+      section.model_response_format;
     return (
       <div className="msc-section" key={sectionKey}>
         <div className="msc-section-head">
@@ -481,10 +508,11 @@ export default function MidsceneConfig() {
                   { value: '', label: '— 留空走默认(关) —' },
                   { value: '1', label: '开启' },
                   { value: '0', label: '关闭' },
+                  { value: '2', label: '跟随模型族默认 (default)' },
                 ]}
                 onChange={v => updateSection(sectionKey, 'model_reasoning_enabled', v)}
               />
-              <span className="msc-hint">开启后启用 o1/r1 类推理模型的后台思考。仅对支持 reasoning 的模型有效。</span>
+              <span className="msc-hint">开启后启用 o1/r1 类推理模型的后台思考;「跟随模型族默认」则交由模型族自行决定(deepseek 等默认开启思考)。</span>
             </label>
 
             <label className="msc-field">
@@ -513,6 +541,21 @@ export default function MidsceneConfig() {
               />
               <span className="msc-hint">推理过程的最大 token 预算。需先开启推理开关。</span>
             </label>
+
+            <label className="msc-field">
+              <span className="msc-label">结构化响应策略 (response_format)</span>
+              <FormSelect
+                className="msc-input"
+                value={section.model_response_format}
+                options={[
+                  { value: '', label: '— 留空走默认(auto) —' },
+                  { value: 'auto', label: 'auto' },
+                  { value: 'none', label: 'none' },
+                ]}
+                onChange={v => updateSection(sectionKey, 'model_response_format', v)}
+              />
+              <span className="msc-hint">Midscene v1.12 新增。auto(默认)自动用 response_format 指定结构化输出以保证 AI 返回可解析;模型不支持结构化输出(部分 vLLM/私有网关)时报错可切换为 none。</span>
+            </label>
           </div>
         )}
       </div>
@@ -533,7 +576,7 @@ export default function MidsceneConfig() {
       <div className="sys-head">
         <h2>模型配置</h2>
         <div className="msc-head-desc">
-          配置 Midscene AI 代理使用的模型与执行参数。保存后立即对下一次执行生效，无需重启服务。
+          配置 Midscene AI 代理使用的模型与执行参数（已同步 Midscene v1.12.2 配置项）。保存后立即对下一次执行生效，无需重启服务。
           留空的字段将沿用服务端环境变量（<code>MIDSCENE_*</code>）或 Midscene 内置默认值。
         </div>
       </div>
@@ -551,6 +594,36 @@ export default function MidsceneConfig() {
             onChange={e => setForm(prev => ({ ...prev, preferred_language: e.target.value }))}
           />
         </label>
+        <div className="msc-grid">
+          <label className="msc-field">
+            <span className="msc-label">模型调用记录 (record_model_call)</span>
+            <FormSelect
+              className="msc-input"
+              value={form.record_model_call}
+              options={[
+                { value: '', label: '— 留空走默认(关) —' },
+                { value: '1', label: '开启' },
+                { value: '0', label: '关闭' },
+              ]}
+              onChange={v => setForm(prev => ({ ...prev, record_model_call: v }))}
+            />
+            <span className="msc-hint">Midscene v1.12 新增,排查模型问题用。开启后把每次 AI 请求/响应/流式分片写入本地 JSONL 文件。注意是服务进程级开关(对服务上所有执行生效),文件会持续增长,排查完务必关闭。</span>
+          </label>
+          <label className="msc-field">
+            <span className="msc-label">Android 截图策略 (android_screenshot_strategy)</span>
+            <FormSelect
+              className="msc-input"
+              value={form.android_screenshot_strategy}
+              options={[
+                { value: '', label: '— 留空走默认(auto) —' },
+                { value: 'auto', label: 'auto' },
+                { value: 'always-yadb', label: 'always-yadb' },
+              ]}
+              onChange={v => setForm(prev => ({ ...prev, android_screenshot_strategy: v }))}
+            />
+            <span className="msc-hint">Midscene v1.12 新增,仅影响移动端(Android)执行。auto 默认优先系统接口;遇到截图黑屏/花屏的机型可切换 always-yadb 强制走 yadb 截图。</span>
+          </label>
+        </div>
         <label className="msc-field msc-field-full">
           <span className="msc-label">报告存储路径 (report_storage_path)</span>
           <input
@@ -636,7 +709,8 @@ export default function MidsceneConfig() {
         <div className="msc-footnote-title">提示</div>
         <ul>
           <li>三个模型段位字段完全相同时，可只配置「默认模型」并清空另外两段。</li>
-          <li>「高级选项」里的重试 / 代理 / 推理字段留空即走默认值,通常无需配置。</li>
+          <li>「高级选项」里的重试 / 代理 / 推理 / 结构化响应字段留空即走默认值,通常无需配置。</li>
+          <li>模型族已同步 Midscene v1.12.2:新增 qwen3 / deepseek / kimi / kimi3 / xiaomi-mimo。</li>
           <li>API Key 仅保存到本用户数据库，不会上报到任何第三方服务。</li>
           <li>并发执行多用户用例时，最后一次保存的模型将立即生效(已知限制,单机场景不构成问题)。</li>
           <li>报告存储路径变更不影响历史报告；旧报告仍可通过原 URL 访问(中间件按 DB 记录动态解析)。</li>

@@ -442,6 +442,7 @@ apiRoutes.get('/:id/executions/:execId', (req: Request, res: Response) => {
   if (!execId) { res.status(400).json({ code: 400, message: 'Invalid execId' }); return; }
 
   const detail = findApiExecutionWithSteps(execId);
-  if (!detail) { res.status(404).json({ code: 404, message: 'Execution not found' }); return; }
+  // execId 全局自增, 只按 id 查会读到他人执行记录(含请求头/响应体) — 必须校验归属
+  if (!detail || detail.api_id !== api.id) { res.status(404).json({ code: 404, message: 'Execution not found' }); return; }
   res.json({ code: 200, message: 'ok', data: detail });
 });

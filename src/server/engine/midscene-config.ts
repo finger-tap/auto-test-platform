@@ -43,10 +43,12 @@ export function buildMidsceneEnvMap(row: MidsceneConfigRow): Record<string, stri
     if (s.length === 0) return;
     m[key] = s;
   };
-  // reasoning_enabled is stored as 0/1 INTEGER; emit 'true'/'false' string.
+  // reasoning_enabled is stored as 0/1/2 INTEGER; emit 'true'/'false'/'default'.
+  // 2 = 'default' (Midscene v1.9+: follow the model family's native-thinking
+  // default instead of forcing off).
   const setReasoningEnabled = (key: string, v: number | null | undefined) => {
     if (v === null || v === undefined) return;
-    m[key] = v ? 'true' : 'false';
+    m[key] = v === 2 ? 'default' : v ? 'true' : 'false';
   };
   // Default intent
   setIfPresent('MIDSCENE_MODEL_NAME', row.model_name);
@@ -64,6 +66,8 @@ export function buildMidsceneEnvMap(row: MidsceneConfigRow): Record<string, stri
   setReasoningEnabled('MIDSCENE_MODEL_REASONING_ENABLED', row.model_reasoning_enabled);
   setIfPresent('MIDSCENE_MODEL_REASONING_EFFORT', row.model_reasoning_effort);
   setIfPresent('MIDSCENE_MODEL_REASONING_BUDGET', row.model_reasoning_budget);
+  // 2026-09-01: Midscene v1.12 structured-response strategy ('auto'|'none')
+  setIfPresent('MIDSCENE_MODEL_RESPONSE_FORMAT', row.model_response_format);
   // Insight intent
   setIfPresent('MIDSCENE_INSIGHT_MODEL_NAME', row.insight_model_name);
   setIfPresent('MIDSCENE_INSIGHT_MODEL_API_KEY', row.insight_model_api_key);
@@ -80,6 +84,7 @@ export function buildMidsceneEnvMap(row: MidsceneConfigRow): Record<string, stri
   setReasoningEnabled('MIDSCENE_INSIGHT_MODEL_REASONING_ENABLED', row.insight_model_reasoning_enabled);
   setIfPresent('MIDSCENE_INSIGHT_MODEL_REASONING_EFFORT', row.insight_model_reasoning_effort);
   setIfPresent('MIDSCENE_INSIGHT_MODEL_REASONING_BUDGET', row.insight_model_reasoning_budget);
+  setIfPresent('MIDSCENE_INSIGHT_MODEL_RESPONSE_FORMAT', row.insight_model_response_format);
   // Planning intent
   setIfPresent('MIDSCENE_PLANNING_MODEL_NAME', row.planning_model_name);
   setIfPresent('MIDSCENE_PLANNING_MODEL_API_KEY', row.planning_model_api_key);
@@ -96,12 +101,47 @@ export function buildMidsceneEnvMap(row: MidsceneConfigRow): Record<string, stri
   setReasoningEnabled('MIDSCENE_PLANNING_MODEL_REASONING_ENABLED', row.planning_model_reasoning_enabled);
   setIfPresent('MIDSCENE_PLANNING_MODEL_REASONING_EFFORT', row.planning_model_reasoning_effort);
   setIfPresent('MIDSCENE_PLANNING_MODEL_REASONING_BUDGET', row.planning_model_reasoning_budget);
+  setIfPresent('MIDSCENE_PLANNING_MODEL_RESPONSE_FORMAT', row.planning_model_response_format);
   // Preferences
   setIfPresent('MIDSCENE_PREFERRED_LANGUAGE', row.preferred_language);
+  // 2026-09-01: Midscene v1.12 global options.
+  // record_model_call: 1 = dump model request/response/stream chunks to a
+  // local JSONL file (debug). android_screenshot_strategy: 'auto' | 'always-yadb'.
+  // NOTE: MIDSCENE_RECORD_MODEL_CALL is a Midscene BASIC env key — it is read
+  // straight from process.env and is REJECTED by overrideAIConfig's key
+  // validation. Consumers must route it via applyBasicEnvKeys()/process.env,
+  // never hand it to overrideAIConfig directly.
+  if (row.record_model_call != null) {
+    m['MIDSCENE_RECORD_MODEL_CALL'] = row.record_model_call ? 'true' : 'false';
+  }
+  setIfPresent('MIDSCENE_ANDROID_SCREENSHOT_STRATEGY', row.android_screenshot_strategy);
   // Execution behavior — replanning_cycle_limit is also readable by the
   // agent via MIDSCENE_REPLANNING_CYCLE_LIMIT env (backward-compat path).
   setIfPresent('MIDSCENE_REPLANNING_CYCLE_LIMIT', row.replanning_cycle_limit);
   return m;
+}
+
+/**
+ * Midscene v1.12 reads BASIC env keys (currently only
+ * MIDSCENE_RECORD_MODEL_CALL) straight from process.env via
+ * getBasicEnvValue(), and overrideAIConfig() throws on them. Split them out
+ * of an env map: the returned map is safe for overrideAIConfig, and the
+ * BASIC keys are pushed into process.env here. Keys absent from the map are
+ * left untouched in process.env (server-level .env defaults survive).
+ */
+const MIDSCENE_BASIC_ENV_KEYS = ['MIDSCENE_RECORD_MODEL_CALL'] as const;
+
+function applyBasicEnvKeys(envMap: Record<string, string>): Record<string, string> {
+  const overrideMap = { ...envMap };
+  for (const key of MIDSCENE_BASIC_ENV_KEYS) {
+    const value = overrideMap[key];
+    if (value === undefined) continue;
+    delete overrideMap[key];
+    if (value === 'true' || value === 'false') {
+      process.env[key] = value;
+    }
+  }
+  return overrideMap;
 }
 
 /**
@@ -126,6 +166,7 @@ const MIDSCENE_ENV_KEYS = [
   'MIDSCENE_MODEL_REASONING_ENABLED',
   'MIDSCENE_MODEL_REASONING_EFFORT',
   'MIDSCENE_MODEL_REASONING_BUDGET',
+  'MIDSCENE_MODEL_RESPONSE_FORMAT',
   'MIDSCENE_INSIGHT_MODEL_NAME',
   'MIDSCENE_INSIGHT_MODEL_API_KEY',
   'MIDSCENE_INSIGHT_MODEL_BASE_URL',
@@ -141,6 +182,7 @@ const MIDSCENE_ENV_KEYS = [
   'MIDSCENE_INSIGHT_MODEL_REASONING_ENABLED',
   'MIDSCENE_INSIGHT_MODEL_REASONING_EFFORT',
   'MIDSCENE_INSIGHT_MODEL_REASONING_BUDGET',
+  'MIDSCENE_INSIGHT_MODEL_RESPONSE_FORMAT',
   'MIDSCENE_PLANNING_MODEL_NAME',
   'MIDSCENE_PLANNING_MODEL_API_KEY',
   'MIDSCENE_PLANNING_MODEL_BASE_URL',
@@ -156,8 +198,11 @@ const MIDSCENE_ENV_KEYS = [
   'MIDSCENE_PLANNING_MODEL_REASONING_ENABLED',
   'MIDSCENE_PLANNING_MODEL_REASONING_EFFORT',
   'MIDSCENE_PLANNING_MODEL_REASONING_BUDGET',
+  'MIDSCENE_PLANNING_MODEL_RESPONSE_FORMAT',
   'MIDSCENE_PREFERRED_LANGUAGE',
   'MIDSCENE_REPLANNING_CYCLE_LIMIT',
+  'MIDSCENE_RECORD_MODEL_CALL',
+  'MIDSCENE_ANDROID_SCREENSHOT_STRATEGY',
 ] as const;
 
 function getServerDefaultMidsceneEnvMap(): Record<string, string> {
@@ -189,19 +234,24 @@ export async function applyUserMidsceneConfig(userId: number, logContext: string
   const row = getMidsceneConfig(userId);
   const envMap = row ? buildMidsceneEnvMap(row) : {};
   const override = await getOverrideAIConfig();
+  // Midscene BASIC keys (MIDSCENE_RECORD_MODEL_CALL) only take effect via
+  // process.env — move them there and keep the rest for overrideAIConfig.
+  // When the user never configured the key we leave process.env untouched so
+  // a server-level .env default keeps working.
+  const overrideMap = applyBasicEnvKeys(envMap);
   // No row → wipe override. Midscene will fall back to process.env.
   if (!row) {
     console.log(`[midscene-config] ${logContext} user=${userId} no config row, clearing override`);
-    override({}, true);
+    override(overrideMap, true);
     return;
   }
   // Mask the API key in the log so we don't leak secrets into dev logs.
   const masked: Record<string, string> = {};
-  for (const [k, v] of Object.entries(envMap)) {
+  for (const [k, v] of Object.entries(overrideMap)) {
     masked[k] = k.includes('API_KEY') ? `${v.slice(0, 4)}…${v.slice(-4)} (len=${v.length})` : v;
   }
-  console.log(`[midscene-config] ${logContext} user=${userId} applying ${Object.keys(envMap).length} keys: ${JSON.stringify(masked)}`);
-  override(envMap, true);
+  console.log(`[midscene-config] ${logContext} user=${userId} applying ${Object.keys(overrideMap).length} keys: ${JSON.stringify(masked)}`);
+  override(overrideMap, true);
 }
 
 /**

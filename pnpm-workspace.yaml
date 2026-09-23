@@ -1,6 +1,9 @@
 packages:
   - .
-  - ../midscene/apps/*
+  # 2026-09-01: 只链接 packages/* — 平台运行时只用 @midscene/{core,web,computer,
+  # android,ios,harmony,shared,visualizer}。不纳入 ../midscene/apps/*:
+  # v1.12 起 apps/studio (Electron) 的 electron-builder 带 git 型子依赖,
+  # pnpm 的 blockExoticSubdeps 会直接拒绝安装,而且平台也用不到它们。
   - ../midscene/packages/*
 
 # pnpm v10+ reads these here (not from package.json "pnpm" field).

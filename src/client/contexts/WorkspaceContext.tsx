@@ -7,6 +7,8 @@ import {
   sanitizeWorkspace,
   WORKSPACE_CHANGED_EVENT,
   updateWorkspaceProject,
+  readLastTeamSelection,
+  writeLastTeamSelection,
   type Workspace,
 } from '../utils/workspace';
 import type { TeamSummary, ProjectInfo } from '../types/team';
@@ -131,12 +133,25 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       void refreshTeams();
     } else {
       const last = getLastCenterUrl();
-      if (last && getTeamAuth(last)) void refreshTeams(last);
+      if (last && getTeamAuth(last)) {
+        void refreshTeams(last);
+      } else {
+        // 无中心会话: 清空团队/项目列表。否则本地登录/退出后, 旧团队列表
+        // 残留在 React state 里被切换器渲染出来(用户报告: 本地登录后仍
+        // 能看到上一个团队的团队名, 但点进去切换不了)。
+        setTeams([]);
+        setTeamsError(null);
+        setProjects([]);
+      }
     }
   }, [workspace.mode, workspace.mode === 'team' ? workspace.teamId : 0, refreshTeams]);
 
   useEffect(() => {
-    if (workspace.mode === 'team') void refreshProjects();
+    if (workspace.mode === 'team') {
+      void refreshProjects();
+    } else {
+      setProjects([]);
+    }
   }, [workspace.mode, workspace.mode === 'team' ? workspace.teamId : 0, refreshProjects]);
 
   const switchToLocal = useCallback(() => {
@@ -153,11 +168,40 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       projectId: project ? project.id : null,
       projectName: project ? project.name : null,
     });
+    // 记住这次选择 — localStorage(本浏览器) + 中心库(跨设备漫游)双写。
+    const sel = {
+      centerUrl,
+      teamId: team.id,
+      teamName: team.name,
+      projectId: project ? project.id : null,
+      projectName: project ? project.name : null,
+    };
+    writeLastTeamSelection(sel);
+    // fire-and-forget: 同步失败不影响切换, 本地记录仍兜底。
+    void apiFetchCenter(centerUrl, '/team/auth/prefs/last-team', {
+      method: 'PUT',
+      body: JSON.stringify({ value: JSON.stringify(sel) }),
+    }).catch(() => {});
     setWorkspace(readWorkspace());
   }, []);
 
   const selectProject = useCallback((project: ProjectInfo | null) => {
     updateWorkspaceProject(project);
+    // 同步更新"上次选择"记录的项目部分（团队部分保持不变）。
+    const last = readLastTeamSelection();
+    const ws = readWorkspace();
+    if (last && ws.mode === 'team' && ws.teamId === last.teamId) {
+      const next = {
+        ...last,
+        projectId: project ? project.id : null,
+        projectName: project ? project.name : null,
+      };
+      writeLastTeamSelection(next);
+      void apiFetchCenter(ws.centerUrl, '/team/auth/prefs/last-team', {
+        method: 'PUT',
+        body: JSON.stringify({ value: JSON.stringify(next) }),
+      }).catch(() => {});
+    }
     setWorkspace(readWorkspace());
   }, []);
 

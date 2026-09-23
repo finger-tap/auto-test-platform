@@ -1,0 +1,1 @@
+ALTER TABLE `center_users` ADD `is_platform_admin` int DEFAULT 0 NOT NULL;

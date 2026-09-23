@@ -31,6 +31,7 @@ import { teamPingHandler, teamAuthRoutes } from './team-auth.js';
 import { teamOrgRoutes } from './team-org.js';
 import { teamResourceDispatcher } from './team-resources.js';
 import { teamExtrasRoutes } from './team-extras.js';
+import { teamSyncRoutes } from './team-sync.js';
 import { exportPackageRoutes } from './export-package.js';
 import { isTeamDbEnabled, isTeamReady } from '../db-team/client.js';
 
@@ -130,6 +131,7 @@ routes.use('/team', function teamDbGuard(_req, res, next) {
 routes.use('/team/auth', teamAuthRoutes);
 routes.use('/team', teamOrgRoutes);
 routes.use('/team', teamExtrasRoutes);
+routes.use('/team', teamSyncRoutes);
 
 // Local-instance export (reads SQLite; used by the import-to-team wizard)
 routes.use('/export-package', exportPackageRoutes);

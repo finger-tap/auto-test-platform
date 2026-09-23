@@ -143,6 +143,43 @@ function eventLabel(e: string): string {
   }
 }
 
+/**
+ * SSRF guard (2026-08-25): webhook URL 可由团队 admin 配置 — 拒绝指向
+ * 私网/环回/链路本地/元数据服务的地址, 防止借通知通道探测内网
+ * (如 169.254.169.254 云元数据)。DNS 解析后的 IP 判定, 覆盖域名解析到
+ * 内网 IP 的情况。
+ */
+async function webhookTargetAllowed(rawUrl: string): Promise<boolean> {
+  let u: URL;
+  try {
+    u = new URL(rawUrl);
+  } catch {
+    return false;
+  }
+  if (u.protocol !== 'http:' && u.protocol !== 'https:') return false;
+  const host = u.hostname;
+  if (host === 'localhost' || host.endsWith('.localhost') || host.endsWith('.internal')) return false;
+  // 纯 IPv6 字面量 URL 的 hostname 不带方括号
+  if (host === '::1' || host.startsWith('fe80:') || host.startsWith('fc') || host.startsWith('fd')) return false;
+  if (/^(127\.|10\.|192\.168\.|169\.254\.|0\.)/.test(host) || /^172\.(1[6-9]|2\d|3[01])\./.test(host)) return false;
+  const { lookup } = await import('node:dns/promises');
+  try {
+    const addrs = await lookup(host, { all: true });
+    for (const { address } of addrs) {
+      if (
+        address === '::1' || address.startsWith('fe80:') || address.startsWith('fc') || address.startsWith('fd') ||
+        /^(127\.|10\.|192\.168\.|169\.254\.|0\.)/.test(address) ||
+        /^172\.(1[6-9]|2\d|3[01])\./.test(address)
+      ) {
+        return false;
+      }
+    }
+  } catch {
+    return false; // DNS 解析失败 — 不放行
+  }
+  return true;
+}
+
 async function postWebhook(type: string, url: string, secret: string | undefined, text: string): Promise<void> {
   let body: string;
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
@@ -162,7 +199,12 @@ async function postWebhook(type: string, url: string, secret: string | undefined
   } else {
     body = JSON.stringify({ text });
   }
-  const res = await fetch(url, { method: 'POST', headers, body, signal: AbortSignal.timeout(8000) });
+  if (!(await webhookTargetAllowed(url))) {
+    console.error(`[team-notify] webhook ${type} blocked: target resolves to a private/reserved address`);
+    return;
+  }
+  // redirect: 'manual' — 跟随重定向可被 302 引导到内网地址, 绕过上面的判定
+  const res = await fetch(url, { method: 'POST', headers, body, redirect: 'manual', signal: AbortSignal.timeout(8000) });
   if (!res.ok) console.error(`[team-notify] webhook ${type} responded ${res.status}`);
 }
 

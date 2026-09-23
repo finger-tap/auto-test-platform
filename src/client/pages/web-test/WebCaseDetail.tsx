@@ -6,12 +6,14 @@ import FormSelect from '../../components/FormSelect';
 import DevicePickerModal from '../../components/DevicePickerModal';
 import LogTab, { type ExecRecord } from '../../components/tabs/LogTab';
 import { CaseContentEditor, type CaseContentType } from '../../components/CaseContentEditor';
-import { apiFetch } from '../../utils/api';
+import { apiFetch, is2xx } from '../../utils/api';
 import { useEnvironment } from '../../contexts/EnvironmentContext';
 import { formatDateTime, formatDuration } from '../../utils/datetime';
 import notification from '../../utils/notification';
 import type { NLStep } from '../../types';
 import './WebCaseDetail.css';
+import { useUnsavedGuard } from '../../utils/dirtyGuard';
+import TabIcon from '../../components/TabIcon';
 
 // ── Types ──
 interface Checkpoint extends NLStep {
@@ -36,13 +38,13 @@ const STATUS_OPTIONS = [
 ];
 
 const TABS = [
-  { key: 'detail', label: '详情' },
-  { key: 'env', label: '环境配置' },
-  { key: 'precondition', label: '前置动作' },
-  { key: 'content', label: '用例内容' },
-  { key: 'checkpoints', label: '检查点' },
-  { key: 'data', label: '数据驱动' },
-  { key: 'logs', label: '执行记录' },
+  { key: 'detail', label: '详情', icon: 'detail' },
+  { key: 'env', label: '环境配置', icon: 'env' },
+  { key: 'precondition', label: '前置动作', icon: 'pre' },
+  { key: 'content', label: '用例内容', icon: 'content' },
+  { key: 'checkpoints', label: '检查点', icon: 'checkpoints' },
+  { key: 'data', label: '数据驱动', icon: 'data' },
+  { key: 'logs', label: '执行记录', icon: 'history' },
 ];
 
 // Legacy migration: convert the old NLStep[] shape to a flat natural-language
@@ -113,6 +115,11 @@ export default function WebCaseDetail() {
   // arrays/objects cheaply.
   const originalSnapshotRef = useRef<string>('');
   const [dirty, setDirty] = useState(false);
+  // 详情加载失败态 — 失败时禁止把空表单保存回去覆盖原数据 (2026-08-27)
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [reloadTick, setReloadTick] = useState(0);
+  // 未保存修改离开保护(刷新/关闭弹浏览器确认; 侧边栏导航由 Layout 弹确认)
+  useUnsavedGuard(dirty);
 
   // Precondition: a single natural-language action handed to Midscene's
   // `aiAct` before the main case content runs. Old rows may store a JSON
@@ -163,7 +170,7 @@ export default function WebCaseDetail() {
     setLoading(true);
     apiFetch<any>(`/web-cases/${id}`)
       .then(res => {
-        if (res.code === 200 && res.data) {
+        if (is2xx(res.code) && res.data) {
           const d = res.data;
           setForm({
             name: d.name || '',
@@ -263,17 +270,19 @@ export default function WebCaseDetail() {
             });
             setDirty(false);
           });
+        } else {
+          setLoadError(res.message || '加载用例失败');
         }
       })
-      .catch(() => {})
+      .catch((err: unknown) => setLoadError(err instanceof Error ? err.message : '网络错误，加载失败'))
       .finally(() => setLoading(false));
-  }, [id, isNew]);
+  }, [id, isNew, reloadTick]);
 
   // Load executions (has report_url) and build execRecords from them
   useEffect(() => {
     if (isNew || !id) return;
     apiFetch<any>(`/web-cases/${id}/executions?limit=20`).then(res => {
-      if (res.code === 200 && res.data && res.data.length > 0) {
+      if (is2xx(res.code) && res.data && res.data.length > 0) {
         const execs = res.data;
         setExecRecords(execs.map((e: any) => ({
           id: e.id,
@@ -306,6 +315,9 @@ export default function WebCaseDetail() {
 
   const handleExecute = async () => {
     if (!id || isNew) { notification.error('请先保存用例'); return; }
+    // 未保存的修改不会进入执行 — 静默跑"已保存旧版本"会让结果与屏幕配置
+    // 不一致, 用户可能据错误结论排查被测系统 (2026-08-27)
+    if (dirty) { notification.warning('存在未保存的修改，请先保存后再执行'); return; }
     setExecuting(true);
     try {
       const qs = new URLSearchParams();
@@ -315,10 +327,10 @@ export default function WebCaseDetail() {
         method: 'POST',
         body: JSON.stringify({ environmentId: activeEnv?.id }),
       });
-      if (res.code === 200) {
+      if (is2xx(res.code)) {
         notification.success('执行完成');
         const execRes = await apiFetch<any>(`/web-cases/${id}/executions?limit=20`);
-        if (execRes.code === 200 && execRes.data) {
+        if (is2xx(execRes.code) && execRes.data) {
           setExecRecords(execRes.data.map((e: any) => ({
             id: e.id,
             time: formatDateTime(e.started_at),
@@ -367,7 +379,7 @@ export default function WebCaseDetail() {
     setSaving(true);
     apiFetch<{ id: number }>(path, { method, body: JSON.stringify(payload) })
       .then(res => {
-        if (res.code === 200 || res.code === 201) {
+        if (is2xx(res.code)) {
           notification.success('保存成功');
           // Refresh the snapshot to the just-saved state so the save button
           // stops pulsing. Form timestamps may shift on the server, so we
@@ -707,6 +719,16 @@ export default function WebCaseDetail() {
     <LogTab latestReportUrl={latestReportUrl} execRecords={execRecords} />
   );
 
+  if (!isNew && loading) return <div className="api-empty">加载中...</div>;
+  if (!isNew && loadError) {
+    return (
+      <div className="api-empty">
+        <p style={{ marginBottom: 12 }}>⚠️ {loadError}</p>
+        <button className="btn btn-primary" onClick={() => { setLoadError(null); setReloadTick(t => t + 1); }}>重试</button>
+      </div>
+    );
+  }
+
   return (
     <div className="api-detail page-enter">
       <div className="api-detail-header">
@@ -722,7 +744,7 @@ export default function WebCaseDetail() {
         </div>
         <div className="api-detail-meta">
           {!isNew && (
-            <span className={`status-badge-light ${form.status}`}>
+            <span className={`st-badge st-${form.status}`}>
               {STATUS_OPTIONS.find(o => o.value === form.status)?.label || form.status}
             </span>
           )}
@@ -755,7 +777,7 @@ export default function WebCaseDetail() {
                 className={`tab-btn ${activeTab === tab.key ? 'active' : ''}`}
                 onClick={() => setActiveTab(tab.key)}
               >
-                {tab.label}
+                <TabIcon name={tab.icon} />{tab.label}{tab.key === 'logs' && execRecords.length > 0 && (<span className="tab-count">{execRecords.length}</span>)}
               </button>
             ))}
           </div>

@@ -4,6 +4,9 @@ import { useAuth } from '../contexts/AuthContext';
 import './Auth.css';
 
 export default function Register() {
+  const [type, setType] = useState<'personal' | 'team'>(() =>
+    new URLSearchParams(window.location.search).get('type') === 'team' ? 'team' : 'personal',
+  );
   const [account, setAccount] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -14,7 +17,7 @@ export default function Register() {
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
-  const { register } = useAuth();
+  const { register, registerCenter } = useAuth();
   const navigate = useNavigate();
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -41,9 +44,16 @@ export default function Register() {
 
     setLoading(true);
     try {
-      await register(account, password, nickname.trim() || undefined, avatarFile || undefined);
-      setSuccess('Registration successful! Redirecting to login...');
-      setTimeout(() => navigate('/login'), 1500);
+      if (type === 'team') {
+        // 团队账户: 注册在中心库并自动登录, 无头像/确认流程差异
+        await registerCenter(account, password, nickname.trim() || undefined);
+        setSuccess('团队账户注册成功！正在进入...');
+        setTimeout(() => navigate('/'), 600);
+      } else {
+        await register(account, password, nickname.trim() || undefined, avatarFile || undefined);
+        setSuccess('Registration successful! Redirecting to login...');
+        setTimeout(() => navigate('/login'), 1500);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Registration failed');
     } finally {
@@ -67,6 +77,14 @@ export default function Register() {
           <div className="auth-subtitle">创建你的 AutoTest Platform 账号</div>
         </div>
         <div className="auth-body">
+          <div className="auth-type-tabs">
+            <button type="button" className={`auth-type-tab ${type === 'personal' ? 'active' : ''}`} onClick={() => { setType('personal'); setError(''); }}>
+              👤 个人账户
+            </button>
+            <button type="button" className={`auth-type-tab ${type === 'team' ? 'active' : ''}`} onClick={() => { setType('team'); setError(''); }}>
+              👥 团队账户
+            </button>
+          </div>
           <form className="auth-form" onSubmit={handleSubmit}>
             {error && <div className="auth-error">{error}</div>}
             {success && <div className="auth-success">{success}</div>}
@@ -87,10 +105,10 @@ export default function Register() {
               <input type="password" placeholder="再次输入密码" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required />
             </div>
             <button className="auth-btn auth-btn-primary" type="submit" disabled={loading}>
-              {loading ? '注册中...' : '注 册'}
+              {loading ? '注册中...' : type === 'team' ? '注册团队账户' : '注 册'}
             </button>
             <div className="auth-footer">
-              已有账号？<Link to="/login">立即登录</Link>
+              已有账号？<Link to={type === 'team' ? '/login?type=team' : '/login'}>立即登录</Link>
             </div>
           </form>
         </div>

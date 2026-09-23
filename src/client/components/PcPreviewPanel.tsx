@@ -4,7 +4,7 @@
 // Uses the same SSE frame protocol as mobile screenshot preview.
 
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { apiFetch, getToken } from '../utils/api';
+import { apiFetch, getToken, is2xx } from '../utils/api';
 import './MobilePreviewPanel.css'; // reuse mobile panel styles
 
 interface PcPreviewPanelProps {
@@ -35,7 +35,7 @@ export default function PcPreviewPanel({ onClose }: PcPreviewPanelProps) {
           { method: 'POST' },
         );
         if (cancelled) return;
-        if (res.code !== 200 || !res.data) {
+        if (!is2xx(res.code) || !res.data) {
           setState('error');
           setError(res.message || '启动预览失败');
           return;

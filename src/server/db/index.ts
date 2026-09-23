@@ -547,6 +547,8 @@ db.exec(`
     model_reasoning_enabled INTEGER,
     model_reasoning_effort TEXT,
     model_reasoning_budget INTEGER,
+    -- 2026-09-01: Midscene v1.12 structured-response strategy ('auto'/'none')
+    model_response_format TEXT,
     -- Insight intent (element localization / assertion)
     insight_model_name TEXT,
     insight_model_api_key TEXT,
@@ -563,6 +565,7 @@ db.exec(`
     insight_model_reasoning_enabled INTEGER,
     insight_model_reasoning_effort TEXT,
     insight_model_reasoning_budget INTEGER,
+    insight_model_response_format TEXT,
     -- Planning intent (action decomposition)
     planning_model_name TEXT,
     planning_model_api_key TEXT,
@@ -579,8 +582,15 @@ db.exec(`
     planning_model_reasoning_enabled INTEGER,
     planning_model_reasoning_effort TEXT,
     planning_model_reasoning_budget INTEGER,
+    planning_model_response_format TEXT,
     -- Preferences
     preferred_language TEXT,
+    -- 2026-09-01: Midscene v1.12 global debug flag (true = record model
+    -- request/response/streaming chunks to a local JSONL file).
+    record_model_call INTEGER,
+    -- 2026-09-01: Midscene v1.12 Android screenshot strategy
+    -- ('auto' | 'always-yadb'). Affects mobile executions only.
+    android_screenshot_strategy TEXT,
     -- 2026-06-14: execution behavior overrides (global, not per-intent).
     -- replanning_cycle_limit maps to MIDSCENE_REPLANNING_CYCLE_LIMIT env AND
     -- AgentOpt.replanningCycleLimit; wait_after_action / screenshot_shrink_factor
@@ -627,6 +637,7 @@ mscAddCol('model_init_config_json', 'TEXT');
 mscAddCol('model_reasoning_enabled', 'INTEGER');
 mscAddCol('model_reasoning_effort', 'TEXT');
 mscAddCol('model_reasoning_budget', 'INTEGER');
+mscAddCol('model_response_format', 'TEXT');
 // Per-intent extension (insight)
 mscAddCol('insight_model_retry_count', 'INTEGER');
 mscAddCol('insight_model_retry_interval', 'INTEGER');
@@ -637,6 +648,7 @@ mscAddCol('insight_model_init_config_json', 'TEXT');
 mscAddCol('insight_model_reasoning_enabled', 'INTEGER');
 mscAddCol('insight_model_reasoning_effort', 'TEXT');
 mscAddCol('insight_model_reasoning_budget', 'INTEGER');
+mscAddCol('insight_model_response_format', 'TEXT');
 // Per-intent extension (planning)
 mscAddCol('planning_model_retry_count', 'INTEGER');
 mscAddCol('planning_model_retry_interval', 'INTEGER');
@@ -647,10 +659,14 @@ mscAddCol('planning_model_init_config_json', 'TEXT');
 mscAddCol('planning_model_reasoning_enabled', 'INTEGER');
 mscAddCol('planning_model_reasoning_effort', 'TEXT');
 mscAddCol('planning_model_reasoning_budget', 'INTEGER');
+mscAddCol('planning_model_response_format', 'TEXT');
 // Execution behavior (global)
 mscAddCol('replanning_cycle_limit', 'INTEGER');
 mscAddCol('wait_after_action', 'INTEGER');
 mscAddCol('screenshot_shrink_factor', 'INTEGER');
+// 2026-09-01: Midscene v1.12 additions (global)
+mscAddCol('record_model_call', 'INTEGER');
+mscAddCol('android_screenshot_strategy', 'TEXT');
 
 db.exec(`
   -- Per-user Web browser configuration. Replaces the per-case driver_path /
@@ -1602,4 +1618,61 @@ try { db.exec("ALTER TABLE user_preferences ADD COLUMN value TEXT"); } catch { /
 // 2026-06-28: schedule_sets_* 加 device_id 列，支持定时任务绑定远程设备
 for (const tbl of ['schedule_sets_web', 'schedule_sets_pc', 'schedule_sets_mobile']) {
   try { db.exec(`ALTER TABLE ${tbl} ADD COLUMN device_id INTEGER`); } catch { /* column already exists */ }
+}
+
+// 2026-08-28: web/pc/mobile 执行表补 error_stack 列 — 异常堆栈随执行历史落库,
+// 与 api-executor 的步骤级堆栈记录对齐(用户报告 ANDROID_HOME 类环境异常只在
+// 控制台一闪、历史里查不到)。
+for (const tbl of ['web_case_executions', 'pc_case_executions', 'mobile_case_executions']) {
+  try { db.exec(`ALTER TABLE ${tbl} ADD COLUMN error_stack TEXT`); } catch { /* column already exists */ }
+}
+
+// 2026-08-27: scenario_sets 补 status 列 — web/pc/mobile 的 case_sets_* 都有该列,
+// 唯独 scenario_sets 在"统一四类型列表页"重构时漏加, 导致 createSet 的 INSERT
+// 带 status 直接报 "no such column", UI 新建场景集必 500 (E2E 走查发现)
+try { db.exec("ALTER TABLE scenario_sets ADD COLUMN status TEXT NOT NULL DEFAULT 'draft'"); } catch { /* column already exists */ }
+
+// ── 启动恢复：清理上次进程中断遗留的 running 执行（2026-08-25）──────────────
+// 进程重启/崩溃时进程内的执行没有机会写终态, 残留的 running 行有两个后果:
+//   1. 执行历史里永远显示"进行中";
+//   2. web/pc/mobile_case_executions 有以 status='running' 为条件的
+//      partial UNIQUE INDEX(per device), 残留行会让该设备的下一次执行
+//      INSERT 直接撞唯一约束 — 设备被永久"锁死"。启动时统一标记 error。
+{
+  const EXEC_RECOVER_TABLES = [
+    'api_executions',
+    'scenario_executions',
+    'scenario_set_executions',
+    'web_case_executions',
+    'pc_case_executions',
+    'mobile_case_executions',
+    'case_set_executions_web',
+    'case_set_executions_pc',
+    'case_set_executions_mobile',
+  ];
+  let recovered = 0;
+  // 逐表探测列并隔离失败: scenario_set_executions / case_set_executions_*
+  // 等表没有 error_message 列, 且恢复逻辑绝不能阻止服务启动。
+  const recoverTable = (tbl: string, statuses: string[]): void => {
+    try {
+      const cols = (db.prepare(`PRAGMA table_info(${tbl})`).all() as { name: string }[]).map((c) => c.name);
+      if (!cols.includes('status')) return;
+      const errMsg = cols.includes('error_message') ? ", error_message = '服务重启，执行中断'" : '';
+      const finAt = cols.includes('finished_at') ? ", finished_at = datetime('now', '+8 hours')" : '';
+      const r = db
+        .prepare(`UPDATE ${tbl} SET status = 'error'${errMsg}${finAt} WHERE status IN (${statuses.map(() => '?').join(',')})`)
+        .run(...statuses);
+      recovered += r.changes;
+    } catch (err) {
+      console.log(`[db] 启动恢复跳过 ${tbl}: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  };
+  for (const tbl of EXEC_RECOVER_TABLES) recoverTable(tbl, ['running']);
+  // 用例集的条目表: set 中断时未跑到的 item 停在 pending/running
+  for (const tbl of ['case_set_execution_items_web', 'case_set_execution_items_pc', 'case_set_execution_items_mobile']) {
+    recoverTable(tbl, ['running', 'pending']);
+  }
+  if (recovered > 0) {
+    console.log(`[db] 启动恢复: ${recovered} 条上次中断的执行记录已标记为 error`);
+  }
 }

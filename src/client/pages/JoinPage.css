@@ -1,0 +1,5 @@
+/* JoinPage - invisible container that immediately renders a modal overlay */
+
+.join-page {
+  min-height: 100vh;
+}

@@ -41,26 +41,7 @@
 /* ── Action Bar ── */
 
 /* ── Status badges (exec log) ── */
-.web-status-success {
-  background: var(--success);
-  color: #fff;
-}
-
-.web-status-failed {
-  background: var(--danger);
-  color: #fff;
-}
-
-.web-status-running {
-  background: var(--primary);
-  color: #fff;
-}
-
-.web-status-error {
-  background: var(--warning, #e6a817);
-  color: #fff;
-}
-
+/* 状态徽章已统一到 styles/badges.css 的 .st-badge (2026-08-28) */
 /* ── Log table ── */
 .api-detail .log-table {
   width: 100%;

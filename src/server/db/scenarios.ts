@@ -308,7 +308,10 @@ export function createScenarioExecutionStep(data: {
     data.node_id ?? null,
     data.node_type ?? null,
     data.log_text ?? null,
-    data.log_data ? JSON.stringify(data.log_data) : null,
+    // 2026-08-30: 兼容 string|object — 此前无条件 stringify, 与 executor 侧的
+    // 预 stringify 叠加造成双重转义, 前端 parse 一次拿不到字段(时间线状态
+    // 着色失效的根因)。string 原样入库, object 才序列化。
+    typeof data.log_data === 'string' ? data.log_data : (data.log_data ? JSON.stringify(data.log_data) : null),
     data.param_row_index ?? null,
     data.created_at,
   );

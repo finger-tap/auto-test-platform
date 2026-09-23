@@ -759,34 +759,7 @@
 .assert-pass { color: var(--success); }
 .assert-fail { color: var(--danger); }
 
-/* ── Status badge (shared across ApiDetail, ScenarioDetail, LogTab) ── */
-.status-badge {
-  display: inline-block;
-  padding: 0.125rem 0.625rem;
-  border-radius: 0.25rem;
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: #fff;
-}
-.status-badge.success { background: var(--success); }
-.status-badge.failed { background: var(--danger); }
-.status-badge.error { background: var(--danger); }
-
-/* ── Status badge for detail headers (light, non-#fff variant) ── */
-.status-badge-light {
-  display: inline-flex;
-  align-items: center;
-  padding: 0.125rem 0.625rem;
-  border-radius: 999px;
-  font-size: 0.75rem;
-  font-weight: 500;
-}
-.status-badge-light.active   { background: var(--success-subtle); color: var(--success); }
-.status-badge-light.success  { background: var(--success-subtle); color: var(--success); }
-.status-badge-light.draft    { background: var(--warning-subtle); color: var(--warning); }
-.status-badge-light.disabled { background: var(--bg); color: var(--fg-tertiary); }
-.status-badge-light.failed   { background: var(--danger-subtle); color: var(--danger); }
-.status-badge-light.error    { background: var(--danger-subtle); color: var(--danger); }
+/* 状态徽章已统一到 styles/badges.css 的 .st-badge (2026-08-28) */
 
 /* ── Header name input ── */
 .api-detail-name-input {

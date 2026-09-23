@@ -163,7 +163,29 @@ export function useScrcpyDecoder(input: UseScrcpyDecoderInput): UseScrcpyDecoder
     if (stateRef.current.kind !== 'ready' || !writer) {
       // Decoder not ready yet (React batching gap). Buffer the frame so
       // flushPendingFrames can replay it once the decoder initializes.
-      pendingFramesRef.current.push(bytes);
+      // 上限保护: metadata 无效/解码器初始化失败时帧仍以 ~30FPS 到达,
+      // 无上限缓冲会在分钟级吃掉数百 MB 内存 (1080p 关键帧数百 KB/帧)。
+      // 保留最近的帧并优先保留配置帧(0x00), 超限丢弃最旧的数据帧。
+      const buf = pendingFramesRef.current;
+      buf.push(bytes);
+      if (buf.length > 240) {
+        const configCount = buf.filter((f) => new Uint8Array(f)[0] === 0x00).length;
+        const keep = buf
+          .map((f, i) => ({ f, i }))
+          .filter(({ f }) => new Uint8Array(f)[0] === 0x00)
+          .map(({ i }) => i);
+        // 保留全部配置帧 + 最新的数据帧至 240
+        const dataIdx: number[] = [];
+        for (let i = buf.length - 1; i >= 0; i--) {
+          if (new Uint8Array(buf[i])[0] !== 0x00) dataIdx.push(i);
+          if (keep.length + dataIdx.length >= 240) break;
+        }
+        const keepSet = new Set([...keep, ...dataIdx]);
+        if (keepSet.size < buf.length) {
+          pendingFramesRef.current = buf.filter((_, i) => keepSet.has(i));
+          console.warn(`[scrcpy-decoder] pending buffer capped: kept ${keepSet.size} (config=${configCount}), dropped ${buf.length - keepSet.size}`);
+        }
+      }
       return;
     }
     const view = new Uint8Array(bytes);

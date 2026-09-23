@@ -317,7 +317,11 @@ export async function executeScenario(
     const visited = new Set<string>();
     let overallStatus = 'success';
     let errorMessage: string | null = null;
+    let scenarioDuration = 0;
 
+    // 2026-08-25: 循环内多处错误路径直接 return, 此前它们绕过末尾的状态
+    // 落盘, execution 行永远停在 running。统一在 finally 里写终态。
+    try {
     while (queue.length > 0) {
       const currentNodeId = queue.shift()!;
       if (visited.has(currentNodeId)) continue;
@@ -343,7 +347,14 @@ export async function executeScenario(
 
       // API node
       if (node.type === 'api') {
-        const config: ApiNodeConfig = node.config ? JSON.parse(node.config) : {};
+        // 损坏的 config JSON 不让异常冲出 executeOnce(会卡 running) — 解析失败
+        // 视为空配置, 走下方"未配置API"错误路径
+        let config: ApiNodeConfig;
+        try {
+          config = node.config ? JSON.parse(node.config) : {};
+        } catch {
+          config = {} as ApiNodeConfig;
+        }
         const nodeName = config.api_name || '接口节点';
 
         addStep('node_start', node.node_id, 'api', `开始节点: ${nodeName}`, { api_id: config.api_id });
@@ -504,7 +515,13 @@ export async function executeScenario(
 
       // Condition node
       if (node.type === 'condition') {
-        const config: ConditionNodeConfig = node.config ? JSON.parse(node.config) : {};
+        // 同上: 损坏 JSON 走"未配置表达式"错误路径而非异常冲出
+        let config: ConditionNodeConfig;
+        try {
+          config = node.config ? JSON.parse(node.config) : {};
+        } catch {
+          config = {} as ConditionNodeConfig;
+        }
         const expr = config.condition_expr || '';
         const nodeName = expr ? (expr.length > 20 ? expr.slice(0, 20) + '...' : expr) : '条件节点';
 
@@ -533,23 +550,24 @@ export async function executeScenario(
       // Unknown node type
       for (const next of getNextNodes(currentNodeId, adjacency, null)) queue.push(next);
     }
+    } finally {
+      const finishedAt = new Date().toISOString();
+      scenarioDuration = new Date(finishedAt).getTime() - new Date(execStartedAt).getTime();
 
-    const finishedAt = new Date().toISOString();
-    const duration = new Date(finishedAt).getTime() - new Date(execStartedAt).getTime();
+      addStep('scenario_end', null, null, `场景执行完成 - 状态: ${overallStatus} 耗时: ${scenarioDuration}ms`, {
+        status: overallStatus,
+        duration_ms: scenarioDuration,
+      });
 
-    addStep('scenario_end', null, null, `场景执行完成 - 状态: ${overallStatus} 耗时: ${duration}ms`, {
-      status: overallStatus,
-      duration_ms: duration,
-    });
+      updateScenarioExecution(currentExecutionId, {
+        status: overallStatus,
+        duration_ms: scenarioDuration,
+        error_message: errorMessage,
+        finished_at: finishedAt,
+      });
+    }
 
-    updateScenarioExecution(currentExecutionId, {
-      status: overallStatus,
-      duration_ms: duration,
-      error_message: errorMessage,
-      finished_at: finishedAt,
-    });
-
-    return { overallStatus, errorMessage, duration };
+    return { overallStatus, errorMessage, duration: scenarioDuration };
   };
 
   // Execute once per param row, first is batch leader

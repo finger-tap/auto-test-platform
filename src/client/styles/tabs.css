@@ -1,28 +1,74 @@
-/* ── Unified Tab System ── */
+/* ── Unified Tab System ──
+   2026-08-28 视觉升级: 容器化 + 图标槽位 + 动效 + 窄屏滚动。
+   所有详情页(Api/Web/Pc/Mobile/Mock/Environment)共用本文件。 */
 
 .tab-nav {
   display: flex;
+  align-items: center;
+  gap: 0.125rem;
   border-bottom: 1px solid var(--border);
-  padding: 0 1.5rem;
+  padding: 0.375rem 1rem 0;
   background: var(--surface);
+  /* 窄屏: tab 过多时横向滚动而非挤压换行 */
+  overflow-x: auto;
+  scrollbar-width: none;
+  /* 吸顶: 长表单滚动时 tab 常驻可见 */
+  position: sticky;
+  top: 0;
+  z-index: 10;
 }
+.tab-nav::-webkit-scrollbar { display: none; }
 
 .tab-btn {
-  padding: 0.375rem 1.25rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.5rem 0.875rem;
   background: none;
   border: none;
   border-bottom: 2px solid transparent;
   font-size: 0.8125rem;
-  color: var(--fg-secondary);
+  color: var(--fg-tertiary);
   cursor: pointer;
-  transition: all 0.2s;
+  transition: color 0.15s ease, border-color 0.15s ease;
   margin-bottom: -1px;
+  white-space: nowrap;
+  border-radius: 0.375rem 0.375rem 0 0;
 }
-.tab-btn:hover { color: var(--fg); }
+.tab-btn:hover { color: var(--fg); background: var(--border-subtle); }
 .tab-btn.active {
   color: var(--accent);
   border-bottom-color: var(--accent);
   font-weight: 600;
+}
+
+/* tab 内小图标 (16px 线性, 继承文字色 — active 时自动变主题色) */
+.tab-btn .tab-icon {
+  width: 0.9375rem;
+  height: 0.9375rem;
+  flex-shrink: 0;
+  opacity: 0.85;
+}
+.tab-btn.active .tab-icon { opacity: 1; }
+
+/* tab 计数徽章 (如 执行记录 N) */
+.tab-btn .tab-count {
+  min-width: 1.125rem;
+  height: 1.125rem;
+  padding: 0 0.3125rem;
+  border-radius: 9999px;
+  background: var(--border-subtle);
+  color: var(--fg-secondary);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: inherit;
+}
+.tab-btn.active .tab-count {
+  background: var(--accent-subtle);
+  color: var(--accent);
 }
 
 .tab-body {
@@ -37,7 +83,7 @@
 .tab-content-wrapper {
   min-height: 200px;
   padding: 0.7rem;
-  animation: fadeIn 0.15s ease;
+  animation: tabFadeIn 0.18s ease;
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -50,4 +96,9 @@
 }
 .tab-content-flush .ad-section:last-child {
   margin-bottom: 0;
+}
+
+@keyframes tabFadeIn {
+  from { opacity: 0; transform: translateY(2px); }
+  to { opacity: 1; transform: translateY(0); }
 }

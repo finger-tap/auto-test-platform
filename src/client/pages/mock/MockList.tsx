@@ -1,10 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { apiFetch } from '../../utils/api';
+import { apiFetch, is2xx } from '../../utils/api';
 import { formatDateTime } from '../../utils/datetime';
 import notification from '../../utils/notification';
 import FormSelect from '../../components/FormSelect';
+import PageSizeSelect from '../../components/PageSizeSelect';
 import './MockList.css';
+import { useViewportPageSize } from '../../hooks/useViewportPageSize';
 
 interface MockEndpoint {
   id: number;
@@ -30,7 +32,12 @@ export default function MockList() {
   const [mocks, setMocks] = useState<MockEndpoint[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  // 每页行数自适应视口: 按表格容器真实高度算, 保证表格恰好填满一屏不滚动;
+  // 用户在分页条手动选择条数后以手动值为准。
+  const [autoPageSize, tableWrapRef] = useViewportPageSize();
+  const [userPageSize, setUserPageSize] = useState<number | null>(null);
+  const pageSize = userPageSize ?? autoPageSize;
+  const setPageSize = setUserPageSize;
   const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
 
@@ -46,24 +53,29 @@ export default function MockList() {
   const [appliedEnabled, setAppliedEnabled] = useState('');
   const [appliedStatusCode, setAppliedStatusCode] = useState('');
 
+  const fetchSeq = useRef(0);
   const fetchMocks = async (pageNum = 1, pageSz = pageSize) => {
+    // 竞态守卫: 仅最新一次请求的响应可以落地(StrictMode/行数校准都会并发重拉)
+    const seq = ++fetchSeq.current;
     setLoading(true);
     try {
       const res = await apiFetch<{ items: MockEndpoint[]; total: number; totalPages: number }>(
         `${mocksPath}?page=${pageNum}&pageSize=${pageSz}`
       );
-      if (res.code === 200 && res.data) {
+      if (seq !== fetchSeq.current) return;
+      if (is2xx(res.code) && res.data) {
         setMocks(res.data.items);
         setTotal(res.data.total);
         setTotalPages(res.data.totalPages);
         setPage(pageNum);
       }
     } finally {
-      setLoading(false);
+      if (seq === fetchSeq.current) setLoading(false);
     }
   };
 
-  useEffect(() => { fetchMocks(); }, []);
+  // 每页条数变化(视口自适应/手动选择)时刷新; 首次挂载也由此 effect 拉取
+  useEffect(() => { fetchMocks(page, pageSize); }, [pageSize]);
 
   async function doDelete(id: number, name: string) {
     const ok = await notification.confirm(`确认删除 Mock「${name}」？`);
@@ -173,19 +185,19 @@ export default function MockList() {
         </div>
       ) : (
         <>
-          <div className="alist-table-wrap">
+          <div className="alist-table-wrap" ref={tableWrapRef}>
             <table className="alist-table">
               <thead>
                 <tr>
-                  <th style={{ width: 72 }}>状态</th>
-                  <th>名称</th>
+                  <th style={{ width: 76 }}>状态</th>
+                  <th style={{ width: 200 }}>名称</th>
                   <th style={{ width: 72 }}>方法</th>
                   <th>路径</th>
-                  <th style={{ width: 70 }}>状态码</th>
+                  <th style={{ width: 72 }}>状态码</th>
                   <th style={{ width: 72 }}>延迟</th>
-                  <th style={{ width: 56 }}>命中</th>
-                  <th style={{ width: 148 }}>更新时间</th>
-                  <th style={{ width: 120 }}></th>
+                  <th style={{ width: 58 }}>命中</th>
+                  <th style={{ width: 152 }}>更新时间</th>
+                  <th style={{ width: 124 }}></th>
                 </tr>
               </thead>
               <tbody>
@@ -201,13 +213,13 @@ export default function MockList() {
                         {m.enabled ? '启用' : '禁用'}
                       </button>
                     </td>
-                    <td className="alist-name-col mock-name">{m.name}</td>
+                    <td className="alist-name-col mock-name td-name" title={m.name}>{m.name}</td>
                     <td>
                       <span className="mock-method-badge" style={{ background: METHOD_COLORS[m.method] || '#999', color: '#fff' }}>
                         {m.method}
                       </span>
                     </td>
-                    <td className="mock-path">{m.path_pattern}</td>
+                    <td className="mock-path td-ellipsis" title={m.path_pattern}>{m.path_pattern}</td>
                     <td className={m.response_status >= 400 ? 'mock-status-error' : ''}>{m.response_status}</td>
                     <td>{m.response_delay_ms > 0 ? `${m.response_delay_ms}ms` : '—'}</td>
                     <td>{m.hit_count}</td>
@@ -228,7 +240,7 @@ export default function MockList() {
             <button className="btn btn-sm" disabled={page <= 1} onClick={() => handlePageChange(page - 1)}>上一页</button>
             <span className="page-info">{page} / {totalPages}</span>
             <button className="btn btn-sm" disabled={page >= totalPages} onClick={() => handlePageChange(page + 1)}>下一页</button>
-            <FormSelect value={String(pageSize)} options={[{value:"10",label:"10条/页"},{value:"20",label:"20条/页"},{value:"50",label:"50条/页"}]} onChange={val => fetchMocks(1, Number(val))} />
+            <PageSizeSelect autoSize={autoPageSize} value={pageSize} onChange={n => { setPageSize(n); setPage(1); }} />
           </div>
         </>
       )}

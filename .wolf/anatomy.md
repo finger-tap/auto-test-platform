@@ -104,6 +104,7 @@
 
 - `.gitignore` — Git ignore rules (~31 tok)
 - `.nvmrc` (~1 tok)
+- `.env.example` - 配置模板(DB_URL/TEAM_JWT_SECRET 占位符,入库;真实值只放 .env) (~260 tok)
 - `check-step-158.cjs` — Declares Database (~344 tok)
 - `check-steps.cjs` — Declares Database (~249 tok)
 - `CLAUDE.md` — OpenWolf (~57 tok)
@@ -166,6 +167,9 @@
 - `dev.mjs` — API routes: GET (1 endpoints) (~216 tok)
 - `diag-ssh.mjs` — 2026-06-27: SSH 连接诊断脚本。 (~443 tok)
 - `install-playwright-drivers.mjs` — Install Playwright browser drivers into ./drivers/ so the platform ships (~432 tok)
+- `setup-git-hooks.mjs` — postinstall 时设置 core.hooksPath=githooks,启用 pre-commit 密钥拦截 (~120 tok)
+- `team-db-init.ts` — npm run db:init 一键建库+迁移+列表(读 .env,幂等,末尾 closeTeamDb) (~330 tok)
+- `githooks/pre-commit` — pre-commit 钩子:拒绝提交 .env* 密钥文件(仅放行 .env.example) (~200 tok)
 - `OPERATION_MANUAL.md` — Auto Test Platform - 操作手册 (~2804 tok)
 - `verify-avatar.ts` — Verifies avatar magic-bytes detection (~1268 tok)
 - `verify-sandbox.mjs` — Standalone smoke test for the VM sandbox (Phase 1.1 fix) (~2078 tok)
@@ -287,6 +291,7 @@
 - `Auth.css` — Styles: 35 rules (~1163 tok)
 - `ChangePassword.tsx` — ChangePassword — renders form (~796 tok)
 - `ForgotPassword.tsx` — ForgotPassword — renders form (~1157 tok)
+- `JoinPage.tsx` — /join/:code 邀请链接落地页: 未登录先 bounce /login(state.from), 无凭据弹 Connect, 有凭据直接兑换入队(2026-08-22) (~500 tok)
 - `Home.css` — Styles: 81 rules, 2 vars (~2687 tok)
 - `Home.tsx` — AutoTest Platform mark — content inlined from public/brand/autotest-mark-currentColor.svg (~5335 tok)
 - `Login.tsx` — AutoTest Platform brand mark — inlined from public/brand/autotest-favicon.svg (~1024 tok)
@@ -450,6 +455,7 @@
 ## src/server/
 
 - `index.ts` — CRITICAL: PLAYWRIGHT_BROWSERS_PATH must be set BEFORE any module that (~1761 tok)
+- `env.ts` — 第一顺位 import,加载 .env(不覆盖已导出变量); 使 npm run start 与 dev 同源 (~150 tok)
 - `midscene-reports-static.ts` — Phase 5 (refreshed 2026-06-06): dynamic /midscene-reports/* static serving. (~2225 tok)
 - `mock-proxy.ts` — Mock Proxy Middleware (~1443 tok)
 
@@ -617,6 +623,7 @@
 
 - `drizzle.config.ts` — drizzle-kit 配置(mysql/TiDB, schema 路径, out=./drizzle) (~80 tok)
 - `drizzle/0000_busy_banshee.sql` — 初始迁移: center_users/teams/team_members/projects/resource_versions/presence (~250 tok)
+- `drizzle/0004_add_env_databases.sql` — t_environments 补 databases 列(团队环境数据库配置, 本地镜像表漏了此列) (~20 tok)
 - `docs/TEAM_COLLABORATION_PLAN.md` — 团队协作持久化任务清单(断点恢复锚点) (~1800 tok)
 - `scripts/team-smoke.ts` — 团队路由最小冒烟(bare express, 5 checks, npm run team:smoke) (~900 tok)
 - `src/server/auth/team-jwt.ts` — 中心 JWT 独立 secret(TEAM_JWT_SECRET), 生产+DB_URL 才强校验 (~400 tok)
@@ -630,6 +637,7 @@
 - `src/server/routes/team-auth.ts` — /team/auth/{register,login,me} + ping + teamAuthMiddleware(req.teamUser) (~950 tok)
 - `src/server/routes/team-org.ts` — teams/members/projects REST + TeamApiError→JSON (~1500 tok)
 - `src/client/components/ConnectTeamModal.tsx` + css — 连接向导(ping 探测→登录/注册→凭据复用) (~2400+300 tok)
+- `RedeemInviteModal.tsx` + `.css` — 邀请码/邀请链接兑换弹窗, 支持链接自动解析中心地址+onNeedConnect 链(2026-08-22) (~700 tok)
 - `src/client/components/WorkspaceSwitcher.tsx` + css — 顶栏工作区切换器(个人/团队/项目二级) (~2300+1100 tok)
 - `src/client/components/TeamOrgModal.tsx` — 新建团队/项目小弹窗 (~700 tok)
 - `src/client/contexts/WorkspaceContext.tsx` — workspace 镜像 localStorage 状态+团队/项目列表加载 (~1400 tok)

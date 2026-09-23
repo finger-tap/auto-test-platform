@@ -11,6 +11,29 @@
   gap: 8px;
 }
 
+/* 空态副标题提示 */
+.alist-empty-hint {
+  font-size: 12px;
+  color: var(--fg-tertiary);
+}
+
+/* 空态创建按钮 — 各列表页空态共用 (2026-08-31 从 MockList.css 迁入;
+   原先定义在页面 CSS 里全局生效, 属于共享样式错放) */
+.sset-btn-create {
+  background: var(--primary);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.sset-btn-create:hover {
+  background: var(--accent-hover);
+}
+
 .loading-spinner {
   width: 20px;
   height: 20px;

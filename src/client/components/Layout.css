@@ -249,8 +249,11 @@
   display: flex;
   align-items: center;
   gap: 5px;
-  padding: 4px 10px;
-  border-radius: 999px;
+  /* 2026-08-31: 胶囊(999px)改方形圆角, 与旁边主题按钮(32px 方角)统一;
+     高度对齐后顶栏视觉一致 */
+  height: 32px;
+  padding: 0 12px;
+  border-radius: var(--radius-sm);
   border: 1px solid var(--border);
   font-size: 12px;
   color: var(--fg-secondary);

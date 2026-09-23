@@ -27,11 +27,19 @@ interface MockRecord {
 }
 
 function matchPath(pattern: string, urlPath: string): boolean {
-  const regexStr = pattern
-    .replace(/:[^/]+/g, '[^/]+')
-    .replace(/\//g, '\\/');
-  const regex = new RegExp(`^${regexStr}$`);
-  return regex.test(urlPath);
+  // 2026-08-25: 先整体转义正则元字符再做 :param 替换 — 用户 pattern 直接
+  // 构造 RegExp 时, 一个非法模式(如 "/users(+)")会让每个非 /api/ 请求都
+  // 抛 SyntaxError, 整个前端 500。此处返回 false(不匹配)而非放异常。
+  try {
+    const escaped = pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const regexStr = escaped
+      .replace(/:[^/]+/g, '[^/]+')
+      .replace(/\//g, '\\/');
+    const regex = new RegExp(`^${regexStr}$`);
+    return regex.test(urlPath);
+  } catch {
+    return false;
+  }
 }
 
 function matchMethod(mockMethod: string, reqMethod: string): boolean {

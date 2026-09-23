@@ -1,0 +1,26 @@
+/* Redeem invite modal - compact single-input dialog */
+
+.rim-modal {
+  max-width: 420px;
+}
+
+.rim-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 20px;
+}
+
+.rim-hint {
+  font-size: 13px;
+  color: var(--fg-tertiary, #6b7280);
+  line-height: 1.6;
+}
+
+.rim-code-input {
+  font-size: 16px;
+  letter-spacing: 2px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  text-align: center;
+  text-transform: uppercase;
+}

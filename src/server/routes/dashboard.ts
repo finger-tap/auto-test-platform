@@ -255,10 +255,15 @@ dashboardRoutes.get('/trend', (req: Request, res: Response) => {
   // ── 1. 单用例执行 ──
   // api_executions 用 started_at (ISO 'T' 分隔); web/pc/mobile 用 created_at
   const singleCaseSql = [
-    `SELECT CASE WHEN status='success' THEN 1 ELSE 0 END AS is_success,
-            CASE WHEN status IN ('failed','error') THEN 1 ELSE 0 END AS is_failure,
+    // api_executions 没有 user_id 列 — JOIN apis 过滤, 否则趋势图会把
+    // 其他用户的执行统计进来 (2026-08-27: 新账号首页看到他人数据的根因)
+    // 注意 apis 表也有 status 列 — 必须用 e.status 限定, 否则 ambiguous column
+    `SELECT CASE WHEN e.status='success' THEN 1 ELSE 0 END AS is_success,
+            CASE WHEN e.status IN ('failed','error') THEN 1 ELSE 0 END AS is_failure,
             started_at AS ts
-     FROM api_executions WHERE status NOT IN ('running')`,
+     FROM api_executions e
+     JOIN apis a ON a.id = e.api_id
+     WHERE a.user_id = ? AND e.status NOT IN ('running')`,
     `SELECT CASE WHEN status='success' THEN 1 ELSE 0 END AS is_success,
             CASE WHEN status IN ('failed','error') THEN 1 ELSE 0 END AS is_failure,
             created_at AS ts
@@ -341,10 +346,10 @@ dashboardRoutes.get('/trend', (req: Request, res: Response) => {
                   GROUP BY day
                   ORDER BY day`;
 
-  // 参数顺序: singleCase(userId×3) + setExec(userId×4) = 7 params
+  // 参数顺序: singleCase(userId×4: api JOIN apis + web + mobile + pc) + setExec(userId×4) = 8 params
   const rows = db
     .prepare(allSql)
-    .all(userId, userId, userId, userId, userId, userId, userId) as {
+    .all(userId, userId, userId, userId, userId, userId, userId, userId) as {
     day: string;
     passed: number;
     failed: number;

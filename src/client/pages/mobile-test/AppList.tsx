@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import CollapsibleFilter, { FilterItem } from '../../components/CollapsibleFilter';
 import FormSelect from '../../components/FormSelect';
-import { apiFetch } from '../../utils/api';
+import { apiFetch, is2xx } from '../../utils/api';
 import notification from '../../utils/notification';
 import type { MobileApp, MobileAppVersion } from '../../types';
 import '../api-test/ApiList.css';
@@ -51,7 +51,7 @@ export default function AppList() {
   const load = async () => {
     setLoading(true);
     const res = await apiFetch<MobileApp[]>('/mobile-apps');
-    if (res.code === 200 && res.data) setApps(res.data);
+    if (is2xx(res.code) && res.data) setApps(res.data);
     setLoading(false);
   };
 
@@ -82,7 +82,7 @@ export default function AppList() {
     const ok = await notification.confirm(`确认删除应用「${app.name}」？所有版本文件将被清除。`);
     if (!ok) return;
     const res = await apiFetch(`/mobile-apps/${app.id}`, { method: 'DELETE' });
-    if (res.code === 200) {
+    if (is2xx(res.code)) {
       notification.success('删除成功');
       load();
     } else {
@@ -96,7 +96,7 @@ export default function AppList() {
       method: 'POST',
       body: JSON.stringify({ name: newName.trim(), platform: newPlatform, package_name: newPackageName || undefined }),
     });
-    if (res.code === 200 && res.data) {
+    if (is2xx(res.code) && res.data) {
       setShowCreate(false);
       setNewName(''); setNewPlatform('android'); setNewPackageName('');
       navigate(`/mobile-test/apps/${(res.data as any).id}`);
@@ -141,13 +141,13 @@ export default function AppList() {
         <table className="alist-table">
           <thead>
             <tr>
-              <th>应用名称</th>
-              <th>平台</th>
+              <th style={{ width: 210 }}>应用名称</th>
+              <th style={{ width: 84 }}>平台</th>
               <th>包名</th>
-              <th>最新版本</th>
-              <th>版本数</th>
-              <th>创建时间</th>
-              <th>操作</th>
+              <th style={{ width: 104 }}>最新版本</th>
+              <th style={{ width: 72 }}>版本数</th>
+              <th style={{ width: 152 }}>创建时间</th>
+              <th style={{ width: 96 }}>操作</th>
             </tr>
           </thead>
           <tbody>
@@ -157,9 +157,9 @@ export default function AppList() {
               <tr><td colSpan={7} className="alist-empty">暂无应用</td></tr>
             ) : filtered.map(app => (
               <tr key={app.id} className="alist-row" onClick={() => navigate(`/mobile-test/apps/${app.id}`)}>
-                <td className="alist-cell-name">{app.name}</td>
+                <td className="alist-cell-name" title={app.name}>{app.name}</td>
                 <td><span className={`app-platform-badge app-platform-${app.platform}`}>{PLATFORM_LABELS[app.platform] || app.platform}</span></td>
-                <td className="alist-cell-mono">{app.package_name || '-'}</td>
+                <td className="alist-cell-mono" title={app.package_name || undefined}>{app.package_name || '-'}</td>
                 <td>{app.latest_version || '-'}</td>
                 <td>{getVersionCount(app)}</td>
                 <td className="alist-cell-time">{app.created_at?.slice(0, 16)}</td>

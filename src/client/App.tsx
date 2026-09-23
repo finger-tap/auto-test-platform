@@ -9,6 +9,7 @@ import Layout from './components/Layout';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import ForgotPassword from './pages/ForgotPassword';
+import JoinPage from './pages/JoinPage';
 import Home from './pages/Home';
 import ApiTestHome from './pages/ApiTestHome';
 import ApiList from './pages/api-test/ApiList';
@@ -49,6 +50,8 @@ function App() {
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
+            {/* 邀请链接落地页：无需本地登录也能进来，页内自行引导 */}
+            <Route path="/join/:code" element={<JoinPage />} />
             <Route element={<ProtectedRoute />}>
               {/* 项目首页：带背景 + 测试类型弹窗 */}
               <Route element={<HomeLayout />}>

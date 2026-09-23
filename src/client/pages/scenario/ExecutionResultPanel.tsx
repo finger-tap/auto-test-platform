@@ -3,6 +3,7 @@ import ThemedCodeMirror from '../../components/ThemedCodeMirror';
 import { json } from '@codemirror/lang-json';
 import type { Node, Edge } from '@xyflow/react';
 import type { ScenarioLog, NodeExecutionResult } from '../../types';
+import DiagnosisCard from '../../components/DiagnosisCard';
 
 interface Props {
   log: ScenarioLog;
@@ -211,7 +212,7 @@ function NodeResultCard({ node, result, expanded, onToggle }: {
 
           {!hasExtract && !hasAssertions && (
             <div className="scenario-exec-field">
-              <div style={{ fontSize: 12, color: '#ccc', textAlign: 'center', padding: '8px 0' }}>暂无提取或断言</div>
+              <div style={{ fontSize: 12, color: 'var(--fg-tertiary)', textAlign: 'center', padding: '8px 0' }}>暂无提取或断言</div>
             </div>
           )}
 
@@ -361,6 +362,7 @@ export default function ExecutionResultPanel({ log, nodes, edges, title, onClose
 
       {log.error_message && (
         <div style={{ padding: '12px 0' }}>
+          <DiagnosisCard input={{ status: log.status, errorMessage: log.error_message, kind: 'scenario' }} />
           <div className="scenario-exec-field">
             <label>错误信息</label>
             <span className="scenario-exec-error">{log.error_message}</span>

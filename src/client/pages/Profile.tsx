@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, type FormEvent } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { apiFetch, getToken, setUserInfo } from '../utils/api';
+import { apiFetch, getToken, setUserInfo, is2xx } from '../utils/api';
 import notification from '../utils/notification';
 import type { UserInfo } from '../types';
 import './Profile.css';
@@ -51,7 +51,7 @@ export default function Profile() {
           headers: { Authorization: `Bearer ${token}` },
         });
         const data = await res.json();
-        if (data.code === 200 && data.data) {
+        if (is2xx(data.code) && data.data) {
           updateUser(data.data);
           setAvatarPreview(data.data.avatar || '');
           setAvatarFile(null);
@@ -64,7 +64,7 @@ export default function Profile() {
         method: 'PUT',
         body: JSON.stringify({ nickname: nickname.trim() || null, email: email.trim() || null, phone: phone.trim() || null }),
       });
-      if (res.code === 200 && res.data) {
+      if (is2xx(res.code) && res.data) {
         updateUser(res.data);
         notification.success('保存成功');
       } else {

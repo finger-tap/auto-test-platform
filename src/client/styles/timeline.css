@@ -209,3 +209,29 @@
 
 .scenario-exec-true { color: var(--success); font-weight: 600; }
 .scenario-exec-false { color: var(--danger); font-weight: 600; }
+
+/* ── 2026-08-29: 步骤按真实执行状态着色 — 失败场景不再"一片绿" ── */
+.step-status-error.step-error .step-dot,
+.step-status-error .step-dot { background: var(--danger); }
+.step-status-error .step-type-badge { background: var(--danger-subtle); color: var(--danger); }
+
+.step-status-failed .step-dot { background: var(--warning); }
+.step-status-failed .step-type-badge { background: var(--warning-subtle); color: var(--warning); }
+
+.step-fail-flag {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--danger);
+  background: var(--danger-subtle);
+  padding: 1px 8px;
+  border-radius: 9999px;
+  white-space: nowrap;
+}
+
+/* running 执行中(进行中的场景) */
+.step-status-running .step-dot { background: var(--accent); animation: stepPulse 1.2s ease-in-out infinite; }
+.step-status-running .step-type-badge { background: var(--accent-subtle); color: var(--accent); }
+@keyframes stepPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}

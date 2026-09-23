@@ -63,6 +63,10 @@ export default function MobileTestHome() {
 
   return (
     <div className="dashboard-home page-enter">
+      <div className="dashboard-page-head">
+        <div className="dashboard-page-title">移动端测试</div>
+        <div className="dashboard-page-sub">Android / iOS App 自动化测试管理</div>
+      </div>
       <div className="dashboard-cards">
         {statCards.map((c, i) => (
           <div key={i} className="dashboard-stat-card">

@@ -223,6 +223,7 @@ export const tEnvironments = mysqlTable('t_environments', {
   ssl_cert: text('ssl_cert'),
   ssl_key: text('ssl_key'),
   ssl_certs: text('ssl_certs').notNull(),
+  databases: text('databases'),
   timeout: int('timeout').default(30000),
   sort_order: int('sort_order').default(0),
   is_default: int('is_default').default(0),

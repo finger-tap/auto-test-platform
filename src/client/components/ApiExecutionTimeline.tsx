@@ -2,6 +2,7 @@ import { useState } from 'react';
 import ThemedCodeMirror from './ThemedCodeMirror';
 import { json } from '@codemirror/lang-json';
 import type { ApiExecutionStep, ApiExecution, AssertionResult } from '../types';
+import DiagnosisCard from './DiagnosisCard';
 
 const LOG_TYPE_LABELS: Record<string, string> = {
   start: '开始',
@@ -40,8 +41,35 @@ const statusLabel = (status: string) => {
 const tryParseJson = (text: string | null | Record<string, unknown>): Record<string, unknown> | null => {
   if (!text) return null;
   if (typeof text === 'object') return text;
-  try { return JSON.parse(text); } catch { return null; }
+  try {
+    // 存量执行记录的 log_data 存在双重 JSON 转义(写入侧 2026-08-30 已修) —
+    // parse 一次若得到的仍是字符串则再 parse 一层
+    let parsed: unknown = JSON.parse(text);
+    if (typeof parsed === 'string') parsed = JSON.parse(parsed);
+    return typeof parsed === 'object' && parsed !== null ? (parsed as Record<string, unknown>) : null;
+  } catch { return null; }
 };
+
+/** 从 error 步骤的 log_data 提取 cause 链文本 — 历史记录的 error_message
+ *  可能只有 "fetch failed" 外壳, 特征在 cause 里 (2026-08-30) */
+function extractErrorCause(steps: ApiExecutionStep[]): string | null {
+  for (const st of steps) {
+    if (st.log_type !== 'error') continue;
+    const d = tryParseJson(st.log_data as unknown as string);
+    if (d && typeof d.cause === 'string') return d.cause;
+  }
+  return null;
+}
+
+/** 从步骤 log_data 中提取主体请求的 URL(变量替换后的实际地址) */
+function extractRequestUrl(steps: ApiExecutionStep[]): string | null {
+  for (const st of steps) {
+    if (st.log_type !== 'main_action') continue;
+    const d = tryParseJson(st.log_data as unknown as string);
+    if (d && typeof d.url === 'string') return d.url;
+  }
+  return null;
+}
 
 const tryFormatJson = (text: string | null) => {
   if (!text) return '';
@@ -91,6 +119,20 @@ export default function ApiExecutionTimeline({ execution, steps, assertionResult
           </div>
         )}
       </div>
+
+      {(execution.status === 'failed' || execution.status === 'error') && (
+        <DiagnosisCard
+          input={{
+            status: execution.status,
+            statusCode: execution.status_code ?? null,
+            errorMessage: execution.error_message ?? null,
+            cause: extractErrorCause(steps),
+            requestUrl: extractRequestUrl(steps),
+            requestHeaders: typeof execution.request_headers === 'string' ? execution.request_headers : JSON.stringify(execution.request_headers ?? {}),
+            kind: 'api',
+          }}
+        />
+      )}
 
       <div className="api-exec-steps">
         {steps.map((step, idx) => {

@@ -28,6 +28,8 @@ export interface MidsceneConfigRow {
   model_reasoning_enabled: number | null;
   model_reasoning_effort: string | null;
   model_reasoning_budget: number | null;
+  // 2026-09-01: Midscene v1.12 structured-response strategy ('auto'/'none').
+  model_response_format: string | null;
   insight_model_name: string | null;
   insight_model_api_key: string | null;
   insight_model_base_url: string | null;
@@ -43,6 +45,7 @@ export interface MidsceneConfigRow {
   insight_model_reasoning_enabled: number | null;
   insight_model_reasoning_effort: string | null;
   insight_model_reasoning_budget: number | null;
+  insight_model_response_format: string | null;
   planning_model_name: string | null;
   planning_model_api_key: string | null;
   planning_model_base_url: string | null;
@@ -58,7 +61,13 @@ export interface MidsceneConfigRow {
   planning_model_reasoning_enabled: number | null;
   planning_model_reasoning_effort: string | null;
   planning_model_reasoning_budget: number | null;
+  planning_model_response_format: string | null;
   preferred_language: string | null;
+  // 2026-09-01: Midscene v1.12 global flags. record_model_call: 1 = write
+  // model request/response/chunks to a local JSONL (debug). null = off.
+  // android_screenshot_strategy: 'auto' | 'always-yadb', null = default('auto').
+  record_model_call: number | null;
+  android_screenshot_strategy: string | null;
   // 2026-06-06: absolute filesystem path to a directory where this user's
   // Midscene execution reports should be written. null = use the server's
   // default REPORTS_ROOT (data/midscene-reports). Edited via MidsceneConfig
@@ -94,6 +103,7 @@ export interface MidsceneConfigUpdate {
   model_reasoning_enabled?: number | null;
   model_reasoning_effort?: string | null;
   model_reasoning_budget?: number | null;
+  model_response_format?: string | null;
   insight_model_name?: string | null;
   insight_model_api_key?: string | null;
   insight_model_base_url?: string | null;
@@ -109,6 +119,7 @@ export interface MidsceneConfigUpdate {
   insight_model_reasoning_enabled?: number | null;
   insight_model_reasoning_effort?: string | null;
   insight_model_reasoning_budget?: number | null;
+  insight_model_response_format?: string | null;
   planning_model_name?: string | null;
   planning_model_api_key?: string | null;
   planning_model_base_url?: string | null;
@@ -124,7 +135,10 @@ export interface MidsceneConfigUpdate {
   planning_model_reasoning_enabled?: number | null;
   planning_model_reasoning_effort?: string | null;
   planning_model_reasoning_budget?: number | null;
+  planning_model_response_format?: string | null;
   preferred_language?: string | null;
+  record_model_call?: number | null;
+  android_screenshot_strategy?: string | null;
   report_storage_path?: string | null;
   replanning_cycle_limit?: number | null;
   wait_after_action?: number | null;
@@ -145,15 +159,19 @@ export function upsertMidsceneConfig(userId: number, data: MidsceneConfigUpdate)
         model_retry_count, model_retry_interval, model_http_proxy, model_socks_proxy,
         model_extra_body_json, model_init_config_json,
         model_reasoning_enabled, model_reasoning_effort, model_reasoning_budget,
+        model_response_format,
         insight_model_name, insight_model_api_key, insight_model_base_url, insight_model_family, insight_model_timeout, insight_model_temperature,
         insight_model_retry_count, insight_model_retry_interval, insight_model_http_proxy, insight_model_socks_proxy,
         insight_model_extra_body_json, insight_model_init_config_json,
         insight_model_reasoning_enabled, insight_model_reasoning_effort, insight_model_reasoning_budget,
+        insight_model_response_format,
         planning_model_name, planning_model_api_key, planning_model_base_url, planning_model_family, planning_model_timeout, planning_model_temperature,
         planning_model_retry_count, planning_model_retry_interval, planning_model_http_proxy, planning_model_socks_proxy,
         planning_model_extra_body_json, planning_model_init_config_json,
         planning_model_reasoning_enabled, planning_model_reasoning_effort, planning_model_reasoning_budget,
+        planning_model_response_format,
         preferred_language,
+        record_model_call, android_screenshot_strategy,
         report_storage_path,
         replanning_cycle_limit, wait_after_action, screenshot_shrink_factor,
         created_at, updated_at
@@ -163,15 +181,19 @@ export function upsertMidsceneConfig(userId: number, data: MidsceneConfigUpdate)
         ?, ?, ?, ?,
         ?, ?,
         ?, ?, ?,
-        ?, ?, ?, ?, ?, ?,
-        ?, ?, ?, ?,
-        ?, ?,
-        ?, ?, ?,
+        ?,
         ?, ?, ?, ?, ?, ?,
         ?, ?, ?, ?,
         ?, ?,
         ?, ?, ?,
         ?,
+        ?, ?, ?, ?, ?, ?,
+        ?, ?, ?, ?,
+        ?, ?,
+        ?, ?, ?,
+        ?,
+        ?,
+        ?, ?,
         ?,
         ?, ?, ?,
         datetime('now', '+8 hours'), datetime('now', '+8 hours')
@@ -193,6 +215,7 @@ export function upsertMidsceneConfig(userId: number, data: MidsceneConfigUpdate)
       data.model_reasoning_enabled ?? null,
       data.model_reasoning_effort ?? null,
       data.model_reasoning_budget ?? null,
+      data.model_response_format ?? null,
       data.insight_model_name ?? null,
       data.insight_model_api_key ?? null,
       data.insight_model_base_url ?? null,
@@ -208,6 +231,7 @@ export function upsertMidsceneConfig(userId: number, data: MidsceneConfigUpdate)
       data.insight_model_reasoning_enabled ?? null,
       data.insight_model_reasoning_effort ?? null,
       data.insight_model_reasoning_budget ?? null,
+      data.insight_model_response_format ?? null,
       data.planning_model_name ?? null,
       data.planning_model_api_key ?? null,
       data.planning_model_base_url ?? null,
@@ -223,7 +247,10 @@ export function upsertMidsceneConfig(userId: number, data: MidsceneConfigUpdate)
       data.planning_model_reasoning_enabled ?? null,
       data.planning_model_reasoning_effort ?? null,
       data.planning_model_reasoning_budget ?? null,
+      data.planning_model_response_format ?? null,
       data.preferred_language ?? null,
+      data.record_model_call ?? null,
+      data.android_screenshot_strategy ?? null,
       data.report_storage_path ?? null,
       data.replanning_cycle_limit ?? null,
       data.wait_after_action ?? null,

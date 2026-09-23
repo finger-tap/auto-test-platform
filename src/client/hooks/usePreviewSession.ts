@@ -10,7 +10,7 @@
 // 关闭组件或 unmount 时自动 stop
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { apiFetch, getToken } from '../utils/api';
+import { apiFetch, getToken, is2xx } from '../utils/api';
 import type { PreviewSession, PreviewKind } from '../types';
 
 export interface UsePreviewSessionInput {
@@ -108,8 +108,17 @@ export function usePreviewSession(input: UsePreviewSessionInput): UsePreviewSess
             caseExecutionId: input.caseExecutionId,
           }),
         });
-        if (cancelled) return;
-        if (res.code !== 200 || !res.data) {
+        if (cancelled) {
+          // start 已在 server 端建了会话 — 补一个 stop, 否则它持续拉帧直到 GC
+          if (res.data?.sessionId) {
+            void apiFetch(`/mobile/preview/stop`, {
+              method: 'POST',
+              body: JSON.stringify({ sessionId: res.data.sessionId }),
+            }).catch(() => {});
+          }
+          return;
+        }
+        if (!is2xx(res.code) || !res.data) {
           setState({ kind: 'error', message: res.message || '启动预览失败' });
           return;
         }

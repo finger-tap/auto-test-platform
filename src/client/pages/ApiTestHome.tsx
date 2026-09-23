@@ -61,7 +61,7 @@ export default function ApiTestHome() {
     { label: '用例数', value: loading ? '-' : stats.apiCount, color: 'var(--accent)' },
     { label: '场景数', value: loading ? '-' : stats.scenarioCount, color: 'var(--accent)' },
     { label: '场景集数', value: loading ? '-' : stats.scenarioSetCount, color: 'var(--accent)' },
-    { label: '通过率', value: loading ? '-' : `${stats.passRate}%`, color: stats.passRate >= 90 ? 'var(--success)' : stats.passRate > 0 ? 'var(--warning)' : 'var(--fg-tertiary)' },
+    { label: '通过率', value: loading ? '-' : `${Number(stats.passRate).toFixed(2)}%`, color: stats.passRate >= 90 ? 'var(--success)' : stats.passRate > 0 ? 'var(--warning)' : 'var(--fg-tertiary)' },
   ];
 
   const quickActions = [
@@ -73,6 +73,10 @@ export default function ApiTestHome() {
 
   return (
     <div className="dashboard-home page-enter">
+      <div className="dashboard-page-head">
+        <div className="dashboard-page-title">接口测试</div>
+        <div className="dashboard-page-sub">API 接口自动化测试管理</div>
+      </div>
       <div className="dashboard-cards">
         {statCards.map((c, i) => (
           <div key={i} className="dashboard-stat-card">

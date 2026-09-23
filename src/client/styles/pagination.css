@@ -4,8 +4,18 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 12px 16px;
-  border-top: 1px solid var(--border-subtle);
+  padding: 8px 16px;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+/* 2026-08-31 列表页连体卡片组: 分页条是尾段 — 左右/下边框 + 下圆角,
+   上边框就是与表格区的分隔线(表格区已去底边框, 全组单层 1px)。 */
+.alist .alist-pagination,
+.mock-list-root .alist-pagination {
+  border: 1px solid var(--border);
+  border-radius: 0 0 var(--radius-md) var(--radius-md);
 }
 .page-info {
   font-size: 12px;

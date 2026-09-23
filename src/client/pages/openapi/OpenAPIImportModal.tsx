@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { apiFetch } from '../../utils/api';
+import { apiFetch, is2xx } from '../../utils/api';
 import type { ApiResponse, ParseResult } from '../../types';
 
 interface Props {
@@ -43,7 +43,7 @@ export default function OpenAPIImportModal({ onImported }: Props) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url: urlInput.trim() }),
       }) as ApiResponse<ParseResult>;
-      if (res.code !== 200) throw new Error(res.message);
+      if (!is2xx(res.code)) throw new Error(res.message);
       setResult(res.data!);
       setSelected(new Set());
     } catch (err) {
@@ -65,7 +65,7 @@ export default function OpenAPIImportModal({ onImported }: Props) {
         method: 'POST',
         body: formData,
       }) as ApiResponse<ParseResult>;
-      if (res.code !== 200) throw new Error(res.message);
+      if (!is2xx(res.code)) throw new Error(res.message);
       setResult(res.data!);
       setSelected(new Set());
     } catch (err) {
@@ -103,7 +103,7 @@ export default function OpenAPIImportModal({ onImported }: Props) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ apis: toImport }),
       }) as ApiResponse<{ count: number; ids: number[] }>;
-      if (res.code !== 201) throw new Error(res.message);
+      if (!is2xx(res.code)) throw new Error(res.message);
       setImportResult(`成功导入 ${res.data!.count} 个接口`);
       setTimeout(() => {
         closeModal();

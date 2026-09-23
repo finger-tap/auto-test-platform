@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import MidsceneReportViewer from '../MidsceneReportViewer';
+import DiagnosisCard from '../DiagnosisCard';
 
 export interface ExecRecord {
   id: number;
@@ -106,7 +107,7 @@ function LogRow({ rec, selected, expanded, onClick }: { rec: ExecRecord; selecte
       >
         <td>{rec.time}</td>
         <td>
-          <span className={`status-badge web-status-${rec.status}`}>
+          <span className={`st-badge st-${rec.status}`}>
             {statusLabel}
           </span>
           {rec.status === 'error' && rec.errorMessage && (
@@ -126,6 +127,7 @@ function LogRow({ rec, selected, expanded, onClick }: { rec: ExecRecord; selecte
       {expanded && rec.errorMessage && (
         <tr className="log-error-detail-row">
           <td colSpan={5}>
+            <DiagnosisCard input={{ status: rec.status, errorMessage: rec.errorMessage }} />
             <div className="log-error-detail">
               <svg className="log-error-detail-icon" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="8" cy="8" r="6.25"/><path d="M8 5v3.5M8 10.5v.5"/></svg>
               <span className="log-error-detail-text">{rec.errorMessage}</span>

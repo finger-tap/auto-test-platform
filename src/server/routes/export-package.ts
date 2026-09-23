@@ -28,6 +28,12 @@ function byId(sql: string, ...params: unknown[]): Row | undefined {
   return db.prepare(sql).get(...params) as Row | undefined;
 }
 
+/** Old local DBs may predate newer tables (e.g. mock_endpoints_web) - never
+ *  crash the preview/build flow on them, just treat as empty. (2026-08-23) */
+function tableExists(t: string): boolean {
+  return !!db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name=?").get(t);
+}
+
 /** scenario node configs reference apis via {"apiId": n} — scan all nodes. */
 function scenarioApiDeps(scenarioId: number): number[] {
   const nodes = all('SELECT config FROM scenario_nodes WHERE scenario_id = ?', scenarioId);
@@ -80,11 +86,14 @@ function stripRow(row: Row): Row {
 
 // ── preview ────────────────────────────────────────────────────────────────
 
-exportPackageRoutes.get('/preview', (req: Request, res: Response) => {
-  const userId = req.user!.userId;
+/** Resource tree for a local user (2026-08-23: extracted so the team-sync
+ *  bridge can preview ANOTHER local account's data server-side). */
+export function previewForUser(userId: number) {
   const pick = (table: string, extra = '') =>
-    all(`SELECT id, name FROM ${table} WHERE user_id = ? ${extra} ORDER BY id`, userId)
-      .map((r) => ({ id: Number(r.id), name: String(r.name ?? '') }));
+    tableExists(table)
+      ? all(`SELECT id, name FROM ${table} WHERE user_id = ? ${extra} ORDER BY id`, userId)
+          .map((r) => ({ id: Number(r.id), name: String(r.name ?? '') }))
+      : [];
 
   const scenarios = all('SELECT id, name FROM scenarios WHERE user_id = ? ORDER BY id', userId)
     .map((r) => ({
@@ -108,35 +117,38 @@ exportPackageRoutes.get('/preview', (req: Request, res: Response) => {
         deps: parseIds(r.test_case_ids as string).length,
       }));
 
-  res.json({
-    code: 200,
-    message: 'ok',
-    data: {
-      apis: pick('apis'),
-      scenarios,
-      scenario_sets: sets,
-      web_cases: pick('web_test_cases'),
-      pc_cases: pick('pc_test_cases'),
-      mobile_cases: pick('mobile_test_cases'),
-      case_sets_web: caseSet('web'),
-      case_sets_pc: caseSet('pc'),
-      case_sets_mobile: caseSet('mobile'),
-      environments: pick('environments'),
-      mocks_api: pick('mock_endpoints_api'),
-      mocks_web: pick('mock_endpoints_web'),
-      mocks_pc: pick('mock_endpoints_pc'),
-      mocks_mobile: pick('mock_endpoints_mobile'),
-    },
-  });
+  return {
+    apis: pick('apis'),
+    scenarios,
+    scenario_sets: sets,
+    web_cases: pick('web_test_cases'),
+    pc_cases: pick('pc_test_cases'),
+    mobile_cases: pick('mobile_test_cases'),
+    case_sets_web: caseSet('web'),
+    case_sets_pc: caseSet('pc'),
+    case_sets_mobile: caseSet('mobile'),
+    environments: pick('environments'),
+    mocks_api: pick('mock_endpoints_api'),
+    mocks_web: pick('mock_endpoints_web'),
+    mocks_pc: pick('mock_endpoints_pc'),
+    mocks_mobile: pick('mock_endpoints_mobile'),
+  };
+}
+
+exportPackageRoutes.get('/preview', (req: Request, res: Response) => {
+  res.json({ code: 200, message: 'ok', data: previewForUser(req.user!.userId) });
 });
 
 // ── build ──────────────────────────────────────────────────────────────────
 
-exportPackageRoutes.post('/build', (req: Request, res: Response) => {
-  const userId = req.user!.userId;
-  const selections = (req.body ?? {}) as Record<string, number[] | undefined>;
-  const includeSecrets = Boolean((req.body as Record<string, unknown>)?.includeSecrets);
-
+/** Build an .atpkg package for a local user with dependency closure
+ *  (2026-08-23: extracted for the team-sync bridge). */
+export function buildPackageForUser(
+  userId: number,
+  account: string,
+  selections: Record<string, number[] | undefined>,
+  includeSecrets: boolean,
+) {
   const selected: Record<string, Set<number>> = {};
   for (const [k, v] of Object.entries(selections)) {
     if (k === 'includeSecrets') continue;
@@ -167,7 +179,7 @@ exportPackageRoutes.post('/build', (req: Request, res: Response) => {
     format: 'autotest-package',
     version: 1,
     exportedAt: new Date().toISOString(),
-    source: { mode: 'local', account: req.user!.account },
+    source: { mode: 'local', account },
     resources: {} as Record<string, Array<{ id: number; name: string; row: Row; depOf?: Array<{ type: string; id: number }> }>>,
   };
 
@@ -182,6 +194,8 @@ exportPackageRoutes.post('/build', (req: Request, res: Response) => {
 
   const load = (pkgType: string, sql: string, ids: number[]) => {
     if (ids.length === 0) return;
+    const tableName = sql.match(/FROM\s+(\w+)/i)?.[1] ?? '';
+    if (tableName && !tableExists(tableName)) return;
     const items = ids.map((id) => {
       const raw = byId(sql, id, userId);
       if (!raw) return null;
@@ -235,5 +249,12 @@ exportPackageRoutes.post('/build', (req: Request, res: Response) => {
     }
   }
 
+  return pkg;
+}
+
+exportPackageRoutes.post('/build', (req: Request, res: Response) => {
+  const selections = (req.body ?? {}) as Record<string, number[] | undefined>;
+  const includeSecrets = Boolean((req.body as Record<string, unknown>)?.includeSecrets);
+  const pkg = buildPackageForUser(req.user!.userId, req.user!.account, selections, includeSecrets);
   res.json({ code: 200, message: 'ok', data: pkg });
 });

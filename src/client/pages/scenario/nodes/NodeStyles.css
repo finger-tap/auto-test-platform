@@ -5,9 +5,17 @@
   border-radius: 8px;
   padding: 0;
   min-width: 160px;
+  /* 2026-08-28: 上限防超长用例名把节点撑到画布外 */
+  max-width: 260px;
   font-size: 12px;
   box-shadow: var(--shadow-md);
   transition: all 0.15s;
+}
+.flow-node .flow-node-title,
+.flow-node [class*="title"] {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .flow-node:hover {

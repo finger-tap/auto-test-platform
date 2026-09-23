@@ -32,9 +32,22 @@ export interface ScheduleSetItem extends ScheduleSetRow {
 export function findScheduleSetsByUserIdPaginated(
   userId: number,
   page: number,
-  pageSize: number
+  pageSize: number,
+  filter?: { name?: string; status?: string; creator?: string }
 ): { items: ScheduleSetItem[]; total: number; page: number; pageSize: number } {
   const offset = (page - 1) * pageSize;
+
+  // 2026-08-25: 服务端过滤(名称/状态/创建人) — 此前前端只过滤当前页,
+  // 目标数据在其他页时永远搜不到
+  const conds: string[] = ['rs.user_id = ?'];
+  const params: unknown[] = [userId];
+  if (filter?.name) { conds.push('rs.name LIKE ?'); params.push(`%${filter.name}%`); }
+  if (filter?.status) {
+    if (filter.status === 'none') conds.push('ss.id IS NULL');
+    else { conds.push('ss.status = ?'); params.push(filter.status); }
+  }
+  if (filter?.creator) { conds.push('(COALESCE(u.nickname, u.account) LIKE ?)'); params.push(`%${filter.creator}%`); }
+  const where = conds.join(' AND ');
 
   const rows = db.prepare(`
     SELECT
@@ -55,14 +68,18 @@ export function findScheduleSetsByUserIdPaginated(
     FROM case_sets_web rs
     JOIN users u ON u.id = rs.user_id
     LEFT JOIN schedule_sets_web ss ON ss.case_set_id = rs.id
-    WHERE rs.user_id = ?
+    WHERE ${where}
     ORDER BY rs.updated_at DESC
     LIMIT ? OFFSET ?
-  `).all(userId, pageSize, offset);
+  `).all(...params, pageSize, offset);
 
-  const { count } = db.prepare(
-    'SELECT COUNT(*) AS count FROM case_sets_web WHERE user_id = ?'
-  ).get(userId) as { count: number };
+  // count 必须带同样的 JOIN/WHERE, 否则分页总数与过滤结果不一致
+  const { count } = db.prepare(`
+    SELECT COUNT(*) AS count FROM case_sets_web rs
+    JOIN users u ON u.id = rs.user_id
+    LEFT JOIN schedule_sets_web ss ON ss.case_set_id = rs.id
+    WHERE ${where}
+  `).get(...params) as { count: number };
 
   const items = (rows as Record<string, unknown>[]).map((row) => {
     let cnt = 0;

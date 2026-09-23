@@ -1,7 +1,7 @@
 // 2026-06-11: 用户配置 Drawer — 右侧滑出,只覆盖 body 区域。
 // 从 SettingsLayout 提取,改为 SysHeader 内触发的弹窗。
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Profile from '../pages/Profile';
 import ChangePassword from '../pages/ChangePassword';
 import DeviceList from '../pages/system/DeviceList';
@@ -65,6 +65,16 @@ export interface SettingsDrawerProps {
 
 export default function SettingsDrawer({ open, onClose }: SettingsDrawerProps) {
   const [activePage, setActivePage] = useState<PageKey>('profile');
+
+  // Esc 关闭 — 商业软件所有浮层的标准交互 (2026-08-27)
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [open, onClose]);
 
   const renderPage = () => {
     switch (activePage) {

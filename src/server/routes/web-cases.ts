@@ -241,11 +241,22 @@ webCaseRoutes.post('/:id/execute', async (req: Request, res: Response) => {
   // Phase 2: write a normalized web_case_executions row first so we can
   // store the Midscene report path even on error.
   const startedAt = new Date().toISOString();
-  const execId = createWebCaseExecution(webCase.id, req.user!.userId, {
-    started_at: startedAt,
-    executed_by: executedBy,
-    device_id: deviceId,
-  });
+  // busy 检查与 INSERT 之间存在 TOCTOU 窗口 — 撞 partial UNIQUE INDEX 时
+  // 返回 409 而不是让异常冲出 async handler (Express 4 会挂起请求)
+  let execId: number;
+  try {
+    execId = createWebCaseExecution(webCase.id, req.user!.userId, {
+      started_at: startedAt,
+      executed_by: executedBy,
+      device_id: deviceId,
+    });
+  } catch (err) {
+    if (String(err).includes('UNIQUE constraint failed')) {
+      res.status(409).json({ code: 409, message: '该设备正在执行其他任务，请稍后再试' });
+      return;
+    }
+    throw err;
+  }
 
   // Environment variable substitution: load env vars from the selected environment.
   let envVars: Record<string, string> | undefined;
@@ -291,6 +302,7 @@ webCaseRoutes.post('/:id/execute', async (req: Request, res: Response) => {
     report_path: result.report_path || null,
     report_type: result.report_path ? 'midscene-html' : null,
     error_message: result.error_message || null,
+    error_stack: result.error_stack || null,
   });
 
   // Backward-compat: also keep web_case_logs writable (UI shows legacy logs)

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import FormSelect from '../../components/FormSelect';
-import { apiFetch } from '../../utils/api';
+import { apiFetch, is2xx } from '../../utils/api';
 import notification from '../../utils/notification';
 import './DeviceList.css';
 
@@ -137,7 +137,7 @@ export default function DeviceList() {
     if (keyword.trim()) params.set('keyword', keyword.trim());
     const qs = params.toString();
     apiFetch<{ items: DeviceRow[] }>(`/devices${qs ? '?' + qs : ''}`).then(res => {
-      if (res.code === 200 && res.data) {
+      if (is2xx(res.code) && res.data) {
         setDevices(res.data.items);
       } else {
         setDevices([]);
@@ -209,7 +209,7 @@ export default function DeviceList() {
   const fetchPushProgress = async (deviceId: number) => {
     try {
       const res = await apiFetch<PushProgressState | null>(`/devices/${deviceId}/push-progress`);
-      if (res.code === 200) {
+      if (is2xx(res.code)) {
         setPushProgress(prev => ({ ...prev, [deviceId]: res.data ?? null }));
       }
     } catch (err) {
@@ -315,7 +315,7 @@ export default function DeviceList() {
           method: 'PUT',
           body: JSON.stringify(payload),
         });
-        if (res.code === 200) {
+        if (is2xx(res.code)) {
           if (canPushOnSave) {
             const endpoint = pushEndpointFor(form.test_type);
             const agentLabel = agentLabelFor(form.test_type);
@@ -353,7 +353,7 @@ export default function DeviceList() {
           method: 'POST',
           body: JSON.stringify(payload),
         });
-        if (res.code === 201) {
+        if (is2xx(res.code)) {
           const createdId = res.data?.id;
           if (canPushOnSave && createdId) {
             const endpoint = pushEndpointFor(form.test_type);
@@ -400,7 +400,7 @@ export default function DeviceList() {
     if (!ok) return;
     try {
       const res = await apiFetch<{ changes: number }>(`/devices/${device.id}`, { method: 'DELETE' });
-      if (res.code === 200) {
+      if (is2xx(res.code)) {
         notification.success('设备已删除');
         fetchDevices();
       } else {
@@ -457,7 +457,7 @@ export default function DeviceList() {
         `/devices/${device.id}/${endpoint}`,
         { method: 'POST' }
       );
-      if (res.code === 200) {
+      if (is2xx(res.code)) {
         notification.success(
           `上线成功: v${res.data?.version} (${(res.data?.bytes_uploaded ?? 0) / 1024 / 1024 | 0}MB, ${((res.data?.took_ms ?? 0) / 1000).toFixed(1)}s)`
         );
@@ -503,7 +503,7 @@ export default function DeviceList() {
     setStoppingId(device.id);
     try {
       const res = await apiFetch<unknown>(`/devices/${device.id}/${endpoint}`, { method: 'POST' });
-      if (res.code === 200) {
+      if (is2xx(res.code)) {
         notification.success('已下线');
         fetchDevices();
       } else {

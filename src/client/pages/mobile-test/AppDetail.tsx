@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import FormSelect from '../../components/FormSelect';
 import DevicePickerModal, { type PickerDevice } from '../../components/DevicePickerModal';
-import { apiFetch } from '../../utils/api';
+import { apiFetch, is2xx } from '../../utils/api';
 import notification from '../../utils/notification';
 import type { MobileApp, MobileAppVersion } from '../../types';
 import './AppDetail.css';
@@ -56,7 +56,7 @@ export default function AppDetail() {
     if (isNew) return;
     setLoading(true);
     apiFetch<MobileApp>(`/mobile-apps/${id}`).then(res => {
-      if (res.code === 200 && res.data) {
+      if (is2xx(res.code) && res.data) {
         const app = res.data;
         setName(app.name);
         setPlatform(app.platform);
@@ -78,7 +78,7 @@ export default function AppDetail() {
       ? await apiFetch('/mobile-apps', { method: 'POST', body: JSON.stringify(body) })
       : await apiFetch(`/mobile-apps/${id}`, { method: 'PUT', body: JSON.stringify(body) });
     setSaving(false);
-    if (res.code === 200) {
+    if (is2xx(res.code)) {
       if (isNew && res.data) {
         navigate(`/mobile-test/apps/${(res.data as any).id}`, { replace: true });
       }
@@ -106,13 +106,13 @@ export default function AppDetail() {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       const data = await res.json();
-      if (data.code === 200) {
+      if (is2xx(data.code)) {
         notification.success('上传成功');
         setUploadFile(null); setUploadVersion(''); setUploadChangelog('');
         if (fileInputRef.current) fileInputRef.current.value = '';
         // Reload
         const refresh = await apiFetch<MobileApp>(`/mobile-apps/${id}`);
-        if (refresh.code === 200 && refresh.data) {
+        if (is2xx(refresh.code) && refresh.data) {
           try { setVersions(JSON.parse(refresh.data.versions)); } catch {}
           setLatestVersion(refresh.data.latest_version);
         }
@@ -131,7 +131,7 @@ export default function AppDetail() {
     const ok = await notification.confirm(`确认删除版本 v${version}？安装包文件将被清除。`);
     if (!ok) return;
     const res = await apiFetch(`/mobile-apps/${id}/versions/${encodeURIComponent(version)}`, { method: 'DELETE' });
-    if (res.code === 200) {
+    if (is2xx(res.code)) {
       notification.success('删除成功');
       setVersions(prev => prev.filter(v => v.version !== version));
     } else {
@@ -150,7 +150,7 @@ export default function AppDetail() {
         method: 'POST',
         body: JSON.stringify({ deviceId: device.id, version }),
       });
-      if (res.code === 200) {
+      if (is2xx(res.code)) {
         notification.success(`已安装到 ${device.name}`);
       } else {
         notification.error(res.message || '安装失败');
@@ -297,7 +297,7 @@ export default function AppDetail() {
                 method: 'POST',
                 body: JSON.stringify({ version }),
               });
-              if (res.code === 200) notification.success('本地安装成功');
+              if (is2xx(res.code)) notification.success('本地安装成功');
               else notification.error(res.message || '安装失败');
             } catch { notification.error('安装失败'); }
             finally { setInstalling(false); }

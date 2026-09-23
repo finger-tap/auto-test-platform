@@ -8,9 +8,10 @@
 // mobile 必须选设备，没有本机选项
 
 import { useEffect, useState, useCallback } from 'react';
-import { apiFetch } from '../utils/api';
+import { apiFetch, is2xx } from '../utils/api';
 import notification from '../utils/notification';
 import './DevicePickerModal.css';
+import { useModalKeyboard } from '../hooks/useModalKeyboard';
 
 // ── 设备数据类型 ──
 
@@ -65,6 +66,8 @@ export default function DevicePickerModal({
   onSelect,
   onLocalExecute,
 }: DevicePickerModalProps) {
+  // Esc 关闭统一 (2026-08-27)
+  useModalKeyboard(open, onClose);
   const [items, setItems] = useState<PickerDevice[]>([]);
   const [loading, setLoading] = useState(false);
   const [keyword, setKeyword] = useState('');
@@ -79,7 +82,7 @@ export default function DevicePickerModal({
     setLoading(true);
     try {
       const res = await apiFetch<{ items: PickerDevice[] }>(`/devices/merged?test_type=${testType}`);
-      if (res.code === 200 && res.data) {
+      if (is2xx(res.code) && res.data) {
         setItems(res.data.items);
       } else {
         notification.error(res.message || '获取设备列表失败');
@@ -97,7 +100,7 @@ export default function DevicePickerModal({
     setLoadingMobile(true);
     try {
       const res = await apiFetch<MobileDeviceFromAgent[]>(`/devices/${agentId}/mobile-devices`);
-      if (res.code === 200 && res.data) {
+      if (is2xx(res.code) && res.data) {
         setMobileDevices(res.data);
       } else {
         notification.error(res.message || '获取手机列表失败');
@@ -116,7 +119,7 @@ export default function DevicePickerModal({
     setLoadingMobile(true);
     try {
       const res = await apiFetch<MobileDeviceFromAgent[]>('/devices/local-mobile-devices');
-      if (res.code === 200 && res.data) {
+      if (is2xx(res.code) && res.data) {
         setMobileDevices(res.data);
       } else {
         notification.error(res.message || '获取本地手机列表失败');

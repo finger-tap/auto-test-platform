@@ -185,3 +185,19 @@
     grid-template-columns: repeat(2, 1fr);
   }
 }
+
+/* ── 2026-08-28: 页面标题头 — 四类型仪表盘统一 (此前直接从统计卡开始, 缺页面标题) ── */
+.dashboard-page-head {
+  margin-bottom: 1.25rem;
+}
+.dashboard-page-title {
+  font-size: 1.375rem;
+  font-weight: 700;
+  color: var(--fg);
+  letter-spacing: 0.01em;
+}
+.dashboard-page-sub {
+  margin-top: 0.25rem;
+  font-size: 0.8125rem;
+  color: var(--fg-tertiary);
+}

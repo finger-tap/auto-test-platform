@@ -60,9 +60,11 @@ function withEnvMutex<T>(fn: () => Promise<T>): Promise<T> {
 
 export interface StepResult {
   action: string;
-  status: 'success' | 'failed' | 'skipped';
+  status: 'success' | 'failed' | 'skipped' | 'error';
   duration_ms: number;
   error?: string;
+  /** 异常堆栈 — 执行中止时随步骤记录 (2026-08-28) */
+  stack?: string;
   screenshot?: string;
 }
 
@@ -72,6 +74,8 @@ export interface ExecuteResult {
   steps: StepResult[];
   screenshots: string[];
   error_message?: string;
+  /** 2026-08-28: 异常堆栈随执行结果返回, 由路由层写入执行历史 */
+  error_stack?: string;
   report_path?: string;
 }
 
@@ -604,17 +608,33 @@ export async function executeMobileTest(
     };
   } catch (err) {
     // 异常路径: agent 可能是 null(初始化就失败),也可能是 try 中途崩了;
-    // 只有 agent 存在才尝试复制报告
+    // 只有 agent 存在才尝试复制报告。
+    // 2026-08-28: 与 api-executor 对齐 — 堆栈打印控制台, 并随 error_message
+    // 一起写入执行历史, 供事后排查(用户报告 ANDROID_HOME 类环境异常只闪在
+    // 控制台、历史里查不到)。
+    // 注意措辞: 这里的异常会被转换为结构化 error 返回(HTTP 200 + data.status=error)。
+    // 若上层用例的检查点期待 error(负向用例), 场景仍会成功 — 这不是故障。
+    console.error(`[executor:mobile] ⚠️ case=${testCase.id} 执行中止(已转换为结构化 error 返回; 若检查点期待 error 则属预期通过):`, err);
     if (finalReportPath && agent?.reportFile) {
       const copied = await copyMidsceneReport(agent.reportFile, finalReportPath);
       if (copied) reportPath = copied;
     }
+    const errMsg = err instanceof Error ? err.message : 'Unknown error';
+    const stack = err instanceof Error ? err.stack : undefined;
+    results.push({
+      action: '[异常] 执行中止(检查点未执行)',
+      status: 'error',
+      duration_ms: Date.now() - globalStart,
+      error: errMsg,
+      stack,
+    });
     return {
       status: 'error',
       duration_ms: Date.now() - globalStart,
       steps: results,
       screenshots,
-      error_message: err instanceof Error ? err.message : 'Unknown error',
+      error_message: errMsg,
+      error_stack: stack,
       report_path: reportPath,
     };
   } finally {

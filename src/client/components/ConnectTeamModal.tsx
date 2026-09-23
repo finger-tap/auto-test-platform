@@ -3,9 +3,12 @@ import {
   normalizeCenterUrl,
   setTeamAuth,
   getTeamAuth,
+  getLastCenterUrl,
   type TeamAuth,
 } from '../utils/teamAuth';
+import type { TeamCreatePolicy } from '../types/team';
 import type { TeamPingResult, TeamUserInfo } from '../types/team';
+import { is2xx } from '../utils/api';
 import './ConnectTeamModal.css';
 
 /**
@@ -28,10 +31,18 @@ type PingState =
 interface Props {
   onClose: () => void;
   onConnected: (auth: TeamAuth, centerUrl: string) => void;
+  /** Pre-filled center URL (invite-link flow) - user can still edit. */
+  initialUrl?: string;
 }
 
-export default function ConnectTeamModal({ onClose, onConnected }: Props) {
-  const [urlInput, setUrlInput] = useState('');
+export default function ConnectTeamModal({ onClose, onConnected, initialUrl }: Props) {
+  const [urlInput, setUrlInput] = useState(() => {
+    if (initialUrl) return initialUrl;
+    // Prefill: last connected center > the site the app is served from
+    // (single-deployment model: this origin IS the center - nobody types
+    // an address anymore).
+    return getLastCenterUrl() || window.location.origin;
+  });
   const [ping, setPing] = useState<PingState>({ status: 'idle' });
   const [tab, setTab] = useState<'login' | 'register'>('login');
   const [account, setAccount] = useState('');
@@ -61,7 +72,7 @@ export default function ConnectTeamModal({ onClose, onConnected }: Props) {
       const body = (await res.json().catch(() => null)) as
         | { code?: number; data?: TeamPingResult }
         | null;
-      if (!res.ok || !body || body.code !== 200 || !body.data) {
+      if (!res.ok || !body || !is2xx(body.code) || !body.data) {
         throw new Error('该地址不是有效的中心服务');
       }
       if (!body.data.teamDbConfigured || !body.data.teamReady) {
@@ -95,13 +106,17 @@ export default function ConnectTeamModal({ onClose, onConnected }: Props) {
         body: JSON.stringify(payload),
       });
       const body = (await res.json().catch(() => null)) as
-        | { code?: number; message?: string; data?: { token?: string; user?: TeamUserInfo } }
+        | { code?: number; message?: string; data?: { token?: string; user?: TeamUserInfo; createPolicy?: TeamCreatePolicy } }
         | null;
 
       if (!res.ok || !body || !body.data?.token || !body.data.user) {
         throw new Error(body?.message || '操作失败');
       }
-      const auth: TeamAuth = { token: body.data.token, user: body.data.user };
+      const auth: TeamAuth = {
+        token: body.data.token,
+        user: body.data.user,
+        createPolicy: body.data.createPolicy,
+      };
       setTeamAuth(url, auth);
       onConnected(auth, url);
     } catch (e) {
